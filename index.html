@@ -161,32 +161,11 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 <!-- ── Main Content Area ── -->
 <div class="main-area">
 
-<!-- PAGE: 시작 (로그인 / 가입) -->
-<div class="pg on" id="pg-start">
-  <div class="ph">
-    <div class="ptitle">시작하기</div>
-    <div class="psub">로그인하거나 가입 신청을 해주세요</div>
-  </div>
-  <div class="role-grid">
-    <div class="role-card" onclick="showPg('pg-login')">
-      <div class="ico">🔐</div>
-      <div class="lbl">로그인</div>
-      <div class="desc">기존 계정으로 접속</div>
-    </div>
-    <div class="role-card" onclick="showPg('pg-register')">
-      <div class="ico">📝</div>
-      <div class="lbl">가입 신청</div>
-      <div class="desc">새 계정 만들기</div>
-    </div>
-  </div>
-</div>
-
-<!-- PAGE: 로그인 -->
-<div class="pg" id="pg-login">
-  <button class="back-btn" onclick="showPg('pg-start')">← 뒤로</button>
-  <div class="ph">
-    <div class="ptitle">로그인</div>
-    <div class="psub">전화번호와 비밀번호를 입력해주세요</div>
+<!-- PAGE: 로그인 (메인 화면) -->
+<div class="pg on" id="pg-login">
+  <div style="text-align:center;padding:32px 0 28px">
+    <div style="font-size:15px;font-weight:700;letter-spacing:2px;color:var(--t1)">DM INTERNATIONAL</div>
+    <div style="font-size:11px;color:var(--t3);margin-top:4px;letter-spacing:0.5px">통합 본사 시스템</div>
   </div>
   <div class="form-group">
     <label class="form-label">전화번호</label>
@@ -198,11 +177,18 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
   </div>
   <div id="login-error" class="form-error" style="margin-bottom:12px;display:none"></div>
   <button class="btn btn-primary" onclick="doLogin()">로그인</button>
+  <div style="margin-top:32px;text-align:center">
+    <div style="font-size:13px;color:var(--t3);margin-bottom:12px">아직 계정이 없으신가요?</div>
+    <button class="btn btn-secondary" onclick="showPg('pg-register')" style="margin-bottom:10px">가입 신청</button>
+    <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid var(--bd)">
+      <span style="font-size:12px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="showPg('pg-admin-login')">본사 관리자 로그인</span>
+    </div>
+  </div>
 </div>
 
 <!-- PAGE: 가입 신청 -->
 <div class="pg" id="pg-register">
-  <button class="back-btn" onclick="showPg('pg-start')">← 뒤로</button>
+  <button class="back-btn" onclick="showPg('pg-login')">← 뒤로</button>
   <div class="ph">
     <div class="ptitle">가입 신청</div>
     <div class="psub">본사 관리자 승인 후 로그인이 가능합니다</div>
@@ -294,13 +280,13 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
       가입 신청이 완료되었습니다.<br>
       본사 관리자 승인 후 로그인이 가능합니다.
     </div>
-    <button class="btn btn-secondary" style="margin-top:20px;max-width:200px;margin-left:auto;margin-right:auto" onclick="showPg('pg-start')">처음으로</button>
+    <button class="btn btn-secondary" style="margin-top:20px;max-width:200px;margin-left:auto;margin-right:auto" onclick="showPg('pg-login')">로그인으로</button>
   </div>
 </div>
 
 <!-- PAGE: 본사 관리자 로그인 -->
 <div class="pg" id="pg-admin-login">
-  <button class="back-btn" onclick="showPg('pg-start')">← 뒤로</button>
+  <button class="back-btn" onclick="showPg('pg-login')">← 뒤로</button>
   <div class="ph">
     <div class="ptitle">본사 관리자</div>
     <div class="psub">관리자 비밀번호를 입력해주세요</div>
@@ -791,7 +777,7 @@ function doLogout(){
   currentUser=null;
   isAdmin=false;
   localStorage.removeItem('dm_current_user');
-  showPg('pg-start');
+  showPg('pg-login');
   toast('로그아웃 되었습니다');
 }
 
@@ -827,19 +813,7 @@ function formatDate(iso){
   }
 })();
 
-// ── Override start page to include admin access ──
-(function(){
-  var startPg=document.getElementById('pg-start');
-  var grid=startPg.querySelector('.role-grid');
-  // Add admin card
-  var adminCard=document.createElement('div');
-  adminCard.className='role-card';
-  adminCard.onclick=function(){showPg('pg-admin-login')};
-  adminCard.innerHTML='<div class="ico">🏢</div><div class="lbl">본사 관리자</div><div class="desc">DM INTERNATIONAL</div>';
-  grid.appendChild(adminCard);
-  // Make 3-column on start
-  grid.style.gridTemplateColumns='1fr 1fr 1fr';
-})();
+// pg-start 제거됨 — 로그인이 메인 화면
 </script>
 </body>
 </html>
