@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>DM INTERNATIONAL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f5f7;--bg2:#fff;--bg3:#f0f0f2;
+  --t1:#1a1a1a;--t2:#555;--t3:#999;
+  --bd:#e5e5e7;--bd2:#d1d1d6;
+  --ac:#1a1a1a;--ac2:#007AFF;
+  --green:#34C759;--red:#FF3B30;--orange:#FF9500;--yellow:#FFCC00;
+  --r1:16px;--r2:12px;--r3:10px;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--t1);-webkit-font-smoothing:antialiased}
+input,select,textarea,button{font-family:inherit;font-size:inherit}
+
+/* ── Layout ── */
+.wrap{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative}
+.topbar{background:var(--bg2);border-bottom:0.5px solid var(--bd);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-size:13px;font-weight:700;letter-spacing:1.5px;color:var(--t1)}
+.logosub{font-size:10px;color:var(--t3);margin-top:1px;letter-spacing:0.3px}
+.topright{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:6px}
+.conn-badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600}
+.conn-on{background:#d4edda;color:#155724}
+.conn-off{background:#f8d7da;color:#721c24}
+
+/* ── Pages ── */
+.pg{display:none;padding:20px;animation:fadeIn .3s}
+.pg.on{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.ph{margin-bottom:24px}
+.ptitle{font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-0.3px}
+.psub{font-size:13px;color:var(--t3);margin-top:4px}
+
+/* ── Cards / Buttons ── */
+.card{background:var(--bg2);border:0.5px solid var(--bd);border-radius:var(--r1);padding:20px;margin-bottom:12px}
+.card-title{font-size:15px;font-weight:600;margin-bottom:12px;color:var(--t1)}
+
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:var(--r2);font-size:15px;font-weight:600;cursor:pointer;text-align:center;transition:all .2s}
+.btn-primary{background:var(--ac);color:#fff}
+.btn-primary:active{background:#333}
+.btn-secondary{background:var(--bg3);color:var(--t1);border:0.5px solid var(--bd)}
+.btn-secondary:active{background:#e5e5e7}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:active{background:#d32f2f}
+.btn-success{background:var(--green);color:#fff}
+.btn-success:active{background:#2da94e}
+.btn-small{padding:8px 16px;font-size:13px;width:auto;display:inline-block;border-radius:8px}
+.btn-outline{background:transparent;border:1px solid var(--bd2);color:var(--t1)}
+
+/* ── Form ── */
+.form-group{margin-bottom:16px}
+.form-label{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px;display:block;letter-spacing:0.2px}
+.form-input{width:100%;padding:12px 14px;border:0.5px solid var(--bd);border-radius:var(--r3);font-size:15px;background:var(--bg2);color:var(--t1);outline:none;transition:border-color .2s}
+.form-input:focus{border-color:var(--ac2)}
+.form-input::placeholder{color:var(--t3)}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23999'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.form-hint{font-size:11px;color:var(--t3);margin-top:4px}
+.form-error{font-size:11px;color:var(--red);margin-top:4px}
+
+/* ── Role Select Grid ── */
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.role-card{background:var(--bg2);border:0.5px solid var(--bd);border-radius:var(--r1);padding:24px 14px;text-align:center;cursor:pointer;transition:all .15s}
+.role-card:active{transform:scale(.97);border-color:var(--ac)}
+.role-card .ico{font-size:28px;margin-bottom:8px}
+.role-card .lbl{font-size:14px;font-weight:600;color:var(--t1)}
+.role-card .desc{font-size:11px;color:var(--t3);margin-top:3px}
+
+/* ── List Items ── */
+.list-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg2);border:0.5px solid var(--bd);border-radius:var(--r2);margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.list-item:active{border-color:var(--ac)}
+.list-left{flex:1}
+.list-name{font-size:14px;font-weight:500;color:var(--t1)}
+.list-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.list-right{color:var(--t3);font-size:14px}
+
+/* ── Badge ── */
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px}
+.badge-pending{background:#fff3cd;color:#856404}
+.badge-approved{background:#d4edda;color:#155724}
+.badge-rejected{background:#f8d7da;color:#721c24}
+.badge-dm{background:#1a1a1a;color:#fff}
+.badge-etoh{background:#854F0B;color:#fff}
+
+/* ── Empty State ── */
+.empty{text-align:center;padding:48px 20px;color:var(--t3)}
+.empty-ico{font-size:36px;margin-bottom:12px}
+.empty-txt{font-size:14px;line-height:1.6}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:12px 24px;border-radius:24px;font-size:13px;font-weight:500;z-index:999;display:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+
+/* ── Divider ── */
+.divider{height:0.5px;background:var(--bd);margin:16px 0}
+
+/* ── Tab Bar ── */
+.tab-bar{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--bg2);border-top:0.5px solid var(--bd);padding:8px 16px;z-index:100}
+.tab-inner{display:grid;gap:4px}
+.tab-btn{background:none;border:none;padding:8px 4px;font-size:11px;color:var(--t3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .2s}
+.tab-btn.on{color:var(--ac)}
+.tab-ico{font-size:18px}
+
+/* ── Modal/Overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.overlay.on{display:flex}
+.modal{background:var(--bg2);border-radius:var(--r1) var(--r1) 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:24px 20px 40px;animation:slideUp .3s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--bd2);border-radius:2px;margin:0 auto 20px}
+
+/* ── Back button ── */
+.back-btn{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--ac2);cursor:pointer;margin-bottom:16px;background:none;border:none;padding:0}
+.back-btn:active{opacity:.6}
+
+/* ── Approval action row ── */
+.action-row{display:flex;gap:8px;margin-top:12px}
+
+/* ── Scrollable area for tab content ── */
+.main-area{padding-bottom:80px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ── Firebase Setup Overlay (닫기 불가) ── -->
+<div class="overlay on" id="ov-setup" style="cursor:default">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin-bottom:20px">
+    <div style="font-size:28px;margin-bottom:8px">🔥</div>
+    <div style="font-size:18px;font-weight:700">실시간 연동 설정</div>
+    <div style="font-size:12px;color:var(--t3);margin-top:4px">Firebase를 연결해야 시스템을 사용할 수 있습니다</div>
+  </div>
+  <div class="card" style="background:var(--bg);font-size:12px;color:var(--t2);line-height:1.8">
+    <b>1.</b> <a href="https://console.firebase.google.com" target="_blank" style="color:var(--ac2)">console.firebase.google.com</a> → 프로젝트 추가<br>
+    <b>2.</b> Realtime Database → 만들기 → 테스트 모드<br>
+    <b>3.</b> URL 복사 후 아래에 입력
+  </div>
+  <div class="form-group">
+    <input class="form-input" id="fb-url" placeholder="https://프로젝트명-default-rtdb.firebaseio.com">
+  </div>
+  <button class="btn btn-primary" onclick="connectFirebase()">연결하기</button>
+  <div style="margin-top:12px;font-size:11px;color:var(--red);text-align:center">※ Firebase 연동 없이는 사용할 수 없습니다</div>
+</div>
+</div>
+
+<!-- ── Top Bar ── -->
+<div class="topbar">
+  <div>
+    <div class="logo">DM INTERNATIONAL</div>
+    <div class="logosub">통합 본사 시스템</div>
+  </div>
+  <div class="topright">
+    <span class="conn-badge conn-off" id="conn-badge">오프라인</span>
+  </div>
+</div>
+
+<!-- ── Main Content Area ── -->
+<div class="main-area">
+
+<!-- PAGE: 시작 (로그인 / 가입) -->
+<div class="pg on" id="pg-start">
+  <div class="ph">
+    <div class="ptitle">시작하기</div>
+    <div class="psub">로그인하거나 가입 신청을 해주세요</div>
+  </div>
+  <div class="role-grid">
+    <div class="role-card" onclick="showPg('pg-login')">
+      <div class="ico">🔐</div>
+      <div class="lbl">로그인</div>
+      <div class="desc">기존 계정으로 접속</div>
+    </div>
+    <div class="role-card" onclick="showPg('pg-register')">
+      <div class="ico">📝</div>
+      <div class="lbl">가입 신청</div>
+      <div class="desc">새 계정 만들기</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: 로그인 -->
+<div class="pg" id="pg-login">
+  <button class="back-btn" onclick="showPg('pg-start')">← 뒤로</button>
+  <div class="ph">
+    <div class="ptitle">로그인</div>
+    <div class="psub">전화번호와 비밀번호를 입력해주세요</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">전화번호</label>
+    <input class="form-input" id="login-id" type="tel" placeholder="01012345678" autocomplete="tel">
+  </div>
+  <div class="form-group">
+    <label class="form-label">비밀번호</label>
+    <input class="form-input" id="login-pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password">
+  </div>
+  <div id="login-error" class="form-error" style="margin-bottom:12px;display:none"></div>
+  <button class="btn btn-primary" onclick="doLogin()">로그인</button>
+</div>
+
+<!-- PAGE: 가입 신청 -->
+<div class="pg" id="pg-register">
+  <button class="back-btn" onclick="showPg('pg-start')">← 뒤로</button>
+  <div class="ph">
+    <div class="ptitle">가입 신청</div>
+    <div class="psub">본사 관리자 승인 후 로그인이 가능합니다</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">이름</label>
+    <input class="form-input" id="reg-name" placeholder="실명 입력">
+  </div>
+  <div class="form-group">
+    <label class="form-label">전화번호</label>
+    <input class="form-input" id="reg-phone" type="tel" placeholder="01012345678" autocomplete="tel">
+    <div class="form-hint">로그인에 사용됩니다 (- 없이 숫자만 입력)</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">비밀번호</label>
+    <input class="form-input" id="reg-pw" type="password" placeholder="6자 이상" autocomplete="new-password">
+  </div>
+  <div class="form-group">
+    <label class="form-label">비밀번호 확인</label>
+    <input class="form-input" id="reg-pw2" type="password" placeholder="비밀번호 재입력" autocomplete="new-password">
+  </div>
+  <div class="form-group">
+    <label class="form-label">소속</label>
+    <select class="form-input" id="reg-role" onchange="onRoleChange()">
+      <option value="">선택해주세요</option>
+      <option value="디자이너">디자이너</option>
+      <option value="인턴">인턴</option>
+      <option value="본사경영팀">본사경영팀</option>
+    </select>
+  </div>
+  <!-- 인턴 전용 필드 -->
+  <div id="intern-fields" style="display:none">
+    <div class="form-group">
+      <label class="form-label">현재 레벨</label>
+      <select class="form-input" id="reg-level">
+        <option value="">선택해주세요</option>
+        <option value="1">Level 1</option>
+        <option value="2">Level 2</option>
+        <option value="3">Level 3</option>
+        <option value="4">Level 4</option>
+        <option value="5">Level 5</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">마지막 수강 주차</label>
+      <select class="form-input" id="reg-week">
+        <option value="">선택해주세요</option>
+        <option value="1">1주차</option>
+        <option value="2">2주차</option>
+        <option value="3">3주차</option>
+        <option value="4">4주차</option>
+        <option value="5">5주차</option>
+        <option value="6">6주차</option>
+        <option value="7">7주차</option>
+        <option value="8">8주차</option>
+        <option value="9">9주차</option>
+        <option value="10">10주차</option>
+        <option value="11">11주차</option>
+        <option value="12">12주차</option>
+      </select>
+    </div>
+  </div>
+  <!-- 디자이너/인턴만 브랜드·지점 선택 -->
+  <div id="brand-fields" style="display:none">
+    <div class="form-group">
+      <label class="form-label">소속 브랜드</label>
+      <select class="form-input" id="reg-brand" onchange="updateBranchOptions()">
+        <option value="">선택해주세요</option>
+        <option value="DAY:MEAN">DAY:MEAN</option>
+        <option value="ETOH">ETOH</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">소속 지점</label>
+      <select class="form-input" id="reg-branch">
+        <option value="">브랜드를 먼저 선택해주세요</option>
+      </select>
+    </div>
+  </div>
+  <div id="reg-error" class="form-error" style="margin-bottom:12px;display:none"></div>
+  <button class="btn btn-primary" onclick="doRegister()">가입 신청</button>
+</div>
+
+<!-- PAGE: 가입 대기 -->
+<div class="pg" id="pg-pending">
+  <div class="empty">
+    <div class="empty-ico">⏳</div>
+    <div class="empty-txt">
+      가입 신청이 완료되었습니다.<br>
+      본사 관리자 승인 후 로그인이 가능합니다.
+    </div>
+    <button class="btn btn-secondary" style="margin-top:20px;max-width:200px;margin-left:auto;margin-right:auto" onclick="showPg('pg-start')">처음으로</button>
+  </div>
+</div>
+
+<!-- PAGE: 본사 관리자 로그인 -->
+<div class="pg" id="pg-admin-login">
+  <button class="back-btn" onclick="showPg('pg-start')">← 뒤로</button>
+  <div class="ph">
+    <div class="ptitle">본사 관리자</div>
+    <div class="psub">관리자 비밀번호를 입력해주세요</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">관리자 비밀번호</label>
+    <input class="form-input" id="admin-pw" type="password" placeholder="비밀번호 입력">
+  </div>
+  <div id="admin-error" class="form-error" style="margin-bottom:12px;display:none"></div>
+  <button class="btn btn-primary" onclick="doAdminLogin()">로그인</button>
+</div>
+
+<!-- PAGE: 메인 대시보드 (로그인 후) -->
+<div class="pg" id="pg-dashboard">
+  <div class="ph">
+    <div class="ptitle" id="dash-title">대시보드</div>
+    <div class="psub" id="dash-sub"></div>
+  </div>
+  <div id="dash-content"></div>
+</div>
+
+<!-- PAGE: 본사 - 가입 승인 관리 -->
+<div class="pg" id="pg-approvals">
+  <button class="back-btn" onclick="goAdminDash()">← 대시보드</button>
+  <div class="ph">
+    <div class="ptitle">가입 승인 관리</div>
+    <div class="psub">신청된 계정을 승인하거나 거절할 수 있습니다</div>
+  </div>
+  <div id="approval-list"></div>
+</div>
+
+<!-- PAGE: 본사 - 직원 관리 -->
+<div class="pg" id="pg-members">
+  <button class="back-btn" onclick="goAdminDash()">← 대시보드</button>
+  <div class="ph">
+    <div class="ptitle">직원 관리</div>
+    <div class="psub">승인된 직원 목록입니다</div>
+  </div>
+  <div id="member-list"></div>
+</div>
+
+</div><!-- /main-area -->
+
+<!-- Tab Bar -->
+<div class="tab-bar" id="tab-bar">
+  <div class="tab-inner" id="tab-inner"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+</div><!-- /wrap -->
+
+<script>
+// ── Config ──
+var FBURL='https://dm-orders-4792a-default-rtdb.firebaseio.com';
+var FB_KEY='dm_fb_url';
+var ADMIN_PW_HASH='ecd43c76523254bc667a3425e0d7e4ae7d834ff11e9b1792bca6b51ef698853f'; // 기존 발주시스템과 동일
+
+var BRANCHES={
+  'DAY:MEAN':['플래그십점','모먼트점'],
+  'ETOH':['합정점']
+};
+
+var currentUser=null; // {id, name, brand, branch, role, status}
+var isAdmin=false;
+
+// ── Utility ──
+async function sha256(msg){
+  var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+}
+
+function showPg(id){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});
+  var el=document.getElementById(id);
+  if(el) el.classList.add('on');
+}
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.display='block';
+  setTimeout(function(){t.style.display='none'},2500);
+}
+
+// ── Firebase ──
+async function connectFirebase(){
+  var url=document.getElementById('fb-url').value.trim();
+  if(!url||!url.startsWith('https://')){toast('올바른 Firebase URL을 입력해주세요');return}
+  if(url.endsWith('/')) url=url.slice(0,-1);
+
+  // 실제 연결 테스트
+  try{
+    var res=await fetch(url+'/.json');
+    if(!res.ok) throw new Error('연결 실패');
+  }catch(e){
+    toast('Firebase에 연결할 수 없습니다. URL을 확인해주세요.');
+    return;
+  }
+
+  FBURL=url;
+  localStorage.setItem(FB_KEY,url);
+  document.getElementById('ov-setup').classList.remove('on');
+  document.getElementById('conn-badge').className='conn-badge conn-on';
+  document.getElementById('conn-badge').textContent='실시간';
+  toast('Firebase 연결 완료');
+}
+
+function fbGet(path){
+  return fetch(FBURL+'/'+path+'.json').then(function(r){return r.json()});
+}
+function fbPut(path,data){
+  return fetch(FBURL+'/'+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+}
+function fbPatch(path,data){
+  return fetch(FBURL+'/'+path+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+}
+function fbDelete(path){
+  return fetch(FBURL+'/'+path+'.json',{method:'DELETE'});
+}
+
+// ── Branch Options ──
+function updateBranchOptions(){
+  var brand=document.getElementById('reg-brand').value;
+  var sel=document.getElementById('reg-branch');
+  sel.innerHTML='<option value="">선택해주세요</option>';
+  if(brand&&BRANCHES[brand]){
+    BRANCHES[brand].forEach(function(b){
+      sel.innerHTML+='<option value="'+b+'">'+b+'</option>';
+    });
+  }
+}
+
+// ── Role Change (인턴 필드 + 브랜드/지점 토글) ──
+function onRoleChange(){
+  var role=document.getElementById('reg-role').value;
+  document.getElementById('intern-fields').style.display=role==='인턴'?'block':'none';
+  document.getElementById('brand-fields').style.display=(role==='디자이너'||role==='인턴')?'block':'none';
+  // 본사경영팀이면 브랜드/지점 초기화
+  if(role==='본사경영팀'){
+    document.getElementById('reg-brand').value='';
+    document.getElementById('reg-branch').innerHTML='<option value="">브랜드를 먼저 선택해주세요</option>';
+  }
+}
+
+// ── Register ──
+async function doRegister(){
+  var name=document.getElementById('reg-name').value.trim();
+  var phone=document.getElementById('reg-phone').value.trim().replace(/[^0-9]/g,'');
+  var pw=document.getElementById('reg-pw').value;
+  var pw2=document.getElementById('reg-pw2').value;
+  var brand=document.getElementById('reg-brand').value;
+  var branch=document.getElementById('reg-branch').value;
+  var role=document.getElementById('reg-role').value;
+  var errEl=document.getElementById('reg-error');
+  errEl.style.display='none';
+
+  function err(msg){errEl.textContent=msg;errEl.style.display='block'}
+
+  if(!name){err('이름을 입력해주세요');return}
+  if(!phone||phone.length<10||phone.length>11){err('전화번호를 정확히 입력해주세요');return}
+  if(!pw||pw.length<6){err('비밀번호는 6자 이상');return}
+  if(pw!==pw2){err('비밀번호가 일치하지 않습니다');return}
+  if(!role){err('소속을 선택해주세요');return}
+
+  // 본사경영팀이면 자동 배정, 아니면 브랜드/지점 검증
+  if(role==='본사경영팀'){
+    brand='DM INTERNATIONAL';
+    branch='본사';
+  }else{
+    if(!brand){err('소속 브랜드를 선택해주세요');return}
+    if(!branch){err('소속 지점을 선택해주세요');return}
+  }
+  var level='',week='';
+  if(role==='인턴'){
+    level=document.getElementById('reg-level').value;
+    week=document.getElementById('reg-week').value;
+    if(!level){err('현재 레벨을 선택해주세요');return}
+    if(!week){err('마지막 수강 주차를 선택해주세요');return}
+  }
+
+  // 중복 체크
+  try{
+    var existing=await fbGet('users/'+phone);
+    if(existing){err('이미 등록된 전화번호입니다');return}
+  }catch(e){}
+
+  var pwHash=await sha256(pw);
+  var userData={
+    id:phone,
+    phone:phone,
+    name:name,
+    pwHash:pwHash,
+    brand:brand,
+    branch:branch,
+    role:role,
+    status:'pending',
+    createdAt:new Date().toISOString()
+  };
+  if(role==='인턴'){
+    userData.level=level;
+    userData.lastWeek=week;
+  }
+
+  try{
+    await fbPut('users/'+phone,userData);
+    toast('가입 신청 완료');
+    showPg('pg-pending');
+    ['reg-name','reg-phone','reg-pw','reg-pw2'].forEach(function(x){document.getElementById(x).value=''});
+    document.getElementById('reg-brand').value='';
+    document.getElementById('reg-branch').innerHTML='<option value="">브랜드를 먼저 선택해주세요</option>';
+    document.getElementById('reg-role').value='';
+    document.getElementById('intern-fields').style.display='none';
+    document.getElementById('brand-fields').style.display='none';
+  }catch(e){
+    err('서버 오류가 발생했습니다. 다시 시도해주세요.');
+  }
+}
+
+// ── Login ──
+async function doLogin(){
+  var phone=document.getElementById('login-id').value.trim().replace(/[^0-9]/g,'');
+  var pw=document.getElementById('login-pw').value;
+  var errEl=document.getElementById('login-error');
+  errEl.style.display='none';
+
+  function err(msg){errEl.textContent=msg;errEl.style.display='block'}
+
+  if(!phone||!pw){err('전화번호와 비밀번호를 입력해주세요');return}
+
+  try{
+    var user=await fbGet('users/'+phone);
+    if(!user){err('등록되지 않은 전화번호입니다');return}
+
+    var pwHash=await sha256(pw);
+    if(user.pwHash!==pwHash){err('비밀번호가 일치하지 않습니다');return}
+
+    if(user.status==='pending'){err('가입 승인 대기 중입니다. 본사 승인 후 로그인 가능합니다.');return}
+    if(user.status==='rejected'){err('가입이 거절되었습니다. 본사에 문의해주세요.');return}
+
+    currentUser=user;
+    isAdmin=false;
+    localStorage.setItem('dm_current_user',phone);
+    document.getElementById('login-id').value='';
+    document.getElementById('login-pw').value='';
+    showStaffDashboard();
+  }catch(e){
+    err('서버 오류가 발생했습니다.');
+  }
+}
+
+// ── Admin Login ──
+async function doAdminLogin(){
+  var pw=document.getElementById('admin-pw').value;
+  var errEl=document.getElementById('admin-error');
+  errEl.style.display='none';
+
+  if(!pw){errEl.textContent='비밀번호를 입력해주세요';errEl.style.display='block';return}
+
+  var hash=await sha256(pw);
+  if(hash!==ADMIN_PW_HASH){
+    errEl.textContent='비밀번호가 일치하지 않습니다';
+    errEl.style.display='block';
+    return;
+  }
+
+  isAdmin=true;
+  currentUser={id:'admin',name:'본사 관리자',brand:'DM INTERNATIONAL',branch:'본사',role:'관리자',status:'approved'};
+  document.getElementById('admin-pw').value='';
+  showAdminDashboard();
+}
+
+// ── Staff Dashboard ──
+function showStaffDashboard(){
+  var u=currentUser;
+  document.getElementById('dash-title').textContent='안녕하세요, '+u.name+'님';
+  document.getElementById('dash-sub').textContent=u.brand+' '+u.branch+' · '+u.role;
+  
+  var html='';
+  html+='<div class="card">';
+  html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+  html+='<span class="badge '+(u.brand==='DAY:MEAN'?'badge-dm':'badge-etoh')+'">'+u.brand+'</span>';
+  html+='<span style="font-size:14px;font-weight:500">'+u.branch+'</span>';
+  html+='</div>';
+  html+='<div style="font-size:13px;color:var(--t2);line-height:1.8">';
+  html+='전화번호: '+u.phone+'<br>';
+  html+='직급: '+u.role;
+  if(u.role==='인턴'&&u.level) html+=' (Lv.'+u.level+' / '+u.lastWeek+'주차)';
+  html+='<br>';
+  html+='상태: <span class="badge badge-approved">승인됨</span>';
+  html+='</div>';
+  html+='</div>';
+
+  html+='<div style="font-size:12px;color:var(--t3);text-align:center;margin-top:32px">추가 기능은 Phase 2에서 순차적으로 추가됩니다</div>';
+
+  html+='<button class="btn btn-secondary" style="margin-top:24px" onclick="doLogout()">로그아웃</button>';
+
+  document.getElementById('dash-content').innerHTML=html;
+  showPg('pg-dashboard');
+}
+
+// ── Admin Dashboard ──
+function showAdminDashboard(){
+  document.getElementById('dash-title').textContent='본사 관리자';
+  document.getElementById('dash-sub').textContent='DM INTERNATIONAL';
+
+  var html='';
+  html+='<div class="role-grid">';
+  html+='<div class="role-card" onclick="showApprovals()"><div class="ico">✅</div><div class="lbl">가입 승인</div><div class="desc" id="pending-count">로딩 중...</div></div>';
+  html+='<div class="role-card" onclick="showMembers()"><div class="ico">👥</div><div class="lbl">직원 관리</div><div class="desc" id="member-count">로딩 중...</div></div>';
+  html+='</div>';
+  html+='<button class="btn btn-secondary" style="margin-top:24px" onclick="doLogout()">로그아웃</button>';
+
+  document.getElementById('dash-content').innerHTML=html;
+  showPg('pg-dashboard');
+  loadAdminCounts();
+}
+
+function goAdminDash(){
+  showAdminDashboard();
+}
+
+async function loadAdminCounts(){
+  try{
+    var users=await fbGet('users');
+    var pending=0,approved=0;
+    if(users){
+      Object.values(users).forEach(function(u){
+        if(u.status==='pending') pending++;
+        if(u.status==='approved') approved++;
+      });
+    }
+    var pe=document.getElementById('pending-count');
+    var me=document.getElementById('member-count');
+    if(pe) pe.textContent=pending>0?pending+'건 대기 중':'대기 없음';
+    if(me) me.textContent=approved+'명';
+  }catch(e){}
+}
+
+// ── Approvals ──
+async function showApprovals(){
+  showPg('pg-approvals');
+  var list=document.getElementById('approval-list');
+  list.innerHTML='<div class="empty"><div class="empty-txt">로딩 중...</div></div>';
+
+  try{
+    var users=await fbGet('users');
+    var pending=[];
+    var others=[];
+    if(users){
+      Object.values(users).forEach(function(u){
+        if(u.status==='pending') pending.push(u);
+        else if(u.status==='rejected') others.push(u);
+      });
+    }
+
+    if(pending.length===0&&others.length===0){
+      list.innerHTML='<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">처리할 가입 신청이 없습니다</div></div>';
+      return;
+    }
+
+    var html='';
+    if(pending.length>0){
+      html+='<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">대기 중 ('+pending.length+'건)</div>';
+      pending.forEach(function(u){
+        html+='<div class="card">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+        html+='<span style="font-size:15px;font-weight:600">'+u.name+'</span>';
+        html+='<span class="badge badge-pending">대기 중</span>';
+        html+='</div>';
+        html+='<div style="font-size:12px;color:var(--t2);line-height:1.8">';
+        html+='전화번호: '+u.phone+'<br>';
+        html+='소속: <span class="badge '+(u.brand==='DAY:MEAN'?'badge-dm':'badge-etoh')+'">'+u.brand+'</span> '+u.branch+'<br>';
+        html+='직급: '+u.role;
+        if(u.role==='인턴'&&u.level) html+=' (Lv.'+u.level+' / '+u.lastWeek+'주차)';
+        html+='<br>';
+        html+='신청일: '+formatDate(u.createdAt);
+        html+='</div>';
+        html+='<div class="action-row">';
+        html+='<button class="btn btn-success btn-small" onclick="approveUser(\''+u.id+'\')">승인</button>';
+        html+='<button class="btn btn-danger btn-small" onclick="rejectUser(\''+u.id+'\')">거절</button>';
+        html+='</div>';
+        html+='</div>';
+      });
+    }
+
+    if(others.length>0){
+      html+='<div style="font-size:12px;font-weight:600;color:var(--t2);margin:16px 0 8px">거절됨 ('+others.length+'건)</div>';
+      others.forEach(function(u){
+        html+='<div class="card" style="opacity:.6">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between">';
+        html+='<span style="font-size:14px;font-weight:500">'+u.name+' ('+u.id+')</span>';
+        html+='<span class="badge badge-rejected">거절</span>';
+        html+='</div>';
+        html+='<div style="font-size:11px;color:var(--t3);margin-top:4px">'+u.brand+' '+u.branch+' · '+u.role+'</div>';
+        html+='<div class="action-row">';
+        html+='<button class="btn btn-outline btn-small" onclick="approveUser(\''+u.id+'\')">재승인</button>';
+        html+='<button class="btn btn-outline btn-small" style="color:var(--red)" onclick="deleteUser(\''+u.id+'\')">삭제</button>';
+        html+='</div>';
+        html+='</div>';
+      });
+    }
+
+    list.innerHTML=html;
+  }catch(e){
+    list.innerHTML='<div class="empty"><div class="empty-txt">데이터를 불러올 수 없습니다</div></div>';
+  }
+}
+
+async function approveUser(id){
+  try{
+    await fbPatch('users/'+id,{status:'approved',approvedAt:new Date().toISOString()});
+    toast(id+' 승인 완료');
+    showApprovals();
+  }catch(e){toast('오류 발생')}
+}
+
+async function rejectUser(id){
+  if(!confirm(id+' 가입을 거절하시겠습니까?')) return;
+  try{
+    await fbPatch('users/'+id,{status:'rejected',rejectedAt:new Date().toISOString()});
+    toast(id+' 거절 완료');
+    showApprovals();
+  }catch(e){toast('오류 발생')}
+}
+
+async function deleteUser(id){
+  if(!confirm(id+' 계정을 완전히 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+  try{
+    await fbDelete('users/'+id);
+    toast(id+' 삭제 완료');
+    showApprovals();
+  }catch(e){toast('오류 발생')}
+}
+
+// ── Members ──
+async function showMembers(){
+  showPg('pg-members');
+  var list=document.getElementById('member-list');
+  list.innerHTML='<div class="empty"><div class="empty-txt">로딩 중...</div></div>';
+
+  try{
+    var users=await fbGet('users');
+    var approved=[];
+    if(users){
+      Object.values(users).forEach(function(u){
+        if(u.status==='approved') approved.push(u);
+      });
+    }
+
+    if(approved.length===0){
+      list.innerHTML='<div class="empty"><div class="empty-ico">👥</div><div class="empty-txt">승인된 직원이 없습니다</div></div>';
+      return;
+    }
+
+    // 브랜드별 그룹
+    var byBrand={};
+    approved.forEach(function(u){
+      if(!byBrand[u.brand]) byBrand[u.brand]=[];
+      byBrand[u.brand].push(u);
+    });
+
+    var html='';
+    Object.keys(byBrand).sort().forEach(function(brand){
+      html+='<div style="font-size:12px;font-weight:600;color:var(--t2);margin:12px 0 8px">'+brand+' ('+byBrand[brand].length+'명)</div>';
+      byBrand[brand].forEach(function(u){
+        html+='<div class="list-item" style="cursor:default">';
+        html+='<div class="list-left">';
+        html+='<div class="list-name">'+u.name+' <span style="font-size:11px;color:var(--t3);font-weight:400">'+u.phone+'</span></div>';
+        html+='<div class="list-sub">'+u.branch+' · '+u.role;
+        if(u.role==='인턴'&&u.level) html+=' (Lv.'+u.level+'/'+u.lastWeek+'주차)';
+        html+='</div>';
+        html+='</div>';
+        html+='<span class="badge badge-approved">활성</span>';
+        html+='</div>';
+      });
+    });
+
+    list.innerHTML=html;
+  }catch(e){
+    list.innerHTML='<div class="empty"><div class="empty-txt">데이터를 불러올 수 없습니다</div></div>';
+  }
+}
+
+// ── Logout ──
+function doLogout(){
+  currentUser=null;
+  isAdmin=false;
+  localStorage.removeItem('dm_current_user');
+  showPg('pg-start');
+  toast('로그아웃 되었습니다');
+}
+
+// ── Helpers ──
+function formatDate(iso){
+  if(!iso) return '-';
+  var d=new Date(iso);
+  return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate();
+}
+
+// ── Init ──
+(function init(){
+  var hardcoded='https://dm-orders-4792a-default-rtdb.firebaseio.com';
+  var url=localStorage.getItem(FB_KEY)||hardcoded;
+  FBURL=url;
+  localStorage.setItem(FB_KEY,url);
+  document.getElementById('ov-setup').classList.remove('on');
+  document.getElementById('conn-badge').className='conn-badge conn-on';
+  document.getElementById('conn-badge').textContent='실시간';
+
+  // Auto login
+  var savedUser=localStorage.getItem('dm_current_user');
+  if(savedUser){
+    fbGet('users/'+savedUser).then(function(u){
+      if(u&&u.status==='approved'){
+        currentUser=u;
+        isAdmin=false;
+        showStaffDashboard();
+      }else{
+        localStorage.removeItem('dm_current_user');
+      }
+    }).catch(function(){});
+  }
+})();
+
+// ── Override start page to include admin access ──
+(function(){
+  var startPg=document.getElementById('pg-start');
+  var grid=startPg.querySelector('.role-grid');
+  // Add admin card
+  var adminCard=document.createElement('div');
+  adminCard.className='role-card';
+  adminCard.onclick=function(){showPg('pg-admin-login')};
+  adminCard.innerHTML='<div class="ico">🏢</div><div class="lbl">본사 관리자</div><div class="desc">DM INTERNATIONAL</div>';
+  grid.appendChild(adminCard);
+  // Make 3-column on start
+  grid.style.gridTemplateColumns='1fr 1fr 1fr';
+})();
+</script>
+</body>
+</html>
