@@ -43,6 +43,22 @@ html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pr
 .print-btn{position:fixed;top:16px;right:16px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;padding:12px 22px;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(59,130,246,.35);display:flex;align-items:center;gap:8px;letter-spacing:-.02em;font-family:inherit}
 .print-btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(59,130,246,.45)}
 .print-hint{position:fixed;top:74px;right:16px;background:#fff;border:1px solid #E2E8F0;padding:10px 14px;border-radius:10px;font-size:11.5px;color:#64748B;line-height:1.5;max-width:240px;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.qr-section{background:linear-gradient(135deg,#0F172A,#1E293B);color:#fff;border-radius:18px;padding:24px;margin-bottom:32px;display:flex;gap:24px;align-items:center;page-break-inside:avoid;break-inside:avoid}
+.qr-code-wrap{background:#fff;padding:14px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.qr-code-wrap{width:188px;min-height:188px}
+.qr-code-wrap>div{width:160px;height:160px}
+.qr-code-wrap svg,.qr-code-wrap img{display:block !important;width:160px !important;height:160px !important}
+.qr-code-wrap canvas{display:none !important}
+.qr-info{flex:1;min-width:0}
+.qr-label{font-size:11px;font-weight:700;letter-spacing:.1em;color:#60A5FA;text-transform:uppercase;margin-bottom:6px}
+.qr-title{font-size:20px;font-weight:800;letter-spacing:-.03em;margin-bottom:8px;line-height:1.25}
+.qr-desc{font-size:13px;line-height:1.65;color:#CBD5E1;margin-bottom:10px}
+.qr-desc b{color:#fff}
+.qr-url-mini{font-family:'SF Mono','Monaco',monospace;font-size:11.5px;color:#94A3B8;background:rgba(255,255,255,.06);padding:6px 10px;border-radius:6px;display:inline-block;letter-spacing:.01em}
+@media (max-width:680px){
+  .qr-section{flex-direction:column;text-align:center;padding:20px;gap:16px}
+  .qr-info{text-align:center}
+}
 .success-box{background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-radius:16px;padding:22px 26px;margin-top:28px;display:flex;gap:16px;align-items:center;page-break-inside:avoid;break-inside:avoid}
 .success-icon{width:48px;height:48px;background:rgba(255,255,255,.22);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
 .success-title{font-size:17px;font-weight:800;letter-spacing:-.03em;margin-bottom:3px}
@@ -105,9 +121,29 @@ html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pr
     </div>
   </div>
 
+  <div class="qr-section">
+    <div class="qr-code-wrap">
+      <div id="qr-code"></div>
+    </div>
+    <div class="qr-info">
+      <div class="qr-label">📲 QR 빠른 접속</div>
+      <div class="qr-title">아이폰 카메라로 스캔</div>
+      <div class="qr-desc">
+        QR을 스캔하면 Safari가 자동으로 열리고 시스템 페이지로 이동합니다.
+        그 후 <b>아래 4·5단계</b>(공유 → 홈 화면에 추가)만 따라하면 됩니다.
+      </div>
+      <div class="qr-url-mini">dminternational.github.io/dm-hq-system</div>
+    </div>
+  </div>
+
   <div class="steps-title">
     <div class="steps-title-bar"></div>
-    재설치 5단계 (3분 소요)
+    설치 / 재설치 단계
+  </div>
+
+  <div class="tip" style="margin-bottom:18px;background:#ECFDF5;border-left:3px solid #10B981;color:#065F46">
+    🆕 <b>신규 직원이라면</b>: 위 QR을 스캔 → Safari가 열림 → 바로 <b>4단계</b>로 점프하면 됩니다.<br>
+    🔄 <b>기존 직원 재설치</b>: 1단계부터 차례로 진행해주세요.
   </div>
 
   <div class="step">
@@ -206,6 +242,27 @@ html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pr
   </div>
 
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+  var url = 'https://dminternational.github.io/dm-hq-system/';
+  var target = document.getElementById('qr-code');
+  if(!target || typeof QRCode === 'undefined'){
+    if(target) target.innerHTML = '<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:11px;text-align:center;line-height:1.4">QR 로딩 실패<br>아래 URL 직접 입력</div>';
+    return;
+  }
+  target.innerHTML = '';
+  new QRCode(target, {
+    text: url,
+    width: 160,
+    height: 160,
+    colorDark: '#0F172A',
+    colorLight: '#FFFFFF',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+})();
+</script>
 
 </body>
 </html>
