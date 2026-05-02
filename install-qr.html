@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DM INTERNATIONAL · 바로가기 QR</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Segoe UI',sans-serif;background:#F4F5F7;color:#0F172A;line-height:1.5;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;min-height:100vh}
+.poster{max-width:560px;margin:24px auto;background:#fff;border-radius:24px;padding:48px 44px;box-shadow:0 12px 32px rgba(0,0,0,.06);text-align:center}
+.brand-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px}
+.logo{width:48px;height:48px;background:linear-gradient(135deg,#0F172A,#334155);border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;letter-spacing:-.04em;box-shadow:0 4px 10px rgba(15,23,42,.18)}
+.brand-text{text-align:left}
+.brand-name{font-size:18px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.brand-sub{font-size:11px;color:#64748B;font-weight:600;letter-spacing:.06em;margin-top:2px;text-transform:uppercase}
+.title{font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1.2;margin-bottom:6px}
+.subtitle{font-size:14px;color:#64748B;font-weight:500;margin-bottom:28px}
+.qr-frame{width:280px;height:280px;margin:0 auto 22px;background:#fff;border:2px solid #0F172A;border-radius:20px;padding:18px;display:flex;align-items:center;justify-content:center}
+.qr-frame>div{width:240px;height:240px}
+.qr-frame img,.qr-frame svg{display:block !important;width:240px !important;height:240px !important}
+.qr-frame canvas{display:none !important}
+.cta{font-size:16px;font-weight:800;letter-spacing:-.02em;color:#1D4ED8;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.cta-sub{font-size:12px;color:#64748B;margin-bottom:24px;font-weight:500}
+.steps{display:flex;gap:10px;justify-content:center;margin-bottom:24px;flex-wrap:wrap}
+.step-pill{background:#F1F5F9;border-radius:10px;padding:10px 14px;font-size:11.5px;color:#475569;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:-.01em}
+.step-pill .num{width:18px;height:18px;background:#3B82F6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+.url-line{font-family:'SF Mono','Monaco',monospace;font-size:11.5px;color:#94A3B8;letter-spacing:.01em;padding-top:16px;border-top:1px dashed #CBD5E1}
+.warn{background:#FEF3C7;border-radius:10px;padding:10px 14px;font-size:11.5px;color:#92400E;font-weight:600;margin-bottom:20px;line-height:1.55}
+.print-btn{position:fixed;top:16px;right:16px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;padding:11px 20px;border:none;border-radius:11px;font-size:13.5px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(59,130,246,.35);font-family:inherit;letter-spacing:-.02em}
+.print-btn:hover{transform:translateY(-1px)}
+@media print{
+  .print-btn{display:none}
+  body{background:#fff;min-height:auto}
+  .poster{box-shadow:none;margin:0 auto;border:none;padding:32px 28px}
+  @page{size:A5 portrait;margin:8mm}
+}
+@media (max-width:560px){
+  .poster{margin:12px;padding:32px 24px}
+  .qr-frame{width:240px;height:240px;padding:14px}
+  .qr-frame>div,.qr-frame img,.qr-frame svg{width:206px !important;height:206px !important}
+  .title{font-size:22px}
+}
+</style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">📄 인쇄 / PDF</button>
+
+<div class="poster">
+  <div class="brand-row">
+    <div class="logo">DM</div>
+    <div class="brand-text">
+      <div class="brand-name">DM INTERNATIONAL</div>
+      <div class="brand-sub">통합 본사 시스템</div>
+    </div>
+  </div>
+
+  <div class="title">📲 시스템 바로가기</div>
+  <div class="subtitle">QR을 폰 카메라로 스캔해주세요</div>
+
+  <div class="qr-frame">
+    <div id="qr-code"></div>
+  </div>
+
+  <div class="cta">스캔 → Safari → 홈 화면에 추가</div>
+  <div class="cta-sub">한 번만 추가하면 다음부턴 앱처럼 한 번에 접속</div>
+
+  <div class="steps">
+    <div class="step-pill"><span class="num">1</span>QR 스캔</div>
+    <div class="step-pill"><span class="num">2</span>Safari 자동 열림</div>
+    <div class="step-pill"><span class="num">3</span>공유 → 홈 화면 추가</div>
+  </div>
+
+  <div class="warn">
+    ⚠️ 반드시 <b>Safari</b>로 열어주세요. 카톡·인스타 내장 브라우저는 X
+  </div>
+
+  <div class="url-line">dminternational.github.io/dm-hq-system</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+  var url = 'https://dminternational.github.io/dm-hq-system/';
+  var target = document.getElementById('qr-code');
+  if(!target || typeof QRCode === 'undefined') return;
+  target.innerHTML = '';
+  new QRCode(target, {
+    text: url,
+    width: 240,
+    height: 240,
+    colorDark: '#0F172A',
+    colorLight: '#FFFFFF',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+})();
+</script>
+
+</body>
+</html>
