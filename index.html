@@ -841,6 +841,36 @@ function deleteMeal(el){var uid=el.getAttribute('data-uid'),date=el.getAttribute
 function autoEndBreak(){if(!ME||!ME.phone)return;fbG('/breakActive/'+ME.phone+'.json').then(function(d){if(!d){window._autoEndingBreak=false;dashBrkData=null;dashBrkLastFetch=Date.now()+60000;return}var remain=d.endsAt-Date.now();var overMin=Math.abs(Math.floor(remain/60000));fbPost('/break.json',{userId:ME.phone,userName:ME.name,date:todayStrKR(),time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),overtime:overMin+'분 초과',autoEnded:true,year:new Date().getFullYear(),month:new Date().getMonth()+1}).then(function(){return fbD('/breakActive/'+ME.phone+'.json')}).then(function(){dashBrkData=null;dashBrkLastFetch=Date.now()+60000;window._autoEndingBreak=false;if(brkInterval)clearInterval(brkInterval);$('DASH-BRK').innerHTML='';alert('휴게 시간이 초과되어 자동 종료됩니다.\n\n누적 초과 휴게 시간으로 측정됩니다.\n정확한 휴게시간을 지켜주세요.');if(ME.role==='인턴'||ME.academyRole==='인턴')setTimeout(openMealModal,500)})})}
 function endBreak(){if(brkInterval)clearInterval(brkInterval);fbG('/breakActive/'+ME.phone+'.json').then(function(d){if(!d){dashBrkData=null;dashBrkLastFetch=Date.now()+60000;$('BRK-STATUS').textContent='완료';$('BRK-BTNS').innerHTML='<button class="gbtn sec" onclick="openBreak()">다시 시작</button>';return}var remain=d.endsAt-Date.now();if(remain<0){alert('정확한 휴게시간을 지켜주세요');fbPost('/break.json',{userId:ME.phone,userName:ME.name,date:todayStrKR(),time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),overtime:Math.abs(Math.floor(remain/60000))+'분 초과',year:new Date().getFullYear(),month:new Date().getMonth()+1})}else{var usedMin=60-Math.floor(remain/60000);toast('휴게시간 완료 ('+usedMin+'분 사용)');fbPost('/break.json',{userId:ME.phone,userName:ME.name,date:todayStrKR(),time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),usedMin:usedMin,year:new Date().getFullYear(),month:new Date().getMonth()+1})}fbD('/breakActive/'+ME.phone+'.json').then(function(){dashBrkData=null;dashBrkLastFetch=Date.now()+60000});$('BRK-TIMER').textContent='00:00';$('BRK-STATUS').textContent='완료';$('BRK-STATUS').style.color='#2e7d32';$('BRK-BTNS').innerHTML='<button class="gbtn sec" onclick="openBreak()">다시 시작</button>';if(ME.role==='인턴'||ME.academyRole==='인턴')setTimeout(openMealModal,500)})}
 
+/* ═══ SERVICE WORKER (자동 업데이트) ═══ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    var swPath=location.pathname.indexOf('/dm-hq-system/')===0?'/dm-hq-system/sw.js':'./sw.js';
+    navigator.serviceWorker.register(swPath).then(function(reg){
+      // 1시간마다 새 버전 체크
+      setInterval(function(){reg.update()},3600000);
+      // 새 버전 발견 시
+      reg.addEventListener('updatefound',function(){
+        var nw=reg.installing;
+        if(!nw)return;
+        nw.addEventListener('statechange',function(){
+          if(nw.state==='installed'&&navigator.serviceWorker.controller){
+            // 이미 활성 SW가 있고 새 SW가 설치 완료됨 = 업데이트 가능
+            nw.postMessage('SKIP_WAITING');
+            // 토스트로 알림
+            if(typeof toast==='function')toast('새 버전이 있어요. 잠시 후 새로고침됩니다.');
+            setTimeout(function(){location.reload()},2000);
+          }
+        });
+      });
+    }).catch(function(e){console.log('SW 등록 실패',e)});
+    // SW가 새로 활성화되면 즉시 새로고침
+    var refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(refreshing)return;
+      refreshing=true;
+    });
+  });
+}
 /* ═══ INIT ═══ */
 function safeLS(fn){try{return fn()}catch(e){return null}}
 window.addEventListener('DOMContentLoaded',function(){FB=safeLS(function(){return localStorage.getItem('dm_fb')})||safeLS(function(){return localStorage.getItem('dmi_fb_url')})||FIXED_URL;safeLS(function(){localStorage.setItem('dm_fb',FB)});initFB();setTimeout(loadProductDB,500);document.body.classList.add('no-sidebar');var s=safeLS(function(){return localStorage.getItem('dm_me')});if(s)try{ME=JSON.parse(s);if(ME.role==='매니저'&&ME.branch==='본사')ME.role='경영팀';if(ME.role==='본사경영팀')ME.role='경영팀';safeLS(function(){localStorage.setItem('dm_me',JSON.stringify(ME))});openDash()}catch(e){}setTimeout(migrateRoles,2000);renderIcons();document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')return;dashBrkLastFetch=0;brkLastFetch=0;notifLastCount=-1;dashBrkData=null;brkLiveData=null;if(ME)refreshNotif();var cur=document.querySelector('.pg.on');if(!cur)return;var id=cur.id;try{if(id==='p-dash'){renderDashBreak()}else if(id==='p-hist'){openHist()}else if(id==='p-adm-ord'){loadAdmOrd()}else if(id==='p-adm-pend'){loadPend()}else if(id==='p-adm-staff'){loadStaff()}else if(id==='p-brk-mgmt'){renderBM();loadBMDone()}else if(id==='p-my-interns'){openMyInterns()}else if(id==='p-break-admin'){loadBreakAdmin()}else if(id==='p-meal-admin'){loadMealList()}else if(id==='p-refund-admin'){renderRefund()}else if(id==='p-order-stat'){loadOrderStat()}else if(id==='p-prod-mgmt'){renderProdMgmt()}else if(id==='p-acad-progress'){openAcadProg()}else if(id==='p-acad-exams'){openAcadExams()}else if(id==='p-acad-hw'){openAcadHW()}else if(id==='p-leave'){loadLeaveHist();if(ME&&ME.role==='인턴')loadLeaveInfo()}else if(id==='p-adm-leave'){loadAdmLeave()}else if(id==='p-adm-addleave'){loadAddLeave()}else if(id==='p-late'){loadLateHist()}else if(id==='p-order-view'){openOrderView()}else if(id==='p-branch-interns'){openBranchInterns()}else if(id==='p-break'){openBreak()}else if(id==='p-edu-check'){loadECHist()}else if(id==='p-ext-acad'){loadExtHist()}else if(id==='p-adm-acad'){loadAdmAcad()}else if(id==='p-edu-stats'){openEduStats()}}catch(e){console.log('refresh err',e)}})});</script>
