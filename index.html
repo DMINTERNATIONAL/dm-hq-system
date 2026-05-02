@@ -60,17 +60,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','SF Pro Display',
 .logo{font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--text)}.logosub{font-size:11px;color:var(--text-3);margin-top:1px;font-weight:500}
 #cbdg{font-size:11px;padding:5px 10px;border-radius:20px;font-weight:700;display:inline-flex;align-items:center;gap:5px}.con{background:var(--green-bg);color:var(--green)}.coff{background:var(--orange-bg);color:var(--orange)}
 .pg{display:none;padding:24px 20px 100px;max-width:560px;margin:0 auto;animation:fi .3s ease}.pg.on{display:block}
-/* ==== Desktop Sidebar (데스크톱 전용) ==== */
-.sidebar{display:none}
+/* ==== Sidebar (모바일: 슬라이드, 데스크톱: 고정) ==== */
+.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:-280px;width:280px;height:100vh;background:var(--card);border-right:1px solid var(--border);padding:24px 16px;z-index:300;overflow-y:auto;transition:left .3s ease;-webkit-overflow-scrolling:touch}
+.sidebar.open{left:0;box-shadow:0 0 40px rgba(0,0,0,.15)}
+.sidebar-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:299;opacity:0;pointer-events:none;transition:opacity .25s ease;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.sidebar-overlay.show{opacity:1;pointer-events:auto}
+.tb-menu-btn{width:38px;height:38px;background:var(--bg-page);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);border:1px solid var(--border-soft);font-family:inherit;flex-shrink:0;padding:0}
+.tb-menu-btn [data-lucide]{width:20px;height:20px}
 @media(min-width:900px){
-  .sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--card);border-right:1px solid var(--border);padding:24px 16px;z-index:200;overflow-y:auto}
+  .sidebar{width:240px;left:0;transition:none;box-shadow:none}
   body{padding-left:240px}
   .topbar{display:none}
   .pg{padding-top:32px}
   #cbar{left:240px}
   .toast{left:calc(50% + 120px)}
+  .sidebar-overlay{display:none !important}
+  .tb-menu-btn{display:none !important}
 }
 body.no-sidebar .sidebar{display:none !important}
+body.no-sidebar #MENU-BTN{display:none !important}
 @media(min-width:900px){
   body.no-sidebar{padding-left:0 !important}
   body.no-sidebar .topbar{display:flex !important}
@@ -293,7 +301,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <body>
 <aside class="sidebar" id="SIDEBAR"></aside>
 <div id="ov" style="display:none"><div id="ob"><h2>🔥 실시간 연동 설정</h2><p>Firebase를 연결해야 시스템을 사용할 수 있습니다</p><div class="step"><b>1.</b><span><a href="https://console.firebase.google.com" target="_blank" style="color:#1a4e8a">console.firebase.google.com</a> → 프로젝트 추가</span></div><div class="step"><b>2.</b><span>Realtime Database → 만들기 → <code>테스트 모드</code></span></div><div class="step"><b>3.</b><span>URL 복사 후 아래에 입력</span></div><input type="text" id="fbi" placeholder="https://your-project-default-rtdb.firebaseio.com"><button class="gbtn pri" style="margin-top:10px" onclick="doConnect()">연결하기</button></div></div>
-<div class="topbar"><div><div class="logo">DM INTERNATIONAL</div><div class="logosub">통합 본사 시스템</div></div><div style="display:flex;align-items:center;gap:8px"><span id="cbdg" class="coff">오프라인</span><button id="TB-LOGOUT" class="tb-logout" onclick="logout()" style="display:none" title="로그아웃"><i data-lucide="log-out"></i></button></div></div>
+<div class="topbar"><div style="display:flex;align-items:center;gap:10px"><button id="MENU-BTN" class="tb-menu-btn" onclick="toggleSidebar()" style="display:none" title="메뉴"><i data-lucide="menu"></i></button><div><div class="logo">DM INTERNATIONAL</div><div class="logosub">통합 본사 시스템</div></div></div><div style="display:flex;align-items:center;gap:8px"><span id="cbdg" class="coff">오프라인</span><button id="TB-LOGOUT" class="tb-logout" onclick="logout()" style="display:none" title="로그아웃"><i data-lucide="log-out"></i></button></div></div>
+<div class="sidebar-overlay" id="SIDEBAR-OVERLAY" onclick="closeSidebar()"></div>
 
 <!-- Landing -->
 <div class="pg on" id="p-land"><div style="text-align:center;padding:40px 0 24px"><div style="width:72px;height:72px;background:linear-gradient(135deg,#0F172A,#334155);border-radius:20px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:24px;letter-spacing:-.04em;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.18)">DM</div><div style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--text);line-height:1.15">DM INTERNATIONAL</div><div style="font-size:13px;color:var(--text-2);margin-top:6px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">통합 본사 시스템</div><div style="font-size:13px;color:var(--text-3);margin:18px auto 0;line-height:1.7;max-width:340px">발주 · 인턴 교육 · 연습 측정 · 근태 관리 · 통계<br>모든 업무를 한 곳에서</div></div><div class="ph" style="margin-bottom:14px"><div class="ptitle" style="font-size:18px">시작하기</div><div class="psub">계정으로 로그인하거나 신규 가입해주세요</div></div><div class="lcards"><div class="lcard" onclick="go('p-login')"><div class="lico"><i data-lucide="log-in"></i></div><div class="llbl">로그인</div><div class="ldesc">기존 계정으로 접속</div></div><div class="lcard" onclick="go('p-signup')"><div class="lico"><i data-lucide="user-plus"></i></div><div class="llbl">가입 신청</div><div class="ldesc">새 계정 만들기</div></div></div><div style="margin-top:12px"><div class="lcard" onclick="go('p-adminpw')"><div class="lico"><i data-lucide="building-2"></i></div><div class="llbl">본사 관리자</div><div class="ldesc">관리자 전용</div></div></div></div>
@@ -471,7 +480,9 @@ function customAlert(msg,cb){_showPopup({type:'alert',msg:msg,cb:cb})}
 function customConfirm(msg,cb){_showPopup({type:'confirm',msg:msg,cb:cb})}
 function customPrompt(msg,defaultValue,cb){_showPopup({type:'prompt',msg:msg,defaultValue:defaultValue||'',cb:cb})}
 window.alert=function(msg){customAlert(msg)};
-function go(id){if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if(ME)document.body.classList.remove('no-sidebar');else document.body.classList.add('no-sidebar');renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo()}
+function go(id){if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo()}
+function toggleSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(!sb)return;if(sb.classList.contains('open')){closeSidebar()}else{sb.classList.add('open');if(ov)ov.classList.add('show')}}
+function closeSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(sb)sb.classList.remove('open');if(ov)ov.classList.remove('show')}
 function renderIcons(){if(typeof lucide!=='undefined'){try{lucide.createIcons()}catch(e){}}}
 var BRN={'DAY:MEAN':['플래그십점','모먼트점'],'ETOH':['합정점'],'DM INTERNATIONAL':['본사']};
 function updBranch(){var b=$('su-brand').value,sel=$('su-branch'),opts={'DAY:MEAN':['플래그십점','모먼트점'],'ETOH':['합정점'],'DM INTERNATIONAL':['본사']};sel.innerHTML='<option value="">선택</option>';if(opts[b])opts[b].forEach(function(br){var o=document.createElement('option');o.textContent=br;sel.appendChild(o)})}
@@ -493,7 +504,7 @@ var bclass=ME.brand==='DAY:MEAN'?'bdg-dm':ME.brand==='ETOH'?'bdg-et':'bdg-dm';
 var displayName=(ME&&ME.nick)?ME.nick:(ME&&ME.name)||'';var initial=displayName?displayName.charAt(0):'?';
 var html='';
 // 프로필 카드
-var canExtDash=(ME.role==='경영팀'||ME.role==='본사경영팀'||ME.brand==='DM INTERNATIONAL')||(typeof isOwnerUser==='function'&&isOwnerUser(ME));var pcExtBtn=canExtDash?'<div class="pcard-ext-btn" id="DASH-EXT-BTN" onclick="openExternalModal()" title="외근 체크"><i data-lucide="briefcase"></i><span>외근</span></div>':'';html+='<div class="pcard"><div class="phead"><div class="pavatar">'+initial+'</div><div class="pname-wrap"><div class="pname-big">'+displayName+'<span id="DASH-EXT-BDG" class="pcard-ext-bdg" style="display:none">🚗 외근중</span></div><div class="pdesc"><span class="bdg '+bclass+'">'+ME.brand+'</span> '+ME.branch+' · '+(ME.role||'')+'</div></div>'+pcExtBtn+'</div>';
+var canExtDash=(ME.role==='경영팀'||ME.role==='본사경영팀'||ME.brand==='DM INTERNATIONAL')||(typeof isOwnerUser==='function'&&isOwnerUser(ME));var pcExtBtn=canExtDash?'<div class="pcard-ext-btn" id="DASH-EXT-BTN" onclick="openExternalModal()" title="외근 체크"><i data-lucide="briefcase"></i><span>외근</span></div>':'';var brandShort=ME.brand==='DM INTERNATIONAL'?'본사':ME.brand;html+='<div class="pcard"><div class="phead"><div class="pavatar">'+initial+'</div><div class="pname-wrap"><div class="pname-big">'+displayName+'<span id="DASH-EXT-BDG" class="pcard-ext-bdg" style="display:none">🚗 외근중</span></div><div class="pdesc"><span class="bdg '+bclass+'">'+brandShort+'</span> '+ME.branch+' · '+(ME.role||'')+'</div></div>'+pcExtBtn+'</div>';
 // 인턴 진도 (프로필 카드 안)
 if((ME.role==='인턴'||ME.academyRole==='인턴')&&ME.level){var totalPct=calcProgress(ME.level,ME.week||1),rem=calcRemaining(ME.level,ME.week||1),grad=calcGradDate(ME.level,ME.week||1);var curLv=CURRICULUM.find(function(x){return x.lv===ME.level});var lvPct=curLv?Math.round((ME.week||1)/curLv.weeks*100):0;html+='<div class="pprog"><div class="pprog-row"><span class="pprog-lbl">'+ME.level+' 과정</span><span class="pprog-val" style="color:#e65100">'+(ME.week||1)+' / '+(curLv?curLv.weeks:16)+'주차 ('+lvPct+'%)</span></div><div class="pbar"><div class="pfill" style="width:'+lvPct+'%;background:#e65100"></div></div><div class="pprog-row" style="margin-top:10px"><span class="pprog-lbl">전체 진도</span><span class="pprog-val">'+totalPct+'%</span></div><div class="pbar"><div class="pfill" style="width:'+totalPct+'%;background:#185FA5"></div></div><div class="pprog-row" style="margin-top:8px"><span class="pprog-lbl">예상 입봉시기</span><span class="pprog-val" style="color:#2e7d32">🎓 '+grad+' (남은 '+rem+'주)</span></div></div>'}
 html+='</div>';
