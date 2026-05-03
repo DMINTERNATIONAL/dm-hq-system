@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DM 시스템 사용 가이드 - 통합본</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Segoe UI',sans-serif;background:#0F172A;color:#0F172A;line-height:1.5;letter-spacing:-.015em;-webkit-font-smoothing:antialiased}
+.deck{padding:24px 0;min-height:100vh}
+.slide{width:1280px;height:720px;background:#fff;margin:0 auto 24px;padding:60px 72px;position:relative;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.slide-num{position:absolute;bottom:24px;right:32px;font-size:12px;color:#94A3B8;font-weight:700;letter-spacing:.05em}
+.slide-brand{position:absolute;bottom:24px;left:32px;display:flex;align-items:center;gap:8px;font-size:11px;color:#94A3B8;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.slide-brand .b-dot{width:6px;height:6px;background:#185FA5;border-radius:50%}
+.s-cover{background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 25%,#7C3AED 50%,#EC4899 75%,#F59E0B 100%);color:#fff;justify-content:center;align-items:center;text-align:center}
+.s-cover .role-badge{background:rgba(255,255,255,.15);backdrop-filter:blur(8px);padding:8px 18px;border-radius:24px;font-size:13px;font-weight:700;letter-spacing:.1em;margin-bottom:24px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2)}
+.s-cover .cover-logo{width:88px;height:88px;background:linear-gradient(135deg,#fff,#E2E8F0);border-radius:22px;display:flex;align-items:center;justify-content:center;color:#0F172A;font-weight:800;font-size:28px;letter-spacing:-.04em;margin-bottom:32px;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.s-cover h1{font-size:64px;font-weight:800;letter-spacing:-.05em;line-height:1.1;margin-bottom:18px;text-shadow:0 4px 24px rgba(0,0,0,.2)}
+.s-cover .cover-sub{font-size:18px;opacity:.9;font-weight:500;max-width:720px;line-height:1.5}
+.s-cover .cover-meta{position:absolute;bottom:48px;display:flex;gap:32px;font-size:12px;font-weight:600;opacity:.85;letter-spacing:.04em;text-transform:uppercase}
+.s-divider{justify-content:center;color:#fff}
+.s-divider.bg-blue{background:linear-gradient(135deg,#1D4ED8,#3B82F6)}
+.s-divider.bg-green{background:linear-gradient(135deg,#059669,#10B981)}
+.s-divider.bg-orange{background:linear-gradient(135deg,#D97706,#F59E0B)}
+.s-divider.bg-purple{background:linear-gradient(135deg,#7C3AED,#A855F7)}
+.s-divider.bg-cyan{background:linear-gradient(135deg,#0891B2,#06B6D4)}
+.s-divider.bg-red{background:linear-gradient(135deg,#DC2626,#EF4444)}
+.s-divider.bg-dark{background:linear-gradient(135deg,#0F172A,#1E293B)}
+.s-divider .d-num{font-size:14px;font-weight:700;letter-spacing:.15em;opacity:.7;margin-bottom:18px}
+.s-divider h2{font-size:64px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:14px}
+.s-divider .d-sub{font-size:20px;opacity:.9;font-weight:500;max-width:720px;line-height:1.5}
+.s-content .s-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.s-content .s-cat{font-size:11px;font-weight:800;letter-spacing:.12em;color:#185FA5;text-transform:uppercase}
+.s-content .s-cat.intern{color:#1D4ED8}
+.s-content .s-cat.designer{color:#7C3AED}
+.s-content .s-cat.counter{color:#0891B2}
+.s-content .s-cat.hq{color:#0F172A}
+.s-content .s-cat-bar{width:32px;height:3px;background:#185FA5;border-radius:2px}
+.s-content .s-cat-bar.intern{background:#1D4ED8}
+.s-content .s-cat-bar.designer{background:#7C3AED}
+.s-content .s-cat-bar.counter{background:#0891B2}
+.s-content .s-cat-bar.hq{background:#0F172A}
+.s-content h2{font-size:38px;font-weight:800;letter-spacing:-.035em;line-height:1.15;margin-bottom:14px;color:#0F172A}
+.s-content .s-lead{font-size:16px;color:#475569;font-weight:500;line-height:1.6;margin-bottom:24px;max-width:920px}
+.s-body{flex:1;display:flex;gap:28px;min-height:0}
+.s-body.col-1{flex-direction:column}
+.s-text{flex:1;min-width:0}
+.s-visual{flex:1;background:#F1F5F9;border-radius:18px;padding:24px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.steps-list{display:flex;flex-direction:column;gap:12px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step-no{width:32px;height:32px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;box-shadow:0 4px 10px rgba(59,130,246,.25)}
+.step-info{flex:1;padding-top:3px}
+.step-title{font-size:15px;font-weight:800;letter-spacing:-.02em;color:#0F172A;margin-bottom:3px}
+.step-desc{font-size:13px;color:#475569;line-height:1.55;font-weight:500}
+.role-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.role-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px;transition:all .2s}
+.role-card.intern{border-color:#3B82F6;background:linear-gradient(135deg,#fff,#EFF6FF)}
+.role-card.designer{border-color:#7C3AED;background:linear-gradient(135deg,#fff,#F5F3FF)}
+.role-card.counter{border-color:#0891B2;background:linear-gradient(135deg,#fff,#ECFEFF)}
+.role-card.hq{border-color:#0F172A;background:linear-gradient(135deg,#fff,#F8FAFC)}
+.role-card-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.role-card-icon{width:42px;height:42px;border-radius:12px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800}
+.role-card.intern .role-card-icon{background:linear-gradient(135deg,#3B82F6,#1D4ED8)}
+.role-card.designer .role-card-icon{background:linear-gradient(135deg,#A855F7,#7C3AED)}
+.role-card.counter .role-card-icon{background:linear-gradient(135deg,#06B6D4,#0891B2)}
+.role-card.hq .role-card-icon{background:linear-gradient(135deg,#1E293B,#0F172A)}
+.role-card-name{font-size:18px;font-weight:800;letter-spacing:-.02em;color:#0F172A}
+.role-card-tag{font-size:10px;font-weight:800;letter-spacing:.1em;color:#94A3B8;text-transform:uppercase;margin-top:1px}
+.role-card-desc{font-size:13px;color:#475569;line-height:1.6;font-weight:500;flex:1}
+.role-card-link{font-size:12px;font-weight:800;color:#3B82F6;letter-spacing:-.01em;display:flex;align-items:center;gap:4px}
+.role-card.designer .role-card-link{color:#7C3AED}
+.role-card.counter .role-card-link{color:#0891B2}
+.role-card.hq .role-card-link{color:#0F172A}
+.role-card-features{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:#475569;font-weight:600;line-height:1.6}
+.role-card-features div{display:flex;align-items:center;gap:5px}
+.role-card-features .check{color:#10B981;font-weight:800}
+.tip-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-left:4px solid #F59E0B;border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.tip-icon{width:26px;height:26px;background:#F59E0B;color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.tip-text{font-size:12.5px;color:#78350F;font-weight:600;line-height:1.55}
+.warn-box{background:linear-gradient(135deg,#FEE2E2,#FECACA);border-left:4px solid #EF4444;border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.warn-icon{width:26px;height:26px;background:#EF4444;color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.warn-text{font-size:12.5px;color:#7F1D1D;font-weight:600;line-height:1.55}
+.success-box{background:linear-gradient(135deg,#D1FAE5,#A7F3D0);border-left:4px solid #10B981;border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.succ-icon{width:26px;height:26px;background:#10B981;color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.succ-text{font-size:12.5px;color:#064E3B;font-weight:600;line-height:1.55}
+.compare-table{background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;font-size:12.5px}
+.compare-table table{width:100%;border-collapse:collapse}
+.compare-table th{background:#F8FAFC;padding:12px;text-align:left;font-weight:800;font-size:12px;color:#475569;border-bottom:2px solid #E2E8F0}
+.compare-table th.role-h{text-align:center;font-size:11px;letter-spacing:.05em;color:#fff}
+.compare-table th.intern-h{background:#1D4ED8}
+.compare-table th.designer-h{background:#7C3AED}
+.compare-table th.counter-h{background:#0891B2}
+.compare-table th.hq-h{background:#0F172A}
+.compare-table td{padding:10px 12px;border-bottom:1px solid #F1F5F9;font-weight:500;color:#0F172A}
+.compare-table td:first-child{font-weight:700;color:#475569;background:#F8FAFC}
+.compare-table td.center{text-align:center}
+.compare-table .yes{color:#10B981;font-weight:800;font-size:14px}
+.compare-table .no{color:#CBD5E1;font-weight:700}
+.compare-table .partial{color:#F59E0B;font-weight:800}
+.qa-list{display:flex;flex-direction:column;gap:11px}
+.qa-item{background:#F8FAFC;border-left:3px solid #3B82F6;border-radius:8px;padding:11px 16px}
+.qa-q{font-size:13px;font-weight:800;color:#0F172A;letter-spacing:-.02em;margin-bottom:4px}
+.qa-q .q-mark{color:#3B82F6;margin-right:7px;font-weight:900}
+.qa-a{font-size:12px;color:#475569;line-height:1.6;font-weight:500}
+.s-end{background:linear-gradient(135deg,#0F172A,#1E293B);color:#fff;justify-content:center;align-items:center;text-align:center}
+.s-end h2{font-size:54px;font-weight:800;letter-spacing:-.04em;margin-bottom:16px;line-height:1.15}
+.s-end .end-sub{font-size:18px;opacity:.85;max-width:680px;line-height:1.6;margin-bottom:32px;font-weight:500}
+.s-end .end-meta{display:flex;gap:48px;font-size:13px;font-weight:600;opacity:.75}
+.s-end .end-meta div{display:flex;flex-direction:column;align-items:center;gap:6px}
+.s-end .end-meta .m-lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+.toolbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.85);backdrop-filter:blur(16px);padding:8px 14px;border-radius:14px;display:flex;gap:8px;align-items:center;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1)}
+.tool-btn{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em}
+.tool-btn:hover{background:rgba(255,255,255,.18)}
+.tool-btn.primary{background:linear-gradient(135deg,#3B82F6,#1D4ED8)}
+.tool-counter{color:#fff;font-size:12px;font-weight:700;padding:0 8px;letter-spacing:.02em}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.feat-item{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:13px;padding:16px}
+.feat-icon{width:36px;height:36px;border-radius:10px;background:#3B82F6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:8px;font-weight:800}
+.feat-name{font-size:14px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px;color:#0F172A}
+.feat-desc{font-size:12px;color:#64748B;font-weight:500;line-height:1.5}
+@media print{
+  html,body{background:#fff}
+  .deck{padding:0;min-height:auto}
+  .slide{margin:0;border-radius:0;box-shadow:none;width:297mm;height:209mm;page-break-after:always}
+  .toolbar{display:none}
+  @page{size:A4 landscape;margin:0}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="tool-btn primary" onclick="window.print()">📄 PDF로 저장</button>
+  <span class="tool-counter" id="ctr">1 / 1</span>
+</div>
+
+<div class="deck" id="deck">
+
+<!-- 1: Cover -->
+<section class="slide s-cover">
+  <div class="role-badge">All-in-One · 통합 가이드</div>
+  <div class="cover-logo">DM</div>
+  <h1>DM INTERNATIONAL<br>통합 사용 가이드</h1>
+  <div class="cover-sub">인턴, 디자이너, 카운터, 경영팀까지 — 모든 직원이 알아야 할 시스템 사용법을 한 권에.</div>
+  <div class="cover-meta">
+    <div>DAY:MEAN · ETOH</div>
+    <div>v1.0 · 2026</div>
+    <div>약 20분 분량</div>
+  </div>
+</section>
+
+<!-- 2: Role Selection -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Role Selection</div></div>
+  <h2>나의 역할 찾기</h2>
+  <div class="s-lead">본인의 직급에 해당하는 카드를 확인하세요. 자세한 가이드는 별도 PDF로 제공됩니다.</div>
+  <div class="s-body col-1">
+    <div class="role-cards">
+      <div class="role-card intern">
+        <div class="role-card-head">
+          <div class="role-card-icon">👤</div>
+          <div><div class="role-card-name">인턴</div><div class="role-card-tag">DAY:MEAN · INTERN</div></div>
+        </div>
+        <div class="role-card-features">
+          <div><span class="check">✓</span> 내 진도 추적 (주차 grid)</div>
+          <div><span class="check">✓</span> 외부 수강 등록</div>
+          <div><span class="check">✓</span> 시험 결과·숙제·연습 측정</div>
+          <div><span class="check">✓</span> 발주(권한시)·휴가 신청</div>
+        </div>
+      </div>
+      <div class="role-card designer">
+        <div class="role-card-head">
+          <div class="role-card-icon">🎓</div>
+          <div><div class="role-card-name">디자이너</div><div class="role-card-tag">DAY:MEAN · EDUCATOR</div></div>
+        </div>
+        <div class="role-card-features">
+          <div><span class="check">✓</span> 담당 인턴 진도 관리</div>
+          <div><span class="check">✓</span> 교육 완료 등록 (1회 ₩6만)</div>
+          <div><span class="check">✓</span> 숙제 출제·교육 실적</div>
+          <div><span class="check">✓</span> 휴무 신청·발주(권한시)</div>
+        </div>
+      </div>
+      <div class="role-card counter">
+        <div class="role-card-head">
+          <div class="role-card-icon">💼</div>
+          <div><div class="role-card-name">카운터</div><div class="role-card-tag">DAY:MEAN · COUNTER</div></div>
+        </div>
+        <div class="role-card-features">
+          <div><span class="check">✓</span> 지점 인턴 진도 조회</div>
+          <div><span class="check">✓</span> 휴게 현황 모니터링</div>
+          <div><span class="check">✓</span> 발주 현황·내역 조회</div>
+          <div><span class="check">✓</span> 발주(권한시)·휴무 신청</div>
+        </div>
+      </div>
+      <div class="role-card hq">
+        <div class="role-card-head">
+          <div class="role-card-icon">🏢</div>
+          <div><div class="role-card-name">경영팀 / 본사 관리자</div><div class="role-card-tag">HQ · ADMIN</div></div>
+        </div>
+        <div class="role-card-features">
+          <div><span class="check">✓</span> 직원/가입 승인·발주 처리</div>
+          <div><span class="check">✓</span> 아카데미 관리·시험 입력</div>
+          <div><span class="check">✓</span> 교육자 현황 (교육비 자동)</div>
+          <div><span class="check">✓</span> 연차/식대/휴게 통계</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">2</div>
+</section>
+
+<!-- 3: 시스템 개요 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Overview</div></div>
+  <h2>5분 만에 이해하는 DM 시스템</h2>
+  <div class="s-lead">미용실 체인 통합 운영 시스템. 발주·인턴 교육·근태·통계를 한 앱에서 처리.</div>
+  <div class="s-body col-1">
+    <div class="feat-grid">
+      <div class="feat-item"><div class="feat-icon" style="background:#F59E0B">📦</div><div class="feat-name">발주 관리</div><div class="feat-desc">제품 신청 → 본사 확인 → 배송 → (필요시) 환불 까지 한 흐름. 통계 자동 집계</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#A855F7">🎓</div><div class="feat-name">아카데미</div><div class="feat-desc">9단계 레벨(BASIC~GOLD-3) × 16주차. 인턴 진도·시험·숙제·교육비 자동 산정</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#10B981">⏱️</div><div class="feat-name">연습 측정</div><div class="feat-desc">롤브러쉬·샴푸 등 자가 측정 + 인턴 랭킹. 누가 얼마나 연습했는지 가시화</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#EF4444">☕</div><div class="feat-name">근태 / 휴게</div><div class="feat-desc">휴게 60분 타이머·외근·식대·지각·연차. 실시간 지점 현황</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#3B82F6">👥</div><div class="feat-name">직원 관리</div><div class="feat-desc">가입 승인·권한 관리·담당 디자이너 배정·퇴사/복직 처리</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#0F172A">📊</div><div class="feat-name">통계 / 정산</div><div class="feat-desc">발주 통계·교육자 현황(₩60,000/회)·식대 합계·휴게 초과 누적</div></div>
+    </div>
+    <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">PWA 기술 사용 → <b>앱스토어 다운로드 없이</b> 홈 화면에 추가하면 네이티브 앱처럼 동작. 자동 업데이트 지원.</div></div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">3</div>
+</section>
+
+<!-- 4: 역할별 기능 비교표 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Comparison</div></div>
+  <h2>역할별 사용 가능 기능 한눈에</h2>
+  <div class="s-body col-1">
+    <div class="compare-table">
+      <table>
+        <thead>
+          <tr><th style="width:30%">기능</th><th class="role-h intern-h">인턴</th><th class="role-h designer-h">디자이너</th><th class="role-h counter-h">카운터</th><th class="role-h hq-h">경영팀</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>발주하기 (권한 시)</td><td class="center"><span class="partial">권한○</span></td><td class="center"><span class="partial">권한○</span></td><td class="center"><span class="partial">권한○</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>발주 관리 (확인/배송)</td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>발주 현황 조회</td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">지점</span></td><td class="center"><span class="yes">전체</span></td></tr>
+          <tr><td>내 진도 / 외부 수강</td><td class="center"><span class="yes">✓</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td></tr>
+          <tr><td>교육 완료 등록</td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">✓</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>인턴 관리 (담당)</td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">담당</span></td><td class="center"><span class="yes">지점</span></td><td class="center"><span class="yes">전체</span></td></tr>
+          <tr><td>아카데미 관리 (주차 체크)</td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>시험 결과 입력</td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>휴게시간 / 식대 / 지각</td><td class="center"><span class="yes">✓</span></td><td class="center"><span class="partial">휴게</span></td><td class="center"><span class="partial">휴게</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>연차/휴가 신청</td><td class="center"><span class="yes">연차</span></td><td class="center"><span class="yes">휴무</span></td><td class="center"><span class="yes">휴무</span></td><td class="center"><span class="yes">연차</span></td></tr>
+          <tr><td>외근 체크</td><td class="center"><span class="no">−</span></td><td class="center"><span class="partial">대표만</span></td><td class="center"><span class="no">−</span></td><td class="center"><span class="yes">✓</span></td></tr>
+          <tr><td>휴게 현황 (지점/전체)</td><td class="center"><span class="yes">지점</span></td><td class="center"><span class="yes">지점</span></td><td class="center"><span class="yes">지점</span></td><td class="center"><span class="yes">전체</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">4</div>
+</section>
+
+<!-- 5: Section A - 공통 시작하기 -->
+<section class="slide s-divider bg-blue">
+  <div class="d-num">CHAPTER A · 모두 공통</div>
+  <h2>시작하기</h2>
+  <div class="d-sub">앱 설치 + 로그인 + 사이드바 사용법 (모든 직원 공통)</div>
+</section>
+
+<!-- 6: PWA 설치 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Common · A.1</div></div>
+  <h2>📱 PWA 설치 (홈 화면 추가)</h2>
+  <div class="s-lead">아이폰 Safari 또는 안드로이드 Chrome으로 시스템 주소에 접속한 후 홈 화면에 추가하면, 다음부턴 앱처럼 한 번에 접속됩니다.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">QR 스캔 또는 URL 입력</div><div class="step-desc">신규 직원: 본사에서 받은 QR 카메라로 스캔 → Safari 자동 열림</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">자동 안내 배너 → "설치"</div><div class="step-desc">접속 후 1.5초 뒤 파란 배너 등장. iOS는 안내 모달, Android는 즉시 설치</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">iOS: 공유 (⬆) → "홈 화면에 추가" → "추가"</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">홈 화면 DM 아이콘으로 매번 접속</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#185FA5;margin-bottom:10px">시스템 URL</div>
+      <div style="background:#0F172A;color:#fff;padding:14px 18px;border-radius:12px;font-family:monospace;font-size:14px;font-weight:700;text-align:center;margin-bottom:18px">dminternational.github.io/dm-hq-system</div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text"><b>반드시 Safari로</b>. 카톡/인스타/Chrome 내장 브라우저는 홈 화면 추가 불가.</div></div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">한 번 설치하면 끝. 다음 코드 변경부터는 <b>Service Worker가 자동 업데이트</b>해줘서 다시 설치할 필요 없음.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">6</div>
+</section>
+
+<!-- 7: 로그인 + 사이드바 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Common · A.2</div></div>
+  <h2>🔑 로그인 + 사이드바 사용법</h2>
+  <div class="s-lead">전화번호와 비밀번호로 로그인. 좌측 ≡ 햄버거 또는 데스크탑 좌측 고정 사이드바로 전체 메뉴 접근.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#185FA5;margin-bottom:10px">로그인</div>
+      <div class="steps-list" style="margin-bottom:14px">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">전화번호 + 비밀번호 입력</div><div class="step-desc">- 없이 숫자만 (예: 01012345678)</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">자동 로그인 체크 (선택)</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">역할에 맞는 대시보드 자동 진입</div></div></div>
+      </div>
+      <div style="font-size:14px;font-weight:800;color:#185FA5;margin-bottom:10px">비밀번호 재설정</div>
+      <div style="font-size:12.5px;color:#475569;line-height:1.6;font-weight:500">로그인 화면 → "비밀번호 재설정" → 이름·전화번호·생년월일 입력 → 본사 관리자가 새 비번 발급</div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#185FA5;margin-bottom:10px">사이드바 카테고리 (역할별 자동 표시)</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no" style="background:#F59E0B">📦</div><div class="step-info"><div class="step-title">발주</div><div class="step-desc">발주하기 / 발주 내역 (권한 시)</div></div></div>
+        <div class="step"><div class="step-no" style="background:#A855F7">🎓</div><div class="step-info"><div class="step-title">아카데미 / 교육 / 인턴 관리</div><div class="step-desc">역할에 따라 다른 메뉴 표시</div></div></div>
+        <div class="step"><div class="step-no" style="background:#EF4444">☕</div><div class="step-info"><div class="step-title">근태</div><div class="step-desc">휴게·식대·지각·연차/휴무</div></div></div>
+        <div class="step"><div class="step-no" style="background:#3B82F6">📊</div><div class="step-info"><div class="step-title">관리 (HQ 전용)</div><div class="step-desc">직원·발주·아카데미·근태 통계 등</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">7</div>
+</section>
+
+<!-- 8: 인턴 핵심 -->
+<section class="slide s-divider bg-blue">
+  <div class="d-num">CHAPTER B · 인턴</div>
+  <h2>인턴 핵심 기능</h2>
+  <div class="d-sub">자세한 내용은 별도 인턴 가이드 참고</div>
+</section>
+
+<!-- 9: 인턴 핵심 3가지 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar intern"></div><div class="s-cat intern">Intern · B.1</div></div>
+  <h2>인턴이 매일 쓰는 핵심 3가지</h2>
+  <div class="s-lead">시스템에서 인턴이 가장 많이 사용하는 기능들. 각 기능의 자세한 사용법은 인턴 가이드 PDF 참고.</div>
+  <div class="s-body col-1">
+    <div class="feat-grid">
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#EFF6FF);border-color:#BFDBFE"><div class="feat-icon" style="background:#3B82F6">📈</div><div class="feat-name">내 진도 (주차 grid)</div><div class="feat-desc">사이드바 → "내 진도". 1~16주차를 색상으로 구분: <b style="color:#10B981">완료(녹색)</b>, <b style="color:#3B82F6">현재(파랑)</b>, <b style="color:#94A3B8">미수강(회색)</b>. 비순차 수강도 정확히 표시.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#FEF3C7);border-color:#FDE68A"><div class="feat-icon" style="background:#F59E0B">⏱️</div><div class="feat-name">연습 측정 + 랭킹</div><div class="feat-desc">사이드바 → "연습 측정". 종목 선택 → 시작 → 종료. 자동으로 시간 기록되어 전체 인턴 랭킹에 반영.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F0FDF4);border-color:#A7F3D0"><div class="feat-icon" style="background:#10B981">📚</div><div class="feat-name">외부 수강 등록</div><div class="feat-desc">외부 아카데미 다녀왔으면 "외부 수강"에서 직접 입력. 날짜 + 수강 주차 (1~16, 비순차 OK). 즉시 진도 반영.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#A855F7">📝</div><div class="feat-name">시험 결과·숙제</div><div class="feat-desc">시험 결과는 본사가 입력 → "시험 결과"에서 확인. 숙제는 디자이너가 출제 → "숙제"에서 확인 후 완료 체크.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#F59E0B">📦</div><div class="feat-name">발주하기 (권한 시)</div><div class="feat-desc">권한 ON이면 사이드바에 "발주하기" 표시. 카테고리 → 제품 → 수량 → 카트 → 제출.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#EF4444">🌴</div><div class="feat-name">휴가 신청</div><div class="feat-desc">잔여 연차 확인 → 날짜 선택 → 사유 입력 → 본사 승인 대기. 보유 + 추가 - 사용 = 잔여.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">9</div>
+</section>
+
+<!-- 10: 디자이너 핵심 -->
+<section class="slide s-divider bg-purple">
+  <div class="d-num">CHAPTER C · 디자이너</div>
+  <h2>디자이너 핵심 기능</h2>
+  <div class="d-sub">자세한 내용은 별도 디자이너 가이드 참고</div>
+</section>
+
+<!-- 11: 디자이너 핵심 3가지 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar designer"></div><div class="s-cat designer">Designer · C.1</div></div>
+  <h2>디자이너가 매일 쓰는 핵심 기능</h2>
+  <div class="s-lead">담당 인턴의 진도를 책임지고 관리하는 디자이너의 주요 기능. 본사 교육비 정산의 기초가 되므로 정확한 입력이 중요합니다.</div>
+  <div class="s-body col-1">
+    <div class="feat-grid">
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F5F3FF);border-color:#DDD6FE"><div class="feat-icon" style="background:#7C3AED">👥</div><div class="feat-name">내 인턴 관리</div><div class="feat-desc">사이드바 → "내 인턴". 담당 인턴 전체 진도·잔여 연차·지각 누적·실시간 휴게 상태 한눈에.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F0FDF4);border-color:#A7F3D0"><div class="feat-icon" style="background:#10B981">✅</div><div class="feat-name">교육 완료 등록</div><div class="feat-desc">사이드바 → "교육 완료". 날짜·레벨·주차 선택 → 수강생 다중 체크. <b>1회당 ₩60,000 자동 산정.</b></div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#F59E0B">📝</div><div class="feat-name">숙제 출제</div><div class="feat-desc">사이드바 → "숙제 출제". 인턴 선택 → 마감 + 내용. 다음 교육 등록 시 이전 숙제 자동 완료.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#3B82F6">📊</div><div class="feat-name">교육 실적 보기</div><div class="feat-desc">사이드바 → "교육 실적". 이번달 교육 횟수·교육 인턴 수.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#0891B2">☕</div><div class="feat-name">지점 휴게 현황</div><div class="feat-desc">본인 지점 인턴들이 휴게 중·외근·완료 상태 실시간 모니터링.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#EF4444">🌴</div><div class="feat-name">휴무 신청</div><div class="feat-desc">사이드바 → "휴무 신청". 인턴의 "연차"와 다른 카테고리. 잔여일 차감 X.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">11</div>
+</section>
+
+<!-- 12: 카운터 핵심 -->
+<section class="slide s-divider bg-cyan">
+  <div class="d-num">CHAPTER D · 카운터</div>
+  <h2>카운터 핵심 기능</h2>
+  <div class="d-sub">자세한 내용은 별도 카운터 가이드 참고</div>
+</section>
+
+<!-- 13: 카운터 핵심 3가지 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar counter"></div><div class="s-cat counter">Counter · D.1</div></div>
+  <h2>카운터가 매일 쓰는 핵심 기능</h2>
+  <div class="s-lead">카운터에서 지점 운영 상황을 한눈에 파악하고, 인턴 안내·고객 응대 시 빠른 정보 조회.</div>
+  <div class="s-body col-1">
+    <div class="feat-grid">
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#ECFEFF);border-color:#A5F3FC"><div class="feat-icon" style="background:#0891B2">👥</div><div class="feat-name">지점 인턴 보기</div><div class="feat-desc">사이드바 → "지점 인턴". 본인 지점 인턴 전체 + 레벨/주차/담당 디자이너/진도율. 레벨순 자동 정렬.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#FFF8F0);border-color:#FED7AA"><div class="feat-icon" style="background:#F59E0B">☕</div><div class="feat-name">휴게 현황</div><div class="feat-desc">사이드바 → "휴게 현황". 지점 직원의 휴게중·외근중·휴식전·완료 상태 실시간. 인력 배치 판단에 유용.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F0FDF4);border-color:#A7F3D0"><div class="feat-icon" style="background:#10B981">📦</div><div class="feat-name">발주 현황</div><div class="feat-desc">사이드바 → "발주 현황". 본인 지점 발주 상태 (대기/확인/배송/취소/환불) 한눈에. 기간/탭 필터.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#3B82F6">📦</div><div class="feat-name">발주하기 (권한 시)</div><div class="feat-desc">권한 ON이면 사이드바에 "발주하기" 표시. 인턴과 동일한 절차.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#A855F7">📋</div><div class="feat-name">발주 내역</div><div class="feat-desc">권한 시 본인이 신청한 발주 진행 상태 확인. 환불 요청도 여기서.</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#EF4444">🌴</div><div class="feat-name">휴무 신청</div><div class="feat-desc">사이드바 → "휴무 신청". 본사 관리자 승인 후 적용.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">13</div>
+</section>
+
+<!-- 14: HQ 핵심 -->
+<section class="slide s-divider bg-dark">
+  <div class="d-num">CHAPTER E · 경영팀 / 본사 관리자</div>
+  <h2>경영팀 핵심 기능</h2>
+  <div class="d-sub">자세한 내용은 별도 경영팀 가이드 참고 (28장)</div>
+</section>
+
+<!-- 15: HQ 핵심 5가지 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar hq"></div><div class="s-cat hq">HQ · E.1</div></div>
+  <h2>경영팀이 다루는 핵심 영역 6개</h2>
+  <div class="s-lead">전사 운영을 책임지는 본사 관리자의 핵심 책임 영역. 자세한 절차는 별도 28장 가이드 참고.</div>
+  <div class="s-body col-1">
+    <div class="feat-grid">
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F8FAFC);border-color:#CBD5E1"><div class="feat-icon" style="background:#3B82F6">👤</div><div class="feat-name">직원 관리</div><div class="feat-desc">가입 승인·직원 등록/수정·발주 권한·담당 디자이너 배정·퇴사/복직.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#FEF3C7);border-color:#FDE68A"><div class="feat-icon" style="background:#F59E0B">📦</div><div class="feat-name">발주 처리</div><div class="feat-desc">대기→확인→배송완료 흐름. 환불 요청 별도 처리. 발주 통계로 분석.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F5F3FF);border-color:#DDD6FE"><div class="feat-icon" style="background:#A855F7">🎓</div><div class="feat-name">아카데미 관리</div><div class="feat-desc">인턴 카드 클릭 → 주차 직접 체크 + 담당 변경. 디자이너 빠진 부분 본사가 보완.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#ECFDF5);border-color:#A7F3D0"><div class="feat-icon" style="background:#10B981">👨‍🏫</div><div class="feat-name">교육자 현황 (정산)</div><div class="feat-desc">기간 필터 → 디자이너별 교육 횟수 + 교육비 자동 계산 (1회 ₩60,000). 월말 정산용.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#FEE2E2);border-color:#FCA5A5"><div class="feat-icon" style="background:#EF4444">🌴</div><div class="feat-name">근태 관리</div><div class="feat-desc">연차/휴무 승인·인턴 휴가 추가·식대 정산·휴게 통계·외근 추적.</div></div>
+      <div class="feat-item" style="background:linear-gradient(135deg,#fff,#F0F9FF);border-color:#BAE6FD"><div class="feat-icon" style="background:#0F172A">🏪</div><div class="feat-name">제품 관리</div><div class="feat-desc">단일/일괄 제품 추가·수정·삭제. 과거 발주 통계와 자동 동기화.</div></div>
+    </div>
+    <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text"><b>50명 본격 사용 전 1회 필수:</b> 사이드바 → 아카데미 관리 → "🔄 담당 디자이너 자동 복구" 실행</div></div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">15</div>
+</section>
+
+<!-- 16: Section F - 공통 -->
+<section class="slide s-divider bg-orange">
+  <div class="d-num">CHAPTER F · 모두 공통</div>
+  <h2>공통 기능</h2>
+  <div class="d-sub">휴게 · 식대 · 지각 · 휴가 · 발주 (역할 무관)</div>
+</section>
+
+<!-- 17: 공통 - 휴게/식대/지각 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Common · F.1</div></div>
+  <h2>☕ 휴게 / 🍽️ 식대 / ⏰ 지각</h2>
+  <div class="s-lead">매일 쓰는 근태 기능. 모든 직원이 동일한 방식으로 사용합니다.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#F59E0B;margin-bottom:8px">☕ 휴게시간</div>
+      <div class="steps-list" style="margin-bottom:14px">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">대시보드 우측 ☕ 휴게 또는 사이드바</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">"시작" → 60분 타이머</div><div class="step-desc">전 지점에서 실시간 표시</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">초과 시 빨강 + "초과 N분" 표시</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">복귀 시 "종료" 클릭</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#F59E0B;margin-bottom:8px">🍽️ 식대 / ⏰ 지각</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">식대: 사이드바 → "식대 기록"</div><div class="step-desc">날짜 선택 → 사용 등록. 영수증 첨부 X (자가 신고). 본사가 월말 정산.</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">지각: 사이드바 → "지각 기록"</div><div class="step-desc">날짜 + 사유 입력. 본인 책임 입력. 본사 통계 자동 집계.</div></div></div>
+      </div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text"><b>대표 (민경/세운/김민경/김세운)</b>는 휴게 대신 외근만 표시. 일반 직원과 다르므로 주의.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">17</div>
+</section>
+
+<!-- 18: 공통 - 휴가 + 발주 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Common · F.2</div></div>
+  <h2>🌴 연차/휴무 / 📦 발주</h2>
+  <div class="s-lead">휴가는 인턴(연차) vs 디자이너·카운터(휴무)로 분리. 발주는 권한 ON일 때만.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#EF4444;margin-bottom:8px">🌴 휴가 신청 (역할별 차이)</div>
+      <div class="steps-list" style="margin-bottom:14px">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">인턴 / 경영팀 → 연차 신청</div><div class="step-desc">잔여 연차 차감. 보유+추가-사용=잔여. 본사 승인 후 차감.</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">디자이너 / 카운터 / ETOH → 휴무 신청</div><div class="step-desc">차감 X. 본사가 승인하면 캘린더에만 표시.</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#F59E0B;margin-bottom:8px">📦 발주 (권한 ON일 때만)</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">사이드바 → "발주하기"</div><div class="step-desc">권한 OFF면 메뉴 안 보임</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">카테고리 → 제품 검색 → 수량 → 카트</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"발주 제출" → 본사 처리 대기</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">"발주 내역"에서 진행 상태 확인</div><div class="step-desc">⏳ 대기 / 📦 확인 / ✅ 배송완료 / 🔄 환불요청 / 💰 환불완료 / ❌ 발주 취소</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">18</div>
+</section>
+
+<!-- 19: PWA 재설치 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Troubleshooting · G.1</div></div>
+  <h2>⚠️ 새 기능이 안 보일 때 (PWA 재설치)</h2>
+  <div class="s-lead">옛 PWA 사용자는 캐시 때문에 새 기능을 못 볼 수 있습니다. 한 번만 재설치하면 끝.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">홈 화면 DM 아이콘 길게 누르기</div><div class="step-desc">"앱 삭제" 또는 "즐겨찾기 제거" 선택 → "홈 화면에서 제거"</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">Safari 열기 (다른 브라우저 X)</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">시스템 URL 입력 또는 QR 스캔</div><div class="step-desc">dminternational.github.io/dm-hq-system</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">자동 안내 배너 → "설치"</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">홈 화면 새 DM 아이콘으로 접속</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text"><b>다음부턴 자동 업데이트</b>됩니다. Service Worker가 백그라운드에서 새 버전을 받아옵니다.</div></div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">로그인 정보·자동 로그인 설정은 그대로 유지됩니다.</div></div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text">반드시 <b>Safari</b>로. Chrome/카톡/인스타 내장 브라우저는 안 됩니다.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">19</div>
+</section>
+
+<!-- 20: FAQ -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">FAQ</div></div>
+  <h2>❓ 모두를 위한 자주 묻는 질문</h2>
+  <div class="s-body col-1">
+    <div class="qa-list">
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>비밀번호를 잊었어요</div><div class="qa-a">로그인 화면 → "비밀번호 재설정" → 이름·전화번호·생년월일 입력 → 본사 관리자가 새 비번 발급. 또는 본사 관리자에게 직접 연락이 더 빠릅니다.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>새 기능이 안 보여요</div><div class="qa-a">옛 PWA 캐시 문제. 위 슬라이드 19 참고해서 재설치. 다음부턴 자동 업데이트.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>주차 표시가 이상해요 (15주차인데 7/16으로 나옴)</div><div class="qa-a">"수강한 주차 / 총 주차" 형식. 7/16은 16주차 중 7주차를 받았다는 뜻 (꼭 1~7일 필요는 없고 비순차 가능).</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>발주하기 메뉴가 안 보여요</div><div class="qa-a">발주 권한이 OFF 상태. 본사 관리자에게 권한 요청.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>담당 인턴/디자이너가 사라졌어요</div><div class="qa-a">본사 관리자에게 "아카데미 관리" → "🔄 담당 디자이너 자동 복구" 요청. 교육 이력 기반으로 자동 복원됨.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>휴게 60분 초과하면?</div><div class="qa-a">자동 정지 X. 본사 통계에 "휴게초과"로 카운트. 직원 관리에서 이번달/올해 누적 표시.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>실시간 동기화는 얼마나 잘 되나요?</div><div class="qa-a">Firebase Realtime Database 기반. 1~2초 내 모든 사용자 화면에 반영. 백그라운드 시 일시 중단되며, 앱 다시 열면 즉시 동기화.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM Combined Guide</div>
+  <div class="slide-num">20</div>
+</section>
+
+<!-- 21: End -->
+<section class="slide s-end">
+  <div style="font-size:14px;font-weight:800;letter-spacing:.15em;opacity:.7;margin-bottom:18px">END OF GUIDE</div>
+  <h2>모두가 함께 만드는 시스템 🤝</h2>
+  <div class="end-sub">정확한 입력과 꾸준한 사용이 시스템의 가치를 만듭니다. 더 자세한 내용은 역할별 가이드 PDF를 참고해주세요.</div>
+  <div class="end-meta">
+    <div><div class="m-lbl">Brand</div><div>DM INTERNATIONAL</div></div>
+    <div><div class="m-lbl">For</div><div>모든 직원</div></div>
+    <div><div class="m-lbl">Version</div><div>v1.0 · 2026</div></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var slides=document.querySelectorAll('.slide');
+  var ctr=document.getElementById('ctr');
+  function update(){
+    var idx=1;
+    var sy=window.scrollY+window.innerHeight/2;
+    slides.forEach(function(s,i){
+      var r=s.getBoundingClientRect();
+      var top=r.top+window.scrollY;
+      if(sy>=top && sy<top+r.height) idx=i+1;
+    });
+    ctr.textContent=idx+' / '+slides.length;
+  }
+  update();
+  window.addEventListener('scroll',update,{passive:true});
+})();
+</script>
+
+</body>
+</html>

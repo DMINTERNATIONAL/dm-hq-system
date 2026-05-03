@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DM 시스템 사용 가이드 - 경영팀 / 본사 관리자</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Segoe UI',sans-serif;background:#0F172A;color:#0F172A;line-height:1.5;letter-spacing:-.015em;-webkit-font-smoothing:antialiased}
+.deck{padding:24px 0;min-height:100vh}
+.slide{width:1280px;height:720px;background:#fff;margin:0 auto 24px;padding:60px 72px;position:relative;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.slide-num{position:absolute;bottom:24px;right:32px;font-size:12px;color:#94A3B8;font-weight:700;letter-spacing:.05em}
+.slide-brand{position:absolute;bottom:24px;left:32px;display:flex;align-items:center;gap:8px;font-size:11px;color:#94A3B8;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.slide-brand .b-dot{width:6px;height:6px;background:#0F172A;border-radius:50%}
+.s-cover{background:linear-gradient(135deg,#0F172A 0%,#1E293B 50%,#334155 100%);color:#fff;justify-content:center;align-items:center;text-align:center}
+.s-cover .role-badge{background:rgba(255,255,255,.15);backdrop-filter:blur(8px);padding:8px 18px;border-radius:24px;font-size:13px;font-weight:700;letter-spacing:.1em;margin-bottom:24px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2)}
+.s-cover .cover-logo{width:88px;height:88px;background:linear-gradient(135deg,#fff,#E2E8F0);border-radius:22px;display:flex;align-items:center;justify-content:center;color:#0F172A;font-weight:800;font-size:28px;letter-spacing:-.04em;margin-bottom:32px;box-shadow:0 12px 32px rgba(0,0,0,.25)}
+.s-cover h1{font-size:60px;font-weight:800;letter-spacing:-.05em;line-height:1.1;margin-bottom:18px}
+.s-cover .cover-sub{font-size:18px;opacity:.85;font-weight:500;max-width:720px;line-height:1.5}
+.s-cover .cover-meta{position:absolute;bottom:48px;display:flex;gap:32px;font-size:12px;font-weight:600;opacity:.7;letter-spacing:.04em;text-transform:uppercase}
+.s-divider{justify-content:center;color:#fff}
+.s-divider.bg-blue{background:linear-gradient(135deg,#1D4ED8,#3B82F6)}
+.s-divider.bg-green{background:linear-gradient(135deg,#059669,#10B981)}
+.s-divider.bg-orange{background:linear-gradient(135deg,#D97706,#F59E0B)}
+.s-divider.bg-purple{background:linear-gradient(135deg,#7C3AED,#A855F7)}
+.s-divider.bg-red{background:linear-gradient(135deg,#DC2626,#EF4444)}
+.s-divider.bg-pink{background:linear-gradient(135deg,#BE185D,#EC4899)}
+.s-divider .d-num{font-size:14px;font-weight:700;letter-spacing:.15em;opacity:.7;margin-bottom:18px}
+.s-divider h2{font-size:60px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:14px}
+.s-divider .d-sub{font-size:20px;opacity:.9;font-weight:500;max-width:720px;line-height:1.5}
+.s-content .s-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.s-content .s-cat{font-size:11px;font-weight:800;letter-spacing:.12em;color:#0F172A;text-transform:uppercase}
+.s-content .s-cat-bar{width:32px;height:3px;background:#0F172A;border-radius:2px}
+.s-content h2{font-size:38px;font-weight:800;letter-spacing:-.035em;line-height:1.15;margin-bottom:14px;color:#0F172A}
+.s-content .s-lead{font-size:16px;color:#475569;font-weight:500;line-height:1.6;margin-bottom:24px;max-width:920px}
+.s-body{flex:1;display:flex;gap:28px;min-height:0}
+.s-body.col-1{flex-direction:column}
+.s-text{flex:1;min-width:0}
+.s-visual{flex:1;background:#F1F5F9;border-radius:18px;padding:24px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.steps-list{display:flex;flex-direction:column;gap:14px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step-no{width:32px;height:32px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;box-shadow:0 4px 10px rgba(59,130,246,.25)}
+.step-info{flex:1;padding-top:3px}
+.step-title{font-size:15px;font-weight:800;letter-spacing:-.02em;color:#0F172A;margin-bottom:3px}
+.step-desc{font-size:13px;color:#475569;line-height:1.55;font-weight:500}
+.step-detail{background:#F8FAFC;border-radius:7px;padding:7px 11px;font-size:12px;color:#64748B;margin-top:5px;line-height:1.55;border-left:2px solid #CBD5E1}
+.step-detail b{color:#0F172A;font-weight:700}
+.feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.feat-item{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:13px;padding:16px}
+.feat-item.accent{background:linear-gradient(135deg,#FEE2E2,#FECACA);border-color:#FCA5A5}
+.feat-icon{width:36px;height:36px;border-radius:10px;background:#3B82F6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:8px;font-weight:800}
+.feat-name{font-size:14px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px;color:#0F172A}
+.feat-desc{font-size:12px;color:#64748B;font-weight:500;line-height:1.5}
+.tip-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-left:4px solid #F59E0B;border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.tip-icon{width:26px;height:26px;background:#F59E0B;color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.tip-text{font-size:12.5px;color:#78350F;font-weight:600;line-height:1.55}
+.tip-text b{color:#451A03}
+.warn-box{background:linear-gradient(135deg,#FEE2E2,#FECACA);border-left:4px solid #EF4444;border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.warn-icon{width:26px;height:26px;background:#EF4444;color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.warn-text{font-size:12.5px;color:#7F1D1D;font-weight:600;line-height:1.55}
+.success-box{background:linear-gradient(135deg,#D1FAE5,#A7F3D0);border-left:4px solid #10B981;border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.succ-icon{width:26px;height:26px;background:#10B981;color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.succ-text{font-size:12.5px;color:#064E3B;font-weight:600;line-height:1.55}
+.mockup{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:14px;box-shadow:0 4px 12px rgba(0,0,0,.04);font-size:12px}
+.mockup-bdg{padding:3px 7px;border-radius:6px;font-size:10px;font-weight:800;display:inline-block}
+.bdg-c{background:#DBEAFE;color:#1E40AF}
+.bdg-g{background:#D1FAE5;color:#064E3B}
+.bdg-o{background:#FEF3C7;color:#78350F}
+.bdg-r{background:#FEE2E2;color:#7F1D1D}
+.bdg-p{background:#EDE9FE;color:#5B21B6}
+.qa-list{display:flex;flex-direction:column;gap:11px}
+.qa-item{background:#F8FAFC;border-left:3px solid #3B82F6;border-radius:8px;padding:11px 16px}
+.qa-q{font-size:13px;font-weight:800;color:#0F172A;letter-spacing:-.02em;margin-bottom:4px}
+.qa-q .q-mark{color:#3B82F6;margin-right:7px;font-weight:900}
+.qa-a{font-size:12px;color:#475569;line-height:1.6;font-weight:500}
+.s-end{background:linear-gradient(135deg,#0F172A,#1E293B);color:#fff;justify-content:center;align-items:center;text-align:center}
+.s-end h2{font-size:54px;font-weight:800;letter-spacing:-.04em;margin-bottom:16px;line-height:1.15}
+.s-end .end-sub{font-size:18px;opacity:.85;max-width:680px;line-height:1.6;margin-bottom:32px;font-weight:500}
+.s-end .end-meta{display:flex;gap:48px;font-size:13px;font-weight:600;opacity:.75}
+.s-end .end-meta div{display:flex;flex-direction:column;align-items:center;gap:6px}
+.s-end .end-meta .m-lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+.toolbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.85);backdrop-filter:blur(16px);padding:8px 14px;border-radius:14px;display:flex;gap:8px;align-items:center;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1)}
+.tool-btn{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em}
+.tool-btn:hover{background:rgba(255,255,255,.18)}
+.tool-btn.primary{background:linear-gradient(135deg,#3B82F6,#1D4ED8)}
+.tool-counter{color:#fff;font-size:12px;font-weight:700;padding:0 8px;letter-spacing:.02em}
+.flow-row{display:flex;gap:8px;align-items:center;background:#F8FAFC;border-radius:10px;padding:10px;margin-bottom:6px;font-size:12px}
+.flow-arrow{color:#94A3B8;font-weight:800}
+.alert-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1.5px solid #FBBF24;border-radius:14px;padding:18px;margin-bottom:14px;display:flex;gap:12px;align-items:center}
+@media print{
+  html,body{background:#fff}
+  .deck{padding:0;min-height:auto}
+  .slide{margin:0;border-radius:0;box-shadow:none;width:297mm;height:209mm;page-break-after:always}
+  .toolbar{display:none}
+  @page{size:A4 landscape;margin:0}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="tool-btn primary" onclick="window.print()">📄 PDF로 저장</button>
+  <span class="tool-counter" id="ctr">1 / 1</span>
+</div>
+
+<div class="deck" id="deck">
+
+<!-- 1: Cover -->
+<section class="slide s-cover">
+  <div class="role-badge">HQ Admin · 본사 관리자 가이드</div>
+  <div class="cover-logo">DM</div>
+  <h1>DM INTERNATIONAL<br>경영팀 / 본사 관리자 가이드</h1>
+  <div class="cover-sub">발주·인턴·교육·근태 — 모든 운영을 한 손에 쥐는 본사 관리자의 종합 매뉴얼.</div>
+  <div class="cover-meta">
+    <div>DM INTERNATIONAL</div>
+    <div>v1.0 · 2026</div>
+    <div>약 25분 분량</div>
+  </div>
+</section>
+
+<!-- 2: Contents -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Contents</div></div>
+  <h2>이 가이드의 구성</h2>
+  <div class="s-lead">5개 챕터, 28개 슬라이드. 본사 관리자가 다루는 모든 영역을 다룹니다.</div>
+  <div class="s-body col-1">
+    <div class="feat-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="feat-item"><div class="feat-icon" style="background:#3B82F6">1</div><div class="feat-name">시작하기</div><div class="feat-desc">관리자 로그인 · HQ 대시보드</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#10B981">2</div><div class="feat-name">직원 관리</div><div class="feat-desc">가입 승인 · 직원 등록 · 담당 복구</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#F59E0B">3</div><div class="feat-name">발주</div><div class="feat-desc">발주 관리 · 환불 · 통계 · 제품</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#A855F7">4</div><div class="feat-name">아카데미</div><div class="feat-desc">아카데미 관리 · 시험 · 교육자 현황</div></div>
+      <div class="feat-item"><div class="feat-icon" style="background:#EF4444">5</div><div class="feat-name">근태</div><div class="feat-desc">연차 · 휴가 추가 · 식대 · 휴게</div></div>
+      <div class="feat-item accent"><div class="feat-icon" style="background:#0F172A">⚠️</div><div class="feat-name">필수 작업</div><div class="feat-desc">담당 디자이너 자동 복구 (CHAPTER 02)</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">2</div>
+</section>
+
+<!-- 3: Section 1 -->
+<section class="slide s-divider bg-blue">
+  <div class="d-num">CHAPTER 01</div>
+  <h2>시작하기</h2>
+  <div class="d-sub">관리자 로그인, HQ 대시보드 둘러보기</div>
+</section>
+
+<!-- 4: 본사 관리자 로그인 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Setup · 1.1</div></div>
+  <h2>🔑 본사 관리자 로그인</h2>
+  <div class="s-lead">2가지 방법: ① 본인 경영팀 계정 로그인  ② "본사 관리자" 카드 → 관리자 비밀번호</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#3B82F6;margin-bottom:10px">방법 1 · 경영팀 개인 계정</div>
+      <div class="steps-list" style="margin-bottom:18px">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">로그인 카드 → 전화번호 + 비번</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">자동으로 HQ 대시보드 진입</div><div class="step-desc">role=경영팀 또는 brand=DM INTERNATIONAL이면 HQ 권한 자동 부여</div></div></div>
+      </div>
+      <div style="font-size:14px;font-weight:800;color:#3B82F6;margin-bottom:10px">방법 2 · 마스터 관리자</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">시작 화면 → "본사 관리자" 카드</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">관리자 비밀번호 입력</div><div class="step-desc">기본값: 01082470187</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"본사 관리자" 권한으로 진입</div><div class="step-desc">phone=admin · 모든 권한</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text"><b>마스터 비밀번호는 노출되면 위험합니다.</b> 가능하면 본인 경영팀 계정으로 로그인하세요. 마스터는 비상시 백업용.</div></div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">두 방법 모두 동일한 권한 (직원 관리·발주 처리·아카데미 등 모두 가능). 마스터는 휴게/근태 기록이 본인 데이터가 아니라 "admin"으로 들어가므로 주의.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">4</div>
+</section>
+
+<!-- 5: HQ Dashboard -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Setup · 1.2</div></div>
+  <h2>🏠 HQ 대시보드 둘러보기</h2>
+  <div class="s-lead">로그인 후 첫 화면. 발주·인턴·휴게·생일 알림까지 한눈에.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">①</div><div class="step-info"><div class="step-title">상단 카드 (내 정보 + 외근/휴게)</div><div class="step-desc">우측 ☕ 휴게 + 🚗 외근 두 버튼</div></div></div>
+        <div class="step"><div class="step-no">②</div><div class="step-info"><div class="step-title">통계 4개</div><div class="step-desc">전체 직원, 이번달 발주, 미처리 발주, 휴게 현황</div></div></div>
+        <div class="step"><div class="step-no">③</div><div class="step-info"><div class="step-title">차트 (발주/지점별)</div></div></div>
+        <div class="step"><div class="step-no">④</div><div class="step-info"><div class="step-title">최근 발주 / 분포 / 빠른 작업</div></div></div>
+        <div class="step"><div class="step-no">⑤</div><div class="step-info"><div class="step-title">생일 직원 알림</div><div class="step-desc">이번달 생일 직원 자동 표시</div></div></div>
+        <div class="step"><div class="step-no">⑥</div><div class="step-info"><div class="step-title">사이드바 카테고리별 메뉴</div><div class="step-desc">발주 · 아카데미 · 직원 · 근태 관리 · 내 근태</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#3B82F6;margin-bottom:10px">알림 시스템 (사이드바 빨간 점)</div>
+      <div class="mockup">
+        <div style="font-size:12px;line-height:1.8">
+          <div>📦 <b>발주 관리</b> · 미처리 N건</div>
+          <div>👤 <b>가입 승인</b> · 신규 N건</div>
+          <div>🌴 <b>연차/휴무</b> · 승인 대기 N건</div>
+          <div>🍽️ <b>식대 관리</b> · 정산 대기</div>
+          <div>☕ <b>휴게 통계</b> · 초과 N건</div>
+          <div>💰 <b>환불 관리</b> · 요청 N건 (빨강)</div>
+        </div>
+      </div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">미처리 발주는 항상 발주 관리 상단에 표시됨. 빨간 알림 점 = 즉시 처리 권장.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">5</div>
+</section>
+
+<!-- 6: Section 2 - 직원 관리 -->
+<section class="slide s-divider bg-green">
+  <div class="d-num">CHAPTER 02</div>
+  <h2>직원 관리</h2>
+  <div class="d-sub">가입 승인, 직원 등록, 담당 디자이너 복구 ⭐</div>
+</section>
+
+<!-- 7: 가입 승인 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Staff · 2.1</div></div>
+  <h2>👤 가입 승인 처리</h2>
+  <div class="s-lead">사이드바 → "가입 승인". 신규 직원이 가입 신청한 내용을 검토하고 승인.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">신청자 정보 확인</div><div class="step-desc">이름, 활동명, 생년월일, 전화번호, 브랜드, 지점, 직급, 레벨/주차</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">정보가 정확한지 본인에게 확인</div><div class="step-desc">특히 활동명·생년월일·입사일은 추후 변경이 번거로움</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"승인" 버튼 클릭 → 모달 확인</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">자동 권한 부여</div><div class="step-desc">디자이너 → academyRole=교육자 / 인턴 → academyRole=인턴 자동 설정</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">신청 정보를 직원 DB로 이전 + pending에서 삭제</div></div></div>
+      </div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text">승인 직후 발주 권한은 <b>OFF</b> 기본값. 발주 권한 줘야 하면 직원 관리에서 별도 변경.</div></div>
+    </div>
+    <div class="s-visual">
+      <div class="mockup">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:13px;font-weight:800">박○○ <span style="font-size:10px;color:#94A3B8;font-weight:600">(활동명: 박)</span></div><div class="mockup-bdg bdg-o">신청 대기</div></div>
+        <div style="font-size:11px;color:#475569;line-height:1.7;font-weight:600">
+          📞 01012345678<br>
+          🎂 1998-08-15<br>
+          🏢 DAY:MEAN · 모먼트점<br>
+          💼 인턴 · BASIC 1주차
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px"><div style="flex:1;background:linear-gradient(135deg,#10B981,#059669);color:#fff;padding:8px;border-radius:8px;font-size:12px;font-weight:800;text-align:center">승인</div><div style="flex:1;background:#F1F5F9;color:#64748B;padding:8px;border-radius:8px;font-size:12px;font-weight:800;text-align:center">거절</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">7</div>
+</section>
+
+<!-- 8: 직원 관리 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Staff · 2.2</div></div>
+  <h2>👥 직원 관리 화면</h2>
+  <div class="s-lead">사이드바 → "직원 관리". 모든 직원을 직급별로 그룹화해서 표시.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#3B82F6;margin-bottom:8px">직원 카드 표시 정보</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">활동명 (실명)</div><div class="step-desc">활동명 우선 표시. 없으면 실명 + ⚠️ "활동명 필요" 뱃지</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">누락 필드 뱃지</div><div class="step-desc">생일/입사일 누락 시 주황 뱃지로 강조 (찾아서 채우기 쉬움)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">발주ON/OFF, 교육자/인턴 뱃지</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">담당 디자이너 (인턴) / 담당 인턴 목록 (디자이너)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">인턴 잔여 연차 + 사용 내역 (클릭)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">지각/휴게초과 누적</div></div></div>
+      </div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">필터: 브랜드 / 직급 / 재직상태로 좁혀서 보기 가능</div></div>
+    </div>
+    <div class="s-visual">
+      <div class="mockup">
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px">박○○ <span style="font-size:10px;color:#94A3B8">(실명) </span><span class="mockup-bdg" style="background:#FEF3C7;color:#78350F;font-size:9px;margin-left:4px">활동명 필요</span><span class="mockup-bdg" style="background:#FEF3C7;color:#78350F;font-size:9px;margin-left:4px">생일 필요</span></div>
+        <div style="font-size:11px;color:#94A3B8;font-weight:700;margin-bottom:6px">01012345678 · 모먼트점 · 입사 2024-03-15 · D+412</div>
+        <div style="font-size:11px;color:#475569;font-weight:600">레벨: SILVER-2 / 9/16주차</div>
+        <div style="margin-top:6px"><span class="mockup-bdg" style="background:#E8F0FB;color:#1A4E8A;font-size:9px">👤 담당 민경</span></div>
+        <div style="display:flex;gap:6px;margin-top:8px"><div style="flex:1;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#94A3B8;font-weight:700">사용</div><div style="font-size:14px;font-weight:800;color:#DC2626">3<span style="font-size:9px">일</span></div></div><div style="flex:1;background:#F0FDF4;border:1px solid #86EFAC;border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#94A3B8;font-weight:700">잔여</div><div style="font-size:14px;font-weight:800;color:#15803D">12<span style="font-size:9px">일</span></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">8</div>
+</section>
+
+<!-- 9: 직원 직접 등록 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Staff · 2.3</div></div>
+  <h2>➕ 직원 직접 등록</h2>
+  <div class="s-lead">신청 절차 없이 본사가 바로 직원 계정 생성. 직원 관리 → "+ 직원 직접 등록" 버튼.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">필수 정보 입력</div><div class="step-desc">실명·활동명(2글자)·전화번호·비밀번호·브랜드·지점·직급</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">발주 권한 ON/OFF 선택</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">아카데미 역할 (DAY:MEAN만)</div><div class="step-desc">없음 / 인턴 / 교육자</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">입사일 입력</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">"등록" → 즉시 사용 가능</div></div></div>
+      </div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">직접 등록한 직원에게 비밀번호를 알려주세요. 첫 로그인 후 본인이 변경하도록 안내 권장.</div></div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#3B82F6;margin-bottom:10px">직원 정보 수정</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">직원 카드 → "수정"</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">담당 디자이너 변경 (인턴)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">담당 인턴 변경 (디자이너) — 멀티 체크박스</div><div class="step-desc">⚠️ 체크 안 한 인턴의 mentorId는 건드리지 않음 (다른 디자이너 멘티 보호)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">비밀번호 재발급</div><div class="step-desc">"비밀번호" 버튼 → 새 비번 입력</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">퇴사 / 복직 / 영구 삭제</div><div class="step-desc">상태별 버튼 → 확인 모달 → 처리</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">9</div>
+</section>
+
+<!-- 10: 담당 디자이너 자동 복구 (KEY) -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat" style="color:#DC2626">⚠ Critical · 2.4</div></div>
+  <h2>🔄 담당 디자이너 자동 복구</h2>
+  <div class="s-lead">디자이너↔인턴 연결이 사라졌을 때 교육 이력 기반으로 자동 복원. <b>50명 본격 사용 전 1회 필수 실행 권장.</b></div>
+  <div class="s-body">
+    <div class="alert-box"><div style="width:36px;height:36px;background:#F59E0B;color:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">!</div><div style="font-size:13px;color:#78350F;font-weight:600;line-height:1.55">담당 미지정 인턴이 있으면 디자이너 대시보드의 "내 인턴" 위젯이 비어있게 됩니다. 빨리 복구해주세요.</div></div>
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">사이드바 → "아카데미 관리"</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">"담당 미지정 N명" 카드 확인</div><div class="step-desc">0명이면 복구 불필요</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"🔄 담당 디자이너 자동 복구" 버튼 클릭</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">모달에서 추정 결과 검토</div><div class="step-desc">교육 이력 기반 가장 최근 교육자 추정 + 최다 교육자 참고 표시</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">체크박스 확인 → "선택 항목 일괄 저장"</div><div class="step-desc">담당 미지정만 자동 체크. 기존 담당자 변경은 수동 체크 필요</div></div></div>
+        <div class="step"><div class="step-no">6</div><div class="step-info"><div class="step-title">확인 모달 → 일괄 적용</div></div></div>
+      </div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">복구 후 디자이너 대시보드/직원 관리에 즉시 반영됩니다.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">10</div>
+</section>
+
+<!-- 11: Section 3 -->
+<section class="slide s-divider bg-orange">
+  <div class="d-num">CHAPTER 03</div>
+  <h2>발주 관리</h2>
+  <div class="d-sub">발주 처리 · 환불 · 통계 · 제품 관리</div>
+</section>
+
+<!-- 12: 발주 관리 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Order · 3.1</div></div>
+  <h2>📦 발주 관리 (대기 → 배송완료)</h2>
+  <div class="s-lead">사이드바 → "발주 관리". 모든 지점에서 신청한 발주를 처리.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#F59E0B;margin-bottom:10px">발주 상태 흐름</div>
+      <div class="flow-row"><span class="mockup-bdg bdg-o">⏳ 대기</span><span class="flow-arrow">→</span><span class="mockup-bdg bdg-c">📦 확인</span><span class="flow-arrow">→</span><span class="mockup-bdg bdg-g">✅ 배송완료</span></div>
+      <div class="flow-row"><span class="mockup-bdg bdg-g">✅ 배송완료</span><span class="flow-arrow">→</span><span class="mockup-bdg bdg-p">🔄 환불요청</span><span class="flow-arrow">→</span><span class="mockup-bdg" style="background:#A855F7;color:#fff">💰 환불완료</span></div>
+      <div class="flow-row" style="margin-bottom:14px"><span class="mockup-bdg bdg-o">⏳ 대기</span><span class="flow-arrow">→</span><span class="mockup-bdg bdg-r">❌ 발주 취소</span> (재고 없음 등)</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">기간/브랜드/지점/상태 필터로 좁히기</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">탭으로 상태별 분리 보기</div><div class="step-desc">전체 / 대기 / 확인 / 배송완료 / 환불요청 / 환불완료 / 발주 취소</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">발주 카드별 액션 버튼</div><div class="step-desc">상태에 따라 "확인" / "배송완료" / "환불 처리" / "발주 취소" 버튼 표시</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">📥 엑셀 내보내기 가능</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text"><b>"발주 취소"는 신청을 거절할 때.</b> "환불"은 이미 배송된 후 문제 있을 때. 두 개 헷갈리지 마세요.</div></div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">발주 카드의 "📞 연락처" 버튼으로 신청자에게 직접 통화/문자 가능 (모바일).</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">12</div>
+</section>
+
+<!-- 13: 환불 관리 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Order · 3.2</div></div>
+  <h2>💰 환불 관리</h2>
+  <div class="s-lead">사이드바 → "환불 관리". 직원이 신청한 환불 요청을 별도로 관리.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">환불 요청 목록 확인</div><div class="step-desc">신청자, 제품, 수량, 사유, 신청일</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">실물 확인 (필요 시)</div><div class="step-desc">반품 받기 또는 폐기 처리 결정</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"환불 승인" → "환불완료" 상태</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">"환불 거절" 시 사유 명시</div></div></div>
+      </div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text">환불 알림은 사이드바에 <b>빨간 점</b>으로 강조됩니다. 우선 처리 권장.</div></div>
+    </div>
+    <div class="s-visual">
+      <div class="mockup">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div style="font-size:13px;font-weight:800">로레알 인오아 펌제 5L · 1개</div><div class="mockup-bdg bdg-p">🔄 환불요청</div></div>
+        <div style="font-size:11px;color:#94A3B8;font-weight:700;margin-bottom:8px">신청: 던 (모먼트점) · 5/2</div>
+        <div style="background:#FEF3C7;border-left:3px solid #F59E0B;padding:8px 12px;border-radius:6px;font-size:11px;color:#78350F;line-height:1.55;margin-bottom:10px"><b>환불 사유:</b> 박스 개봉 시 캡 깨져있음. 사진 첨부.</div>
+        <div style="display:flex;gap:6px"><div style="flex:1;background:linear-gradient(135deg,#A855F7,#7C3AED);color:#fff;padding:8px;border-radius:8px;font-size:12px;font-weight:800;text-align:center">환불 승인</div><div style="flex:1;background:#F1F5F9;color:#64748B;padding:8px;border-radius:8px;font-size:12px;font-weight:800;text-align:center">거절</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">13</div>
+</section>
+
+<!-- 14: 발주 통계 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Order · 3.3</div></div>
+  <h2>📊 발주 통계</h2>
+  <div class="s-lead">사이드바 → "발주 통계". 제품/브랜드/지점/직원별 발주 분석. 재고 관리·예산 책정에 활용.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#F59E0B;margin-bottom:10px">통계 종류</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">제품별 누적 발주량</div><div class="step-desc">어떤 제품이 가장 많이 나가는지</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">브랜드/지점별 분포</div><div class="step-desc">DAY:MEAN vs ETOH, 플래그십 vs 모먼트 vs 합정</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">직원별 발주 횟수</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">기간별 추이 (월별 차트)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">기간 필터: 이번달/지난달/3개월/6개월/상반기/하반기/올해/전체</div></div></div>
+      </div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">제품 ID는 <b>발주 통계와 자동 동기화</b>됩니다. 제품명을 수정해도 과거 발주 통계 그대로 유지.</div></div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#F59E0B;margin-bottom:10px">제품 관리</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">단일 추가</div><div class="step-desc">제품명·카테고리·거래처·브랜드 입력</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">📋 일괄 추가</div><div class="step-desc">표 형식으로 여러 제품 한 번에 입력 (+ 행 추가 버튼)</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">제품 수정</div><div class="step-desc">제품명 잘못 입력해도 수정 가능 + 과거 발주 자동 동기화</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">제품 삭제</div><div class="step-desc">발주 목록에서 사라지지만 통계엔 남음</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">14</div>
+</section>
+
+<!-- 15: Section 4 - 아카데미 -->
+<section class="slide s-divider bg-purple">
+  <div class="d-num">CHAPTER 04</div>
+  <h2>아카데미</h2>
+  <div class="d-sub">아카데미 관리 · 시험 · 교육자 현황 (교육비 자동 계산)</div>
+</section>
+
+<!-- 16: 아카데미 관리 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Academy · 4.1</div></div>
+  <h2>🎓 아카데미 관리 (인턴 카드 클릭)</h2>
+  <div class="s-lead">사이드바 → "아카데미 관리". 모든 인턴의 진도 관리 + 주차 직접 체크 + 담당 디자이너 변경 통합.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">상단 카드 (전체 인턴 / 담당 미지정 N명)</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">레벨별 분포</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">인턴 현황 카드 (레벨순 정렬)</div><div class="step-desc">활동명·레벨/주차·담당 디자이너·진도율</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">인턴 카드 클릭 → 모달 열림</div><div class="step-desc">담당 디자이너 변경 + 주차별 체크 + 옵션으로 교육자/날짜 입력 시 교육 이력에도 등록</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">주차 grid 클릭으로 토글</div><div class="step-desc">완료 ↔ 미완료. 비순차 체크 가능 (예: 14주차만 체크)</div></div></div>
+        <div class="step"><div class="step-no">6</div><div class="step-info"><div class="step-title">"저장" → 즉시 인턴 진도에 반영</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text"><b>디자이너가 교육 등록 깜빡한 케이스</b>도 본사가 여기서 직접 체크 가능. 교육자 입력하면 교육 이력에도 자동 기록.</div></div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">"교육자 선택 안 함 (수동 체크만)" 고르면 진도만 수정되고 교육비 산정엔 반영 안 됨.</div></div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text">담당 디자이너가 없는 인턴은 카드에 ⚠️ 노란 뱃지 표시. 모달에서 즉시 변경 가능.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">16</div>
+</section>
+
+<!-- 17: 교육 완료 + 숙제 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Academy · 4.2</div></div>
+  <h2>✅ 교육 완료 등록 / 📝 숙제 출제</h2>
+  <div class="s-lead">사이드바 → "교육 완료" 또는 "숙제 출제". 경영팀도 디자이너처럼 직접 등록 가능 (전 지점 인턴 보임).</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#A855F7;margin-bottom:10px">교육 완료 등록</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">날짜 + 레벨 선택</div><div class="step-desc">레벨 선택 시 해당 레벨 인턴만 자동 필터링</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">주차 선택 (1~16, 비순차 OK)</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">수강생 다중 체크</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">교육자/날짜 입력 → 교육 이력 등록</div><div class="step-desc">교육비 산정용</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">"교육 완료 등록" → 인턴 진도 자동 업데이트</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#A855F7;margin-bottom:10px">숙제 출제</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">인턴 선택 + 마감일 + 내용</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">출제 → 인턴 대시보드에 미완료 알림</div></div></div>
+      </div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">경영팀의 교육 등록도 "교육자 현황"에 카운트되며 1회당 ₩60,000 산정.</div></div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">최근 교육 이력은 동일 화면 하단에 자동 표시 (관리자는 모든 디자이너 이력 + 교육자 이름 보임).</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">17</div>
+</section>
+
+<!-- 18: 시험 결과 입력 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Academy · 4.3</div></div>
+  <h2>📝 시험 결과 입력</h2>
+  <div class="s-lead">사이드바 → "시험 결과 입력". 한 명씩 또는 여러 명 일괄 입력 가능.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#A855F7;margin-bottom:10px">한 명씩 입력</div>
+      <div class="steps-list" style="margin-bottom:14px">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">인턴 선택 + 시험 날짜 + 카테고리</div><div class="step-desc">정기시험 / 중간 테스트</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">레벨 + 과목별 점수 입력</div><div class="step-desc">정기시험: 여러 과목 가능 (+ 추가 버튼)</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">결과 자동 계산</div><div class="step-desc">70점+ 합격 / 60~69 재시험 / 60- 재수강</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">피드백 (선택) → 등록</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#A855F7;margin-bottom:10px">여러 명 일괄</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">"여러 명 일괄" 탭 선택</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">카테고리 + 날짜 + 레벨 선택</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">과목명 정의 (전체 인턴 공통)</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">인턴별 점수 입력 → 자동 결과 계산</div></div></div>
+        <div class="step"><div class="step-no">5</div><div class="step-info"><div class="step-title">"전체 저장" → 한 번에 등록</div></div></div>
+      </div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">중간 테스트는 합격/불합격 두 결과만, 정기시험은 4가지 결과 자동 산정.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">18</div>
+</section>
+
+<!-- 19: 교육자 현황 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Academy · 4.4</div></div>
+  <h2>👨‍🏫 교육자 현황 (1회 ₩60,000 자동 산정)</h2>
+  <div class="s-lead">사이드바 → "교육자 현황". 디자이너별 교육 횟수와 교육비 자동 계산. 월말 정산 시 사용.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#A855F7;margin-bottom:10px">표시 정보</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">상단 요약 카드</div><div class="step-desc">활동 교육자 수, 총 교육 횟수, 교육비 총액 (자동)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">교육자별 카드</div><div class="step-desc">활동명·지점·기간 횟수·교육비·올해 누적·교육 인턴 수</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">마지막 교육 정보</div><div class="step-desc">날짜·인턴·레벨/주차</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">담당 레벨 (기간 내 가르친 레벨별 횟수)</div></div></div>
+      </div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">기간 필터: 이번달(기본)/지난달/3개월/6개월/상반기/하반기/올해/전체. 시작일·종료일 직접 지정도 가능.</div></div>
+    </div>
+    <div class="s-visual">
+      <div class="mockup">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div style="font-size:13px;font-weight:800">민경 (김민경)</div><div style="font-size:10px;color:#94A3B8;font-weight:700;margin-top:2px">DAY:MEAN · 모먼트점</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:800;color:#3B82F6">12<span style="font-size:9px;color:#94A3B8">회</span></div><div style="font-size:10px;color:#F59E0B;font-weight:800">₩720,000</div></div></div>
+        <div style="display:flex;gap:6px;margin-bottom:8px"><div style="flex:1;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:6px"><div style="font-size:9px;color:#1E40AF;font-weight:700">올해 누적</div><div style="font-size:13px;font-weight:800">38<span style="font-size:9px">회</span></div></div><div style="flex:1;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:6px;padding:6px"><div style="font-size:9px;color:#059669;font-weight:700">교육 인턴</div><div style="font-size:13px;font-weight:800">5<span style="font-size:9px">명</span></div></div></div>
+        <div style="font-size:10.5px;color:#475569;line-height:1.6"><b style="color:#0F172A">마지막:</b> 5/2 · 던 · SILVER-2 9주차</div>
+        <div style="font-size:10.5px;color:#475569;line-height:1.6;margin-top:4px"><b style="color:#0F172A">담당 레벨:</b> <span class="mockup-bdg bdg-c" style="font-size:9px;margin-right:3px">SILVER-2 6회</span> <span class="mockup-bdg bdg-c" style="font-size:9px">BRONZE-1 4회</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">19</div>
+</section>
+
+<!-- 20: Section 5 -->
+<section class="slide s-divider bg-red">
+  <div class="d-num">CHAPTER 05</div>
+  <h2>근태 관리</h2>
+  <div class="d-sub">연차/휴무 · 인턴 휴가 추가 · 식대 · 휴게</div>
+</section>
+
+<!-- 21: 연차/휴무 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Attendance · 5.1</div></div>
+  <h2>🌴 연차 / 휴무 관리</h2>
+  <div class="s-lead">사이드바 → "연차/휴무". 직원이 신청한 휴가/휴무 승인·거절·정산.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">신청 목록 확인</div><div class="step-desc">신청자·날짜·종류·사유·상태 (대기/승인/거절)</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">"승인" → 인턴 잔여 연차 자동 차감</div><div class="step-desc">인턴=연차 / 디자이너·카운터=휴무 (차감 X)</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"거절" → 사유 입력</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">필터: 브랜드 / 지점 / 종류 / 상태</div></div></div>
+      </div>
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text">승인된 휴가는 직원 본인 화면에서 "승인" 표시됨. 잔여 연차에서 차감 (인턴만).</div></div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#EF4444;margin-bottom:10px">인턴 휴가 추가 (보너스)</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">사이드바 → "인턴 휴가 추가"</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">인턴 + 추가 일수 + 사유</div><div class="step-desc">예: 우수 교육 평가, 특별 포상</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">"휴가 추가" → 보유 + 추가 합산</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">해당 년도 내 사용 (이월 X)</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">21</div>
+</section>
+
+<!-- 22: 식대 관리 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Attendance · 5.2</div></div>
+  <h2>🍽️ 식대 관리</h2>
+  <div class="s-lead">사이드바 → "식대 관리". 직원이 자가 신고한 식대 사용을 날짜별로 조회 + 정산.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">날짜별 사용 내역 보기</div><div class="step-desc">누가 언제 식대 사용했는지 일자별 그룹</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">월별 합산</div><div class="step-desc">이번달 / 지난달 / 직접 기간 지정</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">직원별 합계</div></div></div>
+        <div class="step"><div class="step-no">4</div><div class="step-info"><div class="step-title">정산 처리 후 본인 통장 입금</div></div></div>
+      </div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">미정산 알림은 사이드바에 빨간 점 표시. 월말마다 처리 권장.</div></div>
+    </div>
+    <div class="s-visual">
+      <div class="mockup">
+        <div style="font-size:13px;font-weight:800;margin-bottom:10px">2026년 4월 식대 정산</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #F1F5F9"><span style="font-weight:600">민경</span><span style="font-weight:800">22일 · ₩220,000</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #F1F5F9"><span style="font-weight:600">세운</span><span style="font-weight:800">20일 · ₩200,000</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #F1F5F9"><span style="font-weight:600">종찬</span><span style="font-weight:800">18일 · ₩180,000</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;padding:10px 0 0;font-weight:800;color:#0F172A"><span>합계</span><span style="color:#F59E0B">₩600,000</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">22</div>
+</section>
+
+<!-- 23: 휴게 관리 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Attendance · 5.3</div></div>
+  <h2>☕ 휴게 현황 / 통계 / 외근</h2>
+  <div class="s-lead">사이드바 → "휴게 현황" (실시간) / "휴게 통계" (누적) / 우측 상단 🚗 외근 버튼.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div style="font-size:14px;font-weight:800;color:#EF4444;margin-bottom:10px">휴게 현황 (실시간)</div>
+      <div class="steps-list" style="margin-bottom:14px">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">전 지점 직원 휴게 상태</div><div class="step-desc">지점 필터로 좁혀서 보기 가능</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">4 카테고리 (휴게중·외근중·휴식전·완료)</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">대표는 외근 표시 가능</div><div class="step-desc">민경/세운/김민경/김세운은 휴게 대신 외근만 표시</div></div></div>
+      </div>
+      <div style="font-size:14px;font-weight:800;color:#EF4444;margin-bottom:10px">휴게 통계 (누적)</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">초과 카운트</div><div class="step-desc">60분 초과한 휴게 회수 누적</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">직원별 / 월별 분석</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div style="font-size:14px;font-weight:800;color:#EF4444;margin-bottom:10px">🚗 외근 체크 (대표/경영팀)</div>
+      <div class="steps-list">
+        <div class="step"><div class="step-no">1</div><div class="step-info"><div class="step-title">대시보드 우측 상단 또는 사이드바 하단 "🚗 외근"</div></div></div>
+        <div class="step"><div class="step-no">2</div><div class="step-info"><div class="step-title">"외근 시작" → 실시간 표시</div><div class="step-desc">휴게 현황에 "🚗 외근 중 N시간 N분 경과"</div></div></div>
+        <div class="step"><div class="step-no">3</div><div class="step-info"><div class="step-title">복귀 시 "외근 종료" 클릭</div></div></div>
+      </div>
+      <div class="tip-box"><div class="tip-icon">i</div><div class="tip-text">휴게/외근 모두 본인이 시작/종료. 본사가 강제 종료할 수 없음.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">23</div>
+</section>
+
+<!-- 24: 본인 근태 -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">Attendance · 5.4</div></div>
+  <h2>👤 경영팀 본인 근태</h2>
+  <div class="s-lead">경영팀 본인의 휴게/식대/지각/연차도 사이드바 "근태" 섹션에서 사용 가능.</div>
+  <div class="s-body">
+    <div class="s-text">
+      <div class="steps-list">
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">☕ 휴게시간</div><div class="step-desc">대시보드 우측 ☕ 휴게 버튼 또는 사이드바</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">🍽️ 식대 기록</div><div class="step-desc">사이드바 → "식대 기록"</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">⏰ 지각 기록</div><div class="step-desc">사이드바 → "지각 기록"</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">🌴 연차 신청</div><div class="step-desc">사이드바 → "연차 신청" → 본사 다른 관리자 또는 본인이 승인</div></div></div>
+        <div class="step"><div class="step-no">·</div><div class="step-info"><div class="step-title">🚗 외근 체크</div><div class="step-desc">대시보드 또는 사이드바 하단</div></div></div>
+      </div>
+    </div>
+    <div class="s-visual">
+      <div class="warn-box"><div class="warn-icon">!</div><div class="warn-text"><b>마스터 관리자</b>(phone=admin)로 로그인 시: 휴게/식대 기록은 "admin" 데이터로 들어가므로 본인 통계엔 안 잡힘. 본인 경영팀 계정 사용 권장.</div></div>
+      <div class="success-box"><div class="succ-icon">✓</div><div class="succ-text">경영팀도 인턴처럼 보유 연차 일수가 정해집니다. 사용/잔여 일수 카드로 관리.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">24</div>
+</section>
+
+<!-- 25: FAQ -->
+<section class="slide s-content">
+  <div class="s-head"><div class="s-cat-bar"></div><div class="s-cat">FAQ · 6.1</div></div>
+  <h2>❓ 자주 묻는 질문</h2>
+  <div class="s-body col-1">
+    <div class="qa-list">
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>50명 동시 사용 시 끊김 없을까요?</div><div class="qa-a">Firebase Spark(무료)는 동시 접속 100개 한계. 50명이면 평균 60~80개 예상 → 피크 시 일시 거부 가능. Blaze(종량제, 월 1만원 이하)로 전환하면 200,000개로 상향.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>두 관리자가 동시에 같은 발주를 처리하면?</div><div class="qa-a">Last-write-wins (늦게 저장한 사람이 덮어씀). 데이터 손실은 없지만 상태가 의도와 다를 수 있음. 본사 작업은 한 명 담당 권장.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>옛 PWA에서 새 기능이 안 보여요</div><div class="qa-a">Service Worker 도입 전에 설치한 PWA는 캐시 문제. 직원에게 PWA 재설치 가이드 PDF 발송. 다음부턴 자동 업데이트.</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>잘못 거절한 발주를 되살리고 싶어요</div><div class="qa-a">발주 관리 → "발주 취소" 탭 → 해당 발주 → 상태 변경. 직접 DB 수정도 가능 (Firebase Console).</div></div>
+      <div class="qa-item"><div class="qa-q"><span class="q-mark">Q.</span>퇴사 직원의 데이터는 어떻게 되나요?</div><div class="qa-a">"퇴사" 처리 시 status=퇴사로만 변경되고 데이터 보존. "영구 삭제"는 신중히. 발주 통계나 교육 이력에서 이름은 남음.</div></div>
+    </div>
+  </div>
+  <div class="slide-brand"><span class="b-dot"></span>DM HQ Admin Guide</div>
+  <div class="slide-num">25</div>
+</section>
+
+<!-- 26: End -->
+<section class="slide s-end">
+  <div style="font-size:14px;font-weight:800;letter-spacing:.15em;opacity:.7;margin-bottom:18px">END OF GUIDE</div>
+  <h2>모든 운영의 컨트롤 타워 🏢</h2>
+  <div class="end-sub">본사 관리자가 정확한 데이터를 관리하면, 50명 직원 모두가 매일 더 효율적으로 일할 수 있습니다.</div>
+  <div class="end-meta">
+    <div><div class="m-lbl">Brand</div><div>DM INTERNATIONAL</div></div>
+    <div><div class="m-lbl">Role</div><div>경영팀 / 본사 관리자</div></div>
+    <div><div class="m-lbl">Version</div><div>v1.0 · 2026</div></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var slides=document.querySelectorAll('.slide');
+  var ctr=document.getElementById('ctr');
+  function update(){
+    var idx=1;
+    var sy=window.scrollY+window.innerHeight/2;
+    slides.forEach(function(s,i){
+      var r=s.getBoundingClientRect();
+      var top=r.top+window.scrollY;
+      if(sy>=top && sy<top+r.height) idx=i+1;
+    });
+    ctr.textContent=idx+' / '+slides.length;
+  }
+  update();
+  window.addEventListener('scroll',update,{passive:true});
+})();
+</script>
+
+</body>
+</html>

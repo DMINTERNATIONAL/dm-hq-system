@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DM INTERNATIONAL · 사용 가이드 모음</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Segoe UI',sans-serif;background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);color:#fff;line-height:1.5;letter-spacing:-.015em;-webkit-font-smoothing:antialiased;min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto;padding:60px 32px}
+.header{text-align:center;margin-bottom:60px}
+.logo{width:72px;height:72px;background:linear-gradient(135deg,#fff,#E2E8F0);border-radius:18px;display:inline-flex;align-items:center;justify-content:center;color:#0F172A;font-weight:800;font-size:22px;letter-spacing:-.04em;margin-bottom:24px;box-shadow:0 12px 32px rgba(0,0,0,.25)}
+.brand{font-size:12px;font-weight:700;letter-spacing:.12em;color:#94A3B8;text-transform:uppercase;margin-bottom:12px}
+h1{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:14px}
+.sub{font-size:16px;color:#CBD5E1;font-weight:500;line-height:1.6;max-width:580px;margin:0 auto}
+.section-title{font-size:13px;font-weight:800;letter-spacing:.1em;color:#64748B;text-transform:uppercase;margin:40px 0 16px;display:flex;align-items:center;gap:10px}
+.section-title::before{content:'';width:24px;height:2px;background:#3B82F6;border-radius:2px}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:40px}
+.card{background:#fff;color:#0F172A;border-radius:18px;padding:28px;text-decoration:none;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 28px rgba(0,0,0,.2);transition:all .2s;border:2px solid transparent}
+.card:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.3)}
+.card.feat{background:linear-gradient(135deg,#0F172A,#1E293B);color:#fff;border:2px solid #3B82F6}
+.card.intern{border-color:#3B82F6;background:linear-gradient(135deg,#fff,#EFF6FF)}
+.card.designer{border-color:#7C3AED;background:linear-gradient(135deg,#fff,#F5F3FF)}
+.card.counter{border-color:#0891B2;background:linear-gradient(135deg,#fff,#ECFEFF)}
+.card.hq{border-color:#0F172A;background:linear-gradient(135deg,#fff,#F8FAFC)}
+.card-head{display:flex;align-items:center;gap:14px}
+.card-icon{width:52px;height:52px;border-radius:14px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0}
+.card.feat .card-icon{background:linear-gradient(135deg,#3B82F6,#A855F7)}
+.card.intern .card-icon{background:linear-gradient(135deg,#3B82F6,#1D4ED8)}
+.card.designer .card-icon{background:linear-gradient(135deg,#A855F7,#7C3AED)}
+.card.counter .card-icon{background:linear-gradient(135deg,#06B6D4,#0891B2)}
+.card.hq .card-icon{background:linear-gradient(135deg,#1E293B,#0F172A)}
+.card-name{font-size:20px;font-weight:800;letter-spacing:-.025em;line-height:1.2}
+.card-tag{font-size:10px;font-weight:800;letter-spacing:.1em;color:#94A3B8;text-transform:uppercase;margin-top:3px}
+.card.feat .card-tag{color:#94A3B8}
+.card-desc{font-size:13.5px;line-height:1.65;font-weight:500;color:#475569}
+.card.feat .card-desc{color:#CBD5E1}
+.card-meta{display:flex;gap:16px;font-size:11px;font-weight:700;color:#94A3B8;letter-spacing:.04em;margin-top:auto;padding-top:8px}
+.card-meta div{display:flex;align-items:center;gap:5px}
+.card-link{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:#3B82F6;letter-spacing:-.01em;margin-top:auto;padding-top:6px}
+.card.designer .card-link{color:#7C3AED}
+.card.counter .card-link{color:#0891B2}
+.card.hq .card-link{color:#0F172A}
+.card.feat .card-link{color:#60A5FA}
+.utilities{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.util-card{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px;text-decoration:none;color:#fff;transition:all .2s}
+.util-card:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
+.util-icon{font-size:22px;margin-bottom:8px}
+.util-name{font-size:14px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px}
+.util-desc{font-size:11.5px;color:#CBD5E1;font-weight:500;line-height:1.55}
+.footer{text-align:center;margin-top:60px;padding-top:32px;border-top:1px solid rgba(255,255,255,.1);font-size:11px;color:#64748B;font-weight:600;letter-spacing:.04em}
+@media (max-width:768px){
+  .wrap{padding:40px 20px}
+  .cards,.utilities{grid-template-columns:1fr}
+  h1{font-size:36px}
+  .card{padding:22px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="header">
+    <div class="logo">DM</div>
+    <div class="brand">DM INTERNATIONAL</div>
+    <h1>📚 사용 가이드 모음</h1>
+    <div class="sub">본인의 직급 카드를 클릭하면 가로 슬라이드로 사용법을 볼 수 있습니다. PDF로 저장도 가능.</div>
+  </div>
+
+  <div class="section-title">📖 통합 가이드 (먼저 읽기 권장)</div>
+  <div class="cards" style="grid-template-columns:1fr">
+    <a href="guide-all.html" class="card feat">
+      <div class="card-head">
+        <div class="card-icon">🌟</div>
+        <div><div class="card-name">전체 통합 가이드</div><div class="card-tag">All-in-One · 21 slides · 약 20분</div></div>
+      </div>
+      <div class="card-desc">시스템 개요·역할별 기능 비교·공통 기능까지 한 권에. 어떤 직급이든 처음 접속 시 먼저 보면 전체 그림이 잡힙니다.</div>
+      <div class="card-link">시작하기 →</div>
+    </a>
+  </div>
+
+  <div class="section-title">👥 역할별 상세 가이드</div>
+  <div class="cards">
+    <a href="guide-intern.html" class="card intern">
+      <div class="card-head">
+        <div class="card-icon">👤</div>
+        <div><div class="card-name">인턴</div><div class="card-tag">Intern · 22 slides · 15분</div></div>
+      </div>
+      <div class="card-desc">내 진도 추적, 외부 수강 등록, 시험·숙제 확인, 연습 측정, 휴가 신청까지.</div>
+      <div class="card-link">가이드 보기 →</div>
+    </a>
+    <a href="guide-designer.html" class="card designer">
+      <div class="card-head">
+        <div class="card-icon">🎓</div>
+        <div><div class="card-name">디자이너</div><div class="card-tag">Designer · 16 slides · 12분</div></div>
+      </div>
+      <div class="card-desc">담당 인턴 관리, 교육 완료 등록, 숙제 출제, 교육 실적, 휴무 신청.</div>
+      <div class="card-link">가이드 보기 →</div>
+    </a>
+    <a href="guide-counter.html" class="card counter">
+      <div class="card-head">
+        <div class="card-icon">💼</div>
+        <div><div class="card-name">카운터</div><div class="card-tag">Counter · 13 slides · 8분</div></div>
+      </div>
+      <div class="card-desc">지점 인턴 보기, 휴게 현황, 발주 현황, 휴무 신청 등 카운터의 모든 기능.</div>
+      <div class="card-link">가이드 보기 →</div>
+    </a>
+    <a href="guide-hq.html" class="card hq">
+      <div class="card-head">
+        <div class="card-icon">🏢</div>
+        <div><div class="card-name">경영팀 / 본사 관리자</div><div class="card-tag">HQ Admin · 26 slides · 25분</div></div>
+      </div>
+      <div class="card-desc">가입 승인부터 발주 관리·아카데미·교육비 정산·근태까지. 본사 운영의 모든 것.</div>
+      <div class="card-link">가이드 보기 →</div>
+    </a>
+  </div>
+
+  <div class="section-title">🔧 부가 자료</div>
+  <div class="utilities">
+    <a href="pwa-install-guide.html" class="util-card">
+      <div class="util-icon">📱</div>
+      <div class="util-name">PWA 재설치 가이드</div>
+      <div class="util-desc">새 기능이 안 보이는 직원을 위한 5단계 재설치 안내</div>
+    </a>
+    <a href="install-qr.html" class="util-card">
+      <div class="util-icon">📲</div>
+      <div class="util-name">바로가기 QR 포스터</div>
+      <div class="util-desc">사무실 부착·카톡 공유용 단독 QR 페이지 (A5 인쇄)</div>
+    </a>
+    <a href="index.html" class="util-card">
+      <div class="util-icon">🏠</div>
+      <div class="util-name">시스템 본체 열기</div>
+      <div class="util-desc">DM INTERNATIONAL 통합 본사 시스템 바로 이동</div>
+    </a>
+  </div>
+
+  <div class="footer">
+    DM INTERNATIONAL · 통합 본사 시스템 · v1.0 · 2026<br>
+    DAY:MEAN (플래그십점 · 모먼트점) · ETOH (합정점)
+  </div>
+
+</div>
+
+</body>
+</html>
