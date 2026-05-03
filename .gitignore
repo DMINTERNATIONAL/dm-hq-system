@@ -1,0 +1,20 @@
+# 민감 파일 (절대 커밋 금지)
+*.key
+*.pem
+private_*
+.env
+.env.local
+.dev.vars
+
+# Cloudflare Worker 빌드 산출물
+naverworks-worker/.wrangler/
+naverworks-worker/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 에디터
+.vscode/
+.idea/
+*.swp
