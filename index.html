@@ -1032,6 +1032,67 @@ function maybeShowInstallBanner(type){if(dmIsStandalone())return;if(dmInstallDis
 function triggerInstall(){if(dmDeferredPrompt){dmDeferredPrompt.prompt();dmDeferredPrompt.userChoice.then(function(c){dmDeferredPrompt=null;if(c&&c.outcome==='accepted'){var b=document.getElementById('install-banner');if(b)b.style.display='none'}else{dismissInstall()}})}else if(dmIsIOS()){var m=document.getElementById('ios-install-modal');if(m)m.style.display='flex'}else{var m2=document.getElementById('ios-install-modal');if(m2)m2.style.display='flex'}}
 function dismissInstall(){safeLS(function(){localStorage.setItem('dm_install_dismissed','1')});var b=document.getElementById('install-banner');if(b)b.style.display='none'}
 window.addEventListener('load',function(){setTimeout(function(){if(dmIsStandalone()||dmInstallDismissed())return;if(dmIsIOS())maybeShowInstallBanner('ios')},1500)});
+/* === 좌측 엣지 스와이프 → 뒤로 가기 (Safari 스타일) === */
+(function(){
+  var startX,startY,startT,tracking=false,locked=false,gesture=null;
+  var EDGE=28,COMMIT=0.32,MAXVRATIO=0.8,MAXTIME=1500;
+  function modalOpen(){
+    var ms=document.querySelectorAll('.modal-bg');
+    for(var i=0;i<ms.length;i++){var d=ms[i].style.display;if(d==='flex'||d==='block')return true}
+    return false;
+  }
+  function curPage(){return document.querySelector('.pg.on')}
+  function getBack(pg){return pg?pg.querySelector('.backbtn'):null}
+  function clearTransform(pg){if(!pg)return;pg.style.transition='';pg.style.transform='';pg.style.opacity=''}
+  function snapBack(pg){if(!pg)return;pg.style.transition='transform .22s ease-out, opacity .22s ease-out';pg.style.transform='';pg.style.opacity='';setTimeout(function(){clearTransform(pg)},230)}
+  function snapForward(pg,cb){if(!pg){cb&&cb();return}var w=window.innerWidth;pg.style.transition='transform .25s ease-out, opacity .25s ease-out';pg.style.transform='translateX('+w+'px)';pg.style.opacity='0';setTimeout(function(){clearTransform(pg);cb&&cb()},260)}
+  document.addEventListener('touchstart',function(e){
+    if(e.touches.length>1)return;
+    if(modalOpen())return;
+    var t=e.touches[0];
+    if(t.clientX>EDGE)return;
+    var pg=curPage();
+    if(!pg||!getBack(pg))return;
+    startX=t.clientX;startY=t.clientY;startT=Date.now();
+    tracking=true;locked=false;gesture=null;
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    if(!tracking||e.touches.length>1)return;
+    var t=e.touches[0];
+    var dx=t.clientX-startX,dy=t.clientY-startY,adx=Math.abs(dx),ady=Math.abs(dy);
+    if(!locked){
+      if(adx<8&&ady<8)return;
+      if(ady>adx*MAXVRATIO){tracking=false;return}
+      locked=true;gesture=curPage();
+      if(gesture){gesture.style.willChange='transform,opacity'}
+    }
+    if(dx<=0)return;
+    if(gesture){
+      gesture.style.transition='none';
+      gesture.style.transform='translateX('+Math.min(dx,window.innerWidth)+'px)';
+      gesture.style.opacity=String(Math.max(0.3,1-(dx/window.innerWidth)*0.4));
+    }
+  },{passive:true});
+  function finish(e){
+    if(!tracking){if(gesture){gesture=null}return}
+    tracking=false;
+    var t=(e.changedTouches&&e.changedTouches[0])||{clientX:startX,clientY:startY};
+    var dx=t.clientX-startX,dt=Date.now()-startT;
+    var w=window.innerWidth;
+    var velocity=dx/Math.max(dt,1);
+    var commit=locked&&((dx>=w*COMMIT)||(velocity>0.6&&dx>80))&&dt<=MAXTIME;
+    var pg=gesture||curPage();
+    gesture=null;
+    if(commit){
+      var btn=getBack(pg);
+      snapForward(pg,function(){if(btn)btn.click()});
+    } else {
+      snapBack(pg);
+    }
+  }
+  document.addEventListener('touchend',finish,{passive:true});
+  document.addEventListener('touchcancel',function(){if(tracking){tracking=false;snapBack(gesture||curPage());gesture=null}},{passive:true});
+})();
 window.addEventListener('DOMContentLoaded',function(){FB=safeLS(function(){return localStorage.getItem('dm_fb')})||safeLS(function(){return localStorage.getItem('dmi_fb_url')})||FIXED_URL;safeLS(function(){localStorage.setItem('dm_fb',FB)});initFB();setTimeout(loadProductDB,500);document.body.classList.add('no-sidebar');var s=safeLS(function(){return localStorage.getItem('dm_me')});if(s)try{ME=JSON.parse(s);if(ME.role==='매니저'&&ME.branch==='본사')ME.role='경영팀';if(ME.role==='본사경영팀')ME.role='경영팀';safeLS(function(){localStorage.setItem('dm_me',JSON.stringify(ME))});openDash()}catch(e){}setTimeout(migrateRoles,2000);renderIcons();document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')return;dashBrkLastFetch=0;brkLastFetch=0;notifLastCount=-1;dashBrkData=null;brkLiveData=null;if(ME)refreshNotif();var cur=document.querySelector('.pg.on');if(!cur)return;var id=cur.id;try{if(id==='p-dash'){renderDashBreak()}else if(id==='p-hist'){openHist()}else if(id==='p-adm-ord'){loadAdmOrd()}else if(id==='p-adm-pend'){loadPend()}else if(id==='p-adm-staff'){loadStaff()}else if(id==='p-brk-mgmt'){renderBM();loadBMDone()}else if(id==='p-my-interns'){openMyInterns()}else if(id==='p-break-admin'){loadBreakAdmin()}else if(id==='p-meal-admin'){loadMealList()}else if(id==='p-refund-admin'){renderRefund()}else if(id==='p-order-stat'){loadOrderStat()}else if(id==='p-prod-mgmt'){renderProdMgmt()}else if(id==='p-acad-progress'){openAcadProg()}else if(id==='p-acad-exams'){openAcadExams()}else if(id==='p-acad-hw'){openAcadHW()}else if(id==='p-leave'){loadLeaveHist();if(ME&&ME.role==='인턴')loadLeaveInfo()}else if(id==='p-adm-leave'){loadAdmLeave()}else if(id==='p-adm-addleave'){loadAddLeave()}else if(id==='p-late'){loadLateHist()}else if(id==='p-order-view'){openOrderView()}else if(id==='p-branch-interns'){openBranchInterns()}else if(id==='p-break'){openBreak()}else if(id==='p-edu-check'){loadECHist()}else if(id==='p-ext-acad'){loadExtHist()}else if(id==='p-adm-acad'){loadAdmAcad()}else if(id==='p-edu-stats'){openEduStats()}else if(id==='p-edu-stats-hq'){renderEduStatsHQ()}}catch(e){console.log('refresh err',e)}})});</script>
 </body>
 </html>
