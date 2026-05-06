@@ -1,8 +1,10 @@
 /**
  * DM INTERNATIONAL — Naver Works (LINE WORKS) Notification Relay
+ * + 휴게시간 자동 종료 cron (5분마다)
  *
  * Cloudflare Worker that receives order events from the DM system
  * and forwards them as bot messages to a Naver Works channel.
+ * Also runs a scheduled cleanup of stale break records every 5 minutes.
  *
  * Required environment variables (set via `wrangler secret put`):
  *   - WEBHOOK_SECRET     : Shared secret with the DM system (any random string)
@@ -12,11 +14,18 @@
  *   - NW_PRIVATE_KEY     : RSA private key (PEM format, including -----BEGIN-----)
  *   - NW_BOT_ID          : Bot ID
  *   - NW_CHANNEL_ID      : Target channel ID
+ *   - FIREBASE_URL       : Firebase Realtime DB URL (e.g. https://xxx.firebaseio.com)
  */
 
 let _tokenCache = null;
+const FB_DEFAULT = 'https://dm-orders-4792a-default-rtdb.firebaseio.com';
+const BREAK_GRACE_MS = 5 * 60 * 1000; // 60분 + 5분 그레이스 = 65분 후 자동 종료
 
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(cleanupStaleBreaks(env));
+  },
+
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
     if (request.method === 'GET') {
@@ -154,6 +163,80 @@ function buildMessage(body) {
   }
 
   return { content: { type: 'text', text } };
+}
+
+/* ═══ 휴게시간 자동 종료 (cron) ═══ */
+async function cleanupStaleBreaks(env) {
+  const FB = env.FIREBASE_URL || FB_DEFAULT;
+  const now = Date.now();
+
+  // 모든 활성 휴게 가져오기
+  const resp = await fetch(FB + '/breakActive.json', { cache: 'no-store' });
+  if (!resp.ok) return;
+  const ba = await resp.json();
+  if (!ba) return;
+
+  // KST(한국시간) 날짜/시각 계산 (Worker는 UTC라 +9 보정)
+  const kstNow = new Date(now + 9 * 60 * 60 * 1000);
+  const y = kstNow.getUTCFullYear();
+  const m = kstNow.getUTCMonth() + 1;
+  const d = kstNow.getUTCDate();
+  const dateStr = y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  const hh = kstNow.getUTCHours();
+  const mm = kstNow.getUTCMinutes();
+  const timeStr = (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+
+  for (const phone in ba) {
+    const b = ba[phone];
+    if (!b || !b.endsAt) continue;
+
+    // 종료 시각이 5분 이상 지난 것만 자동 정리 (= 시작 후 65분+)
+    if (now - b.endsAt < BREAK_GRACE_MS) continue;
+
+    // 1) /break.json 에 60분 사용 기록 추가
+    const record = {
+      userId: phone,
+      userName: b.name || '',
+      brand: b.brand || '',
+      branch: b.branch || '',
+      date: dateStr,
+      time: timeStr,
+      year: y,
+      month: m,
+      usedMin: 60,
+      autoEnded: true,
+      ts: now
+    };
+    try {
+      await fetch(FB + '/break.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+    } catch (e) { console.log('break record err', e); continue; }
+
+    // 2) /breakActive/{phone} 삭제
+    try {
+      await fetch(FB + '/breakActive/' + encodeURIComponent(phone) + '.json', {
+        method: 'DELETE'
+      });
+    } catch (e) { console.log('breakActive del err', e); }
+
+    // 3) /breakAutoEnded/{phone} 에 알림용 플래그 저장 (앱 다음 열 때 팝업)
+    try {
+      await fetch(FB + '/breakAutoEnded/' + encodeURIComponent(phone) + '.json', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ts: now,
+          startedAt: b.startedAt,
+          endedAt: b.endsAt,
+          date: dateStr,
+          time: timeStr
+        })
+      });
+    } catch (e) { console.log('breakAutoEnded put err', e); }
+  }
 }
 
 async function sendMessage(env, token, message) {

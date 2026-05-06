@@ -1,3 +1,7 @@
 name = "dm-naverworks-relay"
 main = "worker.js"
 compatibility_date = "2024-12-01"
+
+# 5분마다 휴게시간 자동 종료 cleanup
+[triggers]
+crons = ["*/5 * * * *"]
