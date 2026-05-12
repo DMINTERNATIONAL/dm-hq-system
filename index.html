@@ -67,6 +67,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','SF Pro Display',
 .bot-tab-badge{position:absolute;top:0;right:14px;background:#dc2626;color:#fff;font-size:8px;font-weight:800;padding:1px 5px;border-radius:99px;min-width:14px;text-align:center;line-height:1.2;border:1.5px solid var(--card)}
 body{padding-bottom:64px}
 @media(min-width:1024px){.bot-tabbar{display:none !important}body{padding-bottom:0}}
+@media(min-width:1024px){#HQ-STATS{grid-template-columns:repeat(4,1fr) !important}#ADM-STATS{grid-template-columns:repeat(4,1fr) !important}.hq-bottom{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}}
+
 .pg{display:none;padding:24px 20px 100px;max-width:560px;margin:0 auto;animation:fi .3s ease}.pg.on{display:block}
 /* ==== Sidebar (모바일: 슬라이드, 데스크톱: 고정) ==== */
 .sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:-280px;width:280px;height:100vh;background:var(--card);border-right:1px solid var(--border);padding:24px 16px;z-index:300;overflow-y:auto;transition:left .3s ease;-webkit-overflow-scrolling:touch}
@@ -180,7 +182,7 @@ body.no-sidebar #MENU-BTN{display:none !important}
 .qa-list-item:hover{background:var(--bg-page);border-color:var(--border-soft)}
 .qa-list-item [data-lucide]{width:16px;height:16px;color:var(--text-2)}
 @media(min-width:900px){
-  .pg{max-width:1080px;padding:32px 40px}
+  .pg{max-width:1280px;padding:32px 40px}
   .ph{margin-bottom:24px}
   .ptitle{font-size:26px}
   .psub{font-size:13px;margin-top:6px}
