@@ -23,7 +23,14 @@ const BREAK_GRACE_MS = 5 * 60 * 1000; // 60분 + 5분 그레이스 = 65분 후 �
 
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(cleanupStaleBreaks(env));
+    // cron 표현식에 따라 분기 (event.cron)
+    if (event.cron === '0 18 * * *') {
+      // 매일 03:00 KST (= 18:00 UTC 전날) — 5년 지난 데이터 자동 삭제
+      ctx.waitUntil(cleanupOldRecords(env));
+    } else {
+      // 5분마다 — 휴게시간 자동 정리
+      ctx.waitUntil(cleanupStaleBreaks(env));
+    }
   },
 
   async fetch(request, env) {
@@ -237,6 +244,140 @@ async function cleanupStaleBreaks(env) {
       });
     } catch (e) { console.log('breakAutoEnded put err', e); }
   }
+}
+
+/* ═══ 5년 지난 데이터 자동 삭제 (cron, 매일 03:00 KST) ═══ */
+async function cleanupOldRecords(env) {
+  const FB = env.FIREBASE_URL || FB_DEFAULT;
+  // 컷오프 = 오늘 - 5년 (YYYY-MM-DD)
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
+  const y = cutoff.getFullYear();
+  const m = cutoff.getMonth() + 1;
+  const d = cutoff.getDate();
+  const cutoffStr = y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+
+  let summary = { break: 0, meal: 0, late: 0, practiceLog: 0, leave: 0, eduLogs: 0, orders: 0 };
+
+  // 1) /break.json — keyed POST id, has .date
+  try {
+    const r = await fetch(FB + '/break.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const id in data) {
+        const rec = data[id];
+        if (rec && rec.date && rec.date < cutoffStr) {
+          await fetch(FB + '/break/' + id + '.json', { method: 'DELETE' });
+          summary.break++;
+        }
+      }
+    }
+  } catch (e) { console.log('break cleanup err', e); }
+
+  // 2) /meal/{uid}/{date} — meals
+  try {
+    const r = await fetch(FB + '/meal.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const uid in data) {
+        for (const date in data[uid]) {
+          if (date < cutoffStr) {
+            await fetch(FB + '/meal/' + encodeURIComponent(uid) + '/' + date + '.json', { method: 'DELETE' });
+            summary.meal++;
+          }
+        }
+      }
+    }
+  } catch (e) { console.log('meal cleanup err', e); }
+
+  // 3) /late.json — keyed POST id, has .date
+  try {
+    const r = await fetch(FB + '/late.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const id in data) {
+        const rec = data[id];
+        if (rec && rec.date && rec.date < cutoffStr) {
+          await fetch(FB + '/late/' + id + '.json', { method: 'DELETE' });
+          summary.late++;
+        }
+      }
+    }
+  } catch (e) { console.log('late cleanup err', e); }
+
+  // 4) /practiceLog.json
+  try {
+    const r = await fetch(FB + '/practiceLog.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const id in data) {
+        const rec = data[id];
+        if (rec && rec.date && rec.date < cutoffStr) {
+          await fetch(FB + '/practiceLog/' + id + '.json', { method: 'DELETE' });
+          summary.practiceLog++;
+        }
+      }
+    }
+  } catch (e) { console.log('practiceLog cleanup err', e); }
+
+  // 5) /leave/requests
+  try {
+    const r = await fetch(FB + '/leave/requests.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const id in data) {
+        const rec = data[id];
+        if (rec && rec.date && rec.date < cutoffStr) {
+          await fetch(FB + '/leave/requests/' + id + '.json', { method: 'DELETE' });
+          summary.leave++;
+        }
+      }
+    }
+  } catch (e) { console.log('leave cleanup err', e); }
+
+  // 6) /education/logs
+  try {
+    const r = await fetch(FB + '/education/logs.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const id in data) {
+        const rec = data[id];
+        if (rec && rec.date && rec.date < cutoffStr) {
+          await fetch(FB + '/education/logs/' + id + '.json', { method: 'DELETE' });
+          summary.eduLogs++;
+        }
+      }
+    }
+  } catch (e) { console.log('eduLogs cleanup err', e); }
+
+  // 7) /orders/{brand}/{branch}/{id}
+  try {
+    const r = await fetch(FB + '/orders.json', { cache: 'no-store' });
+    const data = await r.json();
+    if (data) {
+      for (const brand in data) {
+        for (const branch in data[brand]) {
+          for (const oid in data[brand][branch]) {
+            const o = data[brand][branch][oid];
+            if (o && o.date && o.date < cutoffStr) {
+              await fetch(FB + '/orders/' + encodeURIComponent(brand) + '/' + encodeURIComponent(branch) + '/' + oid + '.json', { method: 'DELETE' });
+              summary.orders++;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) { console.log('orders cleanup err', e); }
+
+  console.log('cleanup summary (cutoff ' + cutoffStr + '):', JSON.stringify(summary));
+  // 로그를 Firebase에 남기기 (감사용)
+  try {
+    await fetch(FB + '/maintenance/cleanupLog.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ts: Date.now(), cutoff: cutoffStr, summary })
+    });
+  } catch (e) {}
 }
 
 async function sendMessage(env, token, message) {
