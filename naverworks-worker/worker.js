@@ -42,9 +42,16 @@ export default {
     }
     if (request.method !== 'POST') return cors(new Response('Method not allowed', { status: 405 }));
 
+    const pathname = new URL(request.url).pathname;
+
     let body;
     try { body = await request.json(); }
     catch (e) { return cors(new Response('Invalid JSON', { status: 400 })); }
+
+    // 네이버 웍스 봇 콜백 — 채팅방 channelId 캡처용 (진단)
+    if (pathname === '/callback' || pathname.endsWith('/callback')) {
+      return cors(await handleBotCallback(body, env));
+    }
 
     if (!body.secret || body.secret !== env.WEBHOOK_SECRET) {
       return cors(new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
@@ -389,4 +396,46 @@ async function sendMessage(env, token, message) {
   });
   if (!resp.ok) throw new Error('Send failed: ' + resp.status + ' ' + (await resp.text()));
   return resp;
+}
+
+// 봇 콜백 수신 — 봇이 들어간 채팅방의 channelId를 캡처해 Firebase에 저장.
+// 새 알림 채팅방의 Channel ID를 알아내는 용도. 봇을 @멘션하면 콜백이 들어온다.
+async function handleBotCallback(body, env) {
+  const FB = env.FIREBASE_URL || FB_DEFAULT;
+  const src = (body && body.source) || {};
+  const channelId = src.channelId || null;
+  const rec = {
+    channelId: channelId,
+    type: (body && body.type) || null,
+    userId: src.userId || null,
+    domainId: src.domainId || null,
+    issuedTime: (body && body.issuedTime) || null,
+    capturedAt: Date.now(),
+    raw: body || null
+  };
+
+  // 채널 정보(이름/유형) 조회 — 확인용. 실패해도 무시.
+  if (channelId) {
+    try {
+      const token = await getAccessToken(env);
+      const r = await fetch('https://www.worksapis.com/v1.0/bots/' + env.NW_BOT_ID + '/channels/' + channelId, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (r.ok) rec.channelInfo = await r.json();
+      else rec.channelInfoError = r.status + ' ' + (await r.text());
+    } catch (e) { rec.channelInfoError = String(e); }
+  }
+
+  try {
+    if (channelId) {
+      await fetch(FB + '/debug/botChannels/' + encodeURIComponent(channelId) + '.json', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
+      });
+    }
+    await fetch(FB + '/debug/lastCallback.json', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
+    });
+  } catch (e) { console.log('callback store err', e); }
+
+  return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
 }
