@@ -84,7 +84,7 @@ html,body{background:#fff;color:#0a0a0a;font-family:-apple-system,BlinkMacSystem
   <section class="scr on" id="s-hero">
     <div class="hero-photo">
       <img src="assets/hero.jpg" alt="" onerror="this.style.display='none'">
-      <span class="ph">시그니처 컷</span>
+      <span class="ph" data-i="sigCut">시그니처 컷</span>
     </div>
     <div class="hero-body">
       <p class="lbl">CONSULTATION</p>
@@ -168,7 +168,9 @@ function fbPost(p,d){return fetch(FB+p,{method:'POST',headers:{'Content-Type':'a
 function $(id){return document.getElementById(id)}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 
-var D={lang:'ko',branch:'',name:'',designer:'',designerPh:'',sns:'',route:'',routeEtc:'',services:[],time:'',mood:[],scalp:'',history:{},memo:''};
+var D={lang:'ko',branch:'',name:'',designer:'',designerPh:'',snsType:'',sns:'',route:'',routeEtc:'',services:[],time:'',mood:[],scalp:'',history:{},memo:''};
+var BRANCHL={'플래그십점':{en:'Flagship',zh:'旗舰店',ja:'フラッグシップ店'},'모먼트점':{en:'Moment',zh:'Moment 店',ja:'モーメント店'}};
+function branchLabel(b){var m=BRANCHL[b];return (m&&m[D.lang])?m[D.lang]:b}
 var ROUTES=[{ko:'인스타그램',en:'Instagram',zh:'Instagram',ja:'Instagram'},{ko:'네이버',en:'Naver',zh:'Naver',ja:'Naver'},{ko:'구글',en:'Google',zh:'Google',ja:'Google'},{ko:'샤오훙슈',en:'Xiaohongshu',zh:'小红书',ja:'RED(小紅書)'},{ko:'틱톡',en:'TikTok',zh:'抖音',ja:'TikTok'},{ko:'지인 소개',en:'Referral',zh:'朋友介绍',ja:'知人の紹介'},{ko:'기타',en:'Other',zh:'其他',ja:'その他'}];
 function routeOpts(){var t=T[D.lang];var o='<option value="">'+esc(t.routeNone)+'</option>';ROUTES.forEach(function(r){o+='<option value="'+esc(r.ko)+'"'+(r.ko===D.route?' selected':'')+'>'+esc(r[D.lang]||r.ko)+'</option>'});return o}
 function routeChg(){D.route=$('f-route').value;var etc=$('f-route-etc');if(etc)etc.style.display=(D.route==='기타')?'block':'none'}
@@ -181,25 +183,25 @@ s1:'기본 정보',s2:'원하는 시술',s3:'원하는 분위기',s4:'시술 정
 fName:'이름',fDesigner:'담당 디자이너',fRoute:'방문 경로',fSns:'연락처 (SNS)',pName:'성함을 입력해 주세요',pDesigner:'선택해 주세요',pSns:'위챗 / 인스타그램 아이디',routeNone:'선택 (선택사항)',pRouteEtc:'어떻게 알게 되셨나요?',
 hServ:'끌리는 시술을 모두 골라주세요',hMood:'끌리는 감성을 모두 골라주세요',lTime:'가능한 시간',lScalp:'두피 민감도',lHist:'최근 시술 이력',
 lMemo:'신경 써주셨으면 하는 부분',pMemo:'예) 앞머리는 자르고 싶지 않아요. 손상이 걱정돼서…',quick:'빠른 선택',
-doneT:'{d}에게<br>전달되었습니다',doneS:'잠시 기다려주시면<br>안내 도와드리겠습니다',needName:'성함을 입력해 주세요',designerSuffix:' 디자이너',designerDefault:'담당 디자이너',pickT:'담당 디자이너 선택',pickS:'예약하신 디자이너를 선택해 주세요',change:'변경',pickBT:'지점 선택',pickBS:'방문하실 지점을 선택해 주세요'},
+doneT:'{d}에게<br>전달되었습니다',doneS:'잠시 기다려주시면<br>안내 도와드리겠습니다',needName:'성함을 입력해 주세요',designerSuffix:' 디자이너',designerDefault:'담당 디자이너',pickT:'담당 디자이너 선택',pickS:'예약하신 디자이너를 선택해 주세요',change:'변경',pickBT:'지점 선택',pickBS:'방문하실 지점을 선택해 주세요',sigCut:'시그니처 컷',snsTypeNone:'선택',pSnsId:'아이디',wechat:'위챗'},
 en:{welcomeTitle:'Thank you for<br>visiting DAY:MEAN',welcomeSub:"Tell us a little about today's mood<br>before we begin",start:'Start',next:'Next',back:'Back',submit:'Submit',browse:'Explore the salon',
 s1:'Information',s2:'Desired treatment',s3:'The atmosphere you want',s4:'Treatment details',s5:'Anything else',
 fName:'Name',fDesigner:'Designer',fRoute:'Visit route',fSns:'Contact (SNS)',pName:'Enter your name',pDesigner:'Please select',pSns:'WeChat / Instagram ID',routeNone:'Select (optional)',pRouteEtc:'How did you hear about us?',
 hServ:'Select all that apply',hMood:'Select all that appeal to you',lTime:'Time available',lScalp:'Scalp sensitivity',lHist:'Recent treatment history',
 lMemo:'Anything you would like us to focus on',pMemo:"e.g. I'd rather keep my bangs. I'm worried about damage…",quick:'Quick add',
-doneT:'Sent to<br>{d}',doneS:"Please wait a moment<br>we'll guide you shortly",needName:'Please enter your name',designerSuffix:'',designerDefault:'your designer',pickT:'Select your designer',pickS:'Tap the designer you booked with',change:'Change',pickBT:'Select branch',pickBS:'Choose the location you are visiting'},
+doneT:'Sent to<br>{d}',doneS:"Please wait a moment<br>we'll guide you shortly",needName:'Please enter your name',designerSuffix:'',designerDefault:'your designer',pickT:'Select your designer',pickS:'Tap the designer you booked with',change:'Change',pickBT:'Select branch',pickBS:'Choose the location you are visiting',sigCut:'Signature',snsTypeNone:'Select',pSnsId:'Enter ID',wechat:'WeChat'},
 zh:{welcomeTitle:'感谢您来到<br>DAY:MEAN',welcomeSub:'为了打造今天的造型<br>请先填写问诊表',start:'开始',next:'下一步',back:'上一步',submit:'提交',browse:'浏览门店',
 s1:'顾客信息',s2:'想要的发型',s3:'想要的气氛',s4:'施术信息',s5:'其他要求',
 fName:'姓名',fDesigner:'发型师',fRoute:'获得本店的途径',fSns:'联系方式 (SNS)',pName:'请输入您的姓名',pDesigner:'请选择',pSns:'微信 / Instagram 账号',routeNone:'请选择 (可选)',pRouteEtc:'您是如何得知本店的？',
 hServ:'可多选',hMood:'请选择您喜欢的感觉（可多选）',lTime:'可用时间',lScalp:'头皮敏感度',lHist:'最近施术历史',
 lMemo:'希望发型师特别注意的部分',pMemo:'例）不想剪刘海。担心头发损伤…',quick:'快速选择',
-doneT:'已发送给<br>{d}',doneS:'请稍候片刻<br>我们将为您引导',needName:'请输入您的姓名',designerSuffix:'',designerDefault:'您的发型师',pickT:'选择您的发型师',pickS:'请点击您预约的发型师',change:'更改',pickBT:'选择门店',pickBS:'请选择您要光临的门店'},
+doneT:'已发送给<br>{d}',doneS:'请稍候片刻<br>我们将为您引导',needName:'请输入您的姓名',designerSuffix:'',designerDefault:'您的发型师',pickT:'选择您的发型师',pickS:'请点击您预约的发型师',change:'更改',pickBT:'选择门店',pickBS:'请选择您要光临的门店',sigCut:'形象照',snsTypeNone:'请选择',pSnsId:'输入 ID',wechat:'微信'},
 ja:{welcomeTitle:'DAY:MEANへ<br>ようこそ',welcomeSub:'今日のムードをつくるために<br>事前カウンセリングにご記入ください',start:'はじめる',next:'次へ',back:'戻る',submit:'送信',browse:'店舗を見る',
 s1:'お客様情報',s2:'ご希望の施術',s3:'ご希望の雰囲気',s4:'施術について',s5:'その他ご要望',
 fName:'お名前',fDesigner:'担当スタイリスト',fRoute:'来店のきっかけ',fSns:'連絡先 (SNS)',pName:'お名前をご入力ください',pDesigner:'選択してください',pSns:'WeChat / Instagram ID',routeNone:'選択 (任意)',pRouteEtc:'どこで知りましたか？',
 hServ:'当てはまるものをすべて',hMood:'惹かれるものをすべてお選びください',lTime:'施術可能時間',lScalp:'頭皮の敏感さ',lHist:'最近の施術履歴',
 lMemo:'特に気にしてほしいこと',pMemo:'例）前髪は切りたくありません。ダメージが心配で…',quick:'クイック選択',
-doneT:'{d}に<br>送信しました',doneS:'少々お待ちいただければ<br>ご案内いたします',needName:'お名前をご入力ください',designerSuffix:'',designerDefault:'担当スタイリスト',pickT:'担当スタイリストを選択',pickS:'ご予約のスタイリストをお選びください',change:'変更',pickBT:'店舗を選択',pickBS:'ご来店の店舗を選択してください'}
+doneT:'{d}に<br>送信しました',doneS:'少々お待ちいただければ<br>ご案内いたします',needName:'お名前をご入力ください',designerSuffix:'',designerDefault:'担当スタイリスト',pickT:'担当スタイリストを選択',pickS:'ご予約のスタイリストをお選びください',change:'変更',pickBT:'店舗を選択',pickBS:'ご来店の店舗を選択してください',sigCut:'シグネチャー',snsTypeNone:'選択',pSnsId:'IDを入力',wechat:'WeChat'}
 };
 
 function L(ko,en,zh,ja){return {ko:ko,en:en,zh:zh,ja:ja}}
@@ -221,13 +223,13 @@ function setLang(l){D.lang=l;document.documentElement.lang=l;
 }
 
 function go(n){STEP=n;showScreen();if(n===0.3)renderBranchPick();if(n===0.5)renderDesignerPick();if(n===98)renderBrowse();if(n>=1&&n<=5)renderStep()}
-function next(){if(STEP===1){var nm=($('f-name')||{}).value;D.name=(nm||'').trim();var sn=$('f-sns');D.sns=sn?sn.value.trim():'';var rt=$('f-route');D.route=rt?rt.value:'';var re=$('f-route-etc');D.routeEtc=re?re.value.trim():'';if(!D.name){$('f-name').classList.add('err');toast(T[D.lang].needName);return}}
+function next(){if(STEP===1){var nm=($('f-name')||{}).value;D.name=(nm||'').trim();var stp=$('f-sns-type');D.snsType=stp?stp.value:'';var sn=$('f-sns');D.sns=sn?sn.value.trim():'';var rt=$('f-route');D.route=rt?rt.value:'';var re=$('f-route-etc');D.routeEtc=re?re.value.trim():'';if(!D.name){$('f-name').classList.add('err');toast(T[D.lang].needName);return}}
   if(STEP===5){submit();return}
   go(STEP+1)}
 function prev(){if(STEP===0.3){go(0);return}if(STEP===0.5){go(0.3);return}if(STEP===1){go(0.5);return}go(STEP-1)}
 function branchList(){var set={},a=[];DESIGNERS.forEach(function(d){var b=d.branch||'';if(b&&!set[b]){set[b]=1;a.push(b)}});return a}
 function startDesigner(){if(!D.branch){toast(T[D.lang].pickBT);return}go(0.5)}
-function renderBranchPick(){var t=T[D.lang];$('bp-title').textContent=t.pickBT;$('bp-sub').textContent=t.pickBS;$('bp-next').textContent=t.next;var bk=document.querySelector("#s-branch [data-i='back']");if(bk)bk.textContent=t.back;var g=$('branch-grid');var list=branchList();if(!list.length){g.innerHTML='<div style="text-align:center;color:#c8c8c8;font-size:13px;padding:36px 0">…</div>';$('bp-next').disabled=true;return}g.innerHTML=list.map(function(b){return '<button class="dp-item'+(b===D.branch?' on':'')+'" data-b="'+esc(b)+'">'+esc(b)+'</button>'}).join('');g.onclick=function(e){var btn=e.target.closest('.dp-item');if(!btn)return;var b=btn.getAttribute('data-b');if(b!==D.branch){D.branch=b;D.designerPh='';D.designer=''}Array.prototype.forEach.call(g.children,function(x){x.classList.remove('on')});btn.classList.add('on');$('bp-next').disabled=false};$('bp-next').disabled=!D.branch}
+function renderBranchPick(){var t=T[D.lang];$('bp-title').textContent=t.pickBT;$('bp-sub').textContent=t.pickBS;$('bp-next').textContent=t.next;var bk=document.querySelector("#s-branch [data-i='back']");if(bk)bk.textContent=t.back;var g=$('branch-grid');var list=branchList();if(!list.length){g.innerHTML='<div style="text-align:center;color:#c8c8c8;font-size:13px;padding:36px 0">…</div>';$('bp-next').disabled=true;return}g.innerHTML=list.map(function(b){return '<button class="dp-item'+(b===D.branch?' on':'')+'" data-b="'+esc(b)+'">'+esc(branchLabel(b))+'</button>'}).join('');g.onclick=function(e){var btn=e.target.closest('.dp-item');if(!btn)return;var b=btn.getAttribute('data-b');if(b!==D.branch){D.branch=b;D.designerPh='';D.designer=''}Array.prototype.forEach.call(g.children,function(x){x.classList.remove('on')});btn.classList.add('on');$('bp-next').disabled=false};$('bp-next').disabled=!D.branch}
 function startForm(){if(!D.designerPh){toast(T[D.lang].pickT);return}go(1)}
 function renderDesignerPick(){var t=T[D.lang];$('dp-title').textContent=t.pickT;$('dp-sub').textContent=t.pickS;$('dp-start').textContent=t.start;var bk=document.querySelector("#s-designer [data-i='back']");if(bk)bk.textContent=t.back;var g=$('designer-grid');var list=DESIGNERS.filter(function(d){return !D.branch||d.branch===D.branch});if(!list.length){g.innerHTML='<div style="grid-column:1/3;text-align:center;color:#c8c8c8;font-size:13px;padding:36px 0">…</div>';$('dp-start').disabled=true;return}g.innerHTML=list.map(function(d){return '<button class="dp-item'+(d.ph===D.designerPh?' on':'')+'" data-ph="'+esc(d.ph)+'" data-nm="'+esc(d.name)+'">'+esc(d.name)+'</button>'}).join('');g.onclick=function(e){var b=e.target.closest('.dp-item');if(!b)return;D.designerPh=b.getAttribute('data-ph');D.designer=b.getAttribute('data-nm');Array.prototype.forEach.call(g.children,function(x){x.classList.remove('on')});b.classList.add('on');$('dp-start').disabled=false};$('dp-start').disabled=!D.designerPh}
 
@@ -248,7 +250,7 @@ function renderStep(){
     h+='<p class="steplbl">STEP 01</p><p class="h">'+t.s1+'</p><p class="hsub">&nbsp;</p>';
     h+='<div class="field"><label>'+t.fName+'</label><input id="f-name" type="text" placeholder="'+esc(t.pName)+'" value="'+esc(D.name)+'"></div>';
     h+='<div class="field"><label>'+t.fDesigner+'</label><div style="border-bottom:1px solid var(--line);padding-bottom:9px;font-size:14px;display:flex;justify-content:space-between;align-items:center">'+esc(D.designer||'-')+'<span onclick="go(0.5)" style="font-size:12px;color:#9a9a9a;cursor:pointer">'+t.change+'</span></div></div>';
-    h+='<div class="field"><label>'+t.fSns+'</label><input id="f-sns" type="text" placeholder="'+esc(t.pSns)+'" value="'+esc(D.sns)+'"></div>';
+    if(D.lang!=='ko'){h+='<div class="field"><label>'+t.fSns+'</label><select id="f-sns-type" style="margin-bottom:10px"><option value="">'+esc(t.snsTypeNone)+'</option><option value="Instagram"'+(D.snsType==='Instagram'?' selected':'')+'>Instagram</option><option value="WeChat"'+(D.snsType==='WeChat'?' selected':'')+'>'+esc(t.wechat)+'</option></select><input id="f-sns" type="text" placeholder="'+esc(t.pSnsId)+'" value="'+esc(D.sns)+'"></div>';}
     h+='<div class="field"><label>'+t.fRoute+'</label><select id="f-route" onchange="routeChg()">'+routeOpts()+'</select><input id="f-route-etc" type="text" placeholder="'+esc(t.pRouteEtc)+'" value="'+esc(D.routeEtc)+'" style="margin-top:10px;display:'+(D.route==='기타'?'block':'none')+'"></div>';
   } else if(STEP===2){
     h+='<p class="steplbl">STEP 02</p><p class="h">'+t.s2+'</p><p class="hsub">'+t.hServ+'</p>';
@@ -286,7 +288,7 @@ function toast(msg){var el=$('toast');el.textContent=msg;el.classList.add('on');
 function submit(){
   var ta=$('f-memo');if(ta)D.memo=ta.value.trim();
   var btn=$('btnNext');btn.disabled=true;
-  var rec={ts:Date.now(),date:new Date().toISOString().slice(0,10),lang:D.lang,branch:D.branch,name:D.name,designer:D.designer,designerPh:D.designerPh,sns:D.sns,route:D.route,routeEtc:D.routeEtc,services:D.services,time:D.time,mood:D.mood,scalp:D.scalp,history:D.history,memo:D.memo,status:'new'};
+  var rec={ts:Date.now(),date:new Date().toISOString().slice(0,10),lang:D.lang,branch:D.branch,name:D.name,designer:D.designer,designerPh:D.designerPh,snsType:D.snsType,sns:D.sns,route:D.route,routeEtc:D.routeEtc,services:D.services,time:D.time,mood:D.mood,scalp:D.scalp,history:D.history,memo:D.memo,status:'new'};
   fbPost('/consults.json',rec).then(function(){showDone()}).catch(function(){btn.disabled=false;toast('전송 실패 — 다시 시도해 주세요')});
 }
 function showDone(){
