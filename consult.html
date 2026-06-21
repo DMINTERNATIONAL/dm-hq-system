@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>DAY:MEAN · 사전 상담</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:#fff;color:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}
+:root{--ink:#0a0a0a;--muted:#a2a2a2;--faint:#c0c0c0;--line:#ececec;--line2:#e5e5e5}
+.wrap{max-width:480px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.scr{display:none;flex:1;flex-direction:column;min-height:100dvh}
+.scr.on{display:flex}
+.wm{font-family:'Anton',sans-serif;font-weight:400;letter-spacing:0.5px;display:inline-block}
+.lbl{font-size:10px;letter-spacing:3px;color:var(--faint);text-transform:uppercase}
+.muted{color:var(--muted)}
+.fade{opacity:0;transform:translateY(8px);animation:in .5s ease forwards}
+@keyframes in{to{opacity:1;transform:none}}
+
+.hero-photo{height:46vh;min-height:240px;background:#9ca6af;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.hero-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero-photo .ph{color:rgba(255,255,255,.45);font-size:10px;letter-spacing:2px}
+.hero-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 32px}
+.hero-title{font-size:15px;font-weight:500;letter-spacing:-0.2px;line-height:1.75;margin:22px 0 14px}
+.hero-sub{font-size:12px;color:var(--muted);line-height:1.85}
+.hero-foot{padding:0 32px calc(30px + env(safe-area-inset-bottom))}
+.langs{display:flex;align-items:center;justify-content:center;gap:18px;font-size:11px;letter-spacing:.5px;margin-bottom:22px}
+.langs span{color:#cacaca;cursor:pointer;padding-bottom:3px;border-bottom:1px solid transparent}
+.langs span.on{color:var(--ink);border-bottom-color:var(--ink)}
+
+.top{display:flex;justify-content:space-between;align-items:center;padding:calc(24px + env(safe-area-inset-top)) 26px 0}
+.top .wm{font-size:12px}
+.top .pg{font-size:9px;letter-spacing:2px;color:var(--faint)}
+.bar{height:1px;background:var(--line);margin:14px 26px 0}
+.bar > i{display:block;height:1px;background:var(--ink);transition:width .4s ease}
+.body{flex:1;padding:34px 26px 0;overflow-y:auto}
+.steplbl{font-size:10px;letter-spacing:3px;color:var(--faint);margin-bottom:8px}
+.h{font-size:16px;font-weight:500;letter-spacing:-0.3px;margin-bottom:6px}
+.hsub{font-size:12px;color:var(--muted);margin-bottom:30px}
+.field{margin-bottom:28px}
+.field > label{display:block;font-size:10px;letter-spacing:1.5px;color:var(--faint);margin-bottom:9px}
+.field input,.field select,.field textarea{width:100%;border:none;border-bottom:1px solid var(--line);background:transparent;font-size:14px;color:var(--ink);padding:0 0 9px;font-family:inherit;outline:none;border-radius:0}
+.field input::placeholder,.field textarea::placeholder{color:#cacaca}
+.field select{appearance:none;-webkit-appearance:none;background:transparent}
+.field textarea{border:1px solid var(--line2);border-radius:12px;padding:14px;min-height:140px;resize:none;line-height:1.6}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ink)}
+.gsub{font-size:10px;letter-spacing:1.5px;color:var(--faint);margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:13px;padding:8px 15px;border-radius:30px;border:1px solid var(--line2);background:#fff;color:var(--muted);font-family:inherit;cursor:pointer;transition:.15s}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dp-item{padding:16px 12px;border:1px solid var(--line2);background:#fff;border-radius:12px;font-size:15px;color:var(--ink);font-family:inherit;cursor:pointer;text-align:center}
+.dp-item.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg{display:flex;gap:6px}
+.seg .chip{flex:1;text-align:center;padding:10px 0;border-radius:8px;font-size:12px}
+.hist{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+.hist > b{width:46px;font-size:13px;font-weight:400;color:var(--ink)}
+.hist .chip{padding:6px 13px;font-size:12px}
+.foot{padding:18px 26px calc(28px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center}
+.btn{flex:1;text-align:center;font-size:12px;letter-spacing:2px;padding:15px;border-radius:30px;border:1px solid var(--ink);background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}
+.hero-foot .btn,.done-foot .btn{width:100%}
+.btn.solid{background:var(--ink);color:#fff}
+.btn.ghost{border-color:var(--line2);color:var(--muted);flex:0 0 auto;padding:15px 22px}
+.btn:disabled{opacity:.35;cursor:default}
+
+.done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 36px}
+.done .ic{width:54px;height:54px;border:1px solid #d8d8d8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:28px}
+.done .wm{font-size:20px;margin-bottom:24px}
+.done .dt{font-size:16px;font-weight:500;line-height:1.6;margin-bottom:12px}
+.done .ds{font-size:12px;color:var(--muted);line-height:1.85}
+.done-foot{padding:0 32px calc(34px + env(safe-area-inset-bottom));text-align:center}
+.tag{font-size:9px;letter-spacing:2.5px;color:#cdcdcd;margin-top:22px}
+.err{color:#c0392b!important;border-color:#c0392b!important}
+.toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:12px;padding:11px 18px;border-radius:30px;opacity:0;transition:.3s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="scr on" id="s-hero">
+    <div class="hero-photo">
+      <img src="assets/hero.jpg" alt="" onerror="this.style.display='none'">
+      <span class="ph">시그니처 컷</span>
+    </div>
+    <div class="hero-body">
+      <p class="lbl">CONSULTATION</p>
+      <p class="hero-title" data-i="welcomeTitle"></p>
+      <p class="hero-sub" data-i="welcomeSub"></p>
+    </div>
+    <div class="hero-foot">
+      <div class="langs" id="langs">
+        <span data-l="ko">한국어</span>
+        <span data-l="en">EN</span>
+        <span data-l="zh">中文</span>
+        <span data-l="ja">日本語</span>
+      </div>
+      <button class="btn solid" onclick="go(0.3)" data-i="next"></button>
+    </div>
+  </section>
+
+  <section class="scr" id="s-branch">
+    <div class="top"><span class="wm">DAY:MEAN</span><span class="pg"></span></div>
+    <div class="body">
+      <p class="steplbl">BRANCH</p>
+      <p class="h" id="bp-title"></p>
+      <p class="hsub" id="bp-sub"></p>
+      <div id="branch-grid" style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="prev()" data-i="back"></button>
+      <button class="btn solid" id="bp-next" onclick="startDesigner()" disabled data-i="next"></button>
+    </div>
+  </section>
+
+  <section class="scr" id="s-designer">
+    <div class="top"><span class="wm">DAY:MEAN</span><span class="pg"></span></div>
+    <div class="body">
+      <p class="steplbl">DESIGNER</p>
+      <p class="h" id="dp-title"></p>
+      <p class="hsub" id="dp-sub"></p>
+      <div id="designer-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="prev()" data-i="back"></button>
+      <button class="btn solid" id="dp-start" onclick="startForm()" disabled data-i="start"></button>
+    </div>
+  </section>
+
+  <section class="scr" id="s-step">
+    <div class="top"><span class="wm">DAY:MEAN</span><span class="pg" id="pg"></span></div>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="body" id="body"></div>
+    <div class="foot">
+      <button class="btn ghost" id="btnBack" onclick="prev()" data-i="back"></button>
+      <button class="btn solid" id="btnNext" onclick="next()"></button>
+    </div>
+  </section>
+
+  <section class="scr" id="s-done">
+    <div class="done">
+      <div class="ic">&#10003;</div>
+      <span class="wm">DAY:MEAN</span>
+      <p class="dt" id="doneTitle"></p>
+      <p class="ds" id="doneSub"></p>
+    </div>
+    <div class="done-foot">
+      <button class="btn" onclick="browse()" data-i="browse"></button>
+      <p class="tag">WE MAKE A MEANINGFUL DAY</p>
+    </div>
+  </section>
+
+  <section class="scr" id="s-browse">
+    <div class="top"><span class="wm">DAY:MEAN</span><span onclick="go(99)" style="cursor:pointer;color:#bbb;font-size:18px">&#10005;</span></div>
+    <div class="body" id="browse-body"></div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var FB='https://dm-orders-4792a-default-rtdb.firebaseio.com';
+function fbG(p){return fetch(FB+p,{cache:'no-store'}).then(function(r){return r.json()})}
+function fbPost(p,d){return fetch(FB+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}
+function $(id){return document.getElementById(id)}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+var D={lang:'ko',branch:'',name:'',designer:'',designerPh:'',sns:'',route:'',routeEtc:'',services:[],time:'',mood:[],scalp:'',history:{},memo:''};
+var ROUTES=[{ko:'인스타그램',en:'Instagram',zh:'Instagram',ja:'Instagram'},{ko:'네이버',en:'Naver',zh:'Naver',ja:'Naver'},{ko:'구글',en:'Google',zh:'Google',ja:'Google'},{ko:'샤오훙슈',en:'Xiaohongshu',zh:'小红书',ja:'RED(小紅書)'},{ko:'틱톡',en:'TikTok',zh:'抖音',ja:'TikTok'},{ko:'지인 소개',en:'Referral',zh:'朋友介绍',ja:'知人の紹介'},{ko:'기타',en:'Other',zh:'其他',ja:'その他'}];
+function routeOpts(){var t=T[D.lang];var o='<option value="">'+esc(t.routeNone)+'</option>';ROUTES.forEach(function(r){o+='<option value="'+esc(r.ko)+'"'+(r.ko===D.route?' selected':'')+'>'+esc(r[D.lang]||r.ko)+'</option>'});return o}
+function routeChg(){D.route=$('f-route').value;var etc=$('f-route-etc');if(etc)etc.style.display=(D.route==='기타')?'block':'none'}
+var DESIGNERS=[];
+var STEP=0;
+
+var T={
+ko:{welcomeTitle:'DAY:MEAN에 방문해 주셔서<br>감사합니다',welcomeSub:'오늘의 무드를 만들기 위해<br>사전 상담지를 작성해 주세요',start:'상담 시작',next:'다음',back:'이전',submit:'상담 보내기',browse:'매장 둘러보기',
+s1:'기본 정보',s2:'원하는 시술',s3:'원하는 분위기',s4:'시술 정보',s5:'더 들려주실 게 있다면',
+fName:'이름',fDesigner:'담당 디자이너',fRoute:'방문 경로',fSns:'연락처 (SNS)',pName:'성함을 입력해 주세요',pDesigner:'선택해 주세요',pSns:'위챗 / 인스타그램 아이디',routeNone:'선택 (선택사항)',pRouteEtc:'어떻게 알게 되셨나요?',
+hServ:'끌리는 시술을 모두 골라주세요',hMood:'끌리는 감성을 모두 골라주세요',lTime:'가능한 시간',lScalp:'두피 민감도',lHist:'최근 시술 이력',
+lMemo:'신경 써주셨으면 하는 부분',pMemo:'예) 앞머리는 자르고 싶지 않아요. 손상이 걱정돼서…',quick:'빠른 선택',
+doneT:'{d}에게<br>전달되었습니다',doneS:'잠시 기다려주시면<br>안내 도와드리겠습니다',needName:'성함을 입력해 주세요',designerSuffix:' 디자이너',designerDefault:'담당 디자이너',pickT:'담당 디자이너 선택',pickS:'예약하신 디자이너를 선택해 주세요',change:'변경',pickBT:'지점 선택',pickBS:'방문하실 지점을 선택해 주세요'},
+en:{welcomeTitle:'Thank you for<br>visiting DAY:MEAN',welcomeSub:"Tell us a little about today's mood<br>before we begin",start:'Start',next:'Next',back:'Back',submit:'Submit',browse:'Explore the salon',
+s1:'Information',s2:'Desired treatment',s3:'The atmosphere you want',s4:'Treatment details',s5:'Anything else',
+fName:'Name',fDesigner:'Designer',fRoute:'Visit route',fSns:'Contact (SNS)',pName:'Enter your name',pDesigner:'Please select',pSns:'WeChat / Instagram ID',routeNone:'Select (optional)',pRouteEtc:'How did you hear about us?',
+hServ:'Select all that apply',hMood:'Select all that appeal to you',lTime:'Time available',lScalp:'Scalp sensitivity',lHist:'Recent treatment history',
+lMemo:'Anything you would like us to focus on',pMemo:"e.g. I'd rather keep my bangs. I'm worried about damage…",quick:'Quick add',
+doneT:'Sent to<br>{d}',doneS:"Please wait a moment<br>we'll guide you shortly",needName:'Please enter your name',designerSuffix:'',designerDefault:'your designer',pickT:'Select your designer',pickS:'Tap the designer you booked with',change:'Change',pickBT:'Select branch',pickBS:'Choose the location you are visiting'},
+zh:{welcomeTitle:'感谢您来到<br>DAY:MEAN',welcomeSub:'为了打造今天的造型<br>请先填写问诊表',start:'开始',next:'下一步',back:'上一步',submit:'提交',browse:'浏览门店',
+s1:'顾客信息',s2:'想要的发型',s3:'想要的气氛',s4:'施术信息',s5:'其他要求',
+fName:'姓名',fDesigner:'发型师',fRoute:'获得本店的途径',fSns:'联系方式 (SNS)',pName:'请输入您的姓名',pDesigner:'请选择',pSns:'微信 / Instagram 账号',routeNone:'请选择 (可选)',pRouteEtc:'您是如何得知本店的？',
+hServ:'可多选',hMood:'请选择您喜欢的感觉（可多选）',lTime:'可用时间',lScalp:'头皮敏感度',lHist:'最近施术历史',
+lMemo:'希望发型师特别注意的部分',pMemo:'例）不想剪刘海。担心头发损伤…',quick:'快速选择',
+doneT:'已发送给<br>{d}',doneS:'请稍候片刻<br>我们将为您引导',needName:'请输入您的姓名',designerSuffix:'',designerDefault:'您的发型师',pickT:'选择您的发型师',pickS:'请点击您预约的发型师',change:'更改',pickBT:'选择门店',pickBS:'请选择您要光临的门店'},
+ja:{welcomeTitle:'DAY:MEANへ<br>ようこそ',welcomeSub:'今日のムードをつくるために<br>事前カウンセリングにご記入ください',start:'はじめる',next:'次へ',back:'戻る',submit:'送信',browse:'店舗を見る',
+s1:'お客様情報',s2:'ご希望の施術',s3:'ご希望の雰囲気',s4:'施術について',s5:'その他ご要望',
+fName:'お名前',fDesigner:'担当スタイリスト',fRoute:'来店のきっかけ',fSns:'連絡先 (SNS)',pName:'お名前をご入力ください',pDesigner:'選択してください',pSns:'WeChat / Instagram ID',routeNone:'選択 (任意)',pRouteEtc:'どこで知りましたか？',
+hServ:'当てはまるものをすべて',hMood:'惹かれるものをすべてお選びください',lTime:'施術可能時間',lScalp:'頭皮の敏感さ',lHist:'最近の施術履歴',
+lMemo:'特に気にしてほしいこと',pMemo:'例）前髪は切りたくありません。ダメージが心配で…',quick:'クイック選択',
+doneT:'{d}に<br>送信しました',doneS:'少々お待ちいただければ<br>ご案内いたします',needName:'お名前をご入力ください',designerSuffix:'',designerDefault:'担当スタイリスト',pickT:'担当スタイリストを選択',pickS:'ご予約のスタイリストをお選びください',change:'変更',pickBT:'店舗を選択',pickBS:'ご来店の店舗を選択してください'}
+};
+
+function L(ko,en,zh,ja){return {ko:ko,en:en,zh:zh,ja:ja}}
+var OPT={
+services:[L('커트','Hair cut','剪发','カット'),L('전체 펌','Full perm','烫全头','フルパーマ'),L('부분 펌','Partial perm','局部烫','部分パーマ'),L('다운 펌','Down perm','软化','ダウンパーマ'),L('염색','Dye','染发','カラー'),L('부분 염색','Partial dyeing','局部染发','部分カラー'),L('탈색','Bleach','漂染','ブリーチ'),L('부분 탈색','Partial bleaching','局部漂染','部分ブリーチ'),L('모발 클리닉','Hair treatment','头发护理','ヘアトリートメント'),L('두피 클리닉','Scalp treatment','头皮护理','スカルプケア'),L('기타','Etc','其他','その他')],
+time:[L('1시간 미만','Under 1h','1小时内','1時間未満'),L('1-2시간','1–2h','1–2小时','1〜2時間'),L('2-3시간','2–3h','2–3小时','2〜3時間'),L('3시간 이상','3h+','3小时以上','3時間以上')],
+mood:[L('자연스러운','Natural','自然','ナチュラル'),L('모던','Modern','摩登','モダン'),L('차분한','Calm','沉稳','落ち着いた'),L('부드러운','Soft','柔软','やわらか'),L('세련된','Sophisticated','时尚','洗練'),L('차가운','Cold','冷感','クール'),L('따뜻한','Warm','温暖','あたたか'),L('여성스러운','Feminine','女性感','フェミニン'),L('남성스러운','Masculine','男性感','マスキュリン'),L('시크한','Chic','时髦','シック'),L('개성있는','Unique','有个性','個性的'),L('깔끔한','Neat','清爽','すっきり'),L('우아한','Elegant','优雅','エレガント'),L('고급스러운','Luxurious','高雅','高級感'),L('화려한','Fancy','华丽','華やか'),L('성숙한','Mature','成熟','大人っぽい'),L('잔잔한','Serene','平静','穏やか'),L('귀여운','Cute','可爱','キュート'),L('신비로운','Mysterious','神秘','ミステリアス'),L('단아한','Graceful','端雅','上品'),L('날카로운','Sharp','锋利','シャープ'),L('모르겠음','Not sure','不确定','わからない')],
+scalp:[L('민감','Sensitive','敏感','敏感'),L('보통','Normal','普通','普通'),L('모르겠음','Not sure','不知道','わからない')],
+histRow:[L('커트','Cut','剪发','カット'),L('펌','Perm','烫发','パーマ'),L('염색','Dye','染发','カラー')],
+histMon:[L('1개월','1 mo','1个月','1ヶ月'),L('3개월','3 mo','3个月','3ヶ月'),L('6개월','6 mo','6个月','6ヶ月')],
+quick:[L('손상 최소화','Minimize damage','减少损伤','ダメージ最小限'),L('두피 따가움','Scalp stings','头皮刺痛','頭皮がしみる'),L('시간 여유 없음','Limited time','时间紧张','時間に余裕なし')]
+};
+function lx(o){return o[D.lang]||o.ko}
+
+function setLang(l){D.lang=l;document.documentElement.lang=l;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-i]'),function(el){var k=el.getAttribute('data-i');if(T[l][k]!=null)el.innerHTML=T[l][k]});
+  Array.prototype.forEach.call(document.querySelectorAll('#langs span'),function(s){s.classList.toggle('on',s.getAttribute('data-l')===l)});
+  if(STEP>=1&&STEP<=5)renderStep();
+}
+
+function go(n){STEP=n;showScreen();if(n===0.3)renderBranchPick();if(n===0.5)renderDesignerPick();if(n===98)renderBrowse();if(n>=1&&n<=5)renderStep()}
+function next(){if(STEP===1){var nm=($('f-name')||{}).value;D.name=(nm||'').trim();var sn=$('f-sns');D.sns=sn?sn.value.trim():'';var rt=$('f-route');D.route=rt?rt.value:'';var re=$('f-route-etc');D.routeEtc=re?re.value.trim():'';if(!D.name){$('f-name').classList.add('err');toast(T[D.lang].needName);return}}
+  if(STEP===5){submit();return}
+  go(STEP+1)}
+function prev(){if(STEP===0.3){go(0);return}if(STEP===0.5){go(0.3);return}if(STEP===1){go(0.5);return}go(STEP-1)}
+function branchList(){var set={},a=[];DESIGNERS.forEach(function(d){var b=d.branch||'';if(b&&!set[b]){set[b]=1;a.push(b)}});return a}
+function startDesigner(){if(!D.branch){toast(T[D.lang].pickBT);return}go(0.5)}
+function renderBranchPick(){var t=T[D.lang];$('bp-title').textContent=t.pickBT;$('bp-sub').textContent=t.pickBS;$('bp-next').textContent=t.next;var bk=document.querySelector("#s-branch [data-i='back']");if(bk)bk.textContent=t.back;var g=$('branch-grid');var list=branchList();if(!list.length){g.innerHTML='<div style="text-align:center;color:#c8c8c8;font-size:13px;padding:36px 0">…</div>';$('bp-next').disabled=true;return}g.innerHTML=list.map(function(b){return '<button class="dp-item'+(b===D.branch?' on':'')+'" data-b="'+esc(b)+'">'+esc(b)+'</button>'}).join('');g.onclick=function(e){var btn=e.target.closest('.dp-item');if(!btn)return;var b=btn.getAttribute('data-b');if(b!==D.branch){D.branch=b;D.designerPh='';D.designer=''}Array.prototype.forEach.call(g.children,function(x){x.classList.remove('on')});btn.classList.add('on');$('bp-next').disabled=false};$('bp-next').disabled=!D.branch}
+function startForm(){if(!D.designerPh){toast(T[D.lang].pickT);return}go(1)}
+function renderDesignerPick(){var t=T[D.lang];$('dp-title').textContent=t.pickT;$('dp-sub').textContent=t.pickS;$('dp-start').textContent=t.start;var bk=document.querySelector("#s-designer [data-i='back']");if(bk)bk.textContent=t.back;var g=$('designer-grid');var list=DESIGNERS.filter(function(d){return !D.branch||d.branch===D.branch});if(!list.length){g.innerHTML='<div style="grid-column:1/3;text-align:center;color:#c8c8c8;font-size:13px;padding:36px 0">…</div>';$('dp-start').disabled=true;return}g.innerHTML=list.map(function(d){return '<button class="dp-item'+(d.ph===D.designerPh?' on':'')+'" data-ph="'+esc(d.ph)+'" data-nm="'+esc(d.name)+'">'+esc(d.name)+'</button>'}).join('');g.onclick=function(e){var b=e.target.closest('.dp-item');if(!b)return;D.designerPh=b.getAttribute('data-ph');D.designer=b.getAttribute('data-nm');Array.prototype.forEach.call(g.children,function(x){x.classList.remove('on')});b.classList.add('on');$('dp-start').disabled=false};$('dp-start').disabled=!D.designerPh}
+
+function showScreen(){
+  $('s-hero').classList.toggle('on',STEP===0);
+  $('s-branch').classList.toggle('on',STEP===0.3);
+  $('s-designer').classList.toggle('on',STEP===0.5);
+  $('s-step').classList.toggle('on',STEP>=1&&STEP<=5);
+  $('s-done').classList.toggle('on',STEP===99);
+  $('s-browse').classList.toggle('on',STEP===98);
+  if(STEP>=1&&STEP<=5){$('pg').textContent='0'+STEP+' / 05';$('barfill').style.width=(STEP*20)+'%'}
+  window.scrollTo(0,0);var b=$('body');if(b)b.scrollTop=0;
+}
+
+function renderStep(){
+  var t=T[D.lang],h='';
+  if(STEP===1){
+    h+='<p class="steplbl">STEP 01</p><p class="h">'+t.s1+'</p><p class="hsub">&nbsp;</p>';
+    h+='<div class="field"><label>'+t.fName+'</label><input id="f-name" type="text" placeholder="'+esc(t.pName)+'" value="'+esc(D.name)+'"></div>';
+    h+='<div class="field"><label>'+t.fDesigner+'</label><div style="border-bottom:1px solid var(--line);padding-bottom:9px;font-size:14px;display:flex;justify-content:space-between;align-items:center">'+esc(D.designer||'-')+'<span onclick="go(0.5)" style="font-size:12px;color:#9a9a9a;cursor:pointer">'+t.change+'</span></div></div>';
+    h+='<div class="field"><label>'+t.fSns+'</label><input id="f-sns" type="text" placeholder="'+esc(t.pSns)+'" value="'+esc(D.sns)+'"></div>';
+    h+='<div class="field"><label>'+t.fRoute+'</label><select id="f-route" onchange="routeChg()">'+routeOpts()+'</select><input id="f-route-etc" type="text" placeholder="'+esc(t.pRouteEtc)+'" value="'+esc(D.routeEtc)+'" style="margin-top:10px;display:'+(D.route==='기타'?'block':'none')+'"></div>';
+  } else if(STEP===2){
+    h+='<p class="steplbl">STEP 02</p><p class="h">'+t.s2+'</p><p class="hsub">'+t.hServ+'</p>';
+    h+='<div class="chips" data-multi="services">'+chipHtml(OPT.services,D.services)+'</div>';
+  } else if(STEP===3){
+    h+='<p class="steplbl">STEP 03</p><p class="h">'+t.s3+'</p><p class="hsub">'+t.hMood+'</p>';
+    h+='<div class="chips" data-multi="mood">'+chipHtml(OPT.mood,D.mood)+'</div>';
+  } else if(STEP===4){
+    h+='<p class="steplbl">STEP 04</p><p class="h">'+t.s4+'</p><p class="hsub">&nbsp;</p>';
+    h+='<p class="gsub">'+t.lTime+'</p><div class="seg" data-single="time">'+chipHtml(OPT.time,[D.time])+'</div>';
+    h+='<div style="height:24px"></div><p class="gsub">'+t.lScalp+'</p><div class="seg" data-single="scalp">'+chipHtml(OPT.scalp,[D.scalp])+'</div>';
+    h+='<div style="height:28px"></div><p class="gsub">'+t.lHist+'</p>';
+    OPT.histRow.forEach(function(row){var key=row.ko;h+='<div class="hist" data-hist="'+key+'"><b>'+lx(row)+'</b>'+OPT.histMon.map(function(m){return '<button class="chip'+(D.history[key]===m.ko?' on':'')+'" data-k="'+m.ko+'">'+lx(m)+'</button>'}).join('')+'</div>'});
+  } else if(STEP===5){
+    h+='<p class="steplbl">STEP 05</p><p class="h">'+t.s5+'</p><p class="hsub">'+t.lMemo+'</p>';
+    h+='<div class="field"><textarea id="f-memo" placeholder="'+esc(t.pMemo)+'">'+esc(D.memo)+'</textarea></div>';
+    h+='<p class="gsub">'+t.quick+'</p><div class="chips" id="quick">'+OPT.quick.map(function(q){return '<button class="chip" data-q="'+esc(q.ko)+'">+ '+lx(q)+'</button>'}).join('')+'</div>';
+  }
+  $('body').innerHTML=h;
+  $('btnNext').textContent=(STEP===5)?t.submit:t.next;
+  $('btnBack').textContent=t.back;
+  bindStep();
+}
+function chipHtml(list,sel){return list.map(function(o){return '<button class="chip'+(sel.indexOf(o.ko)>=0?' on':'')+'" data-k="'+esc(o.ko)+'">'+lx(o)+'</button>'}).join('')}
+
+function bindStep(){
+  Array.prototype.forEach.call(document.querySelectorAll('[data-multi]'),function(c){var f=c.getAttribute('data-multi');c.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;var k=b.getAttribute('data-k');var i=D[f].indexOf(k);if(i>=0)D[f].splice(i,1);else D[f].push(k);b.classList.toggle('on')})});
+  Array.prototype.forEach.call(document.querySelectorAll('[data-single]'),function(c){var f=c.getAttribute('data-single');c.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;var k=b.getAttribute('data-k');D[f]=(D[f]===k)?'':k;Array.prototype.forEach.call(c.children,function(x){x.classList.remove('on')});if(D[f])b.classList.add('on')})});
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hist]'),function(c){var key=c.getAttribute('data-hist');c.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;var k=b.getAttribute('data-k');D.history[key]=(D.history[key]===k)?'':k;Array.prototype.forEach.call(c.querySelectorAll('.chip'),function(x){x.classList.remove('on')});if(D.history[key])b.classList.add('on')})});
+  var q=$('quick');if(q)q.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;var txt=b.getAttribute('data-q');var ta=$('f-memo');var cur=ta.value.trim();if(cur.indexOf(txt)>=0)return;ta.value=cur?(cur+', '+txt):txt;b.classList.add('on')});
+}
+
+function toast(msg){var el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('on')},2200)}
+
+function submit(){
+  var ta=$('f-memo');if(ta)D.memo=ta.value.trim();
+  var btn=$('btnNext');btn.disabled=true;
+  var rec={ts:Date.now(),date:new Date().toISOString().slice(0,10),lang:D.lang,branch:D.branch,name:D.name,designer:D.designer,designerPh:D.designerPh,sns:D.sns,route:D.route,routeEtc:D.routeEtc,services:D.services,time:D.time,mood:D.mood,scalp:D.scalp,history:D.history,memo:D.memo,status:'new'};
+  fbPost('/consults.json',rec).then(function(){showDone()}).catch(function(){btn.disabled=false;toast('전송 실패 — 다시 시도해 주세요')});
+}
+function showDone(){
+  var t=T[D.lang];var d=D.designer?(D.designer+(t.designerSuffix||'')):(t.designerDefault);
+  $('doneTitle').innerHTML=t.doneT.replace('{d}',esc(d));
+  $('doneSub').innerHTML=t.doneS;
+  STEP=99;showScreen();
+}
+var SALON=null,BROWSE_PH='';
+function browse(){go(98)}
+function renderBrowse(){var body=$('browse-body');body.innerHTML='<div style="text-align:center;color:#c8c8c8;font-size:13px;padding:50px 0">불러오는 중…</div>';if(SALON){drawBrowse();return}fbG('/salonInfo.json').then(function(s){SALON=s||{};drawBrowse()}).catch(function(){body.innerHTML='<div style="text-align:center;color:#c0392b;font-size:13px;padding:50px 0">불러오기 실패</div>'})}
+function browseSwitch(){BROWSE_PH=$('browse-sel').value;drawBrowse()}
+function drawBrowse(){var body=$('browse-body');BROWSE_PH=BROWSE_PH||D.designerPh||(DESIGNERS[0]&&DESIGNERS[0].ph)||'';var s=SALON||{};var info=(s.designers||{})[BROWSE_PH]||{};var prices=(s.prices||{})[BROWSE_PH]||{};var menus=Array.isArray(s.menus)?s.menus:[];var sets=((s.setMenus||{})[BROWSE_PH])||[];var opts=Array.isArray(s.options)?s.options:[];var name='';DESIGNERS.forEach(function(d){if(d.ph===BROWSE_PH)name=d.name});var h='';
+ h+='<div style="margin-bottom:24px"><select id="browse-sel" onchange="browseSwitch()" style="width:100%;border:none;border-bottom:1px solid var(--line);padding:0 0 9px;font-size:14px;background:transparent;color:var(--ink)">'+DESIGNERS.map(function(d){return '<option value="'+esc(d.ph)+'"'+(d.ph===BROWSE_PH?' selected':'')+'>'+esc(d.name)+'</option>'}).join('')+'</select></div>';
+ h+='<p style="font-size:20px;font-weight:500;margin:0 0 4px">'+esc(name||'-')+'</p>';
+ if(info.specialty)h+='<p style="font-size:12px;letter-spacing:.5px;color:var(--muted);margin:0 0 12px">'+esc(info.specialty)+'</p>';
+ if(info.bio)h+='<p style="font-size:13px;line-height:1.75;color:#555;margin:0 0 26px">'+esc(info.bio)+'</p>';else h+='<div style="height:8px"></div>';
+ var look=Array.isArray(info.lookbook)?info.lookbook:[];
+ if(look.length){h+='<p class="lbl" style="margin:0 0 10px">LOOKBOOK</p><div style="display:flex;gap:8px;overflow-x:auto;margin:0 -26px 28px;padding:0 26px">'+look.map(function(u){return '<img src="'+esc(u)+'" alt="" style="height:160px;border-radius:8px;flex:0 0 auto">'}).join('')+'</div>'}
+ var mrows=menus.filter(function(m){return prices[m.name]});
+ if(mrows.length){h+='<p class="lbl" style="margin:0 0 12px">MENU</p>';var CATORD=['커트','펌','컬러','클리닉','드라이'];var groups={};mrows.forEach(function(m){var c=m.cat||'기타';(groups[c]=groups[c]||[]).push(m)});var order=CATORD.filter(function(c){return groups[c]});Object.keys(groups).forEach(function(c){if(order.indexOf(c)<0)order.push(c)});order.forEach(function(c){h+='<div style="font-size:11px;letter-spacing:.5px;color:var(--faint);margin:14px 0 7px">'+esc(c)+'</div>';groups[c].forEach(function(m){h+='<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span>'+esc(m.name||'')+'</span><span style="color:#666">'+esc(prices[m.name]||'')+(m.dur?' · '+esc(m.dur):'')+'</span></div>'})});h+='<div style="height:26px"></div>'}
+ if(sets.length){h+='<p class="lbl" style="margin:0 0 12px">SET MENU</p>';sets.forEach(function(m){h+='<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span>'+esc(m.name||'')+'</span><span style="color:#666">'+esc(m.price||'')+'</span></div>'});h+='<div style="height:26px"></div>'}
+ if(opts.length){h+='<p class="lbl" style="margin:0 0 10px">OPTION</p>';opts.forEach(function(o){h+='<div style="border:1px solid #ececec;border-radius:12px;padding:13px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(o.desc?'5px':'0')+'"><span style="font-size:13px;font-weight:500">'+esc(o.name||'')+'</span>'+(o.price?'<span style="font-size:12px;color:#666">'+esc(o.price)+'</span>':'')+'</div>'+(o.desc?'<p style="font-size:11px;color:var(--muted);line-height:1.6;margin:0">'+esc(o.desc)+'</p>':'')+'</div>'})}
+ if(!mrows.length&&!sets.length&&!look.length&&!opts.length)h+='<div style="text-align:center;color:#c8c8c8;padding:50px 0;font-size:13px">아직 등록된 정보가 없어요</div>';
+ h+='<div style="height:30px"></div>';body.innerHTML=h}
+
+document.addEventListener('click',function(e){var s=e.target.closest('#langs span');if(s)setLang(s.getAttribute('data-l'))});
+
+Promise.all([fbG('/users.json'),fbG('/salonInfo/extraDesigners.json'),fbG('/salonInfo/designerOrder.json')]).then(function(R){var u=R[0]||{},extra=Array.isArray(R[1])?R[1]:[],ord=Array.isArray(R[2])?R[2]:[];var arr=[];Object.keys(u).forEach(function(ph){var x=u[ph];if(!x||x.brand!=='DAY:MEAN'||x.status==='퇴사')return;if(x.role==='디자이너'||extra.indexOf(ph)>=0)arr.push({ph:ph,name:(x.nick||x.name||''),branch:(x.branch||'')})});arr.sort(function(a,b){return a.name.localeCompare(b.name,'ko')});if(ord.length){arr.sort(function(a,b){var ia=ord.indexOf(a.ph),ib=ord.indexOf(b.ph);if(ia<0)ia=999;if(ib<0)ib=999;return ia-ib})}DESIGNERS=arr;if(STEP===1)renderStep();if(STEP===0.3)renderBranchPick();if(STEP===0.5)renderDesignerPick()}).catch(function(){});
+
+setLang('ko');
+</script>
+</body>
+</html>
