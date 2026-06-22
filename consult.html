@@ -98,7 +98,7 @@ html,body{background:#fff;color:#0a0a0a;font-family:-apple-system,BlinkMacSystem
         <span data-l="zh">中文</span>
         <span data-l="ja">日本語</span>
       </div>
-      <button class="btn solid" onclick="go(0.3)" data-i="next"></button>
+      <button class="btn solid" onclick="heroNext()" data-i="next"></button>
     </div>
   </section>
 
@@ -177,6 +177,8 @@ function routeOpts(){var t=T[D.lang];var o='<option value="">'+esc(t.routeNone)+
 function routeChg(){D.route=$('f-route').value;var etc=$('f-route-etc');if(etc)etc.style.display=(D.route==='기타')?'block':'none'}
 var DESIGNERS=[];
 var STEP=0;
+var PRESET=(function(){try{var p=new URLSearchParams(location.search);var d=p.get('d');if(!d)return null;return {d:d,n:p.get('n')||'',b:p.get('b')||'',e:p.get('e')||''}}catch(e){return null}})();
+function heroNext(){if(PRESET&&PRESET.d){D.designerPh=PRESET.d;D.designer=PRESET.n;D.designerEn=PRESET.e;D.branch=PRESET.b;go(1)}else{go(0.3)}}
 
 var T={
 ko:{welcomeTitle:'DAY:MEAN에 방문해 주셔서<br>감사합니다',welcomeSub:'오늘의 무드를 만들기 위해<br>사전 상담지를 작성해 주세요',start:'상담 시작',next:'다음',back:'이전',submit:'상담 보내기',browse:'매장 둘러보기',
@@ -250,7 +252,7 @@ function renderStep(){
   if(STEP===1){
     h+='<p class="steplbl">STEP 01</p><p class="h">'+t.s1+'</p><p class="hsub">&nbsp;</p>';
     h+='<div class="field"><label>'+t.fName+'</label><input id="f-name" type="text" placeholder="'+esc(t.pName)+'" value="'+esc(D.name)+'"></div>';
-    h+='<div class="field"><label>'+t.fDesigner+'</label><div style="border-bottom:1px solid var(--line);padding-bottom:9px;font-size:14px;display:flex;justify-content:space-between;align-items:center">'+esc((D.lang!=='ko'&&D.designerEn)?D.designerEn:(D.designer||'-'))+'<span onclick="go(0.5)" style="font-size:12px;color:#9a9a9a;cursor:pointer">'+t.change+'</span></div></div>';
+    h+='<div class="field"><label>'+t.fDesigner+'</label><div style="border-bottom:1px solid var(--line);padding-bottom:9px;font-size:14px;display:flex;justify-content:space-between;align-items:center">'+esc((D.lang!=='ko'&&D.designerEn)?D.designerEn:(D.designer||'-'))+(PRESET?'':'<span onclick="go(0.5)" style="font-size:12px;color:#9a9a9a;cursor:pointer">'+t.change+'</span>')+'</div></div>';
     if(D.lang!=='ko'){h+='<div class="field"><label>'+t.fSns+'</label><select id="f-sns-type" style="margin-bottom:10px"><option value="">'+esc(t.snsTypeNone)+'</option><option value="Instagram"'+(D.snsType==='Instagram'?' selected':'')+'>Instagram</option><option value="WeChat"'+(D.snsType==='WeChat'?' selected':'')+'>'+esc(t.wechat)+'</option></select><input id="f-sns" type="text" placeholder="'+esc(t.pSnsId)+'" value="'+esc(D.sns)+'"></div>';}
     h+='<div class="field"><label>'+t.fRoute+'</label><select id="f-route" onchange="routeChg()">'+routeOpts()+'</select><input id="f-route-etc" type="text" placeholder="'+esc(t.pRouteEtc)+'" value="'+esc(D.routeEtc)+'" style="margin-top:10px;display:'+(D.route==='기타'?'block':'none')+'"></div>';
   } else if(STEP===2){
