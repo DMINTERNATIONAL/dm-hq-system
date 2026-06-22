@@ -15,6 +15,7 @@
  *   - NW_BOT_ID          : Bot ID
  *   - NW_CHANNEL_ID      : Target channel ID
  *   - FIREBASE_URL       : Firebase Realtime DB URL (e.g. https://xxx.firebaseio.com)
+ *   - ANTHROPIC_API_KEY  : (선택) 고객 상담 메모 AI 다듬기용 Claude API 키
  */
 
 let _tokenCache = null;
@@ -51,6 +52,11 @@ export default {
     // 네이버 웍스 봇 콜백 — 채팅방 channelId 캡처용 (진단)
     if (pathname === '/callback' || pathname.endsWith('/callback')) {
       return cors(await handleBotCallback(body, env));
+    }
+
+    // 고객 상담 현장메모 AI 다듬기 (Claude 프록시) — 키는 Worker env에만 보관
+    if (pathname === '/ai/polish' || pathname.endsWith('/ai/polish')) {
+      return cors(await handleAIPolish(body, env));
     }
 
     if (!body.secret || body.secret !== env.WEBHOOK_SECRET) {
@@ -396,6 +402,41 @@ async function sendMessage(env, token, message) {
   });
   if (!resp.ok) throw new Error('Send failed: ' + resp.status + ' ' + (await resp.text()));
   return resp;
+}
+
+// 고객 상담 현장메모 AI 다듬기 — Claude(haiku)로 핸드 복붙용 요약 생성.
+// env.ANTHROPIC_API_KEY 필요. 프론트는 WEBHOOK_SECRET 으로 인증.
+async function handleAIPolish(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정 (ANTHROPIC_API_KEY 없음)' }, 503);
+  const raw = (body.raw == null ? '' : String(body.raw)).trim();
+  if (!raw) return json({ ok: false, error: '내용이 비어 있어요' }, 400);
+  const dateStr = (body.date == null ? '' : String(body.date)).trim() || 'YY.MM.DD';
+  const sys =
+    '너는 헤어샵 디자이너의 상담 메모를 정리하는 도우미야. 디자이너가 상담하면서 빠르게 단어·핵심만 적은 메모를 받아서, 핸드(POS)에 붙여넣을 깔끔한 한국어 상담 요약으로 다듬어.\n\n' +
+    '규칙:\n' +
+    '- 맨 앞에 날짜를 "' + dateStr + ' - " 형식으로 먼저 쓴다.\n' +
+    '- 항목들은 " / "(공백 슬래시 공백)로 구분한다.\n' +
+    '- 적힌 단어를 자연스러운 짧은 구/문장으로 다듬되, 없는 내용을 절대 지어내지 않는다.\n' +
+    '- 헤어 전문 용어(레이어, 홀슈, 질감처리, 스퀘어레이어 등)는 그대로 살린다.\n' +
+    '- 인사말·설명·군더더기 없이 정리된 요약문 한 줄만 출력한다.\n\n' +
+    '예시 입력: "하이레이어 / 미들구간 홀슈 질감 / 끝선 가벼운거 / 스퀘어레이어 선호"\n' +
+    '예시 출력: "26.06.22 - 하이레이어 / 미들구간과 홀슈 위주로 질감처리 진행 / 끝선 무거운 것보다 가벼운 것 선호 / 라운드레이어보다 스퀘어레이어 선호"';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1024, system: sys, messages: [{ role: 'user', content: raw }] })
+    });
+    if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
+    const data = await r.json();
+    let text = '';
+    if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
+    return json({ ok: true, text: text.trim() });
+  } catch (e) {
+    return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
+  }
 }
 
 // 봇 콜백 수신 — 봇이 들어간 채팅방의 channelId를 캡처해 Firebase에 저장.
