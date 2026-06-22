@@ -426,7 +426,7 @@ async function handleAIPolish(body, env) {
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-consult-relay/1.0' },
       body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1024, system: sys, messages: [{ role: 'user', content: raw }] })
     });
     if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
