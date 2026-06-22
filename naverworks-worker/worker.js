@@ -424,7 +424,10 @@ async function handleAIPolish(body, env) {
     '예시 입력: "하이레이어 / 미들구간 홀슈 질감 / 끝선 가벼운거 / 스퀘어레이어 선호"\n' +
     '예시 출력: "26.06.22 - 하이레이어 / 미들구간과 홀슈 위주로 질감처리 진행 / 끝선 무거운 것보다 가벼운 것 선호 / 라운드레이어보다 스퀘어레이어 선호"';
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    // Cloudflare Worker에서 api.anthropic.com 직접 호출은 엣지에서 403 차단됨.
+    // → Cloudflare AI Gateway(dm-ai, 인증 OFF) 경유로 프록시.
+    const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+    const r = await fetch(AIG, {
       method: 'POST',
       headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-consult-relay/1.0' },
       body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1024, system: sys, messages: [{ role: 'user', content: raw }] })
