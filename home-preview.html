@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>DAY:MEAN · 둘러보기 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#0a0a0a}
+.app{width:100%;height:100dvh;position:relative;overflow:hidden;background:#0a0a0a}
+.scr{position:absolute;inset:0;display:none;flex-direction:column}
+.scr.on{display:flex}
+.wm{font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.5px}
+.lbl{font-size:10px;letter-spacing:2.5px;color:#9a9a9a}
+
+/* HOME */
+#home{background:#0a0a0a}
+.home-img{position:absolute;inset:0;background:#8a8a8a url('assets/home-hero.jpg') center 20%/cover no-repeat;filter:grayscale(1) contrast(1.02)}
+.home-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 24%,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%)}
+.home-top{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top)) 20px 0;color:#fff}
+.home-top .wm{font-size:22px;color:#fff}
+.burger{width:30px;display:flex;flex-direction:column;gap:5px;cursor:pointer}
+.burger span{height:1.5px;background:#fff;display:block}
+.home-bottom{position:absolute;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));z-index:2;text-align:center;color:#fff;padding:0 24px}
+.home-bottom .lbl{color:rgba(255,255,255,.7)}
+.home-cta{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px;color:#fff;border:1px solid rgba(255,255,255,.85);border-radius:30px;padding:13px 30px;cursor:pointer;margin-top:14px}
+.home-tag{font-size:9px;letter-spacing:2.5px;color:rgba(255,255,255,.55);margin-top:20px}
+
+/* MENU */
+#menu{background:#0a0a0a;color:#fff}
+.menu-top{display:flex;align-items:center;justify-content:space-between;padding:calc(22px + env(safe-area-inset-top)) 20px 0}
+.menu-top .wm{font-size:18px;color:#fff}
+.menu-x{font-size:22px;color:#fff;cursor:pointer;line-height:1}
+.menu-list{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 22px}
+.menu-row{display:flex;align-items:center;gap:14px;padding:18px 0;border-top:1px solid rgba(255,255,255,.14);cursor:pointer}
+.menu-row:last-child{border-bottom:1px solid rgba(255,255,255,.14)}
+.menu-row .n{font-size:11px;color:rgba(255,255,255,.45);width:20px}
+.menu-row .t{flex:1;font-size:25px;font-weight:600;letter-spacing:-.5px}
+.menu-row .ar{color:rgba(255,255,255,.5);font-size:15px}
+.menu-foot{padding:0 22px calc(26px + env(safe-area-inset-bottom));text-align:center}
+.menu-foot .tag{font-size:9px;letter-spacing:2.5px;color:rgba(255,255,255,.4)}
+
+/* DETAIL (Model Discovery style) */
+#detail{background:#fff;overflow-y:auto}
+.det-top{display:flex;align-items:center;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top)) 20px 14px;position:sticky;top:0;background:#fff;z-index:2}
+.det-back{font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.det-img{height:300px;margin:0 20px;border-radius:6px;background:linear-gradient(135deg,#d6d6d6,#9a9a9a);filter:grayscale(1)}
+.det-body{padding:20px 22px 30px}
+.det-name-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.det-branch{font-size:11px;letter-spacing:1px;color:#bcbcbc;margin:0 0 14px}
+.det-name{font-size:19px;font-weight:600;letter-spacing:-.3px}
+.det-sub{font-size:12px;color:#9a9a9a}
+.spec{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #efefef;font-size:12px}
+.spec .k{color:#9a9a9a;letter-spacing:.3px}
+.spec .v{color:#0a0a0a}
+.det-bio{font-size:12.5px;line-height:1.75;color:#555;margin:18px 0 22px}
+.det-btns{display:flex;gap:8px}
+.det-btns2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.btn{flex:1;text-align:center;font-size:13px;font-weight:500;padding:14px;border-radius:8px;cursor:pointer}
+.btn.dark{background:#0a0a0a;color:#fff}
+.btn.line{background:#fff;color:#0a0a0a;border:1px solid #dcdcdc}
+#branch,#list,#price,#lookbook{background:#fff;overflow-y:auto}
+.sub-top{display:flex;align-items:center;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top)) 20px 14px;position:sticky;top:0;background:#fff;z-index:2}
+.dlist{padding:4px 22px 36px}
+.drow{display:flex;align-items:center;gap:14px;padding:20px 0;border-top:1px solid #efefef;cursor:pointer}
+.drow:last-child{border-bottom:1px solid #efefef}
+.drow .n{font-size:11px;color:#bcbcbc;width:18px}
+.drow .nm{flex:1;font-size:23px;font-weight:600;letter-spacing:-.5px}
+.drow .ro{font-size:11px;color:#9a9a9a;margin-right:8px}
+.drow .ar{color:#cfcfcf;font-size:14px}
+.price-body{padding:8px 22px 40px}
+.price-name{font-size:19px;font-weight:600;margin-bottom:6px}
+.price-cat{font-size:10px;letter-spacing:2px;color:#bcbcbc;margin:24px 0 10px}
+.price-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid #f3f3f3;font-size:13px}
+.price-row .pp{color:#666}
+.look-grid{padding:8px 16px 36px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.look-cell{aspect-ratio:3/4;border-radius:6px;background:linear-gradient(135deg,#dadada,#9c9c9c);filter:grayscale(1)}
+.filt{display:flex;gap:22px;padding:6px 22px 0;overflow-x:auto;border-bottom:1px solid #eee;-webkit-overflow-scrolling:touch}
+.filt .f{font-size:13px;color:#9a9a9a;padding:4px 0 11px;cursor:pointer;border-bottom:1.5px solid transparent;flex:0 0 auto;white-space:nowrap}
+.filt .f.on{color:#0a0a0a;border-bottom-color:#0a0a0a}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <section class="scr on" id="home">
+    <div class="home-img"></div>
+    <div class="home-scrim"></div>
+    <div class="home-top">
+      <span class="wm">DAY:MEAN</span>
+      <div class="burger" onclick="go('menu')"><span></span><span></span></div>
+    </div>
+    <div class="home-bottom">
+      <div class="lbl">EXPLORE</div>
+      <div class="home-cta" onclick="go('menu')">메뉴 보기</div>
+      <div class="home-tag">WE MAKE A MEANINGFUL DAY</div>
+    </div>
+  </section>
+
+  <section class="scr" id="menu">
+    <div class="menu-top"><span class="wm">DAY:MEAN</span><span class="menu-x" onclick="go('home')">&#10005;</span></div>
+    <div class="menu-list">
+      <div class="menu-row" onclick="go('branch')"><span class="t">디자이너 · 가격</span><span class="ar">&#8599;</span></div>
+      <div class="menu-row"><span class="t">매장 안내</span><span class="ar">&#8599;</span></div>
+      <div class="menu-row"><span class="t">판매 제품</span><span class="ar">&#8599;</span></div>
+      <div class="menu-row"><span class="t">EIRUA</span><span class="ar">&#8599;</span></div>
+      <div class="menu-row"><span class="t">오시는 길</span><span class="ar">&#8599;</span></div>
+    </div>
+    <div class="menu-foot"><span class="tag">WE MAKE A MEANINGFUL DAY</span></div>
+  </section>
+
+  <section class="scr" id="detail">
+    <div class="det-top"><span class="det-back" onclick="go('list')">&#8592; 뒤로</span><span class="lbl">DESIGNER</span></div>
+    <div class="det-img"></div>
+    <div class="det-body">
+      <div class="det-name-row"><span class="det-name" id="dName">새얀</span><span class="det-sub" id="dRole">디자이너</span></div>
+      <div class="det-branch" id="dBranch">모먼트점</div>
+      <div class="det-bio">자연스러운 무드와 디테일을 살리는 스타일을 추구합니다. 손상은 줄이고, 분위기는 살려요.</div>
+      <div class="det-btns2">
+        <div class="btn dark" onclick="go('price')">가격표 보기</div>
+        <div class="btn line" onclick="go('lookbook')">룩북 보기</div>
+        <div class="btn line" id="dNaver">네이버 예약</div>
+        <div class="btn line" id="dInsta">인스타그램</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scr" id="branch">
+    <div class="sub-top"><span class="det-back" onclick="go('menu')">&#8592; 뒤로</span><span class="lbl">BRANCH</span></div>
+    <div class="dlist">
+      <div class="drow" onclick="openBranch('모먼트')"><span class="nm">모먼트</span><span class="ar">&#8599;</span></div>
+      <div class="drow" onclick="openBranch('플래그십')"><span class="nm">플래그십</span><span class="ar">&#8599;</span></div>
+    </div>
+  </section>
+
+  <section class="scr" id="list">
+    <div class="sub-top"><span class="det-back" onclick="go('branch')">&#8592; 뒤로</span><span class="lbl">DESIGNER</span></div>
+    <div class="dlist" id="dlist"></div>
+  </section>
+
+  <section class="scr" id="price">
+    <div class="sub-top"><span class="det-back" onclick="go('detail')">&#8592; 뒤로</span><span class="lbl">PRICE</span></div>
+    <div style="padding:6px 22px 4px"><div class="price-name" id="pName">세운 · 가격표</div></div>
+    <div class="filt" id="pfilt">
+      <span class="f on" onclick="pfilter('all',this)">전체</span>
+      <span class="f" onclick="pfilter('cut',this)">커트</span>
+      <span class="f" onclick="pfilter('perm',this)">펌</span>
+      <span class="f" onclick="pfilter('color',this)">컬러</span>
+      <span class="f" onclick="pfilter('set',this)">세트</span>
+    </div>
+    <div class="price-body">
+      <div class="pg" data-cat="cut"><div class="price-cat">CUT</div>
+        <div class="price-row"><span class="pn">여성 커트</span><span class="pp">35,000</span></div>
+        <div class="price-row"><span class="pn">남성 커트</span><span class="pp">30,000</span></div></div>
+      <div class="pg" data-cat="perm"><div class="price-cat">PERM</div>
+        <div class="price-row"><span class="pn">일반 펌</span><span class="pp">120,000~</span></div>
+        <div class="price-row"><span class="pn">디지털 펌</span><span class="pp">150,000~</span></div></div>
+      <div class="pg" data-cat="color"><div class="price-cat">COLOR</div>
+        <div class="price-row"><span class="pn">전체 염색</span><span class="pp">90,000~</span></div>
+        <div class="price-row"><span class="pn">뿌리 염색</span><span class="pp">70,000</span></div></div>
+      <div class="pg" data-cat="set"><div class="price-cat">SET MENU</div>
+        <div class="price-row"><span class="pn">커트 + 클리닉</span><span class="pp">60,000</span></div>
+        <div class="price-row"><span class="pn">펌 + 커트</span><span class="pp">150,000~</span></div></div>
+    </div>
+  </section>
+
+  <section class="scr" id="lookbook">
+    <div class="sub-top"><span class="det-back" onclick="go('detail')">&#8592; 뒤로</span><span class="lbl">LOOKBOOK</span></div>
+    <div class="filt" id="lfilt">
+      <span class="f on" onclick="lfilter(this)">전체</span>
+      <span class="f" onclick="lfilter(this)">여성</span>
+      <span class="f" onclick="lfilter(this)">남성</span>
+      <span class="f" onclick="lfilter(this)">기장</span>
+      <span class="f" onclick="lfilter(this)">컬러</span>
+      <span class="f" onclick="lfilter(this)">펌</span>
+      <span class="f" onclick="lfilter(this)">스타일링</span>
+    </div>
+    <div class="look-grid"><div class="look-cell"></div><div class="look-cell"></div><div class="look-cell"></div><div class="look-cell"></div><div class="look-cell"></div><div class="look-cell"></div></div>
+  </section>
+
+</div>
+<script>
+function go(id){var s=document.querySelectorAll('.scr');for(var i=0;i<s.length;i++)s[i].classList.remove('on');var el=document.getElementById(id);el.classList.add('on');el.scrollTop=0;if(id==='price')pfilter('all',document.querySelector('#pfilt .f'));window.scrollTo(0,0)}
+function pfilter(cat,el){var g=document.querySelectorAll('#price .pg');for(var i=0;i<g.length;i++){g[i].style.display=(cat==='all'||g[i].getAttribute('data-cat')===cat)?'block':'none'}var f=document.querySelectorAll('#pfilt .f');for(var j=0;j<f.length;j++)f[j].classList.remove('on');if(el)el.classList.add('on')}
+function lfilter(el){var f=document.querySelectorAll('#lfilt .f');for(var i=0;i<f.length;i++)f[i].classList.remove('on');el.classList.add('on')}
+var DES={'모먼트':[{n:'민경',r:'디렉터'},{n:'새얀',r:'디자이너'},{n:'승연',r:'디자이너'},{n:'하코',r:'디자이너'},{n:'제인',r:'디자이너'},{n:'던',r:'디자이너'}],'플래그십':[{n:'서하',r:'디자이너'},{n:'은별',r:'디자이너'},{n:'고희',r:'디자이너'},{n:'하윤',r:'디자이너'},{n:'도연',r:'디자이너'},{n:'휘',r:'디자이너'},{n:'나은',r:'디자이너'}]};
+var CURB='';
+function openBranch(b){CURB=b;var h='';DES[b].forEach(function(d){h+='<div class="drow" onclick="openDes(\''+d.n+'\',\''+d.r+'\')"><span class="nm">'+d.n+'</span><span class="ro">'+d.r+'</span><span class="ar">&#8599;</span></div>'});document.getElementById('dlist').innerHTML=h;go('list')}
+function openDes(name,role){document.getElementById('dName').textContent=name;document.getElementById('dRole').textContent=role;document.getElementById('dBranch').textContent=CURB+'점';document.getElementById('pName').textContent=name+' · 가격표';go('detail')}
+</script>
+</body>
+</html>
