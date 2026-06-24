@@ -1,0 +1,19 @@
+# DAY:MEAN 이미지 업로드 Worker
+# 배포: cd workers/img-upload && npx wrangler deploy
+# 시크릿: npx wrangler secret put UPLOAD_TOKEN  (관리자 업로드용 토큰)
+name = "daymean-img-upload"
+main = "src/index.js"
+compatibility_date = "2026-06-24"
+
+# R2 버킷 바인딩 (버킷은 활성화 후 생성: npx wrangler r2 bucket create daymean-lookbook)
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "daymean-lookbook"
+
+[vars]
+# 공개 이미지 주소 베이스. r2.dev 공개주소 또는 커스텀 도메인.
+# 버킷 공개 설정 후 실제 값으로 교체 (끝에 / 없이)
+PUBLIC_BASE = "https://pub-4d23477e957842bf953c231dbbd060fc.r2.dev"
+
+# UPLOAD_TOKEN 은 vars 가 아니라 secret 으로 설정:
+#   npx wrangler secret put UPLOAD_TOKEN
