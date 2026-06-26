@@ -59,6 +59,11 @@ export default {
       return cors(await handleAIPolish(body, env));
     }
 
+    // 전판 제품 맞춤 추천 (진단 답 + 제품목록 → Claude가 추천+이유)
+    if (pathname === '/ai/recommend' || pathname.endsWith('/ai/recommend')) {
+      return cors(await handleAIRecommend(body, env));
+    }
+
     if (!body.secret || body.secret !== env.WEBHOOK_SECRET) {
       return cors(new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
     }
@@ -437,6 +442,61 @@ async function handleAIPolish(body, env) {
     let text = '';
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
     return json({ ok: true, text: text.trim() });
+  } catch (e) {
+    return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
+  }
+}
+
+async function handleAIRecommend(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
+  const summary = (body.summary == null ? '' : String(body.summary)).trim();
+  const products = Array.isArray(body.products) ? body.products : [];
+  if (!summary) return json({ ok: false, error: '진단 정보가 비어 있어요' }, 400);
+  if (!products.length) return json({ ok: false, error: '제품이 없어요' }, 400);
+  const langName = ({ ko: '한국어', en: 'English', zh: '中文', ja: '日本語' })[body.lang] || '한국어';
+  const list = products.slice(0, 80).map((p, i) => {
+    const nm = String(p.name || '').slice(0, 80);
+    const pr = p.price ? ' (' + String(p.price).slice(0, 30) + ')' : '';
+    const ds = p.desc ? ' — ' + String(p.desc).slice(0, 200) : '';
+    return (i + 1) + '. ' + nm + pr + ds;
+  }).join('\n');
+  const sys =
+    '너는 헤어샵의 제품 추천 상담가야. 고객의 모발·두피 진단 결과와 매장 전판 제품 목록을 받아서, 그 고객에게 가장 잘 맞는 제품 2~3개를 골라 추천해.\n\n' +
+    '규칙:\n' +
+    '- 반드시 아래 "제품 목록"에 있는 제품만 추천한다. 목록에 없는 제품은 절대 만들지 않는다.\n' +
+    '- 제품명은 목록에 적힌 그대로(정확히) 쓴다.\n' +
+    '- 각 제품마다 이 고객에게 왜 맞는지 1~2문장으로 따뜻하고 전문가답게 설명한다.\n' +
+    '- 진단에 맞는 제품이 부족하면 1~2개만 추천해도 된다.\n' +
+    '- 모든 문장은 ' + langName + '(으)로 쓴다.\n' +
+    '- 출력은 오직 JSON만. 형식: {"intro":"한두 문장 요약","items":[{"name":"정확한 제품명","reason":"추천 이유"}]}\n' +
+    '- JSON 외 다른 텍스트(설명, 코드펜스)는 절대 출력하지 않는다.';
+  const userMsg = '고객 진단 결과: ' + summary + '\n\n제품 목록:\n' + list;
+  try {
+    const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+    const r = await fetch(AIG, {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-consult-relay/1.0' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 900, system: sys, messages: [{ role: 'user', content: userMsg }] })
+    });
+    if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
+    const data = await r.json();
+    let text = '';
+    if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
+    text = text.trim();
+    const s = text.indexOf('{'), e = text.lastIndexOf('}');
+    if (s < 0 || e < 0) return json({ ok: false, error: 'AI 응답 형식 오류' }, 502);
+    let parsed;
+    try { parsed = JSON.parse(text.slice(s, e + 1)); }
+    catch (pe) { return json({ ok: false, error: 'AI 응답 파싱 실패' }, 502); }
+    const names = {};
+    products.forEach((p) => { names[String(p.name || '').trim()] = true; });
+    const items = (Array.isArray(parsed.items) ? parsed.items : [])
+      .filter((it) => it && names[String(it.name || '').trim()])
+      .slice(0, 3)
+      .map((it) => ({ name: String(it.name).trim(), reason: String(it.reason || '').slice(0, 300) }));
+    return json({ ok: true, intro: String(parsed.intro || '').slice(0, 400), items: items });
   } catch (e) {
     return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
   }
