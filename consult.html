@@ -431,7 +431,7 @@ var LOOK_LENS=['숏','단발','미디엄','롱'];
 var LOOK_COLORS=[{n:'블랙',h:'#1c1c1c'},{n:'다크브라운',h:'#3b2a1e'},{n:'브라운',h:'#5a3b26'},{n:'애쉬브라운',h:'#6f6155'},{n:'초코브라운',h:'#4a3122'},{n:'밝은브라운',h:'#946a41'},{n:'골드브라운',h:'#a9762d'},{n:'오렌지',h:'#c15a24'},{n:'레드',h:'#8a2420'},{n:'애쉬그레이',h:'#8b8b88'},{n:'블론드',h:'#dcb877'},{n:'핑크',h:'#c76b93'},{n:'블루',h:'#2f4f86'},{n:'퍼플',h:'#5b3b83'},{n:'그린',h:'#3a7057'}];
 var LEN_I18N={'숏':{ko:'숏',en:'Short',zh:'短发',ja:'ショート'},'단발':{ko:'단발',en:'Bob',zh:'齐肩',ja:'ボブ'},'미디엄':{ko:'미디엄',en:'Medium',zh:'中长',ja:'ミディアム'},'롱':{ko:'롱',en:'Long',zh:'长发',ja:'ロング'}};
 function lLbl(l){var o=LEN_I18N[l];return o?(o[D.lang]||o.ko):l}
-function cHex(n){for(var i=0;i<LOOK_COLORS.length;i++)if(LOOK_COLORS[i].n===n)return LOOK_COLORS[i].h;return '#c8c8c8'}
+function cHex(n){if(n&&n.charAt(0)==='#')return n;for(var i=0;i<LOOK_COLORS.length;i++)if(LOOK_COLORS[i].n===n)return LOOK_COLORS[i].h;return '#c8c8c8'}
 function lookFilterL(l){LOOK_L=l;drawLook()}
 function lookFilterC(c){LOOK_C=(LOOK_C===c?'':c);drawLook()}
 var GENDER_I18N={'여':{ko:'여성',en:'Women',zh:'女生',ja:'女性'},'남':{ko:'남성',en:'Men',zh:'男生',ja:'男性'}};
@@ -446,7 +446,7 @@ var genders=[];lb.forEach(function(x){if(x.g&&genders.indexOf(x.g)<0)genders.pus
 var lens=[];LOOK_LENS.forEach(function(l){if(lb.some(function(x){return x.l===l}))lens.push(l)});
 var styles=[];['컷','펌','염색','클리닉','스타일링','기타'].forEach(function(s){if(lb.some(function(x){return x.s===s}))styles.push(s)});
 lb.forEach(function(x){if(x.s&&styles.indexOf(x.s)<0)styles.push(x.s)});
-var colors=[];LOOK_COLORS.forEach(function(c){if(lb.some(function(x){return x.c===c.n}))colors.push(c.n)});
+var colors=[];lb.forEach(function(x){if(x.c&&colors.indexOf(x.c)<0)colors.push(x.c)});
 if(LOOK_G&&genders.indexOf(LOOK_G)<0)LOOK_G='';if(LOOK_S&&styles.indexOf(LOOK_S)<0)LOOK_S='';if(LOOK_L&&lens.indexOf(LOOK_L)<0)LOOK_L='';if(LOOK_C&&colors.indexOf(LOOK_C)<0)LOOK_C='';
 var filtered=lb.filter(function(x){return (!LOOK_G||x.g===LOOK_G)&&(!LOOK_L||x.l===LOOK_L)&&(!LOOK_S||x.s===LOOK_S)&&(!LOOK_C||x.c===LOOK_C)});
 var chip=function(active,label,onc){return '<span onclick="'+onc+'" style="flex:0 0 auto;font-size:12px;padding:7px 14px;border-radius:30px;cursor:pointer;white-space:nowrap;'+(active?'background:#0a0a0a;color:#fff':'background:#f2f2f2;color:#777')+'">'+esc(label)+'</span>'};
