@@ -441,6 +441,7 @@ function sLbl(s){var o=STYLE_I18N[s];return o?(o[D.lang]||o.ko):s}
 function lookFilterG(g){LOOK_G=g;drawLook()}
 function lookFilterS(s){LOOK_S=s;drawLook()}
 function drawLook(){var info=dInfo(BROWSE_PH);var lb=(Array.isArray(info.lookbook)?info.lookbook:[]).map(lbNorm).filter(function(x){return x.u});
+if(DEMO&&!lb.length){lb=[{u:'assets/home-hero.jpg',g:'여',s:'염색',l:'롱',c:'#DCB877'},{u:'assets/hero.jpg',g:'여',s:'펌',l:'미디엄',c:'#5A3B26'},{u:'assets/2024031816251.jpg',g:'여',s:'염색',l:'단발',c:'#C76B93'},{u:'assets/home-hero.jpg',g:'남',s:'컷',l:'숏',c:'#1C1C1C'},{u:'assets/hero.jpg',g:'여',s:'염색',l:'미디엄',c:'#C15A24'},{u:'assets/2024031816251.jpg',g:'여',s:'클리닉',l:'롱',c:'#946A41'}].map(lbNorm)}
 var allTxt={ko:'전체',en:'All',zh:'全部',ja:'すべて'}[D.lang]||'전체';
 var genders=[];lb.forEach(function(x){if(x.g&&genders.indexOf(x.g)<0)genders.push(x.g)});
 var lens=[];LOOK_LENS.forEach(function(l){if(lb.some(function(x){return x.l===l}))lens.push(l)});
