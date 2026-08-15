@@ -160,6 +160,16 @@ function buildMessage(body) {
   const type = body.type || 'new';
   const order = body.order || {};
 
+  if (type === 'wig') {
+    const o = order || {};
+    const text = '🧑‍🦱 가발 공동구매 · 주문 가능!\n\n' +
+      '📦 업체: ' + (o.vendor || '') + '\n' +
+      '🔢 ' + (o.count || 0) + '개 모집 완료 · 참여 ' + (o.people || 0) + '명\n' +
+      '👤 개설: ' + (o.createdBy || '') + '\n\n' +
+      '→ 경영팀에서 주문 진행해주세요';
+    return { content: { type: 'text', text } };
+  }
+
   let title;
   if (type === 'test') title = '✅ 테스트 메시지';
   else if (type === 'refund') title = '💰 환불 요청이 들어왔어요';
