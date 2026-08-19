@@ -2532,7 +2532,7 @@ function examReportHead(s,agg){var logo=window.EXAM_LOGO?'<img src="'+EXAM_LOGO+
  h+='<div style="text-align:center;font-size:24px;font-weight:900;letter-spacing:.12em;margin:22px 0 9px">TEST REPORT</div><div style="width:30px;height:2px;background:#0f172a;margin:0 auto 28px"></div>';
  function row(k,v){return '<div style="display:flex;font-size:13px"><span style="width:74px;color:#94a3b8;letter-spacing:.04em">'+k+'</span><span style="font-weight:700">'+examEsc(v)+'</span></div>'}
  h+='<div style="display:flex;flex-direction:column;gap:11px;margin-bottom:9px">'+row('성명',s.internName||'')+row('레벨',s.label||s.level||'')+row('시험 일자',s.date||'')+'</div>';
- h+='<div style="font-size:11px;color:#c7ccd4;margin-bottom:30px;padding-left:74px">채점 '+agg.evaluators+'명'+(s.examType&&s.examType!=='정기시험'?' · '+examEsc(s.examType):'')+'</div>';
+ var _m=(s.examType&&s.examType!=='정기시험')?examEsc(s.examType):'';h+=_m?'<div style="font-size:11px;color:#c7ccd4;margin:10px 0 30px;padding-left:74px">'+_m+'</div>':'<div style="height:30px"></div>';
  return h}
 function examReportFbLine(i,t){return '<div style="font-size:12.5px;line-height:1.75;color:#334155;margin-bottom:8px;display:flex;gap:9px"><span style="color:#c7ccd4;font-weight:700;flex:0 0 auto">'+(i+1)+'</span><span>'+examEsc(t)+'</span></div>'}
 function examReportResult(r){return '<div style="text-align:center;margin-top:14px;padding-top:24px;border-top:1px solid #f1f3f6"><div style="font-size:9.5px;letter-spacing:.14em;color:#c7ccd4;font-weight:700">RESULT</div><div style="font-size:16px;font-weight:800;color:'+examResultColor(r)+';margin-top:8px">'+examEsc(r)+'</div></div>'}
