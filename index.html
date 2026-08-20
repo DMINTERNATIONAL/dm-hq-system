@@ -2618,6 +2618,12 @@ function examBarChart(arr,acc){var W=330,H=132,pl=10,pr=10,pt=16,pb=22,n=arr.len
  var g='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">';
  arr.forEach(function(a,i){var cx=pl+(i+0.5)*(iw/n);var bh=a.cnt/mx*ih;var x=cx-bw/2,y=pt+ih-bh;g+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(bh,a.cnt?2:0)+'" rx="3" fill="'+(a.cnt?acc:'#eceef1')+'"/>';if(a.cnt)g+='<text x="'+cx+'" y="'+(y-4)+'" text-anchor="middle" font-size="9" font-weight="800" fill="#1d1d1f">'+a.cnt+'</text>';g+='<text x="'+cx+'" y="'+(H-7)+'" text-anchor="middle" font-size="7.5" fill="#aeaeb2">'+a.m+'월</text>';});
  return g+'</svg>'}
+function examMonthLine(arr,acc){var W=330,H=132,pl=16,pr=18,pt=18,pb=22,n=arr.length,iw=W-pl-pr,ih=H-pt-pb,mx=1;arr.forEach(function(a){if(a.cnt>mx)mx=a.cnt});var top=mx*1.25;function Y(v){return pt+ih-(v/top)*ih}function X(i){return n<=1?pl+iw/2:pl+i*(iw/(n-1))}function anc(i){return i===0?'start':(i===n-1?'end':'middle')}
+ var g='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block"><defs><linearGradient id="prg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+acc+'" stop-opacity="0.14"/><stop offset="1" stop-color="'+acc+'" stop-opacity="0"/></linearGradient></defs>';
+ var pts=arr.map(function(a,i){return X(i)+' '+Y(a.cnt)});
+ if(n>1){g+='<path d="M '+pts.join(' L ')+' L '+X(n-1)+' '+(pt+ih)+' L '+X(0)+' '+(pt+ih)+' Z" fill="url(#prg)"/>';g+='<path d="M '+pts.join(' L ')+'" fill="none" stroke="'+acc+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';}
+ arr.forEach(function(a,i){var x=X(i),y=Y(a.cnt);g+='<circle cx="'+x+'" cy="'+y+'" r="3.4" fill="#fff" stroke="'+acc+'" stroke-width="2"/>';if(a.cnt)g+='<text x="'+x+'" y="'+(y-8)+'" text-anchor="'+anc(i)+'" font-size="9.5" font-weight="800" fill="#1d1d1f">'+a.cnt+'</text>';g+='<text x="'+x+'" y="'+(H-7)+'" text-anchor="'+anc(i)+'" font-size="7.5" fill="#aeaeb2">'+a.m+'월</text>';});
+ return g+'</svg>'}
 function examPracticeMonthly(logs){var map={};logs.forEach(function(l){var ym=(l.date||'').slice(0,7);if(!ym&&l.year&&l.month)ym=l.year+'-'+('0'+l.month).slice(-2);if(!ym)return;if(!map[ym])map[ym]={cnt:0,dur:0};map[ym].cnt++;map[ym].dur+=(l.duration||0)});var now=new Date(),arr=[];for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);var ym=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);arr.push({ym:ym,m:d.getMonth()+1,cnt:map[ym]?map[ym].cnt:0,dur:map[ym]?map[ym].dur:0})}return arr}
 var EXAM_TAB='exam',EXAM_MY={exams:[],practice:[]};
 function examSetTab(t){EXAM_TAB=t;examMyRender()}
@@ -2647,7 +2653,7 @@ function examTabPractice(){var logs=EXAM_MY.practice;if(!logs.length)return '<di
  var thisM=arr[arr.length-1],lastM=arr[arr.length-2]||{cnt:0};var trend='—',tc='#86868b';var dv=thisM.cnt-(lastM.cnt||0);if(dv>0){trend='▲'+dv;tc=EX_IND}else if(dv<0){trend='▼'+(-dv);tc='#ff3b30'}else if(thisM.cnt||lastM.cnt){trend='0'}
  var h='<div style="'+EX_CARD+';padding:18px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:11px;color:#86868b;font-weight:600">이번 달 연습</div><div style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d1d1f;margin-top:2px">'+thisM.cnt+'<span style="font-size:14px;color:#86868b;font-weight:700">회</span></div></div><div style="text-align:right"><div style="font-size:11px;color:#86868b;font-weight:600">이번 달 시간</div><div style="font-size:24px;font-weight:800;letter-spacing:-.03em;color:'+EX_IND+';margin-top:1px">'+examFmtDur(thisM.dur)+'</div></div></div></div>';
  h+='<div style="display:flex;gap:9px;margin-bottom:16px">'+examKpi(totCnt+'회','누적 연습')+examKpi(examFmtDur(totDur),'누적 시간')+examKpi(trend,'최근 추세',tc)+'</div>';
- h+='<div style="'+EX_CARD+';padding:15px 12px 8px;margin-bottom:16px">'+examSecLabel('월별 연습 횟수 (6개월)')+examBarChart(arr,EX_IND)+'</div>';
+ h+='<div style="'+EX_CARD+';padding:15px 12px 8px;margin-bottom:16px">'+examSecLabel('월별 연습 횟수 추이')+examMonthLine(arr,EX_IND)+'</div>';
  h+=examSecLabel('최근 연습');
  var recent=logs.slice().sort(function(a,b){return ((b.date||'')+(b.endedAt||0)+'').localeCompare((a.date||'')+(a.endedAt||0)+'')}).slice(0,8);
  h+='<div style="'+EX_CARD+';padding:2px 14px">';
