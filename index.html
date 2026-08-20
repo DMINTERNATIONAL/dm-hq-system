@@ -2569,14 +2569,23 @@ function examAdminViewRender(){var s=EXAM_VIEW_S;if(!s)return;var el=document.ge
   h+='<button class="gbtn sec" style="width:100%;margin-top:8px;color:#dc2626;border-color:#fee2e2;background:#fff5f5" onclick="examDeleteSess(\''+s._id+'\')">시험 삭제</button>';}
  el.innerHTML=h;if(window.renderIcons)renderIcons()}
 function examAdminDetail(s,agg,editing){var gphs=Object.keys(s.graders||{});
+ var kNm='position:sticky;left:0;background:#fff;z-index:2;width:118px;min-width:118px;max-width:118px;white-space:normal;line-height:1.25;vertical-align:middle';
+ var kAv='position:sticky;left:118px;background:#fff;z-index:2;width:44px;min-width:44px;text-align:right;box-shadow:7px 0 7px -5px rgba(0,0,0,.10)';
  var h='<div style="background:#fff;border:1px solid #eef2f6;border-radius:12px;padding:13px 14px;margin-bottom:12px">';
  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:13px;font-weight:800">채점자별 상세 <span style="font-size:11px;color:#94a3b8;font-weight:600">('+gphs.length+'명)</span></div>'+(s.status!=='shared'?(editing?'<div style="display:flex;gap:6px"><button class="gbtn pri sm" onclick="examOverrideSave()">저장</button><button class="gbtn sec sm" onclick="examOverrideCancel()">취소</button></div>':'<button class="gbtn sec sm" onclick="examAdminEditAsk(\''+s._id+'\')">🔒 점수 수정</button>'):'')+'</div>';
- if(editing)h+='<div style="font-size:11px;color:#d97706;background:#fff7ed;border-radius:8px;padding:7px 9px;margin-bottom:6px">수정 모드 · 채점자 점수를 바꾸면 평균이 자동 재계산돼요. <b>저장</b>을 눌러야 반영됩니다.</div>';
- agg.subjects.forEach(function(sub,si){h+='<div style="font-size:12.5px;font-weight:800;margin:14px 0 2px;padding-bottom:6px;border-bottom:1.5px solid #111">'+examEsc(sub.name)+' <span style="color:#94a3b8;font-weight:600;font-size:11px">과목 평균 '+(sub.avg==null?'-':sub.avg)+'</span></div>';
-  sub.items.forEach(function(it,ii){h+='<div style="padding:9px 0;border-bottom:1px solid #f4f6f9"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span style="font-size:12.5px;font-weight:600">'+examEsc(it.name)+'</span><span style="font-size:11px;color:#94a3b8;white-space:nowrap">평균 <b style="font-size:15px;color:#185FA5">'+(it.avg==null?'-':it.avg)+'</b></span></div>';
-   if(editing){h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:7px">';gphs.forEach(function(ph){var d=s.scores&&s.scores[ph]&&s.scores[ph].subjects&&s.scores[ph].subjects[sub.name]&&s.scores[ph].subjects[sub.name].items;var raw=d?d[it.name]:null;h+='<div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border-radius:8px;padding:3px 6px 3px 8px"><span style="font-size:10.5px;color:#64748b;font-weight:600;white-space:nowrap">'+examEsc((s.graders[ph]&&s.graders[ph].name)||'')+'</span><select onchange="examOverrideScore(\''+ph+'\','+si+','+ii+',this.value)" style="border:1px solid #e2e8f0;border-radius:6px;padding:3px 4px;font-size:12px;font-weight:800">'+examScoreOpts(raw)+'</select></div>'});h+='</div>';}
-   else{var parts=gphs.map(function(ph){var d=s.scores&&s.scores[ph]&&s.scores[ph].subjects&&s.scores[ph].subjects[sub.name]&&s.scores[ph].subjects[sub.name].items;var raw=d?d[it.name]:null;return '<span style="white-space:nowrap">'+examEsc((s.graders[ph]&&s.graders[ph].name)||'')+' <b style="color:#334155">'+(raw==null||raw===''?'-':raw)+'</b></span>'});h+='<div style="font-size:11px;color:#94a3b8;margin-top:5px;display:flex;flex-wrap:wrap;gap:3px 12px">'+parts.join('')+'</div>';}
-   h+='</div>';});});
+ if(editing)h+='<div style="font-size:11px;color:#d97706;background:#fff7ed;border-radius:8px;padding:7px 9px;margin-bottom:6px">수정 모드 · 채점자 점수를 바꾸면 평균이 자동 재계산돼요. <b>저장</b>을 눌러야 반영됩니다. (옆으로 밀어 채점자 확인)</div>';
+ else h+='<div style="font-size:10.5px;color:#cbd5e1;margin-bottom:6px">← 표를 옆으로 밀면 채점자별 점수를 볼 수 있어요</div>';
+ agg.subjects.forEach(function(sub,si){h+='<div style="font-size:12.5px;font-weight:800;margin:14px 0 6px">'+examEsc(sub.name)+' <span style="color:#94a3b8;font-weight:600;font-size:11px">· 과목 평균 '+(sub.avg==null?'-':sub.avg)+'</span></div>';
+  h+='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="border-collapse:collapse;font-size:11.5px;white-space:nowrap"><tr style="color:#94a3b8;font-size:9.5px">';
+  h+='<th style="'+kNm+';text-align:left;padding:6px 8px;font-weight:700">구분</th><th style="'+kAv+';padding:6px 8px;font-weight:700">평균</th>';
+  gphs.forEach(function(ph){h+='<th style="padding:6px 10px;font-weight:700;text-align:center;min-width:'+(editing?'62px':'50px')+'">'+examEsc((s.graders[ph]&&s.graders[ph].name)||'')+'</th>'});
+  h+='</tr>';
+  sub.items.forEach(function(it,ii){h+='<tr style="border-top:1px solid #f4f6f9"><td style="'+kNm+';border-top:1px solid #f4f6f9;padding:7px 8px;font-weight:600;font-size:12px">'+examEsc(it.name)+'</td><td style="'+kAv+';border-top:1px solid #f4f6f9;padding:7px 8px;font-weight:800;color:#185FA5;font-size:13.5px">'+(it.avg==null?'-':it.avg)+'</td>';
+   gphs.forEach(function(ph){var d=s.scores&&s.scores[ph]&&s.scores[ph].subjects&&s.scores[ph].subjects[sub.name]&&s.scores[ph].subjects[sub.name].items;var raw=d?d[it.name]:null;
+    if(editing)h+='<td style="border-top:1px solid #f4f6f9;padding:4px 6px;text-align:center"><select onchange="examOverrideScore(\''+ph+'\','+si+','+ii+',this.value)" style="border:1px solid #e2e8f0;border-radius:6px;padding:3px 2px;font-size:12px;font-weight:800">'+examScoreOpts(raw)+'</select></td>';
+    else h+='<td style="border-top:1px solid #f4f6f9;padding:7px 10px;text-align:center;font-weight:700">'+(raw==null||raw===''?'-':raw)+'</td>';});
+   h+='</tr>';});
+  h+='</table></div>';});
  if(s.overrideBy)h+='<div style="font-size:10.5px;color:#94a3b8;margin-top:10px">최종 수정: '+examEsc(s.overrideBy)+' (경영팀)</div>';
  h+='</div>';return h}
 
