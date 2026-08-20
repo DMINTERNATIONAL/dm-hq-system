@@ -2605,6 +2605,7 @@ function examEnType(t){return ({'정기시험':'REGULAR','재시험':'RE-TEST','
 function examEnResult(r){return ({'합격':'PASS','불합격':'FAIL','재시험':'RE-TEST','재수강':'RE-TAKE'})[r]||(r||'')}
 function examResColor2(r){return r==='합격'?'#1d1d1f':((r==='불합격'||r==='재수강')?'#ff3b30':'#86868b')}
 function examFmtDur(sec){var m=Math.round((sec||0)/60);if(m<60)return m+'분';var h=Math.floor(m/60),mm=m%60;return h+'시간'+(mm?' '+mm+'분':'')}
+function examFmtDurK(sec){var m=Math.round((sec||0)/60);if(m<60)return m+'분';var h=Math.round(m/60*10)/10;return (h%1===0?h:h.toFixed(1))+'시간'}
 var EX_CARD='background:#fff;border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.05)';
 var EX_BLUE='#0071e3',EX_IND='#5e5ce6';
 var EXAM_PRAC_GOAL=15*3600;
@@ -2631,7 +2632,7 @@ function examMonthLine(arr,acc){var W=330,H=132,pl=16,pr=18,pt=18,pb=22,n=arr.le
 function examPracticeMonthly(logs){var map={};logs.forEach(function(l){var ym=(l.date||'').slice(0,7);if(!ym&&l.year&&l.month)ym=l.year+'-'+('0'+l.month).slice(-2);if(!ym)return;if(!map[ym])map[ym]={cnt:0,dur:0};map[ym].cnt++;map[ym].dur+=(l.duration||0)});var now=new Date(),arr=[];for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);var ym=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);arr.push({ym:ym,m:d.getMonth()+1,cnt:map[ym]?map[ym].cnt:0,dur:map[ym]?map[ym].dur:0})}return arr}
 var EXAM_TAB='exam',EXAM_MY={exams:[],practice:[]};
 function examSetTab(t){EXAM_TAB=t;examMyRender()}
-function examStat3(v,l){return '<div style="flex:1"><div style="font-size:19px;font-weight:800;letter-spacing:-.02em;color:#1d1d1f">'+v+'</div><div style="font-size:10.5px;color:#86868b;margin-top:3px;font-weight:600">'+l+'</div></div>'}
+function examStat3(v,l){return '<div style="flex:1"><div style="font-size:18px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;color:#1d1d1f">'+v+'</div><div style="font-size:10.5px;color:#86868b;margin-top:3px;font-weight:600">'+l+'</div></div>'}
 var EXAM_PRAC_LOGS=[],EXAM_PRAC_OPEN={};
 function openExamPracticeDetail(){examPage('p-exam-prac');go('p-exam-prac');var el=document.getElementById('p-exam-prac');el.innerHTML=examBar('연습 상세','openExamMyResults()')+'<div class="sk"></div>';var ph=examMyPhone();fbG('/practiceLog.json').then(function(pl){pl=pl||{};var logs=[];Object.keys(pl).forEach(function(id){var l=pl[id];if(l&&l.userId===ph)logs.push(l)});EXAM_PRAC_LOGS=logs;EXAM_PRAC_OPEN={};examPracticeDetailRender()})}
 function examPracDetailToggle(m){EXAM_PRAC_OPEN[m]=!EXAM_PRAC_OPEN[m];examPracticeDetailRender();var e=document.getElementById('pm-'+m);if(e)e.scrollIntoView({block:'nearest'})}
@@ -2641,7 +2642,7 @@ function examPracticeDetailRender(){var el=document.getElementById('p-exam-prac'
  var mmap={},byM={};logs.forEach(function(l){var ym=(l.date||'').slice(0,7);if(!ym&&l.year&&l.month)ym=l.year+'-'+('0'+l.month).slice(-2);if(!ym)return;if(!mmap[ym])mmap[ym]={cnt:0,dur:0};mmap[ym].cnt++;mmap[ym].dur+=(l.duration||0);(byM[ym]=byM[ym]||[]).push(l)});
  var months=Object.keys(mmap).sort().reverse();if(!Object.keys(EXAM_PRAC_OPEN).length&&months.length)EXAM_PRAC_OPEN[months[0]]=true;
  var maxCnt=1;months.forEach(function(m){if(mmap[m].cnt>maxCnt)maxCnt=mmap[m].cnt});
- h+='<div style="'+EX_CARD+';padding:18px 14px;margin-bottom:16px;display:flex;text-align:center">'+examStat3(totCnt+'회','누적 연습')+'<div style="width:1px;background:#f0f0f3;margin:2px 0"></div>'+examStat3(examFmtDur(totDur),'누적 시간')+'<div style="width:1px;background:#f0f0f3;margin:2px 0"></div>'+examStat3(examFmtDur(avg),'평균/회')+'</div>';
+ h+='<div style="'+EX_CARD+';padding:18px 14px;margin-bottom:16px;display:flex;text-align:center">'+examStat3(totCnt+'회','누적 연습')+'<div style="width:1px;background:#f0f0f3;margin:2px 0"></div>'+examStat3(examFmtDurK(totDur),'누적 시간')+'<div style="width:1px;background:#f0f0f3;margin:2px 0"></div>'+examStat3(examFmtDurK(avg),'평균/회')+'</div>';
  var mShow=months.slice(0,12);
  h+=examSecLabel('월별 기록'+(months.length>12?' (최근 12개월)':''));h+='<div style="'+EX_CARD+';padding:4px 14px;margin-bottom:16px">';
  mShow.forEach(function(m,idx){var o=mmap[m];var w=Math.round(o.cnt/maxCnt*100);h+='<div style="padding:13px 0;'+(idx?'border-top:1px solid #f2f2f4':'')+'"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13.5px;font-weight:700;color:#1d1d1f">'+m.replace('-','.')+'</span><span style="font-size:12px;color:#86868b"><b style="color:#1d1d1f">'+o.cnt+'회</b> · '+examFmtDur(o.dur)+examPracBadge(o.dur,m)+'</span></div><div style="height:6px;background:#f0f0f3;border-radius:99px;margin-top:8px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:'+EX_IND+';border-radius:99px"></div></div></div>'});
@@ -2659,7 +2660,7 @@ function examMyRender(){var el=document.getElementById('p-exam-myresults');if(!e
  h+='</div>';
  h+=(EXAM_TAB==='exam'?examTabExam():examTabPractice());
  el.innerHTML=h;if(window.renderIcons)renderIcons()}
-function examKpi(v,l,c){return '<div style="'+EX_CARD+';flex:1;padding:14px 6px;text-align:center"><div style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:'+(c||'#1d1d1f')+'">'+v+'</div><div style="font-size:10px;color:#86868b;margin-top:3px;font-weight:600;letter-spacing:.01em">'+l+'</div></div>'}
+function examKpi(v,l,c){return '<div style="'+EX_CARD+';flex:1;padding:14px 6px;text-align:center"><div style="font-size:18px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;color:'+(c||'#1d1d1f')+'">'+v+'</div><div style="font-size:10px;color:#86868b;margin-top:3px;font-weight:600;letter-spacing:.01em">'+l+'</div></div>'}
 function examSecLabel(t){return '<div style="font-size:12px;font-weight:700;color:#86868b;margin:2px 4px 9px;letter-spacing:.01em">'+t+'</div>'}
 function examTabExam(){var mine=EXAM_MY.exams;if(!mine.length)return '<div style="text-align:center;color:#aeaeb2;font-size:13px;padding:30px 0">공유된 시험 결과가 없어요</div>';
  var rows=mine.map(function(s){return {s:s,score:examMyScore(s),result:examAggregate(s).overall}});var scored=rows.filter(function(r){return r.score!=null});
@@ -2677,7 +2678,7 @@ function examTabPractice(){var logs=EXAM_MY.practice;if(!logs.length)return '<di
  var arr=examPracticeMonthly(logs);var totCnt=logs.length;var totDur=0;logs.forEach(function(l){totDur+=(l.duration||0)});
  var thisM=arr[arr.length-1],lastM=arr[arr.length-2]||{cnt:0};var trend='—',tc='#86868b';var dv=thisM.cnt-(lastM.cnt||0);if(dv>0){trend='▲'+dv;tc=EX_IND}else if(dv<0){trend='▼'+(-dv);tc='#ff3b30'}else if(thisM.cnt||lastM.cnt){trend='0'}
  var h='<div style="'+EX_CARD+';padding:18px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:11px;color:#86868b;font-weight:600">이번 달 연습</div><div style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d1d1f;margin-top:2px">'+thisM.cnt+'<span style="font-size:14px;color:#86868b;font-weight:700">회</span></div></div><div style="text-align:right"><div style="font-size:11px;color:#86868b;font-weight:600">이번 달 시간</div><div style="font-size:24px;font-weight:800;letter-spacing:-.03em;color:'+EX_IND+';margin-top:1px">'+examFmtDur(thisM.dur)+'</div></div></div>'+examPracGoalBar(thisM.dur)+'</div>';
- h+='<div style="display:flex;gap:9px;margin-bottom:16px">'+examKpi(totCnt+'회','누적 연습')+examKpi(examFmtDur(totDur),'누적 시간')+examKpi(trend,'최근 추세',tc)+'</div>';
+ h+='<div style="display:flex;gap:9px;margin-bottom:16px">'+examKpi(totCnt+'회','누적 연습')+examKpi(examFmtDurK(totDur),'누적 시간')+examKpi(trend,'최근 추세',tc)+'</div>';
  h+='<div onclick="openExamPracticeDetail()" style="'+EX_CARD+';padding:15px 12px 8px;margin-bottom:16px;cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:center;margin:2px 4px 9px"><span style="font-size:12px;font-weight:700;color:#86868b">월별 연습 횟수 추이</span><span style="font-size:12px;color:#c7c7cc;font-weight:600">자세히 ›</span></div>'+examMonthLine(arr,EX_IND)+'</div>';
  h+=examSecLabel('최근 연습');
  var recent=logs.slice().sort(function(a,b){return ((b.date||'')+(b.endedAt||0)+'').localeCompare((a.date||'')+(a.endedAt||0)+'')}).slice(0,8);
