@@ -2767,7 +2767,9 @@ function examPracticeDetailRender(){var el=document.getElementById('p-exam-prac'
   if(open){h+='<div style="padding:0 14px 6px">';arr.forEach(function(l,idx){h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #f2f2f4"><span style="font-size:13px;color:#1d1d1f;font-weight:600">'+examEsc((l.date||'').replace(/-/g,'.'))+(l.level?' <span style="color:#c7c7cc;font-size:11px;font-weight:600">'+examEsc(l.level)+'</span>':'')+'</span><span style="font-size:13px;font-weight:700;color:'+EX_IND+'">'+examFmtDur(l.duration)+'</span></div>'});h+='</div>';}
   h+='</div>';});
  el.innerHTML=h}
-var EXAM_GL={list:[]},EXAM_GL_BR='',EXAM_GL_LV='';
+var EXAM_GL={list:[],sessions:[]},EXAM_GL_BR='',EXAM_GL_LV='',EXAM_GL_VIEW='intern';
+function examGlSetView(v){EXAM_GL_VIEW=v;examGrowthListRender()}
+function examGlRow(s,isHQ){var res=s.res?('<span style="color:'+examResColor2(s.res)+';font-weight:800">'+examEnResult(s.res)+'</span>'):'';return '<div onclick="openExamReport(\''+s.id+'\',\'openExamGrowthList()\')" style="cursor:pointer;'+EX_CARD+';padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="min-width:0"><div style="font-size:14px;font-weight:800;color:#1d1d1f">'+examEsc(s.name)+'</div><div style="font-size:11px;color:#aeaeb2;margin-top:2px;font-weight:600">'+examEsc(s.level||'-')+' · '+examEnType(s.examType)+' · '+examEsc((s.date||'').replace(/-/g,'.'))+(isHQ&&s.branch?' · '+examEsc(s.branch):'')+'</div></div><div style="text-align:right;flex:0 0 auto"><div style="font-size:16px;font-weight:800;color:#1d1d1f">'+(s.avg==null?'-':s.avg)+'</div><div style="font-size:10px;font-weight:800;margin-top:1px">'+res+'</div></div></div>'}
 function examUniq(a){var s={},o=[];a.forEach(function(x){if(x&&!s[x]){s[x]=1;o.push(x)}});return o}
 function examGlSetBr(v){EXAM_GL_BR=v;examGrowthListRender()}
 function examGlSetLv(v){EXAM_GL_LV=v;examGrowthListRender()}
@@ -2776,7 +2778,8 @@ function openExamGrowthList(){examPage('p-exam-growth');go('p-exam-growth');var 
  var exByIn={};Object.keys(sess).forEach(function(id){var s=sess[id];if(!s||s.status!=='shared')return;var k=s.internId;if(!exByIn[k]||((s.date||'')>(exByIn[k].date||'')))exByIn[k]=s});
  var prByIn={};Object.keys(pl).forEach(function(id){var l=pl[id];if(!l||(l.date||'').slice(0,7)!==curYM)return;var k=l.userId;if(!prByIn[k])prByIn[k]={cnt:0,dur:0};prByIn[k].cnt++;prByIn[k].dur+=(l.duration||0)});
  var list=[];Object.keys(users).forEach(function(ph){var u=users[ph];if(!u)return;if(!((u.role==='인턴'||u.academyRole==='인턴')&&(u.status||'재직')==='재직'))return;var ex=exByIn[ph];var exAvg=null,exRes=null;if(ex){exAvg=examMyScore(ex);exRes=examAggregate(ex).overall}var pr=prByIn[ph]||{cnt:0,dur:0};list.push({ph:ph,name:dispNm(u),brand:u.brand||'',branch:u.branch||'',level:u.level||'',mentorId:u.mentorId||'',exAvg:exAvg,exRes:exRes,prDur:pr.dur,prCnt:pr.cnt})});
- EXAM_GL={list:list};EXAM_GL_BR='';EXAM_GL_LV='';examGrowthListRender()})};if(EXAM_TPL)run();else examLoadTpl(run)}
+ var sessions=[];Object.keys(sess).forEach(function(id){var s=sess[id];if(!s||s.status!=='shared')return;var u=users[s.internId];if(!u||!((u.role==='인턴'||u.academyRole==='인턴')&&(u.status||'재직')==='재직'))return;sessions.push({id:id,internId:s.internId,name:dispNm(u),branch:u.branch||s.internBranch||'',level:s.level||u.level||'',examType:s.examType||'정기시험',date:s.date||'',avg:examMyScore(s),res:examAggregate(s).overall,mentorId:u.mentorId||''})});sessions.sort(function(a,b){return (b.date||'').localeCompare(a.date||'')});
+ EXAM_GL={list:list,sessions:sessions};EXAM_GL_BR='';EXAM_GL_LV='';EXAM_GL_VIEW='intern';examGrowthListRender()})};if(EXAM_TPL)run();else examLoadTpl(run)}
 function examGlChip(cur,val,label,fn){var on=cur===val;return '<button onclick="'+fn+'(\''+val+'\')" style="flex:0 0 auto;padding:7px 13px;border-radius:99px;border:1px solid '+(on?'#1d1d1f':'#e5e7eb')+';background:'+(on?'#1d1d1f':'#fff')+';color:'+(on?'#fff':'#6b7280')+';font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">'+examEsc(label)+'</button>'}
 function examGlCard(x,main,isHQ){var res=x.exRes?('<span style="color:'+examResColor2(x.exRes)+';font-weight:800">'+examEnResult(x.exRes)+'</span> '+(x.exAvg!=null?'<b>'+x.exAvg+'</b>점':'')):'<span style="color:#c7c7cc">기록 없음</span>';
  var pr=x.prDur?('<b style="color:'+EX_IND+'">'+examFmtDurK(x.prDur)+'</b>'+(x.prDur>=EXAM_PRAC_GOAL?' <span style="color:#5e5ce6;font-size:9px;font-weight:800">달성</span>':'')):'<span style="color:#c7c7cc">0분</span>';
@@ -2790,6 +2793,12 @@ function examGrowthListRender(){var el=document.getElementById('p-exam-growth');
   if(EXAM_GL_BR)list=list.filter(function(x){return x.branch===EXAM_GL_BR});
   if(EXAM_GL_LV)list=list.filter(function(x){return x.level===EXAM_GL_LV});
  }
+ h+='<div style="display:flex;gap:7px;margin:0 0 12px">'+examGlChip(EXAM_GL_VIEW,'intern','인턴별','examGlSetView')+examGlChip(EXAM_GL_VIEW,'exam','시험별','examGlSetView')+'</div>';
+ if(EXAM_GL_VIEW==='exam'){var sess2=(EXAM_GL.sessions||[]).slice();if(!isHQ)sess2=sess2.filter(function(s){return s.branch===ME.branch});else{if(EXAM_GL_BR)sess2=sess2.filter(function(s){return s.branch===EXAM_GL_BR});if(EXAM_GL_LV)sess2=sess2.filter(function(s){return s.level===EXAM_GL_LV})}
+  h+='<div style="font-size:12px;color:#86868b;font-weight:700;margin:0 2px 10px">시험 '+sess2.length+'건</div>';
+  if(!sess2.length)h+='<div style="text-align:center;color:#aeaeb2;font-size:13px;padding:24px 0">공유된 시험이 없어요</div>';
+  sess2.slice(0,200).forEach(function(s){h+=examGlRow(s,isHQ)});
+  el.innerHTML=h;if(window.renderIcons)renderIcons();return}
  list.sort(function(a,b){var am=(!isHQ&&a.mentorId===myPh)?0:1,bm=(!isHQ&&b.mentorId===myPh)?0:1;if(am!==bm)return am-bm;return (a.name||'').localeCompare(b.name||'')});
  h+='<div style="font-size:12px;color:#86868b;font-weight:700;margin:0 2px 10px">'+list.length+'명</div>';
  if(!list.length)h+='<div style="text-align:center;color:#aeaeb2;font-size:13px;padding:24px 0">해당 인턴이 없어요</div>';
