@@ -2383,7 +2383,7 @@ var EXAM_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+8AAADiCAYAAAA/DPZ
 var EXAM_TPL_DEFAULT={
  'BRONZE-1':{label:'브론즈1',mode:'scored',portfolio:true,subjects:[
    {name:'여자 드라이',items:['백 네이프 디자인','백 미들 디자인','백 탑 디자인','사이드 디자인','페이스라인 디자인','능숙도','시술시간','완성도']},
-   {name:'다대 트위스트 와인딩',items:['파팅','빗질','시술각도 / 텐션','포워드&리버스 방향이해도','와인딩 능숙도','롯드갯수&호수 정확도','시술시간','완성도']}
+   {name:'다대 트위스트 와인딩',items:['파팅','빗질','시술각도 · 텐션','포워드&리버스 방향이해도','와인딩 능숙도','롯드갯수&호수 정확도','시술시간','완성도']}
  ]},
  'BRONZE-2':{label:'브론즈2',mode:'scored',portfolio:true,subjects:[
    {name:'남자 디자인펌',items:['두상이해','시안 분석 능력','롯드 선정','텐션과 각도','와인딩 숙련도','중화 디자인','와인딩 기법 이해','완성도 (미작 유무 포함)']}
@@ -2400,7 +2400,10 @@ var EXAM_LV_ORDER=['BASIC','BRONZE-1','BRONZE-2','SILVER-1','SILVER-2','SILVER-3
 function examEsc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function examPage(id){var el=document.getElementById(id);if(!el){el=document.createElement('div');el.className='pg';el.id=id;var ref=document.querySelector('.pg');(ref?ref.parentNode:document.body).appendChild(el)}return el}
 function examBar(title,back){return '<button class="backbtn" onclick="'+back+'">← 뒤로</button><div class="ph"><div class="ptitle">'+title+'</div></div>'}
-function examLoadTpl(cb){fbG('/config/examTemplates.json').then(function(d){if(!d||!Object.keys(d).length){EXAM_TPL=JSON.parse(JSON.stringify(EXAM_TPL_DEFAULT));fbP('/config/examTemplates.json',EXAM_TPL).then(function(){cb&&cb()})}else{EXAM_TPL=d;cb&&cb()}}).catch(function(){EXAM_TPL=JSON.parse(JSON.stringify(EXAM_TPL_DEFAULT));cb&&cb()})}
+/* 과목·항목명은 점수 저장 시 Firebase 키로 쓰이므로 금지문자(/ . # $ [ ])를 안전문자로 치환 */
+function examSafeName(s){return (s==null?'':String(s)).replace(/[\/.#$\[\]]/g,'·')}
+function examSanitizeTpl(tpl){if(!tpl)return false;var changed=false;Object.keys(tpl).forEach(function(lv){var t=tpl[lv];if(!t||!t.subjects)return;t.subjects.forEach(function(sub){if(sub&&typeof sub.name==='string'){var sn=examSafeName(sub.name);if(sn!==sub.name){sub.name=sn;changed=true}}if(sub&&sub.items)sub.items.forEach(function(it,i){var ni=examSafeName(it);if(ni!==it){sub.items[i]=ni;changed=true}})})});return changed}
+function examLoadTpl(cb){fbG('/config/examTemplates.json').then(function(d){if(!d||!Object.keys(d).length){EXAM_TPL=JSON.parse(JSON.stringify(EXAM_TPL_DEFAULT));examSanitizeTpl(EXAM_TPL);fbP('/config/examTemplates.json',EXAM_TPL).then(function(){cb&&cb()})}else{EXAM_TPL=d;if(examSanitizeTpl(EXAM_TPL)){fbP('/config/examTemplates.json',EXAM_TPL).then(function(){cb&&cb()}).catch(function(){cb&&cb()})}else{cb&&cb()}}}).catch(function(){EXAM_TPL=JSON.parse(JSON.stringify(EXAM_TPL_DEFAULT));examSanitizeTpl(EXAM_TPL);cb&&cb()})}
 function examSaveTpl(cb){if(!EXAM_TPL)return;fbP('/config/examTemplates.json',EXAM_TPL).then(function(){cb&&cb()}).catch(function(){toast&&toast('저장 실패')})}
 function openExamTplConfig(){examPage('p-exam-tpl');go('p-exam-tpl');if(EXAM_TPL)examTplRender();else examLoadTpl(examTplRender)}
 function examTplRender(){var el=document.getElementById('p-exam-tpl');if(!el||!EXAM_TPL)return;var h=examBar('평가항목 설정','backToDash()');
@@ -2423,11 +2426,11 @@ function examTplRender(){var el=document.getElementById('p-exam-tpl');if(!el||!E
  });
  h+='<button class="gbtn pri" style="width:100%;margin-top:4px" onclick="examTplLevelAdd()">+ 레벨 추가</button>';
  el.innerHTML=h;if(window.renderIcons)renderIcons()}
-function examTplItemEdit(lv,si,ii){var it=EXAM_TPL[lv].subjects[si].items[ii];_showPopup({type:'prompt',title:'항목명 수정',msg:'',defaultValue:it,cb:function(v){if(v==null)return;v=(v||'').trim();if(!v)return;EXAM_TPL[lv].subjects[si].items[ii]=v;examSaveTpl(examTplRender)}})}
-function examTplItemAdd(lv,si){_showPopup({type:'prompt',title:'항목 추가',msg:'평가항목 이름',defaultValue:'',cb:function(v){if(v==null)return;v=(v||'').trim();if(!v)return;EXAM_TPL[lv].subjects[si].items.push(v);examSaveTpl(examTplRender)}})}
+function examTplItemEdit(lv,si,ii){var it=EXAM_TPL[lv].subjects[si].items[ii];_showPopup({type:'prompt',title:'항목명 수정',msg:'',defaultValue:it,cb:function(v){if(v==null)return;v=examSafeName((v||'').trim());if(!v)return;EXAM_TPL[lv].subjects[si].items[ii]=v;examSaveTpl(examTplRender)}})}
+function examTplItemAdd(lv,si){_showPopup({type:'prompt',title:'항목 추가',msg:'평가항목 이름',defaultValue:'',cb:function(v){if(v==null)return;v=examSafeName((v||'').trim());if(!v)return;EXAM_TPL[lv].subjects[si].items.push(v);examSaveTpl(examTplRender)}})}
 function examTplItemDel(lv,si,ii){EXAM_TPL[lv].subjects[si].items.splice(ii,1);examSaveTpl(examTplRender)}
-function examTplSubRename(lv,si){var s=EXAM_TPL[lv].subjects[si];_showPopup({type:'prompt',title:'과목명 수정',msg:'',defaultValue:s.name,cb:function(v){if(v==null)return;v=(v||'').trim();if(!v)return;s.name=v;examSaveTpl(examTplRender)}})}
-function examTplSubAdd(lv){_showPopup({type:'prompt',title:'과목 추가',msg:'과목명을 적어주세요',defaultValue:'',cb:function(v){if(v==null)return;v=(v||'').trim();if(!v)return;EXAM_TPL[lv].subjects.push({name:v,items:[]});examSaveTpl(examTplRender)}})}
+function examTplSubRename(lv,si){var s=EXAM_TPL[lv].subjects[si];_showPopup({type:'prompt',title:'과목명 수정',msg:'',defaultValue:s.name,cb:function(v){if(v==null)return;v=examSafeName((v||'').trim());if(!v)return;s.name=v;examSaveTpl(examTplRender)}})}
+function examTplSubAdd(lv){_showPopup({type:'prompt',title:'과목 추가',msg:'과목명을 적어주세요',defaultValue:'',cb:function(v){if(v==null)return;v=examSafeName((v||'').trim());if(!v)return;EXAM_TPL[lv].subjects.push({name:v,items:[]});examSaveTpl(examTplRender)}})}
 function examTplSubDel(lv,si){_showPopup({type:'confirm',title:'과목 삭제',msg:'이 과목과 항목을 모두 삭제할까요?',cb:function(ok){if(!ok)return;EXAM_TPL[lv].subjects.splice(si,1);examSaveTpl(examTplRender)}})}
 function examTplPortToggle(lv){EXAM_TPL[lv].portfolio=!EXAM_TPL[lv].portfolio;examSaveTpl(examTplRender)}
 function examTplModeToggle(lv){EXAM_TPL[lv].mode=(EXAM_TPL[lv].mode==='feedback')?'scored':'feedback';examSaveTpl(examTplRender)}
