@@ -1,0 +1,13 @@
+{
+  "name": "dm-hermes-kpi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test.mjs",
+    "shops": "node collect.mjs shops",
+    "collect": "node collect.mjs both"
+  },
+  "dependencies": {
+    "codepage": "^1.15.0"
+  }
+}

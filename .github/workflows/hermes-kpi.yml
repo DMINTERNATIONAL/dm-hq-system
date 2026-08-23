@@ -1,0 +1,59 @@
+name: Hermes KPI 수집
+
+on:
+  schedule:
+    - cron: '0 19 * * *'   # 매일 04:00 KST (= 19:00 UTC 전날)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'both | sales | sns | shops'
+        required: false
+        default: 'both'
+      date:
+        description: '수집일 YYYY-MM-DD (비우면 전일)'
+        required: false
+      from:
+        description: '소급 시작일 YYYY-MM-DD (from+to 함께)'
+        required: false
+      to:
+        description: '소급 종료일 YYYY-MM-DD'
+        required: false
+      dry:
+        description: '드라이런(저장 안 함) true/false'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: hermes-kpi
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/hermes-kpi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: 수집 실행
+        env:
+          HANDSOS_COMPANY: ${{ secrets.HANDSOS_COMPANY }}
+          HANDSOS_ID: ${{ secrets.HANDSOS_ID }}
+          HANDSOS_PW: ${{ secrets.HANDSOS_PW }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
+        run: |
+          ARGS="${{ github.event.inputs.mode || 'both' }}"
+          [ -n "${{ github.event.inputs.date }}" ] && ARGS="$ARGS --date=${{ github.event.inputs.date }}"
+          [ -n "${{ github.event.inputs.from }}" ] && ARGS="$ARGS --from=${{ github.event.inputs.from }}"
+          [ -n "${{ github.event.inputs.to }}" ] && ARGS="$ARGS --to=${{ github.event.inputs.to }}"
+          [ "${{ github.event.inputs.dry }}" = "true" ] && ARGS="$ARGS --dry"
+          echo "실행: node collect.mjs $ARGS"
+          node collect.mjs $ARGS
