@@ -49,6 +49,21 @@ async function resolveIgUserId(env) {
   return _igUserId;
 }
 
+// raw=1 : 수집기(computeSnsMetrics)가 쓰는 전체 필드(미디어 포함) 원본을 그대로 반환.
+//         KPI 인스타 카드 실데이터 채우기용. 로컬 스크립트가 이걸 받아 computeSnsMetrics로 계산·저장.
+async function snapshot(username, env) {
+  const u = String(username || '').replace(/^@/, '').trim();
+  if (!u) return { ok: false, error: '아이디를 입력하세요.' };
+  if (!/^[A-Za-z0-9._]{1,30}$/.test(u)) return { ok: false, error: '아이디 형식이 올바르지 않습니다.' };
+  const igUserId = await resolveIgUserId(env);
+  const fields = `business_discovery.username(${u}){followers_count,follows_count,media_count,media.limit(25){id,caption,like_count,comments_count,media_type,media_product_type,permalink,timestamp}}`;
+  const url = `${IG_API}/${encodeURIComponent(igUserId)}?access_token=${encodeURIComponent(env.IG_TOKEN)}&fields=${encodeURIComponent(fields)}`;
+  const resp = await fetch(url, { headers: { 'User-Agent': UA } });
+  const data = await resp.json();
+  if (!resp.ok || data.error) return { ok: false, error: (data.error && data.error.message) || `조회 실패 (${resp.status})` };
+  return { ok: true, business_discovery: data.business_discovery || null };
+}
+
 async function verify(username, env) {
   const u = String(username || '').replace(/^@/, '').trim();
   if (!u) return { ok: false, error: '아이디를 입력하세요.' };
@@ -84,8 +99,10 @@ export default {
     if (request.method !== 'GET') return json({ ok: false, error: 'method_not_allowed' }, 405, origin);
     if (!ALLOWED_ORIGINS.includes(origin)) return json({ ok: false, error: 'forbidden_origin' }, 403, origin);
     if (!env.IG_TOKEN) return json({ ok: false, error: 'IG_TOKEN 미설정 (wrangler secret put IG_TOKEN)' }, 500, origin);
-    const u = new URL(request.url).searchParams.get('u') || '';
+    const sp = new URL(request.url).searchParams;
+    const u = sp.get('u') || '';
     try {
+      if (sp.get('raw') === '1') return json(await snapshot(u, env), 200, origin);
       return json(await verify(u, env), 200, origin);
     } catch (e) {
       return json({ ok: false, error: e.message || String(e) }, 200, origin);
