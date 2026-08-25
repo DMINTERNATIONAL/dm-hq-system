@@ -482,20 +482,22 @@ function storeFromDesigners(designers) {
 }
 
 /* ═══ 인스타그램 ═══ */
-// 지점(한글) → shop 키. 인스타 대상은 앱 직원관리(/users)의 재직 전 직원(ig_username 보유)에서 읽는다.
+// 지점(한글) → shop 키. 인스타 대상은 앱 직원관리(/users)의 재직 지점원(shop 매핑+ig_username 보유)에서 읽는다.
 const BRANCH_TO_SHOP = { '플래그십점': 'flagship', '모먼트점': 'moment', '합정점': 'eto' };
 async function collectSns(date, dry) {
   if (!process.env.IG_TOKEN) throw new Error('IG_TOKEN 미설정');
   await resolveIgUserId(); // IG_USER_ID 자동 확정 (없으면 토큰으로 조회)
   const users = await fbGET('/users.json') || {};
-  // 재직(퇴사 자동 제외) 전 직원(경영팀·인턴 포함) 중 ig_username 있는 사람.
+  // 재직(퇴사 자동 제외) 중 "지점 소속(shop 매핑 가능)" + ig_username 있는 사람.
+  // 경영팀 본사(branch=본사 등 shop 매핑 없음)는 개인 IG 수집 제외 — 저장할 지점이 없어
+  // flagship으로 오염되므로. 즉 디자이너·인턴·카운터(겸직 디자이너 포함) 등 지점원만.
   // role/academyRole은 메트릭에 함께 저장해 프론트에서 인턴(교육 KPI)·디자이너를 구분한다.
   const active = Object.keys(users).map(ph => ({ ph, u: users[ph] || {} }))
-    .filter(x => x.u && (x.u.status || '재직') === '재직' && x.u.ig_username);
+    .filter(x => x.u && (x.u.status || '재직') === '재직' && x.u.ig_username && BRANCH_TO_SHOP[x.u.branch]);
   const out = [];
   for (let i = 0; i < active.length; i++) {
     const u = active[i].u;
-    const shop = BRANCH_TO_SHOP[u.branch] || 'flagship';
+    const shop = BRANCH_TO_SHOP[u.branch];
     const name = u.nick || u.name || active[i].ph;
     const username = String(u.ig_username).replace(/^@/, '').trim();
     if (!username) continue;
