@@ -482,17 +482,16 @@ function storeFromDesigners(designers) {
 }
 
 /* ═══ 인스타그램 ═══ */
-// 지점(한글) → shop 키. 인스타 대상은 앱 직원관리(/users)의 재직 디자이너에서 읽는다.
+// 지점(한글) → shop 키. 인스타 대상은 앱 직원관리(/users)의 재직 전 직원(ig_username 보유)에서 읽는다.
 const BRANCH_TO_SHOP = { '플래그십점': 'flagship', '모먼트점': 'moment', '합정점': 'eto' };
 async function collectSns(date, dry) {
   if (!process.env.IG_TOKEN) throw new Error('IG_TOKEN 미설정');
   await resolveIgUserId(); // IG_USER_ID 자동 확정 (없으면 토큰으로 조회)
   const users = await fbGET('/users.json') || {};
-  // 재직(퇴사 자동 제외) + 디자이너/교육자 + ig_username 있는 사람만
+  // 재직(퇴사 자동 제외) 전 직원(경영팀·인턴 포함) 중 ig_username 있는 사람.
+  // role/academyRole은 메트릭에 함께 저장해 프론트에서 인턴(교육 KPI)·디자이너를 구분한다.
   const active = Object.keys(users).map(ph => ({ ph, u: users[ph] || {} }))
-    .filter(x => x.u && (x.u.status || '재직') === '재직'
-      && (x.u.role === '디자이너' || x.u.academyRole === '교육자')
-      && x.u.ig_username);
+    .filter(x => x.u && (x.u.status || '재직') === '재직' && x.u.ig_username);
   const out = [];
   for (let i = 0; i < active.length; i++) {
     const u = active[i].u;
@@ -503,6 +502,11 @@ async function collectSns(date, dry) {
     try {
       const metrics = computeSnsMetrics(await igBusinessDiscovery(username), date);
       metrics.ig_username = username;
+      // 직군 태그(프론트 세분화용): 인턴은 매출 대신 교육 KPI로 표시.
+      metrics.role = u.role || '';
+      metrics.academyRole = u.academyRole || '';
+      metrics.brand = u.brand || '';
+      metrics.phone = active[i].ph;
       if (!dry) await rtdbPut(`/stores/${enc(shop)}/daily/${enc(date)}/sns/${enc(safeKey(name))}`, metrics);
       out.push({ shop, name, username, ok: true, ...metrics });
     } catch (e) { out.push({ shop, name, username, ok: false, error: e.message }); }
