@@ -222,11 +222,16 @@ const VISIT_PARTS = [
 ];
 async function collectShopVisits(session, shop, date) {
   const c = {};
+  const byDes = {}; // 디자이너별 유형별 접객수
   for (const p of VISIT_PARTS) {
     let guests = 0;
     try {
       const rb = parseReportB(await fetchReport(session, 'B', shop.code, date, p.code));
-      for (const d of rb.designers) guests += (+d.guests || 0);
+      for (const d of rb.designers) {
+        const gk = +d.guests || 0; guests += gk;
+        if (!byDes[d.name]) byDes[d.name] = {};
+        byDes[d.name][p.key] = (byDes[d.name][p.key] || 0) + gk;
+      }
     } catch (e) { if (!(e && e.emptyReport)) throw e; } // 그 유형 무매출이면 0
     c[p.key] = guests;
     await sleep(150);
@@ -234,7 +239,16 @@ async function collectShopVisits(session, shop, date) {
   c['신규'] = c['신규소개'] + c['신규일반'];
   c['재방'] = c['재방지정'] + c['재방대체'];
   c['total'] = c['신규'] + c['재방'] + c['손님'];
-  return c;
+  // 디자이너별 신규/재방/손님 롤업
+  const dv = {};
+  for (const nm of Object.keys(byDes)) {
+    const b = byDes[nm];
+    const nw = (b['신규소개'] || 0) + (b['신규일반'] || 0);
+    const rv = (b['재방지정'] || 0) + (b['재방대체'] || 0);
+    const gs = (b['손님'] || 0);
+    dv[nm] = { 신규: nw, 재방: rv, 손님: gs, total: nw + rv + gs };
+  }
+  return { c, dv };
 }
 async function collectVisits(date, dry) {
   const session = await handsosLogin();
@@ -242,8 +256,11 @@ async function collectVisits(date, dry) {
   for (const shop of CONFIG.shops) {
     if (!shop.code) { out.push({ shop: shop.shop, ok: false, error: 'code 미설정' }); continue; }
     try {
-      const v = await collectShopVisits(session, shop, date);
-      if (!dry) await rtdbPut(`/stores/${enc(shop.shop)}/daily/${enc(date)}/visits`, { ...v, collected_at: nowIso() });
+      const { c: v, dv } = await collectShopVisits(session, shop, date);
+      if (!dry) {
+        await rtdbPut(`/stores/${enc(shop.shop)}/daily/${enc(date)}/visits`, { ...v, collected_at: nowIso() });
+        for (const nm of Object.keys(dv)) await rtdbPut(`/stores/${enc(shop.shop)}/daily/${enc(date)}/dvisits/${enc(safeKey(nm))}`, dv[nm]);
+      }
       out.push({ shop: shop.shop, ok: true, ...v });
     } catch (e) {
       if (e && e.emptyReport) { out.push({ shop: shop.shop, ok: true, closed: true }); continue; }
