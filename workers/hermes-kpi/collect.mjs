@@ -23,6 +23,11 @@ const CONFIG = {
     { shop: 'moment', code: '12550630', name: '데이민 모먼트' },     // branch '모먼트점'
     { shop: 'eto', code: '12558317', name: '에토바버샵' },           // branch '합정점'
   ],
+  // 공식 인스타 계정 (브랜드별 1개). business_discovery로 디자이너와 동일 수집.
+  officialAccounts: [
+    { key: 'daymean', brand: 'DAY:MEAN', shops: ['flagship', 'moment'], username: 'day.mean_official', label: '데이민 공식' },
+    { key: 'etoh', brand: 'ETOH', shops: ['eto'], username: 'etohbarber', label: '에토바버샵 공식' },
+  ],
   saleValidateTolerance: 0.05,
   igRateGapMs: 400,
   igMaturedDays: 7,
@@ -130,6 +135,8 @@ async function main() {
   if (mode === 'sns' || mode === 'both') {
     try { console.log('[sns]', JSON.stringify(await collectSns(kstDateString(0), dry))); }
     catch (e) { errors.push('sns: ' + e.message); await notify('[Hermes] SNS 수집 실패: ' + e.message); }
+    try { console.log('[official]', JSON.stringify(await collectOfficialSns(kstDateString(0), dry))); }
+    catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
   }
   if (errors.length) { console.error('FAILED:', errors.join(' | ')); process.exit(1); }
 }
@@ -499,6 +506,25 @@ async function collectSns(date, dry) {
       out.push({ shop, name, username, ok: true, ...metrics });
     } catch (e) { out.push({ shop, name, username, ok: false, error: e.message }); }
     if (i < active.length - 1) await sleep(CONFIG.igRateGapMs);
+  }
+  return { date, count: out.length, results: out };
+}
+// 공식 인스타 계정 수집 (브랜드별 1개). /official/{key}/daily/{date} 저장.
+async function collectOfficialSns(date, dry) {
+  if (!process.env.IG_TOKEN) throw new Error('IG_TOKEN 미설정');
+  await resolveIgUserId();
+  const out = [];
+  const accs = CONFIG.officialAccounts || [];
+  for (let i = 0; i < accs.length; i++) {
+    const acc = accs[i];
+    const username = String(acc.username).replace(/^@/, '').trim();
+    try {
+      const m = computeSnsMetrics(await igBusinessDiscovery(username), date);
+      m.ig_username = username; m.label = acc.label; m.brand = acc.brand;
+      if (!dry) await rtdbPut(`/official/${enc(acc.key)}/daily/${enc(date)}`, m);
+      out.push({ key: acc.key, username, ok: true, ...m });
+    } catch (e) { out.push({ key: acc.key, username, ok: false, error: e.message }); }
+    if (i < accs.length - 1) await sleep(CONFIG.igRateGapMs);
   }
   return { date, count: out.length, results: out };
 }
