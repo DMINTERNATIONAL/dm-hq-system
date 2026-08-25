@@ -554,9 +554,13 @@ export function computeSnsMetrics(bd, date) {
   const followers = num(bd.followers_count), following = num(bd.follows_count), media_count = num(bd.media_count);
   const media = (bd.media && bd.media.data) || [];
   const nowMs = Date.parse(date + 'T00:00:00+09:00'); const dayMs = 86400000; const winMs = CONFIG.igMaturedDays * dayMs;
-  let uploads_7d = 0; const matured = [];
+  // 이번주(월요일 시작, KST) 시작 시각
+  const dow = new Date(Date.parse(date + 'T12:00:00+09:00')).getUTCDay(); // 0=일..6=토
+  const weekStartMs = nowMs - ((dow + 6) % 7) * dayMs;
+  let uploads_7d = 0, uploads_thisweek = 0; const matured = [];
   for (const m of media) {
     const ts = Date.parse(m.timestamp); if (!Number.isFinite(ts)) continue;
+    if (ts >= weekStartMs) uploads_thisweek++;
     if (nowMs - ts < winMs) uploads_7d++; else matured.push({ ts, like: num(m.like_count), cmt: num(m.comments_count) });
   }
   matured.sort((a, b) => b.ts - a.ts);
@@ -572,7 +576,7 @@ export function computeSnsMetrics(bd, date) {
     else { feed_count++; feed_likes += lk; feed_cmts += cm; }
   }
   return {
-    followers, following, media_count, uploads_7d,
+    followers, following, media_count, uploads_7d, uploads_thisweek,
     avg_likes: n ? +(sumLikes / n).toFixed(1) : 0, avg_comments: n ? +(sumCmts / n).toFixed(1) : 0,
     engagement_rate: (n && followers) ? +(((sumLikes + sumCmts) / n / followers) * 100).toFixed(3) : 0,
     total_likes, total_comments, media_sampled: media.length,
