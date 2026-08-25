@@ -619,10 +619,14 @@ export function computeSnsMetrics(bd, date) {
   // 이번주(월요일 시작, KST) 시작 시각
   const dow = new Date(Date.parse(date + 'T12:00:00+09:00')).getUTCDay(); // 0=일..6=토
   const weekStartMs = nowMs - ((dow + 6) % 7) * dayMs;
-  let uploads_7d = 0, uploads_thisweek = 0; const matured = [];
+  // 이번달(수집일 기준 달, KST 1일 00:00) 시작 시각
+  const _md = new Date(Date.parse(date + 'T12:00:00+09:00'));
+  const monthStartMs = Date.parse(_md.getUTCFullYear() + '-' + String(_md.getUTCMonth() + 1).padStart(2, '0') + '-01T00:00:00+09:00');
+  let uploads_7d = 0, uploads_thisweek = 0, uploads_thismonth = 0; const matured = [];
   for (const m of media) {
     const ts = Date.parse(m.timestamp); if (!Number.isFinite(ts)) continue;
     if (ts >= weekStartMs) uploads_thisweek++;
+    if (ts >= monthStartMs) uploads_thismonth++;
     if (nowMs - ts < winMs) uploads_7d++; else matured.push({ ts, like: num(m.like_count), cmt: num(m.comments_count) });
   }
   matured.sort((a, b) => b.ts - a.ts);
@@ -644,7 +648,7 @@ export function computeSnsMetrics(bd, date) {
   for (const m of media) { const ts = Date.parse(m.timestamp); if (!Number.isFinite(ts)) continue; const day = new Date(ts + 9 * 3600000).getUTCDay(); const w = wd[day] || (wd[day] = { n: 0, l: 0, c: 0 }); w.n++; w.l += num(m.like_count); w.c += num(m.comments_count); }
   const by_weekday = {}; for (const k of Object.keys(wd)) { const w = wd[k]; by_weekday[k] = { n: w.n, avg_likes: +(w.l / w.n).toFixed(1), avg_comments: +(w.c / w.n).toFixed(1) }; }
   return {
-    followers, following, media_count, uploads_7d, uploads_thisweek,
+    followers, following, media_count, uploads_7d, uploads_thisweek, uploads_thismonth,
     top_posts, by_weekday,
     avg_likes: n ? +(sumLikes / n).toFixed(1) : 0, avg_comments: n ? +(sumCmts / n).toFixed(1) : 0,
     engagement_rate: (n && followers) ? +(((sumLikes + sumCmts) / n / followers) * 100).toFixed(3) : 0,
