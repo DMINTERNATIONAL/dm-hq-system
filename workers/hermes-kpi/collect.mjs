@@ -575,8 +575,15 @@ export function computeSnsMetrics(bd, date) {
     if ((m.media_product_type || '') === 'REELS') { reels_count++; reels_likes += lk; reels_cmts += cm; }
     else { feed_count++; feed_likes += lk; feed_cmts += cm; }
   }
+  // 인기 게시물 TOP3 (반응순) + 요일별 성과
+  const posts = media.map(m => ({ l: num(m.like_count), c: num(m.comments_count), t: ((m.media_product_type || '') === 'REELS' ? '릴스' : '피드'), u: m.permalink || '', ts: m.timestamp || '' }));
+  const top_posts = posts.slice().sort((a, b) => (b.l + b.c) - (a.l + a.c)).slice(0, 3);
+  const wd = {};
+  for (const m of media) { const ts = Date.parse(m.timestamp); if (!Number.isFinite(ts)) continue; const day = new Date(ts + 9 * 3600000).getUTCDay(); const w = wd[day] || (wd[day] = { n: 0, l: 0, c: 0 }); w.n++; w.l += num(m.like_count); w.c += num(m.comments_count); }
+  const by_weekday = {}; for (const k of Object.keys(wd)) { const w = wd[k]; by_weekday[k] = { n: w.n, avg_likes: +(w.l / w.n).toFixed(1), avg_comments: +(w.c / w.n).toFixed(1) }; }
   return {
     followers, following, media_count, uploads_7d, uploads_thisweek,
+    top_posts, by_weekday,
     avg_likes: n ? +(sumLikes / n).toFixed(1) : 0, avg_comments: n ? +(sumCmts / n).toFixed(1) : 0,
     engagement_rate: (n && followers) ? +(((sumLikes + sumCmts) / n / followers) * 100).toFixed(3) : 0,
     total_likes, total_comments, media_sampled: media.length,
