@@ -561,10 +561,14 @@ export function computeSnsMetrics(bd, date) {
   matured.sort((a, b) => b.ts - a.ts);
   const sample = matured.slice(0, CONFIG.igMaturedMax); const n = sample.length;
   const sumLikes = sample.reduce((s, x) => s + x.like, 0), sumCmts = sample.reduce((s, x) => s + x.cmt, 0);
+  // 최근 게시물(최대 25) 총 좋아요·댓글 — 일별 스냅샷 차이로 '일일 반응' 도출용
+  let total_likes = 0, total_comments = 0;
+  for (const m of media) { total_likes += num(m.like_count); total_comments += num(m.comments_count); }
   return {
     followers, following, media_count, uploads_7d,
     avg_likes: n ? +(sumLikes / n).toFixed(1) : 0, avg_comments: n ? +(sumCmts / n).toFixed(1) : 0,
     engagement_rate: (n && followers) ? +(((sumLikes + sumCmts) / n / followers) * 100).toFixed(3) : 0,
+    total_likes, total_comments, media_sampled: media.length,
     sample_size: n, window_days: CONFIG.igMaturedDays, collected_at: nowIso(),
   };
 }
