@@ -86,7 +86,13 @@ async function main() {
     console.log(JSON.stringify({ ig_user_id: process.env.IG_USER_ID, results: out }, null, 2));
     return;
   }
-  if (mode === 'visits') { // 방문구분(신규/재방/대체/소개/손님) 집계 — 단독 실행/검증
+  if (mode === 'visits') { // 방문구분(신규/재방/대체/소개/손님) 집계 — 단독 실행/검증/백필
+    if (opt.from && opt.to) {
+      for (const d of dateRange(opt.from, opt.to)) {
+        console.log(`[visits] ${d} ` + JSON.stringify(await collectVisits(d, dry)));
+      }
+      return;
+    }
     console.log(JSON.stringify(await collectVisits(opt.date || kstDateString(-1), dry), null, 2));
     return;
   }
@@ -107,7 +113,16 @@ async function main() {
   if (mode === 'page') { // 임의 페이지 덤프: 지점 코드/셀렉트/테이블 추출. --path=/work/detail/company/company_main.asp
     const session = await handsosLogin();
     const path = opt.path || '/work/detail/company/company_main.asp';
-    const r = await fetch(reportHost() + path, { headers: { 'Cookie': session.cookie, 'User-Agent': UA } });
+    let r;
+    if (opt.post) { // POST: 쿼리스트링을 body로 전송 (PkCompany 등 지점/담당자 지정)
+      const qi = path.indexOf('?');
+      const base = qi >= 0 ? path.slice(0, qi) : path;
+      const body = qi >= 0 ? path.slice(qi + 1) : '';
+      const ref = opt.ref ? String(opt.ref) : (reportHost() + '/work/detail/report/report_main.asp');
+      r = await fetch(reportHost() + base, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': session.cookie, 'User-Agent': UA, 'Referer': ref }, body });
+    } else {
+      r = await fetch(reportHost() + path, { headers: { 'Cookie': session.cookie, 'User-Agent': UA } });
+    }
     const html = decodeEucKr(await r.arrayBuffer());
     const selects = [...html.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi)].map(sm => {
       const name = (/name\s*=\s*["']?([^"'\s>]+)/i.exec(sm[1]) || [])[1] || '(noname)';
@@ -117,7 +132,29 @@ async function main() {
     const codePairs = [...html.matchAll(/(\d{7,9})[^>]{0,60}?(데이민[^<>"']{0,12}|에토[^<>"']{0,10}|[가-힣]{2,10}(?:점|바버샵|사무실))/g)].map(m => ({ code: m[1], near: cleanCell(m[2]) }));
     const codePairs2 = [...html.matchAll(/(데이민[^<>"']{0,12}|에토[^<>"']{0,10}|[가-힣]{2,10}(?:점|바버샵|사무실))[^<]{0,60}?(\d{7,9})/g)].map(m => ({ near: cleanCell(m[1]), code: m[2] }));
     const tables = gridTables(html).filter(t => t.length <= 60).slice(0, 6);
-    console.log(JSON.stringify({ path, status: r.status, hasTable: /<table/i.test(html), selects, codePairs, codePairs2, tables }, null, 2));
+    // 링크/프레임/스크립트 URL 추출 (고객/재방문/휴면/이탈 메뉴 경로 탐색용)
+    const anchors = [...html.matchAll(/<a\b[^>]*href\s*=\s*["']?([^"'\s>]+)[^>]*>([\s\S]*?)<\/a>/gi)].map(m => ({ href: m[1], text: cleanCell(m[2]) }));
+    const kw = /고객|재방|방문|휴면|이탈|단골|리텐션|재구매|customer|member|visit|guest|retention/i;
+    const menuLinks = anchors.filter(l => (l.text && kw.test(l.text)) || kw.test(l.href));
+    const aspLinks = [...new Set(anchors.map(l => l.href).filter(h => /\.asp/i.test(h)))].slice(0, 80);
+    const frames = [...html.matchAll(/<(?:i?frame)\b[^>]*src\s*=\s*["']?([^"'\s>]+)/gi)].map(m => m[1]);
+    const reportPops = [...html.matchAll(/report_pop\s*\(([^)]*)\)/gi)].map(m => m[1].trim()).slice(0, 60);
+    // 폼(action/method/필드) 추출 — 리포트 요청 역설계용
+    const forms = [...html.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)].map(fm => {
+      const attrs = fm[1];
+      const action = (/action\s*=\s*["']?([^"'\s>]*)/i.exec(attrs) || [])[1] || '';
+      const method = (/method\s*=\s*["']?([^"'\s>]*)/i.exec(attrs) || [])[1] || 'GET';
+      const name = (/name\s*=\s*["']?([^"'\s>]*)/i.exec(attrs) || [])[1] || '';
+      const inputs = [...fm[2].matchAll(/<input\b[^>]*>/gi)].map(im => {
+        const t = im[0];
+        return { name: (/name\s*=\s*["']?([^"'\s>]*)/i.exec(t) || [])[1] || '', type: (/type\s*=\s*["']?([^"'\s>]*)/i.exec(t) || [])[1] || 'text', value: (/value\s*=\s*["']?([^"'>]*)/i.exec(t) || [])[1] || '' };
+      }).filter(x => x.name);
+      const selNames = [...fm[2].matchAll(/<select\b[^>]*name\s*=\s*["']?([^"'\s>]*)/gi)].map(m => m[1]);
+      return { name, action, method, inputs, selects: selNames };
+    });
+    const fnCalls = [...html.matchAll(/\b(winOpen|goReport|fnReport|reportView|pop_report|openReport)\s*\(([^;]*?)\)/gi)].map(m => m[1] + '(' + m[2].trim() + ')').slice(0, 40);
+    const jsUrls = [...new Set([...html.matchAll(/(?:location\.href|open|goPage|fnMove|href)\s*[=(]\s*["']([^"']*\.asp[^"']*)["']/gi)].map(m => m[1]))].slice(0, 60);
+    console.log(JSON.stringify({ path, status: r.status, hasTable: /<table/i.test(html), title: (/(<title>)([\s\S]*?)<\/title>/i.exec(html) || [])[2] || '', selects, codePairs, codePairs2, tables, menuLinks, frames, aspLinks, jsUrls, reportPops, fnCalls, forms }, null, 2));
     return;
   }
   if (opt.from && opt.to) {
@@ -129,16 +166,28 @@ async function main() {
   }
   const errors = [];
   if (mode === 'sales' || mode === 'both') {
-    // 매출은 사후 수정·환불 반영을 위해 여러 나이(D-1,D-2,D-7,D-30)로 재수집(멱등 덮어쓰기).
-    // --date 지정 시엔 그 한 날짜만.
-    const dates = opt.date ? [opt.date] : refreshOffsets().map(n => kstDateString(-n));
-    for (const date of dates) {
-      try { console.log('[sales]', date, JSON.stringify(await collectSales(date, dry))); }
-      catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
+    // 매출·방문구분 모두 사후 수정·환불 반영을 위해 여러 나이(D-1,D-2,D-7,D-30)로 재수집(멱등, 변화 시 revisions 기록).
+    if (opt.date) {
+      // --date 지정 시엔 그 한 날짜만 (매출+방문 1회씩)
+      try { console.log('[sales]', opt.date, JSON.stringify(await collectSales(opt.date, dry))); }
+      catch (e) { errors.push('sales ' + opt.date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + opt.date + ': ' + e.message); }
+      try { console.log('[visits]', opt.date, JSON.stringify(await collectVisits(opt.date, dry))); }
+      catch (e) { errors.push('visits ' + opt.date + ': ' + e.message); await notify('[Hermes] 방문구분 수집 실패 ' + opt.date + ': ' + e.message); }
+    } else {
+      const offs = refreshOffsets();
+      const d1 = kstDateString(-1);
+      // D-1: 5분 간격 최대 N회 정합성 확인 후 저장 (매출+방문)
+      await stableCollect(d1, dry, errors);
+      // 나머지 나이(D-2,D-7,D-30 등): 매출+방문 1회씩 (수정·환불·변화 반영, revisions 기록)
+      for (const n of offs) {
+        if (n === 1) continue;
+        const date = kstDateString(-n);
+        try { console.log('[sales]', date, JSON.stringify(await collectSales(date, dry))); }
+        catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
+        try { console.log('[visits]', date, JSON.stringify(await collectVisits(date, dry))); }
+        catch (e) { errors.push('visits ' + date + ': ' + e.message); await notify('[Hermes] 방문구분 수집 실패 ' + date + ': ' + e.message); }
+      }
     }
-    // 방문구분(신규/재방)은 사후 변동 거의 없어 D-1 한 번만 수집
-    try { const vd = opt.date || kstDateString(-1); console.log('[visits]', JSON.stringify(await collectVisits(vd, dry))); }
-    catch (e) { errors.push('visits: ' + e.message); await notify('[Hermes] 방문구분 수집 실패: ' + e.message); }
   }
   if (mode === 'sns' || mode === 'both') {
     try { console.log('[sns]', JSON.stringify(await collectSns(kstDateString(0), dry))); }
@@ -257,17 +306,64 @@ async function collectVisits(date, dry) {
     if (!shop.code) { out.push({ shop: shop.shop, ok: false, error: 'code 미설정' }); continue; }
     try {
       const { c: v, dv } = await collectShopVisits(session, shop, date);
+      let revised = false;
       if (!dry) {
-        await rtdbPut(`/stores/${enc(shop.shop)}/daily/${enc(date)}/visits`, { ...v, collected_at: nowIso() });
-        for (const nm of Object.keys(dv)) await rtdbPut(`/stores/${enc(shop.shop)}/daily/${enc(date)}/dvisits/${enc(safeKey(nm))}`, dv[nm]);
+        // 재수집 시 이전 방문구분과 비교 → 신규/재방/total 바뀌면 수정 이력(revisions) 기록
+        const base = `/stores/${enc(shop.shop)}/daily/${enc(date)}`;
+        const prevV = await fbGET(`${base}/visits.json`);
+        const now = nowIso();
+        const rec = { ...v, collected_at: now };
+        rec.first_collected_at = (prevV && prevV.first_collected_at) || now;
+        const changed = prevV && ((+prevV.total || 0) !== (+v.total || 0) || (+prevV.신규 || 0) !== (+v.신규 || 0) || (+prevV.재방 || 0) !== (+v.재방 || 0));
+        if (changed) {
+          const rev = { at: now, prev_total: +prevV.total || 0, total: +v.total || 0, prev_신규: +prevV.신규 || 0, 신규: +v.신규 || 0, prev_재방: +prevV.재방 || 0, 재방: +v.재방 || 0 };
+          rec.revisions = ((prevV && prevV.revisions) || []).concat(rev).slice(-10);
+          rec.revised_at = now; revised = true;
+        } else if (prevV && prevV.revisions) { rec.revisions = prevV.revisions; if (prevV.revised_at) rec.revised_at = prevV.revised_at; }
+        await rtdbPut(`${base}/visits`, rec);
+        for (const nm of Object.keys(dv)) await rtdbPut(`${base}/dvisits/${enc(safeKey(nm))}`, dv[nm]);
       }
-      out.push({ shop: shop.shop, ok: true, ...v });
+      out.push({ shop: shop.shop, ok: true, ...v, revised });
     } catch (e) {
       if (e && e.emptyReport) { out.push({ shop: shop.shop, ok: true, closed: true }); continue; }
       out.push({ shop: shop.shop, ok: false, error: e.message });
     }
   }
   return { date, shops: out };
+}
+
+/* ═══ D-1 정합성 확인(재수집) ═══ */
+// 4시 실행 시 어제(D-1) 매출+방문을 5분 간격 최대 N회 dry로 재조회해 값이 안정(연속 2회 동일·무오류)인지 확인 후 저장.
+function sigOf(sRes, vRes) {
+  const s = ((sRes && sRes.shops) || []).map(x => x.shop + ':' + (x.ok === false ? 'ERR' : (x.closed ? 'closed' : (x.net_sales || 0) + '/' + (x.designers || 0)))).join('|');
+  const v = ((vRes && vRes.shops) || []).map(x => x.shop + ':' + (x.ok === false ? 'ERR' : (x.closed ? 'closed' : (x.total || 0)))).join('|');
+  return 's[' + s + '] v[' + v + ']';
+}
+async function stableCollect(date, dry, errors) {
+  const N = Math.max(1, parseInt(process.env.HANDSOS_CHECK_TRIES || '5', 10));
+  const gapMs = Math.max(0, parseInt(process.env.HANDSOS_CHECK_INTERVAL || '300', 10)) * 1000;
+  let lastSig = null, stable = false, attempts = 0;
+  for (let i = 0; i < N; i++) {
+    attempts++;
+    let sRes = null, vRes = null, hadErr = false;
+    try { sRes = await collectSales(date, true); } catch (e) { hadErr = true; }
+    try { vRes = await collectVisits(date, true); } catch (e) { hadErr = true; }
+    if (sRes) hadErr = hadErr || sRes.shops.some(s => s.ok === false);
+    if (vRes) hadErr = hadErr || vRes.shops.some(s => s.ok === false);
+    const sig = sigOf(sRes, vRes);
+    console.log(`[check] ${date} 시도 ${attempts}/${N}: ${sig}${hadErr ? ' ⚠오류' : ''}`);
+    if (!hadErr && lastSig !== null && sig === lastSig) { stable = true; break; }
+    lastSig = sig;
+    if (i < N - 1) await sleep(gapMs);
+  }
+  console.log(stable ? `[stable] ${date} ${attempts}회 만에 안정 확인` : `[unstable] ${date} ${attempts}회 시도 후에도 불안정/오류`);
+  if (!dry) {
+    try { console.log('[sales]', date, JSON.stringify(await collectSales(date, false))); }
+    catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
+    try { console.log('[visits]', date, JSON.stringify(await collectVisits(date, false))); }
+    catch (e) { errors.push('visits ' + date + ': ' + e.message); await notify('[Hermes] 방문구분 수집 실패 ' + date + ': ' + e.message); }
+  }
+  if (!stable) await notify(`[Hermes] ${date} 매출/방문이 ${attempts}회 재확인에도 안정되지 않음(값 변동 또는 오류). 데이터 확인 필요.`);
 }
 
 /* ═══ 핸드SOS 로그인 (www) ═══ */
