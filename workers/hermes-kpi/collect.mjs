@@ -86,6 +86,10 @@ async function main() {
     console.log(JSON.stringify({ ig_user_id: process.env.IG_USER_ID, results: out }, null, 2));
     return;
   }
+  if (mode === 'visits') { // 방문구분(신규/재방/대체/소개/손님) 집계 — 단독 실행/검증
+    console.log(JSON.stringify(await collectVisits(opt.date || kstDateString(-1), dry), null, 2));
+    return;
+  }
   if (mode === 'dump') { // 전점 담당자별 리포트 원본 구조 확인 (지점/디자이너 컬럼 파악용)
     const session = await handsosLogin();
     const d = opt.date || kstDateString(-1);
@@ -132,6 +136,9 @@ async function main() {
       try { console.log('[sales]', date, JSON.stringify(await collectSales(date, dry))); }
       catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
     }
+    // 방문구분(신규/재방)은 사후 변동 거의 없어 D-1 한 번만 수집
+    try { const vd = opt.date || kstDateString(-1); console.log('[visits]', JSON.stringify(await collectVisits(vd, dry))); }
+    catch (e) { errors.push('visits: ' + e.message); await notify('[Hermes] 방문구분 수집 실패: ' + e.message); }
   }
   if (mode === 'sns' || mode === 'both') {
     try { console.log('[sns]', JSON.stringify(await collectSns(kstDateString(0), dry))); }
@@ -204,6 +211,46 @@ function normName(s) { return String(s || '').replace(/^@/, '').replace(/\s+/g, 
 function resolveShop(reportName, map) {
   const shop = map.get(normName(reportName));
   return shop ? { shop, matched: true } : { shop: 'flagship', matched: false };
+}
+
+/* ═══ 방문구분(신규/재방/대체/소개/손님) 집계 ═══ */
+// Report B는 방문구분 컬럼이 없음 → strSalePart(A~E) 필터로 5번 조회해 유형별 접객수 합산.
+// A=신규소개 B=신규일반 C=재방지정 D=재방대체 E=손님(워크인). 신규=A+B, 재방=C+D.
+const VISIT_PARTS = [
+  { code: 'A', key: '신규소개' }, { code: 'B', key: '신규일반' },
+  { code: 'C', key: '재방지정' }, { code: 'D', key: '재방대체' }, { code: 'E', key: '손님' },
+];
+async function collectShopVisits(session, shop, date) {
+  const c = {};
+  for (const p of VISIT_PARTS) {
+    let guests = 0;
+    try {
+      const rb = parseReportB(await fetchReport(session, 'B', shop.code, date, p.code));
+      for (const d of rb.designers) guests += (+d.guests || 0);
+    } catch (e) { if (!(e && e.emptyReport)) throw e; } // 그 유형 무매출이면 0
+    c[p.key] = guests;
+    await sleep(150);
+  }
+  c['신규'] = c['신규소개'] + c['신규일반'];
+  c['재방'] = c['재방지정'] + c['재방대체'];
+  c['total'] = c['신규'] + c['재방'] + c['손님'];
+  return c;
+}
+async function collectVisits(date, dry) {
+  const session = await handsosLogin();
+  const out = [];
+  for (const shop of CONFIG.shops) {
+    if (!shop.code) { out.push({ shop: shop.shop, ok: false, error: 'code 미설정' }); continue; }
+    try {
+      const v = await collectShopVisits(session, shop, date);
+      if (!dry) await rtdbPut(`/stores/${enc(shop.shop)}/daily/${enc(date)}/visits`, { ...v, collected_at: nowIso() });
+      out.push({ shop: shop.shop, ok: true, ...v });
+    } catch (e) {
+      if (e && e.emptyReport) { out.push({ shop: shop.shop, ok: true, closed: true }); continue; }
+      out.push({ shop: shop.shop, ok: false, error: e.message });
+    }
+  }
+  return { date, shops: out };
 }
 
 /* ═══ 핸드SOS 로그인 (www) ═══ */
@@ -303,29 +350,29 @@ function buildReportAParams(shopCode, date) {
     ['strPopup', ''], ['page', ''], ['pkCustomer', ''], ['reportGB', ''], ['strCompanyNameTmp', ''], ['staffStatus', ''], ['pkStaff', ''],
   ]);
 }
-function buildReportBParams(shopCode, date) {
+function buildReportBParams(shopCode, date, salePart) {
   const w = ` and (  A.strSaleID in ( 'S','G','C','A','M' )  )  and A.strDate >= '${date}'  and A.strDate <= '${date}'`;
   return encodePairs([
     ['strDateS', date], ['strDateE', date], ['PkCompany', shopCode], ['nSrhGroup', '1'], ['strPriceKind', 'REAL'], ['chk_all', 'Y'],
     ['strSaleID', 'S'], ['strSaleID', 'G'], ['strSaleID', 'C'], ['strSaleID', 'A'], ['strSaleID', 'M'],
     ['where_SQL', w], ['Const_nSaleSearchYn', '1'], ['Const_nSaleSearchDay', '0'],
-    ['strSalePart', ''], ['pkMenuFst', ''], ['pkMenu', ''], ['pkGoodsSupply', ''], ['pkGoods', ''], ['nCashKind', ''],
+    ['strSalePart', salePart || ''], ['pkMenuFst', ''], ['pkMenu', ''], ['pkGoodsSupply', ''], ['pkGoods', ''], ['nCashKind', ''],
     ['nCashPriceYn', ''], ['nCardPriceYn', ''], ['nBankPriceYn', ''], ['nAdvancePriceYn', ''], ['nMisuPriceYn', ''], ['nUsePointYn', ''],
     ['strSaleID_Detail', ''], ['strPopup', ''], ['page', ''], ['pkCustomer', ''], ['reportGB', ''], ['strCompanyNameTmp', ''], ['staffStatus', ''], ['pkStaff', ''],
   ]);
 }
-async function fetchReport(session, kind, shopCode, date, _retry) {
+async function fetchReport(session, kind, shopCode, date, salePart, _retry) {
   const path = kind === 'A' ? '/work/detail/saleGubun.asp' : '/work/detail/saleStaffList_excel.asp';
   const headers = { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': session.cookie, 'User-Agent': UA };
   if (kind === 'B') headers['Referer'] = `${reportHost()}/work/detail/saleStaffList.asp`;
-  const body = kind === 'A' ? buildReportAParams(shopCode, date) : buildReportBParams(shopCode, date);
+  const body = kind === 'A' ? buildReportAParams(shopCode, date) : buildReportBParams(shopCode, date, salePart);
   const resp = await fetch(reportHost() + path, { method: 'POST', headers, body });
   const html = decodeEucKr(await resp.arrayBuffer());
   if (!/<table/i.test(html.slice(0, 4000))) {
     // 재로그인 후에도 table이 없으면 세션 문제가 아니라 그날 매출 자체가 없음(휴무/무매출)으로 판단.
     if (_retry) { const err = new Error(`빈 리포트(무매출/휴무 추정): ${kind} 응답에 <table> 없음`); err.emptyReport = true; throw err; }
     const fresh = await handsosLogin(); session.cookie = fresh.cookie;
-    return fetchReport(session, kind, shopCode, date, true);
+    return fetchReport(session, kind, shopCode, date, salePart, true);
   }
   return html;
 }
