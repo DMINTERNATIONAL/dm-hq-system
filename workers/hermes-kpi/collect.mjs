@@ -6,7 +6,7 @@
 //
 // 실행:  node collect.mjs [mode] [--date=YYYY-MM-DD] [--from= --to=] [--dry]
 //   mode = both(기본) | sales | sns | shops
-// 필수 env(시크릿): HANDSOS_COMPANY, HANDSOS_ID, HANDSOS_PW, IG_USER_ID, IG_TOKEN
+// 필수 env(시크릿): HANDSOS_COMPANY, HANDSOS_ID, HANDSOS_PW, IG_TOKEN (IG_USER_ID는 토큰에서 자동조회, 선택)
 // 선택 env: FIREBASE_URL, HANDSOS_LOGIN_HOST, HANDSOS_HOST
 //
 // Node 20+ (global fetch, Headers.getSetCookie). codepage로 cp949 디코딩.
@@ -50,6 +50,34 @@ async function main() {
 
   if (mode === 'shops') {
     console.log(JSON.stringify(await discoverShops(), null, 2));
+    return;
+  }
+  if (mode === 'ig') { // IG 연결 단독 테스트: 토큰만 있으면 IG_USER_ID 자동발견 후 business_discovery 조회
+    if (!process.env.IG_TOKEN) throw new Error('IG_TOKEN 미설정 (IG_TOKEN=... 붙여서 실행)');
+    // IG_USER_ID 자동발견 (me/accounts → 페이지의 instagram_business_account.id)
+    if (!process.env.IG_USER_ID || opt.whoami) {
+      const url = `${IG_API}/me/accounts?fields=name,instagram_business_account{id,username,followers_count}&access_token=${encodeURIComponent(process.env.IG_TOKEN)}`;
+      const data = await (await fetch(url, { headers: { 'User-Agent': UA } })).json();
+      if (data.error) throw new Error('토큰으로 페이지 조회 실패: ' + data.error.message);
+      const pages = (data.data || []).filter(p => p.instagram_business_account);
+      console.log('[발견된 IG 비즈니스 계정]');
+      pages.forEach(p => console.log(`  · ${p.name} → @${p.instagram_business_account.username} (id=${p.instagram_business_account.id}, 팔로워 ${p.instagram_business_account.followers_count})`));
+      if (opt.whoami) return;
+      if (!pages.length) throw new Error('연결된 IG 비즈니스 계정을 못 찾음 (페이지-IG 연결/권한 확인)');
+      process.env.IG_USER_ID = pages[0].instagram_business_account.id;
+      console.log(`[자동선택] IG_USER_ID=${process.env.IG_USER_ID} (@${pages[0].instagram_business_account.username})\n`);
+    }
+    const users = (opt.user ? [opt.user] : ['day.mean_min', 'day.mean_dawn', 'etohbarber']).map(u => String(u).replace(/^@/, '').trim());
+    const out = [];
+    for (const u of users) {
+      try {
+        const bd = await igBusinessDiscovery(u);
+        const m = computeSnsMetrics(bd, kstDateString(0));
+        out.push({ user: u, ok: true, followers: m.followers, media_count: m.media_count, uploads_7d: m.uploads_7d, avg_likes: m.avg_likes, avg_comments: m.avg_comments, engagement_rate: m.engagement_rate, sample_size: m.sample_size });
+      } catch (e) { out.push({ user: u, ok: false, error: e.message }); }
+      await sleep(CONFIG.igRateGapMs);
+    }
+    console.log(JSON.stringify({ ig_user_id: process.env.IG_USER_ID, results: out }, null, 2));
     return;
   }
   if (mode === 'dump') { // 전점 담당자별 리포트 원본 구조 확인 (지점/디자이너 컬럼 파악용)
@@ -449,7 +477,8 @@ function storeFromDesigners(designers) {
 // 지점(한글) → shop 키. 인스타 대상은 앱 직원관리(/users)의 재직 디자이너에서 읽는다.
 const BRANCH_TO_SHOP = { '플래그십점': 'flagship', '모먼트점': 'moment', '합정점': 'eto' };
 async function collectSns(date, dry) {
-  if (!process.env.IG_USER_ID || !process.env.IG_TOKEN) throw new Error('IG_USER_ID/IG_TOKEN 미설정');
+  if (!process.env.IG_TOKEN) throw new Error('IG_TOKEN 미설정');
+  await resolveIgUserId(); // IG_USER_ID 자동 확정 (없으면 토큰으로 조회)
   const users = await fbGET('/users.json') || {};
   // 재직(퇴사 자동 제외) + 디자이너/교육자 + ig_username 있는 사람만
   const active = Object.keys(users).map(ph => ({ ph, u: users[ph] || {} }))
@@ -473,9 +502,22 @@ async function collectSns(date, dry) {
   }
   return { date, count: out.length, results: out };
 }
+// IG_USER_ID를 env에서 쓰되, 없으면 토큰으로 자동 조회(캐시). → 시크릿은 IG_TOKEN 하나면 됨.
+let _igUserId = null;
+async function resolveIgUserId() {
+  if (process.env.IG_USER_ID) return process.env.IG_USER_ID;
+  if (_igUserId) return _igUserId;
+  const url = `${IG_API}/me/accounts?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(process.env.IG_TOKEN)}`;
+  const data = await (await fetch(url, { headers: { 'User-Agent': UA } })).json();
+  if (data.error) throw new Error('IG_USER_ID 자동조회 실패: ' + data.error.message);
+  const pg = (data.data || []).find(p => p.instagram_business_account);
+  if (!pg) throw new Error('토큰에 연결된 IG 비즈니스 계정 없음 (페이지-IG 연결/권한 확인)');
+  _igUserId = pg.instagram_business_account.id;
+  return _igUserId;
+}
 async function igBusinessDiscovery(username) {
   const fields = `business_discovery.username(${username}){followers_count,follows_count,media_count,media.limit(25){id,caption,like_count,comments_count,media_type,permalink,timestamp}}`;
-  const url = `${IG_API}/${encodeURIComponent(process.env.IG_USER_ID)}?access_token=${encodeURIComponent(process.env.IG_TOKEN)}&fields=${encodeURIComponent(fields)}`;
+  const url = `${IG_API}/${encodeURIComponent(await resolveIgUserId())}?access_token=${encodeURIComponent(process.env.IG_TOKEN)}&fields=${encodeURIComponent(fields)}`;
   const resp = await fetch(url, { headers: { 'User-Agent': UA } });
   const data = await resp.json();
   if (!resp.ok || data.error) throw new Error((data.error && data.error.message) || `IG ${resp.status}`);
