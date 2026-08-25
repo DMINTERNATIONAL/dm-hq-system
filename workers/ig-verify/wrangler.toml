@@ -1,0 +1,7 @@
+# DM INTERNATIONAL — 인스타그램 아이디 검증 Worker
+# 배포: cd workers/ig-verify && npx wrangler deploy
+# 시크릿(필수): npx wrangler secret put IG_TOKEN   (DM Analytics 시스템사용자 무만료 토큰)
+#   (선택)      npx wrangler secret put IG_USER_ID  — 미설정 시 토큰에서 자동조회
+name = "dm-ig-verify"
+main = "src/index.js"
+compatibility_date = "2026-08-25"

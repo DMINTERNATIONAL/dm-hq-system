@@ -501,6 +501,7 @@ async function collectSns(date, dry) {
     const name = u.nick || u.name || active[i].ph;
     const username = String(u.ig_username).replace(/^@/, '').trim();
     if (!username) continue;
+    const ph = active[i].ph;
     try {
       const metrics = computeSnsMetrics(await igBusinessDiscovery(username), date);
       metrics.ig_username = username;
@@ -508,10 +509,18 @@ async function collectSns(date, dry) {
       metrics.role = u.role || '';
       metrics.academyRole = u.academyRole || '';
       metrics.brand = u.brand || '';
-      metrics.phone = active[i].ph;
-      if (!dry) await rtdbPut(`/stores/${enc(shop)}/daily/${enc(date)}/sns/${enc(safeKey(name))}`, metrics);
+      metrics.phone = ph;
+      if (!dry) {
+        await rtdbPut(`/stores/${enc(shop)}/daily/${enc(date)}/sns/${enc(safeKey(name))}`, metrics);
+        // 연결 상태(직원관리 배지용): 조회 성공 → 팔로워 수 기록
+        await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: true, username, followers: metrics.followers, at: nowIso() });
+      }
       out.push({ shop, name, username, ok: true, ...metrics });
-    } catch (e) { out.push({ shop, name, username, ok: false, error: e.message }); }
+    } catch (e) {
+      // 조회 실패(없는 아이디·개인계정·비공개 등) → 사유 기록해 직원관리에서 확인 가능
+      if (!dry) { try { await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: false, username, error: e.message, at: nowIso() }); } catch (_) {} }
+      out.push({ shop, name, username, ok: false, error: e.message });
+    }
     if (i < active.length - 1) await sleep(CONFIG.igRateGapMs);
   }
   return { date, count: out.length, results: out };
