@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'both | sales | sns | shops'
+        description: 'both | sales | sns | shops | ig(연결테스트)'
         required: false
         default: 'both'
       date:
