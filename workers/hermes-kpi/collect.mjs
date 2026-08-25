@@ -78,7 +78,8 @@ async function main() {
       try {
         const bd = await igBusinessDiscovery(u);
         const m = computeSnsMetrics(bd, kstDateString(0));
-        out.push({ user: u, ok: true, followers: m.followers, media_count: m.media_count, uploads_7d: m.uploads_7d, avg_likes: m.avg_likes, avg_comments: m.avg_comments, engagement_rate: m.engagement_rate, sample_size: m.sample_size });
+        const ptCount = {}; for (const md of ((bd.media && bd.media.data) || [])) { const t = md.media_product_type || '(없음)'; ptCount[t] = (ptCount[t] || 0) + 1; }
+        out.push({ user: u, ok: true, followers: m.followers, media_count: m.media_count, avg_likes: m.avg_likes, avg_comments: m.avg_comments, engagement_rate: m.engagement_rate, reels_count: m.reels_count, feed_count: m.feed_count, reels_avg_likes: m.reels_avg_likes, feed_avg_likes: m.feed_avg_likes, media_product_type_분포: ptCount });
       } catch (e) { out.push({ user: u, ok: false, error: e.message }); }
       await sleep(CONFIG.igRateGapMs);
     }
@@ -542,7 +543,7 @@ async function resolveIgUserId() {
   return _igUserId;
 }
 async function igBusinessDiscovery(username) {
-  const fields = `business_discovery.username(${username}){followers_count,follows_count,media_count,media.limit(25){id,caption,like_count,comments_count,media_type,permalink,timestamp}}`;
+  const fields = `business_discovery.username(${username}){followers_count,follows_count,media_count,media.limit(25){id,caption,like_count,comments_count,media_type,media_product_type,permalink,timestamp}}`;
   const url = `${IG_API}/${encodeURIComponent(await resolveIgUserId())}?access_token=${encodeURIComponent(process.env.IG_TOKEN)}&fields=${encodeURIComponent(fields)}`;
   const resp = await fetch(url, { headers: { 'User-Agent': UA } });
   const data = await resp.json();
@@ -561,14 +562,25 @@ export function computeSnsMetrics(bd, date) {
   matured.sort((a, b) => b.ts - a.ts);
   const sample = matured.slice(0, CONFIG.igMaturedMax); const n = sample.length;
   const sumLikes = sample.reduce((s, x) => s + x.like, 0), sumCmts = sample.reduce((s, x) => s + x.cmt, 0);
-  // 최근 게시물(최대 25) 총 좋아요·댓글 — 일별 스냅샷 차이로 '일일 반응' 도출용
+  // 최근 게시물(최대 25) 총 좋아요·댓글 + 릴스/피드 구분(media_product_type)
   let total_likes = 0, total_comments = 0;
-  for (const m of media) { total_likes += num(m.like_count); total_comments += num(m.comments_count); }
+  let reels_count = 0, feed_count = 0, reels_likes = 0, reels_cmts = 0, feed_likes = 0, feed_cmts = 0;
+  for (const m of media) {
+    const lk = num(m.like_count), cm = num(m.comments_count);
+    total_likes += lk; total_comments += cm;
+    if ((m.media_product_type || '') === 'REELS') { reels_count++; reels_likes += lk; reels_cmts += cm; }
+    else { feed_count++; feed_likes += lk; feed_cmts += cm; }
+  }
   return {
     followers, following, media_count, uploads_7d,
     avg_likes: n ? +(sumLikes / n).toFixed(1) : 0, avg_comments: n ? +(sumCmts / n).toFixed(1) : 0,
     engagement_rate: (n && followers) ? +(((sumLikes + sumCmts) / n / followers) * 100).toFixed(3) : 0,
     total_likes, total_comments, media_sampled: media.length,
+    reels_count, feed_count,
+    reels_avg_likes: reels_count ? +(reels_likes / reels_count).toFixed(1) : 0,
+    reels_avg_comments: reels_count ? +(reels_cmts / reels_count).toFixed(1) : 0,
+    feed_avg_likes: feed_count ? +(feed_likes / feed_count).toFixed(1) : 0,
+    feed_avg_comments: feed_count ? +(feed_cmts / feed_count).toFixed(1) : 0,
     sample_size: n, window_days: CONFIG.igMaturedDays, collected_at: nowIso(),
   };
 }
