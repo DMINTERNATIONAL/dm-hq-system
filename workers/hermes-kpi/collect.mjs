@@ -137,10 +137,22 @@ async function collectShopSales(session, shop, date, dry, branchMap) {
   if (dry) return { shop: shop.shop, ok: true, dry: true, code: shop.code, designers: reportB.designers.length, net_sales: store.net_sales, names: reportB.designers.map(d => d.name), branch_mismatch: mismatched };
 
   const base = `/stores/${enc(shop.shop)}/daily/${enc(date)}`;
+  // 재수집 시 이전 실매출과 비교 → 바뀌면 수정 이력(revisions) 기록 (환불·정정 반영 추적)
+  const prevStore = await fbGET(`${base}/store.json`);
+  const prevMeta = await fbGET(`${base}/meta.json`);
+  meta.first_collected_at = (prevMeta && prevMeta.first_collected_at) || meta.collected_at;
+  let revised = false;
+  if (prevStore && (+prevStore.net_sales || 0) !== store.net_sales) {
+    const rev = { at: meta.collected_at, prev_net: +prevStore.net_sales || 0, net: store.net_sales };
+    meta.revisions = ((prevMeta && prevMeta.revisions) || []).concat(rev).slice(-10);
+    meta.revised_at = rev.at; revised = true;
+  } else if (prevMeta && prevMeta.revisions) {
+    meta.revisions = prevMeta.revisions; if (prevMeta.revised_at) meta.revised_at = prevMeta.revised_at;
+  }
   await rtdbPut(`${base}/store`, store);
   await rtdbPut(`${base}/meta`, meta);
   for (const d of reportB.designers) await rtdbPut(`${base}/designers/${enc(safeKey(d.name))}`, stripName(d));
-  return { shop: shop.shop, ok: true, designers: reportB.designers.length, net_sales: store.net_sales, branch_mismatch: mismatched };
+  return { shop: shop.shop, ok: true, designers: reportB.designers.length, net_sales: store.net_sales, branch_mismatch: mismatched, revised };
 }
 
 // users.json → 지점 매핑 룩업(검증용). 핸드SOS 직원명=닉네임 → nick 우선, 실명 폴백. 전 직원(퇴사 포함).
