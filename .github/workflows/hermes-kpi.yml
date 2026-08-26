@@ -45,8 +45,8 @@ jobs:
           HANDSOS_ID: ${{ secrets.HANDSOS_ID }}
           HANDSOS_PW: ${{ secrets.HANDSOS_PW }}
           HANDSOS_PROXY: ${{ secrets.HANDSOS_PROXY }}   # 한국 레지덴셜 프록시(핸드SOS 차단 우회). http://user:pass@host:port
-          HANDSOS_CHECK_TRIES: '3'                       # 프록시 데이터 절약: D-1 정합성 확인 3회
-          HANDSOS_CHECK_INTERVAL: '90'                   # 90초 간격(sticky 30분 내)
+          HANDSOS_CHECK_TRIES: '1'                       # 프록시 데이터 절약: 재확인 생략(D-1 1회만 수집)
+          HANDSOS_REFRESH_OFFSETS: '1,7'                 # 재수집 나이 D-1·D-7만(4개→2개, 데이터 절반). 환불은 대부분 1주 내
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}

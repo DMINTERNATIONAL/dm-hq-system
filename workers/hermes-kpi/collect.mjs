@@ -361,27 +361,32 @@ async function stableCollect(date, dry, errors) {
   const N = Math.max(1, parseInt(process.env.HANDSOS_CHECK_TRIES || '5', 10));
   const gapMs = Math.max(0, parseInt(process.env.HANDSOS_CHECK_INTERVAL || '300', 10)) * 1000;
   let lastSig = null, stable = false, attempts = 0;
-  for (let i = 0; i < N; i++) {
-    attempts++;
-    let sRes = null, vRes = null, hadErr = false;
-    try { sRes = await collectSales(date, true); } catch (e) { hadErr = true; }
-    try { vRes = await collectVisits(date, true); } catch (e) { hadErr = true; }
-    if (sRes) hadErr = hadErr || sRes.shops.some(s => s.ok === false);
-    if (vRes) hadErr = hadErr || vRes.shops.some(s => s.ok === false);
-    const sig = sigOf(sRes, vRes);
-    console.log(`[check] ${date} 시도 ${attempts}/${N}: ${sig}${hadErr ? ' ⚠오류' : ''}`);
-    if (!hadErr && lastSig !== null && sig === lastSig) { stable = true; break; }
-    lastSig = sig;
-    if (i < N - 1) await sleep(gapMs);
+  if (N >= 2) { // 재확인(dry) 단계: 프록시 데이터가 넉넉할 때만. N=1이면 생략하고 1회만 수집.
+    for (let i = 0; i < N; i++) {
+      attempts++;
+      let sRes = null, vRes = null, hadErr = false;
+      try { sRes = await collectSales(date, true); } catch (e) { hadErr = true; }
+      try { vRes = await collectVisits(date, true); } catch (e) { hadErr = true; }
+      if (sRes) hadErr = hadErr || sRes.shops.some(s => s.ok === false);
+      if (vRes) hadErr = hadErr || vRes.shops.some(s => s.ok === false);
+      const sig = sigOf(sRes, vRes);
+      console.log(`[check] ${date} 시도 ${attempts}/${N}: ${sig}${hadErr ? ' ⚠오류' : ''}`);
+      if (!hadErr && lastSig !== null && sig === lastSig) { stable = true; break; }
+      lastSig = sig;
+      if (i < N - 1) await sleep(gapMs);
+    }
+    console.log(stable ? `[stable] ${date} ${attempts}회 만에 안정 확인` : `[unstable] ${date} ${attempts}회 시도 후에도 불안정/오류`);
+  } else {
+    stable = true; // 재확인 생략(프록시 데이터 절약): D-1 1회만 수집·저장
+    console.log(`[single] ${date} 재확인 생략(1회 수집)`);
   }
-  console.log(stable ? `[stable] ${date} ${attempts}회 만에 안정 확인` : `[unstable] ${date} ${attempts}회 시도 후에도 불안정/오류`);
   if (!dry) {
     try { console.log('[sales]', date, JSON.stringify(await collectSales(date, false))); }
     catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
     try { console.log('[visits]', date, JSON.stringify(await collectVisits(date, false))); }
     catch (e) { errors.push('visits ' + date + ': ' + e.message); await notify('[Hermes] 방문구분 수집 실패 ' + date + ': ' + e.message); }
   }
-  if (!stable) await notify(`[Hermes] ${date} 매출/방문이 ${attempts}회 재확인에도 안정되지 않음(값 변동 또는 오류). 데이터 확인 필요.`);
+  if (N >= 2 && !stable) await notify(`[Hermes] ${date} 매출/방문이 ${attempts}회 재확인에도 안정되지 않음(값 변동 또는 오류). 데이터 확인 필요.`);
 }
 
 /* ═══ 핸드SOS 로그인 (www) ═══ */
