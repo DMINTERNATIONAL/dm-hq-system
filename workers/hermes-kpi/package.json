@@ -8,6 +8,7 @@
     "collect": "node collect.mjs both"
   },
   "dependencies": {
-    "codepage": "^1.15.0"
+    "codepage": "^1.15.0",
+    "undici": "^8.10.0"
   }
 }

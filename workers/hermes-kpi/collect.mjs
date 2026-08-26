@@ -12,7 +12,25 @@
 // Node 20+ (global fetch, Headers.getSetCookie). codepage로 cp949 디코딩.
 
 import * as cptableMod from 'codepage';
+import { fetch as undiciFetch, ProxyAgent } from 'undici';
 const cptable = cptableMod.default || cptableMod;
+
+// 핸드SOS는 데이터센터 IP(GitHub Actions·클라우드)를 차단 → 핸드SOS 요청만 한국 레지덴셜 프록시로 우회한다.
+// HANDSOS_PROXY = http://user:pass@host:port (예: IPRoyal 한국 sticky). 미설정이면 직결(로컬/한국 IP 실행용).
+(() => {
+  let proxyUrl = process.env.HANDSOS_PROXY;
+  if (!proxyUrl) return;
+  // sticky 세션 ID를 실행마다 새로 발급 → 매번 신선한 한국 IP(오래된/플래그된 IP 고착 방지). 한 실행 내에선 동일 IP 유지.
+  if (/_session-/i.test(proxyUrl)) proxyUrl = proxyUrl.replace(/_session-[^_@]+/i, '_session-' + Math.random().toString(36).slice(2, 12));
+  const dispatcher = new ProxyAgent(proxyUrl);
+  const orig = globalThis.fetch;
+  globalThis.fetch = (input, init = {}) => {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (/handsos\.com/i.test(url)) return undiciFetch(input, { ...(init || {}), dispatcher });
+    return orig(input, init);
+  };
+  console.error('[proxy] 핸드SOS 요청은 프록시 경유:', proxyUrl.replace(/\/\/[^@]*@/, '//***@'));
+})();
 
 /* ═══ 설정 ═══ */
 const CONFIG = {
