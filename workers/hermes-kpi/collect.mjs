@@ -61,6 +61,21 @@ const reportHost = () => process.env.HANDSOS_HOST || 'https://www1.handsos.com';
 const fbUrl = () => process.env.FIREBASE_URL || FB_DEFAULT;
 // 매출 재수집 나이(일): 수정·환불 반영 위해 어제(1)+2일+7일+30일 뒤 재조회. env로 재정의 가능(콤마).
 const refreshOffsets = () => (process.env.HANDSOS_REFRESH_OFFSETS || '1,2,7,30').split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n) && n >= 0);
+// 다중 크론(정시성 확보용 백업 스케줄) 대비: 해당 날짜가 최근 HANDSOS_FRESH_HOURS 내 이미 수집됐으면
+// 핸드SOS(프록시) 재조회를 생략한다 → 여러 번 걸어도 프록시 데이터는 한 번만 소모. 0이면 가드 끔.
+async function salesFreshFor(date) {
+  const hrs = parseFloat(process.env.HANDSOS_FRESH_HOURS || '10');
+  if (!(hrs > 0)) return false;
+  const lim = hrs * 3600000, now = Date.now();
+  for (const s of CONFIG.shops) {
+    try {
+      const meta = await fbGET(`/stores/${enc(s.shop)}/daily/${enc(date)}/meta.json`);
+      const ts = meta && meta.collected_at;
+      if (ts && (now - Date.parse(ts)) < lim) return true;
+    } catch { /* 읽기 실패 시 안전하게 수집 진행 */ }
+  }
+  return false;
+}
 
 /* ═══ 엔트리 ═══ */
 async function main() {
@@ -194,16 +209,22 @@ async function main() {
     } else {
       const offs = refreshOffsets();
       const d1 = kstDateString(-1);
-      // D-1: 5분 간격 최대 N회 정합성 확인 후 저장 (매출+방문)
-      await stableCollect(d1, dry, errors);
-      // 나머지 나이(D-2,D-7,D-30 등): 매출+방문 1회씩 (수정·환불·변화 반영, revisions 기록)
-      for (const n of offs) {
-        if (n === 1) continue;
-        const date = kstDateString(-n);
-        try { console.log('[sales]', date, JSON.stringify(await collectSales(date, dry))); }
-        catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
-        try { console.log('[visits]', date, JSON.stringify(await collectVisits(date, dry))); }
-        catch (e) { errors.push('visits ' + date + ': ' + e.message); await notify('[Hermes] 방문구분 수집 실패 ' + date + ': ' + e.message); }
+      const force = args.includes('--force');
+      if (!dry && !force && await salesFreshFor(d1)) {
+        // 이미 오늘 다른 크론이 수집함 → 핸드SOS 프록시 재조회 생략(데이터 절약). SNS는 아래에서 계속 갱신.
+        console.log('[sales] skip —', d1, '최근 수집됨(다중 크론 백업, 프록시 절약). --force로 강제 가능');
+      } else {
+        // D-1: 5분 간격 최대 N회 정합성 확인 후 저장 (매출+방문)
+        await stableCollect(d1, dry, errors);
+        // 나머지 나이(D-2,D-7,D-30 등): 매출+방문 1회씩 (수정·환불·변화 반영, revisions 기록)
+        for (const n of offs) {
+          if (n === 1) continue;
+          const date = kstDateString(-n);
+          try { console.log('[sales]', date, JSON.stringify(await collectSales(date, dry))); }
+          catch (e) { errors.push('sales ' + date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + date + ': ' + e.message); }
+          try { console.log('[visits]', date, JSON.stringify(await collectVisits(date, dry))); }
+          catch (e) { errors.push('visits ' + date + ': ' + e.message); await notify('[Hermes] 방문구분 수집 실패 ' + date + ': ' + e.message); }
+        }
       }
     }
   }
