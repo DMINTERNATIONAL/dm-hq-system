@@ -718,6 +718,11 @@ async function collectSns(date, dry) {
         await rtdbPut(`/stores/${enc(shop)}/daily/${enc(date)}/sns/${enc(safeKey(name))}`, metrics);
         // 연결 상태(직원관리 배지용): 조회 성공 → 팔로워 수 기록
         await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: true, username, followers: metrics.followers, at: nowIso() });
+        // 인턴 연습 KPI용: 이번달 업로드수(피드+릴스, 스토리 제외)를 phone키로 저장 → 프론트가 연습보정에 사용.
+        // 인턴만(매출 없는 교육 대상). ym=수집일(KST) 기준 달.
+        if ((u.academyRole === '인턴' || u.role === '인턴')) {
+          await rtdbPut(`/practiceIg/${enc(date.slice(0, 7))}/${enc(ph)}`, { uploads: metrics.uploads_thismonth, username, at: nowIso() });
+        }
       }
       out.push({ shop, name, username, ok: true, ...metrics });
     } catch (e) {
