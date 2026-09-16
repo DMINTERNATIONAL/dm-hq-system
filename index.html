@@ -1448,8 +1448,15 @@ function tmPfbRow(name,t,dt,st,memo){st=st||'todo';return '<div class="tm-pfb-ro
 function tmCurPfb(){return tmRows('.tm-pfb-row',function(x){return {name:x.getAttribute('data-name')||'',t:x.getAttribute('data-t')||'',st:x.getAttribute('data-st')||'todo',memo:(x.querySelector('.tm-pfb-memo').value||'').trim()};});}
 function tmTeamNames(){var c=TM_CTX||{},list=[];if(c.des&&(c.des.nick||c.des.name))list.push(dispNm(c.des));(c.interns||[]).forEach(function(x){list.push(dispNm(x.u));});return list;}
 function tmOwnerOpts(sel){var h='<option value="">담당 선택</option>',found=false;tmTeamNames().forEach(function(nm){var on=(nm===sel);if(on)found=true;h+='<option'+(on?' selected':'')+'>'+tmEsc(nm)+'</option>';});if(sel&&!found)h+='<option selected>'+tmEsc(sel)+'</option>';return h;}
-function tmTodoRow(t,owner,due){return '<div class="tm-td-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><input class="tm-td-t" value="'+tmEsc(t||'')+'" placeholder="할 일" style="flex:2;min-width:140px"'+tmDis()+'><select class="tm-td-owner" style="flex:1;min-width:96px"'+tmDis()+'>'+tmOwnerOpts(owner)+'</select><input class="tm-td-due" type="date" value="'+tmEsc(due||'')+'" style="flex:1;min-width:130px"'+tmDis()+' title="기한"></div>';}
-window.tmAdd=function(kind){var m={prev:['TM-PREV-ROWS',tmPrevRow],todo:['TM-TODO-ROWS',tmTodoRow]}[kind];if(!m)return;var el=$(m[0]);if(!el)return;el.insertAdjacentHTML('beforeend',m[1]('','',''));};
+var TM_FOCUS_EG=['예) 재방률 올리기 — 시술 후 다음 예약까지 잡기','예) 신규 고객 상담 시간 10분 확보','예) 클리닉 시술 제안 늘리기'];
+var TM_NOTICE_EG=['예) 9/25 전체 교육 참석','예) 신제품 입고 — 사용법 숙지','예) 추석 연휴 근무표 확인'];
+function tmLineRow(cls,val,ph){return '<div class="'+cls+'" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input class="'+cls+'-t" value="'+tmEsc(val||'')+'" placeholder="'+tmEsc(ph||'')+'" style="flex:1;min-width:140px"'+tmDis()+'>'+((TM_CTX&&TM_CTX.canEdit)?'<button type="button" title="삭제" onclick="this.parentNode.remove()" style="flex:none;width:26px;height:26px;border:1px solid #e2e8f0;background:#fff;color:#cbd5e1;border-radius:7px;cursor:pointer;font-weight:800;line-height:1">×</button>':'')+'</div>';}
+function tmFocusRow(v,_a,_b,i){return tmLineRow('tm-focus',v,TM_FOCUS_EG[(i||0)%TM_FOCUS_EG.length]);}
+function tmNoticeRow(v,_a,_b,i){return tmLineRow('tm-notice',v,TM_NOTICE_EG[(i||0)%TM_NOTICE_EG.length]);}
+function tmLines(cls){return tmRows('.'+cls,function(x){var v=(x.querySelector('.'+cls+'-t').value||'').trim();return v||null;});}
+var TM_TODO_EG=['예) 신규 상담 스크립트 정리해서 팀 공유','예) 재방 안내 문자 템플릿 만들기','예) 인턴 드라이 교육 주 1회'];
+function tmTodoRow(t,owner,due,i){return '<div class="tm-td-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><input class="tm-td-t" value="'+tmEsc(t||'')+'" placeholder="'+tmEsc(TM_TODO_EG[(i||0)%TM_TODO_EG.length])+'" style="flex:2;min-width:140px"'+tmDis()+'><select class="tm-td-owner" style="flex:1;min-width:96px"'+tmDis()+'>'+tmOwnerOpts(owner)+'</select><input class="tm-td-due" type="date" value="'+tmEsc(due||'')+'" style="flex:1;min-width:130px"'+tmDis()+' title="기한"></div>';}
+window.tmAdd=function(kind){var m={prev:['TM-PREV-ROWS',tmPrevRow],todo:['TM-TODO-ROWS',tmTodoRow],focus:['TM-FOCUS-ROWS',tmFocusRow],notice:['TM-NOTICE-ROWS',tmNoticeRow]}[kind];if(!m)return;var el=$(m[0]);if(!el)return;var cnt=el.children.length;el.insertAdjacentHTML('beforeend',m[1]('','','',cnt));};
 
 function openTeamMeeting(designerPh,ym){
   go('p-team-meeting');
@@ -1480,13 +1487,18 @@ function tmRender(rec,prev){
   var carried=!(r.prevTodos&&r.prevTodos.length)&&pts.length>0;
   h+=tmCard('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12.5px;font-weight:800;color:#185FA5">지난달 할 일 점검</span><span id="TM-PREV-RATE"></span></div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">각 항목마다 <b>완료 / 부분 / 미완</b>을 선택하세요 (부분=0.5로 계산)</div>'+(carried?'<div style="font-size:11px;color:#2563eb;background:#eff6ff;border-radius:8px;padding:6px 9px;margin-bottom:8px">📋 지난달('+tmYmPrev(c.ym)+') 할 일을 자동으로 불러왔습니다. 항목별 상태를 선택하세요.</div>':'')+'<div id="TM-PREV-ROWS">'+(pts.length?pts.map(function(x){return tmPrevRow(x.t,x.st,x.memo);}).join(''):tmPrevRow('','','')+tmPrevRow('','','')+tmPrevRow('','',''))+'</div>'+(c.canEdit?'<button class="gbtn sec sm" style="width:auto;padding:5px 10px;font-size:11px;margin-top:4px" onclick="tmAdd(\'prev\')">+ 행 추가</button>':''));
   var cs=r.caseStudy||{};
-  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">이달의 고객 사례</div><div class="fg"><label class="flbl">시술 정보</label>'+tmTA('TM-CASE-INFO',cs.info,'시술명 · 모발상태 · 사용 제품 등',2)+'</div><div class="fg"><label class="flbl">잘한 점</label>'+tmTA('TM-CASE-GOOD',cs.good,'',2)+'</div><div class="fg"><label class="flbl">아쉬운 점</label>'+tmTA('TM-CASE-BAD',cs.bad,'',2)+'</div><div class="fg" style="margin:0"><label class="flbl">팀 배움 한 줄</label>'+tmIN('TM-CASE-LEARN',cs.learn,'이 케이스에서 팀이 가져갈 한 문장')+'</div>');
+  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">이달의 고객 사례</div><div class="fg"><label class="flbl">시술 정보</label>'+tmTA('TM-CASE-INFO',cs.info,'시술명 · 모발상태 · 사용 제품 등',2)+'</div><div class="fg"><label class="flbl">잘한 점</label>'+tmTA('TM-CASE-GOOD',cs.good,'예) 모발 손상도 체크 후 약제를 한 단계 낮춘 판단',2)+'</div><div class="fg"><label class="flbl">아쉬운 점</label>'+tmTA('TM-CASE-BAD',cs.bad,'예) 시술 시간이 예정보다 30분 초과됨',2)+'</div><div class="fg" style="margin:0"><label class="flbl">팀 배움 한 줄</label>'+tmIN('TM-CASE-LEARN',cs.learn,'이 케이스에서 팀이 가져갈 한 문장')+'</div>');
   // B. DIRECTION
   h+=tmSect('2','이달의 방향','이번 달 팀이 집중할 것을 정해요');
   var kh=r.knowhow||{};
-  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">노하우 공유</div><div class="fg"><label class="flbl">공유 주제</label>'+tmIN('TM-KH-TOPIC',kh.topic,'')+'</div><div class="fg" style="margin:0"><label class="flbl">팀 적용 방법</label>'+tmTA('TM-KH-APPLY',kh.apply,'우리 팀에 어떻게 적용할지',2)+'</div>');
+  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">노하우 공유</div><div class="fg"><label class="flbl">공유 주제</label>'+tmIN('TM-KH-TOPIC',kh.topic,'예) 레이어드컷 볼륨 살리는 커트 각도')+'</div><div class="fg" style="margin:0"><label class="flbl">팀 적용 방법</label>'+tmTA('TM-KH-APPLY',kh.apply,'우리 팀에 어떻게 적용할지',2)+'</div>');
   var dr=r.direction||{};
-  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">팀 방향 &amp; 공지사항</div><div class="fg"><label class="flbl">이달 집중</label>'+tmTA('TM-DIR-FOCUS',dr.focus,'',2)+'</div><div class="fg" style="margin:0"><label class="flbl">공지사항</label>'+tmTA('TM-DIR-NOTICE',dr.notice,'',2)+'</div>');
+  var dFocus=Array.isArray(dr.focus)?dr.focus:(dr.focus?[dr.focus]:[]);
+  var dNotice=Array.isArray(dr.notice)?dr.notice:(dr.notice?[dr.notice]:[]);
+  var addBtn=function(kind,label){return c.canEdit?'<button class="gbtn sec sm" type="button" style="width:auto;padding:5px 10px;font-size:11px;margin-top:2px" onclick="tmAdd(\''+kind+'\')">+ '+label+'</button>':'';};
+  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">팀 방향 &amp; 공지사항</div>'
+    +'<label class="flbl">이달 집중</label><div id="TM-FOCUS-ROWS">'+(dFocus.length?dFocus.map(function(v,i){return tmFocusRow(v,null,null,i);}).join(''):tmFocusRow('',null,null,0)+tmFocusRow('',null,null,1))+'</div>'+addBtn('focus','집중 항목 추가')
+    +'<div style="height:12px"></div><label class="flbl">공지사항</label><div id="TM-NOTICE-ROWS">'+(dNotice.length?dNotice.map(function(v,i){return tmNoticeRow(v,null,null,i);}).join(''):tmNoticeRow('',null,null,0)+tmNoticeRow('',null,null,1))+'</div>'+addBtn('notice','공지 추가'));
   var savedFb=(r.feedback&&r.feedback.length)?r.feedback:null;
   var fbCards=savedFb?savedFb:c.interns.map(function(x){return {ph:x.ph,name:dispNm(x.u),stage:(x.u.level||'')+' '+(typeof getWeekDisplay==='function'?getWeekDisplay(x.u):''),items:[]};});
   var pfb=(r.prevFeedback&&r.prevFeedback.length)?r.prevFeedback:[];
@@ -1500,12 +1512,12 @@ function tmRender(rec,prev){
   // C. ACTION
   h+=tmSect('3','이번 달 할 일','누가 · 언제까지 할지 정해요');
   var tds=(r.todos&&r.todos.length)?r.todos:[{},{},{}];
-  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:4px">개인별 할 일</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">각자 맡아서 하는 일 · <b style="color:#dc2626">담당자와 기한 필수</b> · 다음 달에 자동으로 점검돼요</div><div id="TM-TODO-ROWS">'+tds.map(function(x){return tmTodoRow(x.t,x.owner,x.due);}).join('')+'</div>'+(c.canEdit?'<button class="gbtn sec sm" style="width:auto;padding:5px 10px;font-size:11px;margin-top:4px" onclick="tmAdd(\'todo\')">+ 행 추가</button>':''));
+  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:4px">개인별 할 일</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">각자 맡아서 하는 일 · <b style="color:#dc2626">담당자와 기한 필수</b> · 다음 달에 자동으로 점검돼요</div><div id="TM-TODO-ROWS">'+tds.map(function(x,i){return tmTodoRow(x.t,x.owner,x.due,i);}).join('')+'</div>'+(c.canEdit?'<button class="gbtn sec sm" style="width:auto;padding:5px 10px;font-size:11px;margin-top:4px" onclick="tmAdd(\'todo\')">+ 행 추가</button>':''));
   var hw=r.homework||{};
-  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:4px">팀 공동 숙제</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">팀 <b>전체가 다 같이</b> 해오는 것 (위 개인별 할 일과 달라요)</div><div class="fg"><label class="flbl">숙제 내용</label>'+tmTA('TM-HW-CONTENT',hw.content,'',2)+'</div><div class="fg"><label class="flbl">기한</label>'+tmIN('TM-HW-DUE',hw.due,'','date')+'</div><div class="fg" style="margin:0"><label class="flbl">확인 방법</label>'+tmIN('TM-HW-HOW',hw.how,'어떻게 확인할지')+'</div>');
+  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:4px">팀 공동 숙제</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">팀 <b>전체가 다 같이</b> 해오는 것 (위 개인별 할 일과 달라요)</div><div class="fg"><label class="flbl">숙제 내용</label>'+tmTA('TM-HW-CONTENT',hw.content,'예) 이달의 추천 시술 팀원 전원 1회씩 실습',2)+'</div><div class="fg"><label class="flbl">기한</label>'+tmIN('TM-HW-DUE',hw.due,'','date')+'</div><div class="fg" style="margin:0"><label class="flbl">확인 방법</label>'+tmIN('TM-HW-HOW',hw.how,'예) 다음 미팅에서 시술 사진으로 확인')+'</div>');
   var nx=r.next||{};
   h+=tmSect('4','마무리 & 다음 미팅','오늘을 돌아보고 다음 미팅을 준비해요');
-  h+=tmCard('<div class="fg"><label class="flbl">오늘 미팅 회고</label>'+tmTA('TM-NEXT-RETRO',nx.retro,'오늘 미팅은 어땠는지',2)+'</div><div class="fg"><label class="flbl">안건</label>'+tmTA('TM-NEXT-AGENDA',nx.agenda,'',2)+'</div><div class="fg" style="margin:0"><label class="flbl">준비물</label>'+tmIN('TM-NEXT-PREP',nx.prep,'')+'</div>');
+  h+=tmCard('<div class="fg"><label class="flbl">오늘 미팅 회고</label>'+tmTA('TM-NEXT-RETRO',nx.retro,'오늘 미팅은 어땠는지',2)+'</div><div class="fg"><label class="flbl">안건</label>'+tmTA('TM-NEXT-AGENDA',nx.agenda,'예) 가을 프로모션 준비 · 인턴 승급 시험 일정',2)+'</div><div class="fg" style="margin:0"><label class="flbl">준비물</label>'+tmIN('TM-NEXT-PREP',nx.prep,'예) 시술 전후 사진, 지난달 매출 자료')+'</div>');
   if(c.canEdit)h+='<div style="position:sticky;bottom:10px;background:#fff;border-radius:12px;padding:10px;display:flex;gap:8px;box-shadow:0 -4px 14px rgba(0,0,0,.08);margin-top:14px"><button class="gbtn sec" style="flex:1" onclick="tmSave(\'draft\')">임시저장</button><button class="gbtn pri" style="flex:1.4" onclick="tmSave(\'submitted\')">'+(st?'제출 내용 수정':'제출하기')+'</button></div>';
   root.innerHTML=h;
   tmUpdRate();
@@ -1517,7 +1529,7 @@ function tmGather(){
     prevTodos:tmCurPrev(),prevRate:tmPrevRate(tmCurPrev()),
     caseStudy:{info:tmVal('TM-CASE-INFO'),good:tmVal('TM-CASE-GOOD'),bad:tmVal('TM-CASE-BAD'),learn:tmVal('TM-CASE-LEARN')},
     knowhow:{topic:tmVal('TM-KH-TOPIC'),apply:tmVal('TM-KH-APPLY')},
-    direction:{focus:tmVal('TM-DIR-FOCUS'),notice:tmVal('TM-DIR-NOTICE')},
+    direction:{focus:tmLines('tm-focus'),notice:tmLines('tm-notice')},
     feedback:tmCurFb(),prevFeedback:tmCurPfb(),
     todos:tmRows('.tm-td-row',function(x){var t=(x.querySelector('.tm-td-t').value||'').trim();if(!t)return null;return {t:t,owner:(x.querySelector('.tm-td-owner').value||'').trim(),due:x.querySelector('.tm-td-due').value||''};}),
     homework:{content:tmVal('TM-HW-CONTENT'),due:tmVal('TM-HW-DUE'),how:tmVal('TM-HW-HOW')},
