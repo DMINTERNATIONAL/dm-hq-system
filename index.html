@@ -1421,6 +1421,9 @@ function undoTeaTime(designerPh,ym){customConfirm('티타임 완료 처리를 �
 // ⚠ /teaTime 은 완료 취소 시 노드가 삭제되므로 미팅 기록은 별도 노드에 보관한다.
 function ttMeetingRow(g,ym){var mt=g._mt,st=mt&&mt.status==='submitted';var canOpen=tmIsHQ()||(ME&&ME.phone===g.designerPh)||g.interns.some(function(x){return ME&&x.ph===ME.phone;});var rateTxt=(mt&&mt.prevRate!=null)?' \u00B7 \uC9C0\uB09C\uB2EC \uACFC\uC81C '+mt.prevRate+'% \uC644\uB8CC':'';var badge=st?'<span style="background:#dcfce7;color:#15803d;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px">\uD83D\uDCDD \uBBF8\uD305\uAE30\uB85D \uC81C\uCD9C'+rateTxt+'</span>':(mt?'<span style="background:#fef3c7;color:#a16207;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px">\uD83D\uDCDD \uC791\uC131 \uC911</span>':'<span style="background:#f1f5f9;color:#94a3b8;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px">\uD83D\uDCDD \uBBF8\uC791\uC131</span>');var btn=canOpen?'<button class="gbtn sec sm" style="width:auto;padding:5px 10px;font-size:11px;flex-shrink:0" onclick="openTeamMeeting(\''+g.designerPh+'\',\''+ym+'\')">'+(mt?(st?'\uBCF4\uAE30':'\uC774\uC5B4\uC4F0\uAE30'):'\uC791\uC131')+'</button>':'';return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;padding-top:9px;border-top:1px dashed rgba(0,0,0,.10)">'+badge+btn+'</div>';}
 function tmEsc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+var TM_EDIT_H=24;  // 제출 후 수정 가능 시간
+function tmLockInfo(rec){var ok=rec&&rec.status==='submitted'&&rec.submittedAt;if(!ok)return {submitted:false,locked:false,leftMs:0};var left=(Date.parse(rec.submittedAt)+TM_EDIT_H*3600000)-Date.now();return {submitted:true,locked:!(left>0),leftMs:Math.max(0,left)};}
+function tmLeftTxt(ms){var h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h>0?(h+'시간 '+m+'분'):(m+'분');}
 var TM_CTX=null;
 function tmYmPrev(ym){var y=parseInt(ym.slice(0,4),10),m=parseInt(ym.slice(5,7),10)-1;if(m<1){m=12;y--;}return y+'-'+(m<10?'0':'')+m;}
 function tmIsHQ(){var r=(ME&&ME.role)||'';return r==='경영팀'||r==='본사경영팀'||(ME&&ME.brand==='DM INTERNATIONAL');}
@@ -1470,8 +1473,8 @@ function openTeamMeeting(designerPh,ym){
     var users=a[0]||{},rec=a[1],prev=a[2];
     var des=users[designerPh]||{};
     var interns=[];Object.keys(users).forEach(function(p){var u=users[p];if(u&&u.mentorId===designerPh&&(u.status||'재직')==='재직'&&(u.academyRole==='인턴'||u.role==='인턴'))interns.push({ph:p,u:u});});
-    var canEdit=tmIsHQ()||(ME&&ME.phone===designerPh);
-    TM_CTX={ph:designerPh,ym:ym,canEdit:canEdit,des:des,interns:interns,status:(rec&&rec.status)||'draft',submittedAt:rec&&rec.submittedAt,submittedBy:rec&&rec.submittedBy};TM_DIRTY=false;TM_AS_SIG='';if(TM_AS_T){clearTimeout(TM_AS_T);TM_AS_T=null;}
+    var isHQ=tmIsHQ();var lk=tmLockInfo(rec);var canEdit=isHQ||((ME&&ME.phone===designerPh)&&!lk.locked);
+    TM_CTX={ph:designerPh,ym:ym,canEdit:canEdit,des:des,interns:interns,status:(rec&&rec.status)||'draft',submittedAt:rec&&rec.submittedAt,submittedBy:rec&&rec.submittedBy,isHQ:isHQ,lock:lk};TM_DIRTY=false;TM_AS_SIG='';if(TM_AS_T){clearTimeout(TM_AS_T);TM_AS_T=null;}
     tmRender(rec,prev);
   }).catch(function(){if(root)root.innerHTML='<div class="empty">불러오기 실패</div>';});
 }
@@ -1483,8 +1486,11 @@ function tmRender(rec,prev){
   var addBtn=function(kind,label){return c.canEdit?'<button class="gbtn sec sm" type="button" style="width:auto;padding:5px 10px;font-size:11px;margin-top:2px" onclick="tmAdd(\''+kind+'\')">+ '+label+'</button>':'';};
   // 상태
   var st=r.status==='submitted';
-  h+='<div style="background:'+(st?'#ecfdf5':'#fffbeb')+';border:1px solid '+(st?'#a7f3d0':'#fcd34d')+';border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:800;color:'+(st?'#065f46':'#92400e')+'">'+(st?'✓ 제출 완료':'✎ 미제출 (작성 중)')+'</span><span style="font-size:11px;color:#64748b">'+(r.submittedAt?('제출 '+String(r.submittedAt).slice(0,10)+' · '+tmEsc(r.submittedBy||'')):(r.updatedAt?('임시저장 '+String(r.updatedAt).slice(0,10)):''))+'</span></div>'+(c.canEdit?'<div id="TM-AUTOSAVE" style="font-size:11px;color:#94a3b8;text-align:right;margin:-6px 2px 10px">입력하면 자동으로 임시저장돼요</div>':'');
-  if(!c.canEdit)h+='<div style="font-size:11.5px;color:#94a3b8;margin:-4px 2px 10px">열람 전용 — 작성은 담당 디자이너 또는 본사만 가능합니다.</div>';
+  h+='<div style="background:'+(st?'#ecfdf5':'#fffbeb')+';border:1px solid '+(st?'#a7f3d0':'#fcd34d')+';border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:800;color:'+(st?'#065f46':'#92400e')+'">'+(st?'✓ 제출 완료':'✎ 미제출 (작성 중)')+'</span><span style="font-size:11px;color:#64748b">'+(r.submittedAt?('제출 '+String(r.submittedAt).slice(0,10)+' · '+tmEsc(r.submittedBy||'')):(r.updatedAt?('임시저장 '+String(r.updatedAt).slice(0,10)):''))+'</span></div>';
+  var lk=c.lock||{};
+  if(st)h+='<div style="font-size:11.5px;margin:-4px 2px 10px;color:'+(lk.locked?'#94a3b8':'#2563eb')+'">'+(lk.locked?('🔒 제출 후 '+TM_EDIT_H+'시간이 지나 수정할 수 없습니다.'+(c.isHQ?' (본사 권한으로 수정 가능)':'')):('✏️ 수정 가능 · 남은 시간 <b>'+tmLeftTxt(lk.leftMs)+'</b> (제출 후 '+TM_EDIT_H+'시간까지)'))+'</div>';
+  if(!c.canEdit&&!st)h+='<div style="font-size:11.5px;color:#94a3b8;margin:-4px 2px 10px">열람 전용 — 작성은 담당 디자이너 또는 본사만 가능합니다.</div>';
+  if(c.canEdit)h+='<div id="TM-AUTOSAVE" style="font-size:11px;color:#94a3b8;text-align:right;margin:-2px 2px 10px">입력하면 자동으로 임시저장돼요</div>';
   // 미팅일 + 목표
   h+=tmCard('<div class="fg" style="margin-bottom:10px"><label class="flbl">미팅 일자</label>'+tmIN('TM-DATE',r.meetingDate||todayStrKR(),'','date')+'</div><div class="fg" style="margin:0"><label class="flbl">이번 미팅 목표</label>'+tmTA('TM-GOAL',r.goal,'이번 달 이 미팅에서 꼭 정하고 갈 것',2)+'</div>');
   // A. REVIEW
@@ -1583,7 +1589,7 @@ function tmSave(status){
   var who=ME?dispNm(ME):'';
   d.ym=c.ym;d.designerPhone=c.ph;d.designerName=dispNm(c.des);d.brand=c.des.brand||'';d.branch=c.des.branch||'';
   d.status=status;d.updatedAt=new Date().toISOString();d.updatedBy=who;
-  if(status==='submitted'){d.submittedAt=d.updatedAt;d.submittedBy=who;}
+  if(status==='submitted'){d.submittedAt=c.submittedAt||d.updatedAt;d.submittedBy=c.submittedBy||who;d.lastEditedAt=d.updatedAt;d.lastEditedBy=who;}
   TM_DIRTY=false;TM_AS_SIG='';fbP('/teamMeeting/'+c.ph+'/'+c.ym+'.json',d).then(function(){
     if(status!=='submitted'){toast('임시저장 됐어요');return null;}
     // 제출 시 티타임 완료 자동 처리 (이미 완료돼 있으면 유지)
