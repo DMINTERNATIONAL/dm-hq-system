@@ -1473,8 +1473,8 @@ function openTeamMeeting(designerPh,ym){
     var users=a[0]||{},rec=a[1],prev=a[2];
     var des=users[designerPh]||{};
     var interns=[];Object.keys(users).forEach(function(p){var u=users[p];if(u&&u.mentorId===designerPh&&(u.status||'재직')==='재직'&&(u.academyRole==='인턴'||u.role==='인턴'))interns.push({ph:p,u:u});});
-    var isHQ=tmIsHQ();var lk=tmLockInfo(rec);var canEdit=isHQ||((ME&&ME.phone===designerPh)&&!lk.locked);
-    TM_CTX={ph:designerPh,ym:ym,canEdit:canEdit,des:des,interns:interns,status:(rec&&rec.status)||'draft',submittedAt:rec&&rec.submittedAt,submittedBy:rec&&rec.submittedBy,isHQ:isHQ,lock:lk};TM_DIRTY=false;TM_AS_SIG='';if(TM_AS_T){clearTimeout(TM_AS_T);TM_AS_T=null;}
+    var isHQ=tmIsHQ();var lk=tmLockInfo(rec);var mayEdit=isHQ||((ME&&ME.phone===designerPh)&&!lk.locked);var canEdit=mayEdit&&!(rec&&rec.status==='submitted');
+    TM_CTX={ph:designerPh,ym:ym,canEdit:canEdit,mayEdit:mayEdit,des:des,interns:interns,status:(rec&&rec.status)||'draft',submittedAt:rec&&rec.submittedAt,submittedBy:rec&&rec.submittedBy,isHQ:isHQ,lock:lk,rec:rec,prev:prev};TM_DIRTY=false;TM_AS_SIG='';if(TM_AS_T){clearTimeout(TM_AS_T);TM_AS_T=null;}
     tmRender(rec,prev);
   }).catch(function(){if(root)root.innerHTML='<div class="empty">불러오기 실패</div>';});
 }
@@ -1488,8 +1488,12 @@ function tmRender(rec,prev){
   var st=r.status==='submitted';
   h+='<div style="background:'+(st?'#ecfdf5':'#fffbeb')+';border:1px solid '+(st?'#a7f3d0':'#fcd34d')+';border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:800;color:'+(st?'#065f46':'#92400e')+'">'+(st?'✓ 제출 완료':'✎ 미제출 (작성 중)')+'</span><span style="font-size:11px;color:#64748b">'+(r.submittedAt?('제출 '+String(r.submittedAt).slice(0,10)+' · '+tmEsc(r.submittedBy||'')):(r.updatedAt?('임시저장 '+String(r.updatedAt).slice(0,10)):''))+'</span></div>';
   var lk=c.lock||{};
-  if(st)h+='<div style="font-size:11.5px;margin:-4px 2px 10px;color:'+(lk.locked?'#94a3b8':'#2563eb')+'">'+(lk.locked?('🔒 제출 후 '+TM_EDIT_H+'시간이 지나 수정할 수 없습니다.'+(c.isHQ?' (본사 권한으로 수정 가능)':'')):('✏️ 수정 가능 · 남은 시간 <b>'+tmLeftTxt(lk.leftMs)+'</b> (제출 후 '+TM_EDIT_H+'시간까지)'))+'</div>';
-  if(!c.canEdit&&!st)h+='<div style="font-size:11.5px;color:#94a3b8;margin:-4px 2px 10px">열람 전용 — 작성은 담당 디자이너 또는 본사만 가능합니다.</div>';
+  if(st){
+    if(c.mayEdit)h+='<div style="font-size:11.5px;margin:-4px 2px 10px;color:'+(lk.locked?'#a16207':'#2563eb')+'">'+(lk.locked?('🔓 수정 기간(제출 후 '+TM_EDIT_H+'시간)이 지났지만 <b>본사 권한</b>으로 수정할 수 있습니다.'):('✏️ 수정 가능 · 남은 시간 <b>'+tmLeftTxt(lk.leftMs)+'</b> (제출 후 '+TM_EDIT_H+'시간까지)'))+'</div>';
+    else h+='<div style="font-size:11.5px;margin:-4px 2px 10px;color:#94a3b8">'+(lk.locked?('🔒 제출 후 '+TM_EDIT_H+'시간이 지나 수정할 수 없습니다.'):'열람 전용 — 제출된 기록입니다.')+'</div>';
+  }
+  if(!st&&!c.canEdit)h+='<div style="font-size:11.5px;color:#94a3b8;margin:-4px 2px 10px">열람 전용 — 작성은 담당 디자이너 또는 본사만 가능합니다.</div>';
+  if(st&&c.mayEdit&&!c.canEdit)h+='<div style="margin:2px 0 12px"><button class="gbtn pri" type="button" style="width:100%" onclick="tmEdit()">✏️ 수정하기</button></div>';
   if(c.canEdit)h+='<div id="TM-AUTOSAVE" style="font-size:11px;color:#94a3b8;text-align:right;margin:-2px 2px 10px">입력하면 자동으로 임시저장돼요</div>';
   // 미팅일 + 목표
   h+=tmCard('<div class="fg" style="margin-bottom:10px"><label class="flbl">미팅 일자</label>'+tmIN('TM-DATE',r.meetingDate||todayStrKR(),'','date')+'</div><div class="fg" style="margin:0"><label class="flbl">이번 미팅 목표</label>'+tmTA('TM-GOAL',r.goal,'이번 달 이 미팅에서 꼭 정하고 갈 것',2)+'</div>');
@@ -1570,6 +1574,7 @@ function tmFlush(onExit){
   }catch(e){tmMark('저장 실패 — 연결 확인','#dc2626');}
 }
 window.tmLeave=function(){tmFlush(true);openTeaTime();};
+window.tmEdit=function(){if(!TM_CTX||!TM_CTX.mayEdit)return;TM_CTX.canEdit=true;tmRender(TM_CTX.rec,TM_CTX.prev);window.scrollTo(0,0);};
 if(!window.__tmExitHooked){window.__tmExitHooked=true;
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')tmFlush(true);});
   window.addEventListener('pagehide',function(){tmFlush(true);});
