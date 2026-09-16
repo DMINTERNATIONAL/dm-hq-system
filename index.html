@@ -1473,7 +1473,10 @@ function openTeamMeeting(designerPh,ym){
     var users=a[0]||{},rec=a[1],prev=a[2];
     var des=users[designerPh]||{};
     var interns=[];Object.keys(users).forEach(function(p){var u=users[p];if(u&&u.mentorId===designerPh&&(u.status||'재직')==='재직'&&(u.academyRole==='인턴'||u.role==='인턴'))interns.push({ph:p,u:u});});
-    var isHQ=tmIsHQ();var lk=tmLockInfo(rec);var mayEdit=isHQ||((ME&&ME.phone===designerPh)&&!lk.locked);var canEdit=mayEdit&&!(rec&&rec.status==='submitted');
+    var isHQ=tmIsHQ();
+    var isMember=(ME&&ME.phone===designerPh)||interns.some(function(x){return ME&&x.ph===ME.phone;});
+    if(!isHQ&&!isMember){var sb=$('TM-SUB');if(sb)sb.textContent=dispNm(des)+' 팀 · '+ym;if(root)root.innerHTML='<div class="empty" style="padding:30px;color:#94a3b8;font-size:13px;text-align:center">이 팀의 미팅 기록은 열람할 수 없습니다.<br>본인이 속한 팀의 기록만 볼 수 있어요.</div>';TM_CTX=null;return;}
+    var lk=tmLockInfo(rec);var mayEdit=isHQ||((ME&&ME.phone===designerPh)&&!lk.locked);var canEdit=mayEdit&&!(rec&&rec.status==='submitted');
     TM_CTX={ph:designerPh,ym:ym,canEdit:canEdit,mayEdit:mayEdit,des:des,interns:interns,status:(rec&&rec.status)||'draft',submittedAt:rec&&rec.submittedAt,submittedBy:rec&&rec.submittedBy,isHQ:isHQ,lock:lk,rec:rec,prev:prev};TM_DIRTY=false;TM_AS_SIG='';if(TM_AS_T){clearTimeout(TM_AS_T);TM_AS_T=null;}
     tmRender(rec,prev);
   }).catch(function(){if(root)root.innerHTML='<div class="empty">불러오기 실패</div>';});
