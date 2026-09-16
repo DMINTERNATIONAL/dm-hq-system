@@ -175,12 +175,24 @@ function buildMessage(body) {
   else if (type === 'refund') title = '💰 환불 요청이 들어왔어요';
   else title = '🔔 새 발주가 들어왔어요!';
 
+  // 제품명 대신 거래처별로 묶어서 표시 (제품/비품 모두 items[].supplier 사용)
   let itemList = '';
   if (order.items && typeof order.items === 'object') {
     const items = Object.values(order.items);
-    const top = items.slice(0, 5);
-    itemList = top.map(it => '• ' + (it.name || '?') + ' ' + (it.qty || 0) + '개' + (it.unit ? ' (1주문=' + it.unit + '개)' : '')).join('\n');
-    if (items.length > 5) itemList += '\n  ... 외 ' + (items.length - 5) + '건';
+    const bySup = {};
+    items.forEach(it => {
+      const sup = (it.supplier || '').trim() || '거래처 미지정';
+      if (!bySup[sup]) bySup[sup] = { qty: 0, kinds: 0 };
+      bySup[sup].qty += Number(it.qty) || 0;
+      bySup[sup].kinds += 1;
+    });
+    const rows = Object.keys(bySup)
+      .map(s => ({ sup: s, qty: bySup[s].qty, kinds: bySup[s].kinds }))
+      .sort((a, b) => b.qty - a.qty);
+    itemList = rows.slice(0, 8)
+      .map(r => '• ' + r.sup + ' ' + r.qty + '개' + (r.kinds > 1 ? ' (' + r.kinds + '품목)' : ''))
+      .join('\n');
+    if (rows.length > 8) itemList += '\n  ... 외 ' + (rows.length - 8) + '개 거래처';
   }
 
   let text = title;
@@ -190,7 +202,7 @@ function buildMessage(body) {
     text += '\n\n' +
       '📍 ' + (order.brand || '') + ' ' + (order.branch || '') + '\n' +
       '👤 신청자: ' + (order.orderedBy || '') + '\n' +
-      '📦 총 ' + (order.itemCount || 0) + '개 항목\n' +
+      '📦 ' + (order.type ? order.type + ' · ' : '') + '총 ' + (order.itemCount || 0) + '개 항목\n' +
       (itemList ? '\n' + itemList + '\n' : '') +
       (order.note ? '\n📝 메모: ' + order.note + '\n' : '') +
       '\n🕐 ' + (order.date || '') + ' ' + (order.time || '') +
