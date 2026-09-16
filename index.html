@@ -1448,6 +1448,11 @@ function tmPfbRow(name,t,dt,st,memo){st=st||'todo';return '<div class="tm-pfb-ro
 function tmCurPfb(){return tmRows('.tm-pfb-row',function(x){return {name:x.getAttribute('data-name')||'',t:x.getAttribute('data-t')||'',st:x.getAttribute('data-st')||'todo',memo:(x.querySelector('.tm-pfb-memo').value||'').trim()};});}
 function tmTeamNames(){var c=TM_CTX||{},list=[];if(c.des&&(c.des.nick||c.des.name))list.push(dispNm(c.des));(c.interns||[]).forEach(function(x){list.push(dispNm(x.u));});return list;}
 function tmOwnerOpts(sel){var h='<option value="">담당 선택</option>',found=false;tmTeamNames().forEach(function(nm){var on=(nm===sel);if(on)found=true;h+='<option'+(on?' selected':'')+'>'+tmEsc(nm)+'</option>';});if(sel&&!found)h+='<option selected>'+tmEsc(sel)+'</option>';return h;}
+function tmTAc(cls,v,ph,rows){return '<textarea class="'+cls+'" placeholder="'+tmEsc(ph||'')+'" style="min-height:'+((rows||2)*22+18)+'px;resize:vertical"'+tmDis()+'>'+tmEsc(v||'')+'</textarea>';}
+function tmINc(cls,v,ph){return '<input class="'+cls+'" value="'+tmEsc(v||'')+'" placeholder="'+tmEsc(ph||'')+'"'+tmDis()+'>';}
+function tmCaseRow(cs,_a,_b,i){cs=cs||{};return '<div class="tm-case" style="border:1px solid #eef2f6;border-radius:11px;padding:10px 12px;margin-bottom:8px;background:#fbfdff"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b class="tm-case-no" style="font-size:12px;color:#334155">사례 '+((i||0)+1)+'</b>'+((TM_CTX&&TM_CTX.canEdit)?'<button type="button" title="삭제" onclick="this.closest(\'.tm-case\').remove();tmCaseNo();" style="width:26px;height:26px;border:1px solid #e2e8f0;background:#fff;color:#cbd5e1;border-radius:7px;cursor:pointer;font-weight:800;line-height:1">\u00D7</button>':'')+'</div><div class="fg"><label class="flbl">시술 정보</label>'+tmTAc('tm-case-info',cs.info,'예) 뿌리볼륨펌 · 손상모 · 저자극 약제',2)+'</div><div class="fg"><label class="flbl">잘한 점</label>'+tmTAc('tm-case-good',cs.good,'예) 모발 손상도 체크 후 약제를 한 단계 낮춘 판단',2)+'</div><div class="fg"><label class="flbl">아쉬운 점</label>'+tmTAc('tm-case-bad',cs.bad,'예) 시술 시간이 예정보다 30분 초과됨',2)+'</div><div class="fg" style="margin:0"><label class="flbl">팀 배움 한 줄</label>'+tmINc('tm-case-learn',cs.learn,'예) 손상모는 약제보다 시간 조절이 먼저')+'</div></div>';}
+window.tmCaseNo=function(){document.querySelectorAll('#TM-CASE-ROWS .tm-case-no').forEach(function(el,i){el.textContent='사례 '+(i+1);});};
+function tmCurCases(){return tmRows('.tm-case',function(x){var o={info:(x.querySelector('.tm-case-info').value||'').trim(),good:(x.querySelector('.tm-case-good').value||'').trim(),bad:(x.querySelector('.tm-case-bad').value||'').trim(),learn:(x.querySelector('.tm-case-learn').value||'').trim()};return (o.info||o.good||o.bad||o.learn)?o:null;});}
 var TM_FOCUS_EG=['예) 재방률 올리기 — 시술 후 다음 예약까지 잡기','예) 신규 고객 상담 시간 10분 확보','예) 클리닉 시술 제안 늘리기'];
 var TM_NOTICE_EG=['예) 9/25 전체 교육 참석','예) 신제품 입고 — 사용법 숙지','예) 추석 연휴 근무표 확인'];
 function tmLineRow(cls,val,ph){return '<div class="'+cls+'" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input class="'+cls+'-t" value="'+tmEsc(val||'')+'" placeholder="'+tmEsc(ph||'')+'" style="flex:1;min-width:140px"'+tmDis()+'>'+((TM_CTX&&TM_CTX.canEdit)?'<button type="button" title="삭제" onclick="this.parentNode.remove()" style="flex:none;width:26px;height:26px;border:1px solid #e2e8f0;background:#fff;color:#cbd5e1;border-radius:7px;cursor:pointer;font-weight:800;line-height:1">×</button>':'')+'</div>';}
@@ -1456,7 +1461,7 @@ function tmNoticeRow(v,_a,_b,i){return tmLineRow('tm-notice',v,TM_NOTICE_EG[(i||
 function tmLines(cls){return tmRows('.'+cls,function(x){var v=(x.querySelector('.'+cls+'-t').value||'').trim();return v||null;});}
 var TM_TODO_EG=['예) 신규 상담 스크립트 정리해서 팀 공유','예) 재방 안내 문자 템플릿 만들기','예) 인턴 드라이 교육 주 1회'];
 function tmTodoRow(t,owner,due,i){return '<div class="tm-td-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><input class="tm-td-t" value="'+tmEsc(t||'')+'" placeholder="'+tmEsc(TM_TODO_EG[(i||0)%TM_TODO_EG.length])+'" style="flex:2;min-width:140px"'+tmDis()+'><select class="tm-td-owner" style="flex:1;min-width:96px"'+tmDis()+'>'+tmOwnerOpts(owner)+'</select><input class="tm-td-due" type="date" value="'+tmEsc(due||'')+'" style="flex:1;min-width:130px"'+tmDis()+' title="기한"></div>';}
-window.tmAdd=function(kind){var m={prev:['TM-PREV-ROWS',tmPrevRow],todo:['TM-TODO-ROWS',tmTodoRow],focus:['TM-FOCUS-ROWS',tmFocusRow],notice:['TM-NOTICE-ROWS',tmNoticeRow]}[kind];if(!m)return;var el=$(m[0]);if(!el)return;var cnt=el.children.length;el.insertAdjacentHTML('beforeend',m[1]('','','',cnt));};
+window.tmAdd=function(kind){var m={prev:['TM-PREV-ROWS',tmPrevRow],todo:['TM-TODO-ROWS',tmTodoRow],focus:['TM-FOCUS-ROWS',tmFocusRow],notice:['TM-NOTICE-ROWS',tmNoticeRow],case:['TM-CASE-ROWS',tmCaseRow]}[kind];if(!m)return;var el=$(m[0]);if(!el)return;var cnt=el.children.length;el.insertAdjacentHTML('beforeend',m[1](kind==='case'?{}:'','','',cnt));if(kind==='case'&&window.tmCaseNo)tmCaseNo();};
 
 function openTeamMeeting(designerPh,ym){
   go('p-team-meeting');
@@ -1475,6 +1480,7 @@ function tmRender(rec,prev){
   var c=TM_CTX,r=rec||{},root=$('TM-ROOT');if(!root)return;
   var sub=$('TM-SUB');if(sub)sub.textContent=dispNm(c.des)+' 팀 · '+c.ym+' · 인턴 '+c.interns.length+'명';
   var h='';
+  var addBtn=function(kind,label){return c.canEdit?'<button class="gbtn sec sm" type="button" style="width:auto;padding:5px 10px;font-size:11px;margin-top:2px" onclick="tmAdd(\''+kind+'\')">+ '+label+'</button>':'';};
   // 상태
   var st=r.status==='submitted';
   h+='<div style="background:'+(st?'#ecfdf5':'#fffbeb')+';border:1px solid '+(st?'#a7f3d0':'#fcd34d')+';border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:800;color:'+(st?'#065f46':'#92400e')+'">'+(st?'✓ 제출 완료':'✎ 미제출 (작성 중)')+'</span><span style="font-size:11px;color:#64748b">'+(r.submittedAt?('제출 '+String(r.submittedAt).slice(0,10)+' · '+tmEsc(r.submittedBy||'')):(r.updatedAt?('임시저장 '+String(r.updatedAt).slice(0,10)):''))+'</span></div>';
@@ -1486,8 +1492,8 @@ function tmRender(rec,prev){
   var pts=(r.prevTodos&&r.prevTodos.length)?r.prevTodos.map(function(x){return {t:x.t,st:x.st||(x.done?'done':'todo'),memo:x.memo||''};}):((prev&&prev.todos)||[]).map(function(t){return {t:t.t,st:'todo',memo:''};});
   var carried=!(r.prevTodos&&r.prevTodos.length)&&pts.length>0;
   h+=tmCard('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12.5px;font-weight:800;color:#185FA5">지난달 할 일 점검</span><span id="TM-PREV-RATE"></span></div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">각 항목마다 <b>완료 / 부분 / 미완</b>을 선택하세요 (부분=0.5로 계산)</div>'+(carried?'<div style="font-size:11px;color:#2563eb;background:#eff6ff;border-radius:8px;padding:6px 9px;margin-bottom:8px">📋 지난달('+tmYmPrev(c.ym)+') 할 일을 자동으로 불러왔습니다. 항목별 상태를 선택하세요.</div>':'')+'<div id="TM-PREV-ROWS">'+(pts.length?pts.map(function(x){return tmPrevRow(x.t,x.st,x.memo);}).join(''):tmPrevRow('','','')+tmPrevRow('','','')+tmPrevRow('','',''))+'</div>'+(c.canEdit?'<button class="gbtn sec sm" style="width:auto;padding:5px 10px;font-size:11px;margin-top:4px" onclick="tmAdd(\'prev\')">+ 행 추가</button>':''));
-  var cs=r.caseStudy||{};
-  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">이달의 고객 사례</div><div class="fg"><label class="flbl">시술 정보</label>'+tmTA('TM-CASE-INFO',cs.info,'시술명 · 모발상태 · 사용 제품 등',2)+'</div><div class="fg"><label class="flbl">잘한 점</label>'+tmTA('TM-CASE-GOOD',cs.good,'예) 모발 손상도 체크 후 약제를 한 단계 낮춘 판단',2)+'</div><div class="fg"><label class="flbl">아쉬운 점</label>'+tmTA('TM-CASE-BAD',cs.bad,'예) 시술 시간이 예정보다 30분 초과됨',2)+'</div><div class="fg" style="margin:0"><label class="flbl">팀 배움 한 줄</label>'+tmIN('TM-CASE-LEARN',cs.learn,'이 케이스에서 팀이 가져갈 한 문장')+'</div>');
+  var cases=Array.isArray(r.cases)?r.cases:((r.caseStudy&&(r.caseStudy.info||r.caseStudy.good||r.caseStudy.bad||r.caseStudy.learn))?[r.caseStudy]:[]);
+  h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:4px">이달의 고객 사례</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">기억에 남는 고객 사례를 남겨요 · <b>여러 명이면 아래에서 추가</b>하세요</div><div id="TM-CASE-ROWS">'+(cases.length?cases.map(function(x,i){return tmCaseRow(x,null,null,i);}).join(''):tmCaseRow({},null,null,0))+'</div>'+addBtn('case','사례 추가'));
   // B. DIRECTION
   h+=tmSect('2','이달의 방향','이번 달 팀이 집중할 것을 정해요');
   var kh=r.knowhow||{};
@@ -1495,7 +1501,6 @@ function tmRender(rec,prev){
   var dr=r.direction||{};
   var dFocus=Array.isArray(dr.focus)?dr.focus:(dr.focus?[dr.focus]:[]);
   var dNotice=Array.isArray(dr.notice)?dr.notice:(dr.notice?[dr.notice]:[]);
-  var addBtn=function(kind,label){return c.canEdit?'<button class="gbtn sec sm" type="button" style="width:auto;padding:5px 10px;font-size:11px;margin-top:2px" onclick="tmAdd(\''+kind+'\')">+ '+label+'</button>':'';};
   h+=tmCard('<div style="font-size:12.5px;font-weight:800;color:#185FA5;margin-bottom:8px">팀 방향 &amp; 공지사항</div>'
     +'<label class="flbl">이달 집중</label><div id="TM-FOCUS-ROWS">'+(dFocus.length?dFocus.map(function(v,i){return tmFocusRow(v,null,null,i);}).join(''):tmFocusRow('',null,null,0)+tmFocusRow('',null,null,1))+'</div>'+addBtn('focus','집중 항목 추가')
     +'<div style="height:12px"></div><label class="flbl">공지사항</label><div id="TM-NOTICE-ROWS">'+(dNotice.length?dNotice.map(function(v,i){return tmNoticeRow(v,null,null,i);}).join(''):tmNoticeRow('',null,null,0)+tmNoticeRow('',null,null,1))+'</div>'+addBtn('notice','공지 추가'));
@@ -1527,7 +1532,7 @@ function tmGather(){
   return {
     meetingDate:tmVal('TM-DATE'),goal:tmVal('TM-GOAL'),
     prevTodos:tmCurPrev(),prevRate:tmPrevRate(tmCurPrev()),
-    caseStudy:{info:tmVal('TM-CASE-INFO'),good:tmVal('TM-CASE-GOOD'),bad:tmVal('TM-CASE-BAD'),learn:tmVal('TM-CASE-LEARN')},
+    cases:tmCurCases(),
     knowhow:{topic:tmVal('TM-KH-TOPIC'),apply:tmVal('TM-KH-APPLY')},
     direction:{focus:tmLines('tm-focus'),notice:tmLines('tm-notice')},
     feedback:tmCurFb(),prevFeedback:tmCurPfb(),
