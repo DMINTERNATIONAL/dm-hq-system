@@ -680,7 +680,7 @@ var PERM_CATALOG=[
   {key:'menu.orderStat',label:'발주 통계',sec:'발주',def:_HQ},
   {key:'menu.refundAdmin',label:'환불 관리',sec:'발주',def:_HQ,act:1},
   {key:'menu.prodMgmt',label:'제품 관리',sec:'발주',def:_HQ,act:1},
-  {key:'menu.naesu',label:'제품 내수 신청',sec:'발주',def:['인턴'],shared:1},
+  {key:'menu.naesu',label:'제품 내수 신청',sec:'발주',def:['인턴','스탭장'],shared:1},
   {key:'menu.naesuAdmin',label:'인턴 내수 관리',sec:'발주',def:_HQ,act:1},
   {key:'menu.naesuProd',label:'내수 제품·가격',sec:'발주',def:_HQ,act:1},
   {key:'menu.supplierEta',label:'거래처 배송일',sec:'발주',def:_HQ},
@@ -1826,7 +1826,8 @@ function nsRenderShot(err){var w=$('NSR-SHOT');if(!w)return;
     if(s.amount==null)h+=nsNote('warn','금액을 자동으로 읽지 못했어요','그대로 신청하셔도 됩니다. 경영팀이 캡처를 직접 확인해요.');
     else if(s.amount<tot)h+=nsNote('bad','입금이 '+nsWon(tot-s.amount)+' 부족해요','차액을 추가로 보내고 [캡처 추가]로 한 장 더 올려주세요. 지금 신청해두셔도 됩니다.');
     else if(s.amount>tot)h+=nsNote('warn',nsWon(s.amount-tot)+' 더 보내셨어요','신청하시면 경영팀이 차액을 돌려드립니다.');
-    else if(NS_ACCTBAD)h+=nsNote('warn','근무지 계좌가 아닌 것 같아요','경영팀이 확인 후 처리합니다.');
+    else if(NS_ACCTBAD){h+=nsNote('ok','입금 금액이 신청 금액과 일치해요','');
+      h+=nsNote('info','근무지 계좌가 아닌 곳으로 입금된 것 같아요','두 계좌 모두 같은 예금주라 그대로 신청하셔도 됩니다.')}
     else h+=nsNote('ok','입금 금액이 신청 금액과 일치해요','');
   }else if(!err){
     h+='<div style="border:1.5px dashed #cbd5e1;border-radius:12px;padding:22px 14px;text-align:center;color:#94a3b8;font-size:12.5px;line-height:1.6">'
@@ -1835,9 +1836,9 @@ function nsRenderShot(err){var w=$('NSR-SHOT');if(!w)return;
   w.innerHTML=h;
   var b=$('NSR-SUBMIT');if(b){var okb=NS_SHOTS.length>0;b.disabled=!okb;b.style.opacity=okb?'1':'.45'}}
 function nsNote(kind,title,desc){
-  var c={ok:['#16a34a','#f0fdf4','#bbf7d0'],warn:['#b45309','#fffbeb','#fde68a'],bad:['#b91c1c','#fef2f2','#fecaca']}[kind]||['#475569','#f8fafc','#e2e8f0'];
+  var c={ok:['#16a34a','#f0fdf4','#bbf7d0'],warn:['#b45309','#fffbeb','#fde68a'],bad:['#b91c1c','#fef2f2','#fecaca'],info:['#475569','#f8fafc','#e2e8f0']}[kind]||['#475569','#f8fafc','#e2e8f0'];
   return '<div style="background:'+c[1]+';border:1px solid '+c[2]+';border-radius:10px;padding:10px 12px;margin-bottom:8px">'
-    +'<div style="font-size:12.5px;font-weight:800;color:'+c[0]+'">'+(kind==='ok'?'✅ ':'⚠️ ')+nsEsc(title)+'</div>'
+    +'<div style="font-size:12.5px;font-weight:800;color:'+c[0]+'">'+(kind==='ok'?'✅ ':kind==='info'?'ℹ️ ':'⚠️ ')+nsEsc(title)+'</div>'
     +(desc?'<div style="font-size:11.5px;color:#475569;margin-top:3px;line-height:1.55">'+nsEsc(desc)+'</div>':'')+'</div>'}
 function nsViewShot(url){var bg=document.createElement('div');bg.className='modal-bg';bg.style.display='flex';bg.style.zIndex='10001';bg.style.padding='16px';
   bg.innerHTML='<div style="max-width:100%;max-height:100%;overflow:auto"><img src="'+nsEsc(url)+'" style="max-width:100%;border-radius:12px;display:block"></div>';
@@ -2134,9 +2135,8 @@ function nsFlagOf(r){
   if(paid==null)return 'unread';
   if(paid<tot)return 'short';
   if(paid>tot)return (r.refunded?'ok':'over');
-  if(r.acctBad)return 'acct';
   if(r.dup)return 'dup';
-  return 'ok'}
+  return 'ok'}   // acctBad(다른 지점 계좌)는 둘 다 같은 예금주라 문제 없음 → 참고 표시만
 function nsIsBad(r){var f=nsFlagOf(r);return !!f&&f!=='ok'}
 /* 같은 이체일시+금액이 이미 쓰였는지 (캡처 재사용 탐지) */
 function nsDupHit(all,selfId,when,amount){
@@ -2220,10 +2220,11 @@ function nsAdmBanner(r){
     +((r.shots||[]).length>1?' · 캡처 '+r.shots.length+'장 합산':'');
   if(f==='short')return box('#b91c1c','#fef2f2','#fecaca','⚠️ 입금 '+nsWon(tot-paid)+' 부족',det);
   if(f==='over')return box('#1d4ed8','#eff6ff','#bfdbfe','⚠️ '+nsWon(paid-tot)+' 과입금 — 차액 반환 필요',det);
-  if(f==='acct')return box('#b45309','#fffbeb','#fde68a','⚠️ 근무지 계좌가 아닌 곳으로 입금',det+'<br>판독 계좌 '+nsEsc(s0.acct||'—')+' · 근무지 계좌 '+nsEsc(r.acct||''));
   if(f==='dup')return box('#b45309','#fffbeb','#fde68a','⚠️ 캡처 중복 의심',det+'<br>'+nsEsc((r.dup&&r.dup.name)||'')+' '+nsEsc((r.dup&&r.dup.date)||'')+' 신청과 같은 이체내역으로 보여요');
   if(f==='unread')return box('#b45309','#fffbeb','#fde68a','❓ 캡처를 자동으로 읽지 못했어요','캡처를 직접 확인해주세요');
-  return box('#16a34a','#f0fdf4','#bbf7d0','✅ 입금 '+nsWon(paid)+' 일치',det+(r.refunded?' · 차액 반환 완료':''))}
+  return box('#16a34a','#f0fdf4','#bbf7d0','✅ 입금 '+nsWon(paid)+' 일치',
+    det+(r.refunded?' · 차액 반환 완료':'')
+    +(r.acctBad?'<br><span style="color:#64748b">참고 · 근무지 계좌가 아닌 곳으로 입금 (판독 '+nsEsc(s0.acct||'—')+')</span>':''))}
 function nsRefund(id){var r=(NS_ADM||{})[id];if(!r)return;
   var over=(+r.paid||0)-(+r.total||0);
   _showPopup({type:'confirm',title:'차액 반환',msg:nsEsc(r.name)+'님께 '+nsWon(over)+'을 돌려주셨나요?\n\n확인을 누르면 반환 완료로 기록됩니다.',cb:function(ok){if(!ok)return;
