@@ -2293,7 +2293,7 @@ function nsoRender(){
     +'<div style="font-size:11px;color:#94a3b8;font-weight:700">확인 완료 '+NSO_ROWS.length+'품목</div></div>'
     +'<div style="font-size:11.5px;color:#94a3b8;margin-top:3px;line-height:1.55">인턴이 입금까지 마친 내수건이에요. 발주에 같이 담을 품목을 고르세요.</div>'
     +body
-    +'<button class="gbtn pri sm" style="width:100%;margin-top:12px" onclick="nsoAdd()"'+(nsel?'':' disabled style="width:100%;margin-top:12px;opacity:.45"')+'>'
+    +'<button class="gbtn pri sm" style="width:100%;margin-top:12px'+(nsel?'':';opacity:.45')+'" onclick="nsoAdd()"'+(nsel?'':' disabled')+'>'
     +(nsel?('선택한 '+nsel+'품목 발주에 추가'):'담을 품목을 선택하세요')+'</button>'
     +(linked<NSO_ROWS.length?'<div style="font-size:11px;color:#94a3b8;margin-top:8px;line-height:1.55">연결이 안 된 품목은 발주 목록에 같은 제품이 없거나 이름이 달라서예요. 한 번만 연결해두면 다음부터 자동으로 잡힙니다.</div>':'')
     +'</div>'}
