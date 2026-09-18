@@ -64,6 +64,11 @@ export default {
       return cors(await handleAIRecommend(body, env));
     }
 
+    // 인턴 내수 — 송금 캡처 판독 (금액/계좌/보낸사람/이체일시 추출 + 신청내용 대조)
+    if (pathname === '/ai/naesu-verify' || pathname.endsWith('/ai/naesu-verify')) {
+      return cors(await handleNaesuVerify(body, env));
+    }
+
     if (!body.secret || body.secret !== env.WEBHOOK_SECRET) {
       return cors(new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
     }
@@ -172,19 +177,45 @@ function buildMessage(body) {
 
   if (type === 'naesu') {
     const o = order || {};
+    const won = (n) => Number(n || 0).toLocaleString('ko-KR') + '원';
+    const who = (o.name || '') + ' · ' + (o.branch || '');
+    // 제목 한 줄로 정상/오류가 바로 구분되게 (알림 미리보기에서 첫 줄만 보임)
+    const f = o.flag || 'ok';
+    let head, alert = '';
+    if (f === 'short') {
+      head = '⚠️ 내수 입금 부족 · ' + (o.name || '') + ' ' + won(o.diff) + ' 모자람';
+      alert = '⚠️ 입금 ' + won(o.diff) + ' 부족\n   캡처 판독 ' + won(o.paid) + ' / 신청 ' + won(o.total) + '\n';
+    } else if (f === 'over') {
+      head = '⚠️ 내수 과입금 · ' + (o.name || '') + ' ' + won(o.diff) + ' 더 들어옴';
+      alert = '⚠️ ' + won(o.diff) + ' 과입금 — 차액 반환 필요\n   캡처 판독 ' + won(o.paid) + ' / 신청 ' + won(o.total) + '\n';
+    } else if (f === 'acct') {
+      head = '⚠️ 내수 다른 계좌 입금 · ' + (o.name || '');
+      alert = '⚠️ 근무지 계좌가 아닌 곳으로 입금됐어요\n   판독 계좌 ' + (o.readAcct || '읽지 못함') + '\n   근무지 계좌 ' + (o.acct || '') + '\n';
+    } else if (f === 'dup') {
+      head = '⚠️ 내수 캡처 중복 의심 · ' + (o.name || '');
+      alert = '⚠️ 이전 신청에 쓰인 캡처와 같아 보여요\n   이체일시 ' + (o.when || '') + '\n';
+    } else if (f === 'filled') {
+      head = '✅ 내수 입금 보충 완료 · ' + (o.name || '') + ' ' + won(o.total);
+      alert = '✅ 부족했던 차액이 채워졌어요 — 확인해주세요\n   캡처 판독 합계 ' + won(o.paid) + ' / 신청 ' + won(o.total) + '\n';
+    } else if (f === 'unread') {
+      head = '❓ 내수 캡처 확인 필요 · ' + (o.name || '');
+      alert = '❓ 캡처를 자동으로 읽지 못했어요 — 직접 확인해주세요\n';
+    } else {
+      head = '🧴 내수 신청 · ' + (o.name || '') + ' ' + won(o.total);
+      alert = '✅ 입금 ' + won(o.paid || o.total) + ' 일치\n';
+    }
     const lines = (Array.isArray(o.items) ? o.items : [])
-      .slice(0, 8)
-      .map(it => '• ' + (it.n || '') + ' ×' + (it.qty || 1))
-      .join('\n');
+      .slice(0, 8).map(it => '• ' + (it.n || '') + ' ×' + (it.qty || 1)).join('\n');
     const more = (Array.isArray(o.items) && o.items.length > 8)
       ? '\n  ... 외 ' + (o.items.length - 8) + '품목' : '';
-    const text = '🧴 인턴 제품 내수 신청이 들어왔어요!\n\n' +
-      '👤 ' + (o.name || '') + ' · ' + (o.branch || '') + '\n' +
+    const text = head + '\n\n' +
+      '👤 ' + who + '\n' +
       '🧾 ' + (o.count || 0) + '개 품목 · 총 ' + (o.qty || 0) + '개\n' +
-      '💰 ' + Number(o.total || 0).toLocaleString('ko-KR') + '원\n' +
+      '💰 신청 ' + won(o.total) + '\n\n' +
+      alert +
       (lines ? '\n' + lines + more + '\n' : '') +
       '\n🕐 ' + (o.date || '') + ' ' + (o.time || '') +
-      '\n\n→ 본사 시스템에서 송금 캡처 확인해주세요';
+      '\n\n→ 본사 시스템에서 확인해주세요';
     return { content: { type: 'text', text } };
   }
 
@@ -451,6 +482,100 @@ async function sendMessage(env, token, message) {
 
 // 고객 상담 현장메모 AI 다듬기 — Claude(haiku)로 핸드 복붙용 요약 생성.
 // env.ANTHROPIC_API_KEY 필요. 프론트는 WEBHOOK_SECRET 으로 인증.
+/* ═══ 인턴 내수 송금 캡처 판독 ═══
+   클라이언트가 900px 로 줄인 캡처(base64)를 보내면 Claude 비전으로 읽어서
+   금액·받는계좌·보낸사람·이체일시를 뽑고, 신청 내용과 대조한 결과를 돌려준다.
+   판독은 '참고'용이다 — 확인 처리는 반드시 사람이 한다. */
+const NAESU_SYS =
+  '너는 한국 은행·송금 앱의 "이체 완료" 화면을 읽는 판독기다.\n' +
+  '이미지에 실제로 적힌 값만 읽어서 JSON 객체 하나만 출력한다. 설명·마크다운·코드펜스 금지.\n\n' +
+  '{"isTransfer":true,"amount":159390,"toAccount":"3333-27-5577737","toBank":"카카오뱅크",' +
+  '"toName":"김세운","sender":"김민경","when":"2026-09-18 18:24","confidence":0.95}\n\n' +
+  '규칙:\n' +
+  '- 화면에 없는 값은 null. 절대 추측하거나 지어내지 않는다.\n' +
+  '- amount 는 "보낸 금액/이체 금액/출금액"이다. 잔액·수수료·한도는 절대 쓰지 않는다. 쉼표를 뺀 정수로 쓴다.\n' +
+  '- toAccount 는 받는 계좌번호만. 숫자와 하이픈만 남긴다.\n' +
+  '- sender 는 보낸 사람(출금 계좌 주인) 이름이다. 받는 사람과 헷갈리지 않는다.\n' +
+  '- when 은 이체 일시를 "YYYY-MM-DD HH:MM" 로 쓴다. 연도가 없으면 null.\n' +
+  '- 이체·송금 완료 화면이 아니면 isTransfer=false 로 하고 나머지는 전부 null.\n' +
+  '- 글자가 흐리거나 가려서 확신이 없으면 그 값은 null 로 두고 confidence 를 낮춘다.';
+
+function naesuDigits(v) { return String(v == null ? '' : v).replace(/[^0-9]/g, ''); }
+
+async function handleNaesuVerify(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정 (ANTHROPIC_API_KEY 없음)' }, 503);
+
+  // 이미지: 클라이언트가 줄여 보낸 base64 우선, 없으면 저장된 URL 에서 가져옴
+  let b64 = (body.imageB64 || '').replace(/^data:image\/[a-z]+;base64,/, '');
+  let mediaType = body.mediaType || 'image/jpeg';
+  if (!b64) {
+    const url = String(body.url || '');
+    if (!/^https:\/\//.test(url)) return json({ ok: false, error: '판독할 이미지가 없어요' }, 400);
+    const ir = await fetch(url, { cf: { cacheTtl: 300 } });
+    if (!ir.ok) return json({ ok: false, error: '캡처를 불러오지 못했어요 (' + ir.status + ')' }, 502);
+    mediaType = ir.headers.get('Content-Type') || 'image/jpeg';
+    const buf = new Uint8Array(await ir.arrayBuffer());
+    if (buf.byteLength > 4 * 1024 * 1024) return json({ ok: false, error: '캡처가 너무 커요' }, 413);
+    let bin = '';
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    b64 = btoa(bin);
+  }
+
+  const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+  let data;
+  try {
+    const r = await fetch(AIG, {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-naesu-verify/1.0' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5', max_tokens: 400, system: NAESU_SYS,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
+          { type: 'text', text: '이 화면을 판독해서 JSON 하나만 출력해줘.' }
+        ] }]
+      })
+    });
+    if (!r.ok) return json({ ok: false, error: '판독 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
+    data = await r.json();
+  } catch (e) {
+    return json({ ok: false, error: '판독 실패: ' + (e && e.message || e) }, 502);
+  }
+
+  let text = '';
+  if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
+  const m = text.match(/\{[\s\S]*\}/);
+  let read;
+  try { read = JSON.parse(m ? m[0] : text); }
+  catch (e) { return json({ ok: false, error: '판독 결과를 해석하지 못했어요', raw: text.slice(0, 300) }, 502); }
+
+  const amount = (read.amount == null || isNaN(+read.amount)) ? null : Math.round(+read.amount);
+  const expect = (body.expectAmount == null || isNaN(+body.expectAmount)) ? null : Math.round(+body.expectAmount);
+  const acctRead = naesuDigits(read.toAccount);
+  const acctWant = naesuDigits(body.expectAcct);
+
+  return json({
+    ok: true,
+    read: {
+      isTransfer: read.isTransfer !== false,
+      amount: amount,
+      toAccount: read.toAccount || null,
+      toBank: read.toBank || null,
+      toName: read.toName || null,
+      sender: read.sender || null,
+      when: read.when || null,
+      confidence: (read.confidence == null ? null : +read.confidence)
+    },
+    check: {
+      amountMatch: (amount != null && expect != null) ? (amount === expect) : null,
+      diff: (amount != null && expect != null) ? (expect - amount) : null,
+      acctMatch: (acctRead && acctWant) ? (acctRead.slice(-8) === acctWant.slice(-8)) : null
+    },
+    usage: (data && data.usage) || null
+  });
+}
+
 async function handleAIPolish(body, env) {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
   if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);

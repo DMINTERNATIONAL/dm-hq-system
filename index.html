@@ -459,7 +459,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <div class="pg" id="p-order"><button class="backbtn" onclick="backFromOrder()">← 뒤로</button><div class="ph"><div class="ptitle" id="ORD-TITLE">제품 발주</div><div class="psub" id="ORD-SUB"></div></div><div class="sb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="ORD-SEARCH" placeholder="제품명 검색" oninput="renderOrdList()"></div><div class="sup-tabs" id="SUP-TABS"></div><div class="ctbar" id="CAT-TABS"></div><div id="ORD-LIST"></div></div>
 
 <!-- Order Review -->
-<div class="pg" id="p-review"><button class="backbtn" onclick="go('p-order');$('cbar').style.display=Object.keys(cart).length?'block':'none'">← 품목 선택</button><div class="ph"><div class="ptitle">주문 확인</div><div class="psub" id="REV-SUB"></div></div><div id="REV-LIST"></div><div class="fg" id="ORD-FB-WRAP" style="display:none;margin-top:16px"><label class="flbl">비품 대상 브랜드</label><select id="ORD-FORBRAND" onchange="window._draftForBrand=this.value;autoSaveDraft()"><option value="">브랜드 선택</option><option value="DAY:MEAN">DAY:MEAN</option><option value="ETOH">ETOH</option></select><div class="fhint">선택한 브랜드의 모든 지점 발주 내역에 표시됩니다 (공용 비품).</div></div><div class="fg" style="margin-top:16px"><label class="flbl">비고 (선택)</label><textarea id="ORD-NOTE" placeholder="특이사항이 있으면 입력해주세요" oninput="autoSaveDraft()" style="min-height:60px;resize:vertical"></textarea></div><button class="gbtn pri" onclick="submitOrder()">발주 제출</button><button class="gbtn sec" id="REV-DRAFT-BTN" onclick="saveDraftAndExit()" style="margin-top:8px">임시저장하고 나가기</button></div>
+<div class="pg" id="p-review"><button class="backbtn" onclick="go('p-order');$('cbar').style.display=Object.keys(cart).length?'block':'none'">← 품목 선택</button><div class="ph"><div class="ptitle">주문 확인</div><div class="psub" id="REV-SUB"></div></div><div id="REV-LIST"></div>
+<div id="NSO-WRAP" style="margin-top:16px"></div><div class="fg" id="ORD-FB-WRAP" style="display:none;margin-top:16px"><label class="flbl">비품 대상 브랜드</label><select id="ORD-FORBRAND" onchange="window._draftForBrand=this.value;autoSaveDraft()"><option value="">브랜드 선택</option><option value="DAY:MEAN">DAY:MEAN</option><option value="ETOH">ETOH</option></select><div class="fhint">선택한 브랜드의 모든 지점 발주 내역에 표시됩니다 (공용 비품).</div></div><div class="fg" style="margin-top:16px"><label class="flbl">비고 (선택)</label><textarea id="ORD-NOTE" placeholder="특이사항이 있으면 입력해주세요" oninput="autoSaveDraft()" style="min-height:60px;resize:vertical"></textarea></div><button class="gbtn pri" onclick="submitOrder()">발주 제출</button><button class="gbtn sec" id="REV-DRAFT-BTN" onclick="saveDraftAndExit()" style="margin-top:8px">임시저장하고 나가기</button></div>
 
 <!-- Order History -->
 <div class="pg" id="p-hist"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">발주 내역</div><div class="psub" id="HIST-SUB"></div></div><div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.5px;margin-bottom:8px">기간 선택</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"><button class="gbtn sec sm" onclick="setHistPreset('today')">오늘</button><button class="gbtn sec sm" onclick="setHistPreset('yesterday')">어제</button><button class="gbtn sec sm" onclick="setHistPreset('month')">이번달</button><button class="gbtn sec sm" onclick="setHistPreset('lastmonth')">지난달</button><button class="gbtn sec sm" onclick="setHistPreset('3m')">3개월</button><button class="gbtn sec sm" onclick="setHistPreset('6m')">6개월</button><button class="gbtn sec sm" onclick="setHistPreset('h1')">상반기</button><button class="gbtn sec sm" onclick="setHistPreset('h2')">하반기</button><button class="gbtn sec sm" onclick="setHistPreset('year')">올해</button><button class="gbtn sec sm" onclick="setHistPreset('all')">전체</button></div><div style="display:flex;gap:6px"><div style="flex:1"><label class="flbl">시작일</label><input id="HIST-FROM" type="date" onchange="openHist()"></div><div style="flex:1"><label class="flbl">종료일</label><input id="HIST-TO" type="date" onchange="openHist()"></div></div></div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;overflow-x:auto"><button class="gbtn sec sm hist-tab on" id="HIST-TAB-all" onclick="setHistFilter('all')">전체</button><button class="gbtn sec sm hist-tab" id="HIST-TAB-대기" onclick="setHistFilter('대기')">⏳ 대기</button><button class="gbtn sec sm hist-tab" id="HIST-TAB-확인" onclick="setHistFilter('확인')">🚚 배송중</button><button class="gbtn sec sm hist-tab" id="HIST-TAB-배송완료" onclick="setHistFilter('배송완료')">✅ 배송완료</button><button class="gbtn sec sm hist-tab" id="HIST-TAB-환불요청" onclick="setHistFilter('환불요청')">🔄 환불요청</button><button class="gbtn sec sm hist-tab" id="HIST-TAB-환불완료" onclick="setHistFilter('환불완료')">💸 환불완료</button><button class="gbtn sec sm hist-tab" id="HIST-TAB-거절" onclick="setHistFilter('거절')">❌ 발주 취소</button></div><div id="HIST"></div></div>
@@ -1039,7 +1040,7 @@ function completeItemDelay(br,bn,id,itemKey){var today=todayStrKR();var h='<div 
 function confirmCompleteItemDelay(br,bn,id,itemKey){var dt=$('ICD-DATE').value||todayStrKR();var today=todayStrKR();if(dt>today)return alert('미래 날짜는 선택할 수 없습니다');fbD('/orders/'+br+'/'+bn+'/'+id+'/itemDelay/'+itemKey+'.json').then(function(){return fbP('/orders/'+br+'/'+bn+'/'+id+'/itemDelivered/'+itemKey+'.json',{date:dt,markedAt:new Date().toISOString(),markedBy:ME?dispNm(ME):''})}).then(function(){toast('품목 배송완료 ('+dt+')');$('used-modal').style.display='none';loadAdmOrd()})}
 function ck(c){if(c.indexOf('샴푸')>-1||c.indexOf('트리트먼트')>-1)return'샴푸';if(c.indexOf('점판')>-1)return'점판';if(c.indexOf('클리닉')>-1)return'클리닉';if(c.indexOf('탈색')>-1)return'탈색';return c}
 function openOrderCat(){if(!ME)return;$('OC-SUB').textContent=ME.brand+' '+ME.branch;cart={};editingOrderId=null;curDraftId=null;go('p-ordcat');renderDrafts()}
-function openOrder(mode){ordMode=mode;curSups=[];curCats=[];cart={};curDraftId=null;window._draftForBrand='';if($('ORD-NOTE'))$('ORD-NOTE').value='';$('ORD-TITLE').textContent=mode==='prod'?'제품 발주':'비품 발주';$('ORD-SUB').textContent=ME.brand+' '+ME.branch;$('ORD-SEARCH').value='';renderSupTabs();renderCatTabs();renderOrdList();go('p-order');$('cbar').style.display='none'}
+function openOrder(mode){ordMode=mode;curSups=[];curCats=[];cart={};if(typeof NSO_SEL!=='undefined'){NSO_SEL={};NSO_ROWS=[]}curDraftId=null;window._draftForBrand='';if($('ORD-NOTE'))$('ORD-NOTE').value='';$('ORD-TITLE').textContent=mode==='prod'?'제품 발주':'비품 발주';$('ORD-SUB').textContent=ME.brand+' '+ME.branch;$('ORD-SEARCH').value='';renderSupTabs();renderCatTabs();renderOrdList();go('p-order');$('cbar').style.display='none'}
 function backFromOrder(){if(_draftTimer){clearTimeout(_draftTimer);_draftTimer=null;saveDraft(true).catch(function(){})}cart={};editingOrderId=null;$('cbar').style.display='none';openOrderCat()}
 
 /* ===== 발주 임시저장 (계정별) ===== */
@@ -1082,7 +1083,7 @@ function renderOrdList(){var db=getDB(),list=$('ORD-LIST'),q=($('ORD-SEARCH').va
 function chg(el,d){var key=el.getAttribute('data-k'),cur=cart[key]||0,nxt=Math.max(0,cur+d);if(nxt===0)delete cart[key];else cart[key]=nxt;var qel=$('q_'+key.replace(/\|/g,'_'));if(qel)qel.textContent=nxt;updateCB();autoSaveDraft()}
 function updateCB(){var keys=Object.keys(cart),bar=$('cbar'),cnt=$('CB-CNT'),items=$('CB-ITEMS');cnt.textContent=keys.length;if(!keys.length){bar.style.display='none';return}bar.style.display='block';if($('CB-DRAFT-BTN'))$('CB-DRAFT-BTN').style.display=editingOrderId?'none':'';var db=getDB(),h='';keys.forEach(function(k){var pts=k.split('|'),p=db[pts[0]][pts[1]][parseInt(pts[2])];h+='<div class="cr"><span class="crn">'+p.n+'</span><span class="crq">'+cart[k]+'개</span></div>'});items.innerHTML=h}
 function clearCart(){if(_draftTimer){clearTimeout(_draftTimer);_draftTimer=null}cart={};dropDraft();renderOrdList();updateCB()}
-function goReview(){if(!Object.keys(cart).length)return alert('품목을 선택해주세요');var db=getDB(),l=$('REV-LIST'),h='';$('REV-SUB').textContent=ME.brand+' '+ME.branch+' · '+Object.keys(cart).length+'개 품목';Object.keys(cart).forEach(function(k){var pts=k.split('|'),p=db[pts[0]][pts[1]][parseInt(pts[2])];h+='<div class="hr" style="padding:6px 0;border-bottom:1px solid #eee"><span><span class="ct c-'+ck(p.c)+'">'+p.c+'</span>'+p.n+'</span><span style="font-weight:700;color:#185FA5">'+cart[k]+'개</span></div>'});l.innerHTML=h;if($('REV-DRAFT-BTN'))$('REV-DRAFT-BTN').style.display=editingOrderId?'none':'';var _fbw=$('ORD-FB-WRAP'),_showFB=(ordMode==='bipm'&&ME&&ME.brand==='DM INTERNATIONAL');if(_fbw)_fbw.style.display=_showFB?'block':'none';if(_showFB&&$('ORD-FORBRAND'))$('ORD-FORBRAND').value=(editingOrderId&&window._editForBrand)?window._editForBrand:(window._draftForBrand||'');$('cbar').style.display='none';go('p-review')}
+function goReview(){if(!Object.keys(cart).length)return alert('품목을 선택해주세요');var db=getDB(),l=$('REV-LIST'),h='';$('REV-SUB').textContent=ME.brand+' '+ME.branch+' · '+Object.keys(cart).length+'개 품목';Object.keys(cart).forEach(function(k){var pts=k.split('|'),p=db[pts[0]][pts[1]][parseInt(pts[2])];h+='<div class="hr" style="padding:6px 0;border-bottom:1px solid #eee"><span><span class="ct c-'+ck(p.c)+'">'+p.c+'</span>'+p.n+'</span><span style="font-weight:700;color:#185FA5">'+cart[k]+'개</span></div>'});l.innerHTML=h;if($('REV-DRAFT-BTN'))$('REV-DRAFT-BTN').style.display=editingOrderId?'none':'';var _fbw=$('ORD-FB-WRAP'),_showFB=(ordMode==='bipm'&&ME&&ME.brand==='DM INTERNATIONAL');if(_fbw)_fbw.style.display=_showFB?'block':'none';if(_showFB&&$('ORD-FORBRAND'))$('ORD-FORBRAND').value=(editingOrderId&&window._editForBrand)?window._editForBrand:(window._draftForBrand||'');$('cbar').style.display='none';go('p-review');if(typeof nsoLoad==='function')nsoLoad()}
 function submitOrder(){if(!Object.keys(cart).length||!ME)return;if(_draftTimer){clearTimeout(_draftTimer);_draftTimer=null}if(ordMode==='bipm'&&ME.brand==='DM INTERNATIONAL'&&$('ORD-FORBRAND')&&!$('ORD-FORBRAND').value){alert('비품 대상 브랜드를 선택해주세요.\n(어느 브랜드용 비품인지 선택해야 발주됩니다)');return}var db=getDB(),now=new Date(),items={};var orderTs=now.getTime();Object.keys(cart).forEach(function(k){var pts=k.split('|'),p=db[pts[0]][pts[1]][parseInt(pts[2])];items[k]={supplier:pts[0],brand:pts[1],name:p.n,cat:p.c,qty:cart[k],unit:p.u||null}});var order={date:now.toISOString().slice(0,10),time:now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),ts:orderTs,brand:ME.brand,branch:ME.branch,orderedBy:dispNm(ME),phone:ME.phone,type:ordMode==='bipm'?'비품':'제품',forBrand:ordMode==='bipm'?((ME.brand==='DM INTERNATIONAL'&&$('ORD-FORBRAND'))?$('ORD-FORBRAND').value:ME.brand):null,items:items,note:$('ORD-NOTE').value.trim(),status:'대기',itemCount:Object.keys(cart).length};if(editingOrderId){fbP('/orders/'+ME.brand+'/'+ME.branch+'/'+editingOrderId+'.json',order).then(function(){toast('발주 수정 완료!');cart={};$('ORD-NOTE').value='';editingOrderId=null;go('p-hist');openHist()}).catch(function(){alert('실패. 다시 시도해주세요.')})}else{fbPost('/orders/'+ME.brand+'/'+ME.branch+'.json',order).then(function(){toast('발주 제출 완료!');dropDraft();cart={};$('ORD-NOTE').value='';window._draftForBrand='';if(typeof notifyNaverWorks==='function')notifyNaverWorks(order,'new');go('p-dash')}).catch(function(){alert('실패. 다시 시도해주세요.')})}}
 function cancelMyOrder(el){var id=el.getAttribute('data-id');customConfirm('이 발주를 취소하시겠습니까?\n취소한 발주는 복구할 수 없습니다.',function(ok){if(!ok)return;fbD('/orders/'+ME.brand+'/'+ME.branch+'/'+id+'.json').then(function(){toast('발주 취소됨');openHist()})})}
 function editMyOrder(el){var id=el.getAttribute('data-id');fbG('/orders/'+ME.brand+'/'+ME.branch+'/'+id+'.json').then(function(o){if(!o||o.status!=='대기'){alert('이미 처리된 발주는 수정할 수 없습니다.');openHist();return}ordMode=o.type==='비품'?'bipm':'prod';window._editForBrand=o.forBrand||'';cart={};Object.keys(o.items||{}).forEach(function(k){cart[k]=o.items[k].qty});curSups=[];curCats=[];editingOrderId=id;curDraftId=null;window._draftForBrand='';$('ORD-TITLE').textContent='발주 수정 ('+(o.type||'제품')+')';$('ORD-SUB').textContent=ME.brand+' '+ME.branch;$('ORD-SEARCH').value='';renderSupTabs();renderCatTabs();renderOrdList();updateCB();go('p-order')})}
@@ -1677,7 +1678,7 @@ function wigSoloSubmit(){var f=WIG_F;var amt=wigPrice(f.vendor,f.inch,f.qty);var
    /naesu/{YYYY-MM}/{id} = 신청 1건. status: 대기|확인|반려
    esc/storeImg 는 다른 스크립트 IIFE 안이라 여기서 쓸 수 없음 → ns* 로 별도 정의. */
 var NS_UPLOAD_URL='https://daymean-img-upload.swavey2803.workers.dev';
-var NS_PROD=null,NS_CART={},NS_CATF=[],NS_SHOT='',NS_BUSY=false;
+var NS_PROD=null,NS_CART={},NS_CATF=[],NS_SHOTS=[],NS_ACCTBAD=false,NS_BUSY=false;
 var NS_MYM='',NS_MINE=null;
 var NS_YM='',NS_ADM=null,NS_TAB='대기',NS_FBR='',NS_ATAB='list';
 
@@ -1693,7 +1694,7 @@ function nsMe(){return (typeof dispNm==='function'&&ME)?dispNm(ME):((ME&&(ME.nic
 function nsAcctFor(br){br=br||'';return (br.indexOf('모먼트')>=0)
   ?{label:'데이민 모먼트',bank:'카카오뱅크',no:'3333-31-7051671',owner:'김세운'}
   :{label:'데이민 본점',bank:'카카오뱅크',no:'3333-27-5577737',owner:'김세운'}}
-function nsStBadge(st){var m={'대기':['확인 대기','#b45309','#fffbeb'],'확인':['확인 완료','#15803d','#f0fdf4'],'반려':['반려','#b91c1c','#fef2f2']};var b=m[st]||m['대기'];
+function nsStBadge(st){var m={'대기':['확인 대기','#b45309','#fffbeb'],'부족':['입금 부족','#b91c1c','#fef2f2'],'확인':['확인 완료','#15803d','#f0fdf4'],'반려':['반려','#b91c1c','#fef2f2']};var b=m[st]||m['대기'];
   return '<span style="font-size:11px;font-weight:700;color:'+b[1]+';background:'+b[2]+';padding:3px 9px;border-radius:20px;white-space:nowrap">'+b[0]+'</span>'}
 
 /* ── 이미지 첨부 (R2 업로드 Worker) ── */
@@ -1706,7 +1707,6 @@ function nsUpload(file,cb){nsResize(file,1600,0.9,function(blob){if(!blob){cb(nu
   fetch(NS_UPLOAD_URL,{method:'POST',headers:{'Content-Type':'image/jpeg','X-Ph':(ME&&ME.phone)||'misc'},body:blob})
   .then(function(r){if(!r.ok)throw new Error('up '+r.status);return r.json()})
   .then(function(j){cb(j&&j.url||null)}).catch(function(){cb(null)})})}
-
 /* ── 제품 마스터 ── */
 function nsLoadProd(cb){if(NS_PROD){if(cb)cb();return}
   fbG('/naesuProducts.json').then(function(d){NS_PROD=d||{};if(cb)cb()}).catch(function(){NS_PROD={};if(cb)cb()})}
@@ -1718,7 +1718,7 @@ function nsTotal(){var t=0;Object.keys(NS_CART).forEach(function(k){var it=nsIte
 function nsQty(){var t=0;Object.keys(NS_CART).forEach(function(k){t+=NS_CART[k]});return t}
 
 /* ── ① 품목 선택 ── */
-function openNaesu(){if(!ME)return;if(!can('menu.naesu')&&!nsIsHQ()){toast('이용 권한이 없어요');return}NS_CART={};NS_CATF=[];NS_SHOT='';
+function openNaesu(){if(!ME)return;if(!can('menu.naesu')&&!nsIsHQ()){toast('이용 권한이 없어요');return}NS_CART={};NS_CATF=[];NS_SHOTS=[];NS_ACCTBAD=false;
   go('p-naesu');
   if($('NS-SUB'))$('NS-SUB').textContent=(ME.branch||'')+' · '+nsMe();
   if($('NS-SEARCH'))$('NS-SEARCH').value='';
@@ -1767,7 +1767,7 @@ function nsLeaveList(){if($('nsbar'))$('nsbar').style.display='none';backToDash(
 
 /* ── ② 신청 확인 ── */
 function nsGoReview(){if(!Object.keys(NS_CART).length){alert('품목을 선택해주세요');return}
-  NS_SHOT='';if($('NSR-NOTE'))$('NSR-NOTE').value='';
+  NS_SHOTS=[];NS_ACCTBAD=false;if($('NSR-NOTE'))$('NSR-NOTE').value='';
   if($('nsbar'))$('nsbar').style.display='none';
   go('p-naesu-review');nsRenderReview()}
 function nsBackToList(){go('p-naesu');nsUpdBar()}
@@ -1801,23 +1801,44 @@ function nsCopyFb(t,done){try{var ta=document.createElement('textarea');ta.value
 function nsPickShot(input){var f=input.files&&input.files[0];input.value='';
   if(!f)return;
   if(!/^image\//.test(f.type)){alert('이미지 파일만 첨부할 수 있어요');return}
-  var w=$('NSR-SHOT');if(w)w.innerHTML='<div style="font-size:12px;color:#64748b;padding:10px 0">업로드 중…</div>';
-  nsUpload(f,function(url){
-    if(!url){if(w)w.innerHTML='<div style="font-size:12px;color:#ef4444;font-weight:700;padding:10px 0">업로드 실패 — 다시 첨부해주세요</div>'+nsShotBtn();return}
-    NS_SHOT=url;nsRenderShot()})}
+  var w=$('NSR-SHOT');if(w)w.innerHTML='<div style="font-size:12px;color:#64748b;padding:12px 0">캡처 올리는 중…</div>';
+  var acct=nsAcctFor(ME&&ME.branch),want=nsTotal();
+  var url=null,vr=null,done=0;
+  function fin(){if(++done<2)return;
+    if(!url){NS_SHOTS=[];nsRenderShot('<div style="font-size:12px;color:#ef4444;font-weight:700;padding:8px 0">업로드 실패 — 다시 첨부해주세요</div>');return}
+    var rd=(vr&&vr.read)||{};
+    NS_SHOTS=[{url:url,amount:(rd.amount==null?null:+rd.amount),acct:rd.toAccount||null,
+      sender:rd.sender||null,when:rd.when||null,conf:(rd.confidence==null?null:+rd.confidence),at:Date.now()}];
+    NS_ACCTBAD=!!(vr&&vr.check&&vr.check.acctMatch===false);
+    nsRenderShot()}
+  nsUpload(f,function(u){url=u;fin()});
+  if(w)w.innerHTML='<div style="font-size:12px;color:#64748b;padding:12px 0">캡처 올리는 중… · 금액 읽는 중…</div>';
+  nsVerify(f,want,acct.bank+' '+acct.no,function(j){vr=j;fin()})}
 function nsShotBtn(){return '<label class="gbtn sec" style="display:block;text-align:center;cursor:pointer;margin-top:6px">'
-  +(NS_SHOT?'캡처 다시 첨부':'송금 캡처 첨부하기')
+  +(NS_SHOTS.length?'캡처 다시 첨부':'송금 캡처 첨부하기')
   +'<input type="file" accept="image/*" onchange="nsPickShot(this)" style="display:none"></label>'}
-function nsRenderShot(){var w=$('NSR-SHOT');if(!w)return;
-  var h='';
-  if(NS_SHOT){h+='<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">'
-    +'<img src="'+nsEsc(NS_SHOT)+'" style="width:100%;display:block;max-height:280px;object-fit:contain;background:#f8fafc" onclick="nsViewShot(\''+nsEsc(NS_SHOT)+'\')">'
-    +'</div><div style="font-size:11px;color:#16a34a;font-weight:700;margin-top:6px">✓ 캡처가 첨부됐어요</div>'}
-  else{h+='<div style="border:1.5px dashed #cbd5e1;border-radius:12px;padding:22px 14px;text-align:center;color:#94a3b8;font-size:12.5px;line-height:1.6">'
-    +'송금하신 화면을 캡처해서 첨부해주세요<br><span style="font-size:11px">캡처가 없으면 신청할 수 없어요</span></div>'}
+function nsRenderShot(err){var w=$('NSR-SHOT');if(!w)return;
+  var h='',s=NS_SHOTS[0];
+  if(err)h+=err;
+  if(s){
+    h+=nsShotCard(s,0);
+    var tot=nsTotal();
+    if(s.amount==null)h+=nsNote('warn','금액을 자동으로 읽지 못했어요','그대로 신청하셔도 됩니다. 경영팀이 캡처를 직접 확인해요.');
+    else if(s.amount<tot)h+=nsNote('bad','입금이 '+nsWon(tot-s.amount)+' 부족해요','차액을 추가로 보내고 [캡처 추가]로 한 장 더 올려주세요. 지금 신청해두셔도 됩니다.');
+    else if(s.amount>tot)h+=nsNote('warn',nsWon(s.amount-tot)+' 더 보내셨어요','신청하시면 경영팀이 차액을 돌려드립니다.');
+    else if(NS_ACCTBAD)h+=nsNote('warn','근무지 계좌가 아닌 것 같아요','경영팀이 확인 후 처리합니다.');
+    else h+=nsNote('ok','입금 금액이 신청 금액과 일치해요','');
+  }else if(!err){
+    h+='<div style="border:1.5px dashed #cbd5e1;border-radius:12px;padding:22px 14px;text-align:center;color:#94a3b8;font-size:12.5px;line-height:1.6">'
+      +'송금하신 화면을 캡처해서 첨부해주세요<br><span style="font-size:11px">캡처가 없으면 신청할 수 없어요</span></div>'}
   h+=nsShotBtn();
   w.innerHTML=h;
-  var b=$('NSR-SUBMIT');if(b){b.disabled=!NS_SHOT;b.style.opacity=NS_SHOT?'1':'.45'}}
+  var b=$('NSR-SUBMIT');if(b){var okb=NS_SHOTS.length>0;b.disabled=!okb;b.style.opacity=okb?'1':'.45'}}
+function nsNote(kind,title,desc){
+  var c={ok:['#16a34a','#f0fdf4','#bbf7d0'],warn:['#b45309','#fffbeb','#fde68a'],bad:['#b91c1c','#fef2f2','#fecaca']}[kind]||['#475569','#f8fafc','#e2e8f0'];
+  return '<div style="background:'+c[1]+';border:1px solid '+c[2]+';border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+    +'<div style="font-size:12.5px;font-weight:800;color:'+c[0]+'">'+(kind==='ok'?'✅ ':'⚠️ ')+nsEsc(title)+'</div>'
+    +(desc?'<div style="font-size:11.5px;color:#475569;margin-top:3px;line-height:1.55">'+nsEsc(desc)+'</div>':'')+'</div>'}
 function nsViewShot(url){var bg=document.createElement('div');bg.className='modal-bg';bg.style.display='flex';bg.style.zIndex='10001';bg.style.padding='16px';
   bg.innerHTML='<div style="max-width:100%;max-height:100%;overflow:auto"><img src="'+nsEsc(url)+'" style="max-width:100%;border-radius:12px;display:block"></div>';
   bg.onclick=function(){if(bg.parentNode)bg.parentNode.removeChild(bg)};document.body.appendChild(bg)}
@@ -1825,31 +1846,37 @@ function nsSubmit(){
   if(NS_BUSY||!ME)return;
   var ks=Object.keys(NS_CART);
   if(!ks.length){alert('품목을 선택해주세요');return}
-  if(!NS_SHOT){alert('송금 캡처를 첨부해야 신청할 수 있어요');return}
+  if(!NS_SHOTS.length){alert('송금 캡처를 첨부해야 신청할 수 있어요');return}
   var items=[];ks.forEach(function(k){var it=nsItem(k);if(it)items.push({cat:it.cat,n:it.n,price:it.price,qty:NS_CART[k]})});
   if(!items.length){alert('품목 정보를 불러오지 못했어요. 다시 시도해주세요');return}
   var tot=nsTotal(),qty=nsQty(),now=new Date(),ym=nsYm(now),a=nsAcctFor(ME.branch);
-  _showPopup({type:'confirm',title:'내수 신청',msg:items.length+'개 품목 · 총 '+qty+'개\n합계 '+nsWon(tot)+'\n\n'+a.label+' 계좌로 입금하신 게 맞나요?',cb:function(ok){
+  var s0=NS_SHOTS[0],paid=nsShotsPaid(NS_SHOTS);
+  var warn='';
+  if(paid!=null&&paid<tot)warn='\n\n⚠️ 캡처에서 읽은 금액은 '+nsWon(paid)+'이에요.\n'+nsWon(tot-paid)+'이 부족합니다.\n신청은 접수되고, 차액을 보내신 뒤 캡처를 추가하시면 돼요.';
+  else if(paid!=null&&paid>tot)warn='\n\n⚠️ '+nsWon(paid-tot)+'을 더 보내셨어요.\n경영팀이 차액을 돌려드립니다.';
+  else if(paid==null)warn='\n\n⚠️ 캡처에서 금액을 읽지 못했어요.\n경영팀이 직접 확인합니다.';
+  _showPopup({type:'confirm',title:'내수 신청',msg:items.length+'개 품목 · 총 '+qty+'개\n합계 '+nsWon(tot)+'\n\n'+a.label+' 계좌로 입금하신 게 맞나요?'+warn,cb:function(ok){
     if(!ok)return;
-    var rec={ph:ME.phone,name:nsMe(),branch:ME.branch||'',brand:ME.brand||'',
-      items:items,count:items.length,qty:qty,total:tot,
-      shot:NS_SHOT,acct:a.bank+' '+a.no,acctLabel:a.label,
-      note:(($('NSR-NOTE')&&$('NSR-NOTE').value)||'').trim(),
-      status:'대기',
-      date:now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2),
-      time:now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),ts:now.getTime()};
     NS_BUSY=true;
-    fbPost('/naesu/'+ym+'.json',rec).then(function(){
-      NS_BUSY=false;NS_CART={};NS_SHOT='';
-      if($('NSR-NOTE'))$('NSR-NOTE').value='';
-      if($('nsbar'))$('nsbar').style.display='none';
-      toast('내수 신청 완료! 경영팀 확인 후 수령하세요');
-      if(typeof notifyNaverWorks==='function')notifyNaverWorks({
-        name:rec.name,branch:rec.branch,count:rec.count,qty:rec.qty,total:rec.total,
-        items:items.map(function(x){return {n:x.n,qty:x.qty}}),date:rec.date,time:rec.time},'naesu');
-      NS_MYM=ym;NS_MINE=null;openNaesuMine();
+    fbG('/naesu/'+ym+'.json').then(function(all){
+      var dup=nsDupHit(all,null,s0.when,s0.amount);
+      var rec={ph:ME.phone,name:nsMe(),branch:ME.branch||'',brand:ME.brand||'',
+        items:items,count:items.length,qty:qty,total:tot,
+        shots:NS_SHOTS.slice(),paid:paid,short:(paid==null?null:tot-paid),
+        acctBad:!!NS_ACCTBAD,dup:(dup?{id:dup.id,name:dup.name||'',date:dup.date||''}:null),
+        acct:a.bank+' '+a.no,acctLabel:a.label,
+        note:(($('NSR-NOTE')&&$('NSR-NOTE').value)||'').trim(),
+        status:(paid!=null&&paid<tot)?'부족':'대기',
+        date:now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2),
+        time:now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),ts:now.getTime()};
+      return fbPost('/naesu/'+ym+'.json',rec).then(function(){
+        NS_BUSY=false;NS_CART={};NS_SHOTS=[];NS_ACCTBAD=false;
+        if($('NSR-NOTE'))$('NSR-NOTE').value='';
+        if($('nsbar'))$('nsbar').style.display='none';
+        toast(rec.status==='부족'?'접수됐어요 — 차액을 보내고 캡처를 추가해주세요':'내수 신청 완료! 경영팀 확인 후 수령하세요');
+        nsNotify(rec);
+        NS_MYM=ym;NS_MINE=null;openNaesuMine()})
     }).catch(function(){NS_BUSY=false;alert('신청 실패. 다시 시도해주세요.')})}})}
-
 /* ── ③ 내 내역 ── */
 function openNaesuMine(){if(!ME)return;if(!NS_MYM)NS_MYM=nsYm();go('p-naesu-mine');nsLoadMine()}
 function nsMineMonth(d){NS_MYM=nsYmShift(NS_MYM||nsYm(),d);nsLoadMine()}
@@ -1866,17 +1893,19 @@ function nsRenderMine(){var el=$('NSM-LIST');if(!el)return;
     +'<div style="font-size:19px;font-weight:800;color:#185FA5">'+nsWon(sum)+'</div></div>';
   if(!ids.length){el.innerHTML='<div class="empty">이 달 내수 신청 내역이 없어요</div>';return}
   var h='';
-  ids.forEach(function(id){var r=d[id];
-    h+='<div style="background:#fff;border:1px solid #eef2f6;border-radius:12px;padding:14px;margin-bottom:8px">'
+  ids.forEach(function(id){var r=d[id];var st=r.status||'대기';
+    h+='<div style="background:#fff;border:1px solid '+(st==='부족'?'#fecaca':'#eef2f6')+';border-radius:12px;padding:14px;margin-bottom:8px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">'
-      +'<div style="font-size:12px;color:#64748b">'+nsEsc(r.date||'')+' '+nsEsc(r.time||'')+'</div>'+nsStBadge(r.status)+'</div>'
+      +'<div style="font-size:12px;color:#64748b">'+nsEsc(r.date||'')+' '+nsEsc(r.time||'')+'</div>'+nsStBadge(st)+'</div>'
       +nsItemLines(r.items)
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">'
       +'<span style="font-size:12px;color:#64748b">합계</span><span style="font-size:15px;font-weight:800;color:#185FA5">'+nsWon(r.total)+'</span></div>'
-      +(r.status==='반려'&&r.reason?'<div style="margin-top:8px;background:#fef2f2;border-left:3px solid #ef4444;padding:8px 10px;border-radius:6px;font-size:12px;color:#b91c1c"><b>반려 사유</b> · '+nsEsc(r.reason)+'</div>':'')
-      +'<div style="display:flex;gap:6px;margin-top:10px">'
-      +(r.shot?'<button class="gbtn sec sm" style="flex:1" onclick="nsViewShot(\''+nsEsc(r.shot)+'\')">캡처 보기</button>':'')
-      +(r.status==='대기'?'<button class="gbtn sec sm" style="flex:1;color:#dc2626" onclick="nsCancelMine(\''+nsEsc(id)+'\')">신청 취소</button>':'')
+      +nsPayBar(r)
+      +(st==='반려'&&r.reason?'<div style="margin-top:8px;background:#fef2f2;border-left:3px solid #ef4444;padding:8px 10px;border-radius:6px;font-size:12px;color:#b91c1c"><b>반려 사유</b> · '+nsEsc(r.reason)+'</div>':'')
+      +(st==='부족'?'<label class="gbtn pri sm" style="display:block;text-align:center;cursor:pointer;margin-top:10px">차액 송금 캡처 추가<input type="file" accept="image/*" onchange="nsAddShot(\''+nsEsc(id)+'\',this)" style="display:none"></label>':'')
+      +'<div style="display:flex;gap:6px;margin-top:8px">'
+      +((r.shots&&r.shots.length)?'<button class="gbtn sec sm" style="flex:1" onclick="nsViewShot(\''+nsEsc(r.shots[r.shots.length-1].url)+'\')">캡처 보기'+(r.shots.length>1?' ('+r.shots.length+')':'')+'</button>':'')
+      +((st==='대기'||st==='부족')?'<button class="gbtn sec sm" style="flex:1;color:#dc2626" onclick="nsCancelMine(\''+nsEsc(id)+'\')">신청 취소</button>':'')
       +'</div></div>'});
   el.innerHTML=h}
 function nsItemLines(items){if(!items||!items.length)return '';
@@ -1905,43 +1934,58 @@ function nsAdmRows(){var d=NS_ADM||{};return Object.keys(d).map(function(id){var
   .sort(function(a,b){return (b.ts||0)-(a.ts||0)})}
 function nsAdmRender(){
   var rows=nsAdmRows();
-  var cw={'대기':0,'확인':0,'반려':0};rows.forEach(function(r){var s=r.status||'대기';if(cw[s]!=null)cw[s]++});
+  var cw={'대기':0,'확인':0,'반려':0},bad=0;
+  rows.forEach(function(r){var s=r.status||'대기';if(s==='부족')s='대기';if(cw[s]!=null)cw[s]++;if(nsIsBad(r))bad++});
   var tb=$('NSA-TABS');
-  if(tb){var mk=function(k,l,n){return '<button class="gbtn sec sm aord-tab'+(NS_TAB===k?' on':'')+'" onclick="nsAdmTab(\''+k+'\')">'+l+(n?' <span style="opacity:.7;font-weight:800">'+n+'</span>':'')+'</button>'};
-    tb.innerHTML=mk('대기','확인 대기',cw['대기'])+mk('확인','확인 완료',cw['확인'])+mk('반려','반려',cw['반려'])+mk('전체','전체',rows.length)}
+  if(tb){var mk=function(k,l,n,c){return '<button class="gbtn sec sm aord-tab'+(NS_TAB===k?' on':'')+'" onclick="nsAdmTab(\''+k+'\')">'+l+(n?' <span style="opacity:.75;font-weight:800'+(c?';color:'+c:'')+'">'+n+'</span>':'')+'</button>'};
+    tb.innerHTML=mk('대기','확인 대기',cw['대기'])+mk('오입금','⚠️ 오입금',bad,'#dc2626')+mk('확인','확인 완료',cw['확인'])+mk('반려','반려',cw['반려'])+mk('전체','전체',rows.length)}
   var vb=$('NSA-VIEW');
   if(vb)vb.innerHTML='<button class="gbtn sec sm aord-tab'+(NS_ATAB==='list'?' on':'')+'" onclick="nsAdmView(\'list\')">신청 목록</button>'
     +'<button class="gbtn sec sm aord-tab'+(NS_ATAB==='stat'?' on':'')+'" onclick="nsAdmView(\'stat\')">월말 집계</button>';
   var body=$('NSA-BODY');if(!body)return;
   if(NS_ATAB==='stat'){body.innerHTML=nsStatHtml(rows);return}
-  var list=NS_TAB==='전체'?rows:rows.filter(function(r){return (r.status||'대기')===NS_TAB});
-  if(!list.length){body.innerHTML='<div class="empty">'+(NS_TAB==='대기'?'확인할 신청이 없어요 👍':'해당 내역이 없어요')+'</div>';return}
+  var list;
+  if(NS_TAB==='전체')list=rows;
+  else if(NS_TAB==='오입금')list=rows.filter(nsIsBad);
+  else if(NS_TAB==='대기')list=rows.filter(function(r){var s=r.status||'대기';return s==='대기'||s==='부족'});
+  else list=rows.filter(function(r){return (r.status||'대기')===NS_TAB});
+  if(!list.length){body.innerHTML='<div class="empty">'+(NS_TAB==='대기'?'확인할 신청이 없어요 👍':NS_TAB==='오입금'?'금액이 안 맞는 건이 없어요 👍':'해당 내역이 없어요')+'</div>';return}
   body.innerHTML=list.map(nsAdmCard).join('')}
 function nsAdmCard(r){
-  var id=r._id,st=r.status||'대기';
-  return '<div style="background:#fff;border:1px solid #eef2f6;border-radius:14px;padding:14px;margin-bottom:10px">'
+  var id=r._id,st=r.status||'대기',f=nsFlagOf(r);
+  var shots=(r.shots||[]);
+  return '<div style="background:#fff;border:1px solid '+(nsIsBad(r)?'#fecaca':'#eef2f6')+';border-radius:14px;padding:14px;margin-bottom:10px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">'
     +'<div style="font-size:14px;font-weight:800">'+nsEsc(r.name||'')+'</div>'+nsStBadge(st)+'</div>'
     +'<div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px">'+nsEsc(r.branch||'')+' · '+nsEsc(r.date||'')+' '+nsEsc(r.time||'')+'</div>'
+    +nsAdmBanner(r)
     +nsItemLines(r.items)
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">'
     +'<span style="font-size:12px;color:#64748b">'+nsEsc(r.acctLabel||'')+' 입금</span>'
     +'<span style="font-size:17px;font-weight:800;color:#185FA5">'+nsWon(r.total)+'</span></div>'
     +(r.note?'<div style="margin-top:8px;font-size:12px;color:#475569;background:#f8fafc;border-radius:6px;padding:7px 9px">📝 '+nsEsc(r.note)+'</div>':'')
-    +(r.shot?'<div style="margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;cursor:pointer" onclick="nsViewShot(\''+nsEsc(r.shot)+'\')">'
-      +'<img src="'+nsEsc(r.shot)+'" style="width:100%;display:block;max-height:220px;object-fit:contain;background:#f8fafc"></div>'
-      +'<div style="font-size:10.5px;color:#94a3b8;text-align:center;margin-top:4px">탭하면 크게 보여요</div>'
+    +(shots.length?shots.map(function(s,i){return '<div style="margin-top:10px">'
+      +'<div style="border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;cursor:pointer" onclick="nsViewShot(\''+nsEsc(s.url)+'\')">'
+      +'<img src="'+nsEsc(s.url)+'" style="width:100%;display:block;max-height:220px;object-fit:contain;background:#f8fafc"></div>'
+      +'<div style="font-size:11px;color:#64748b;text-align:center;margin-top:4px">'+(shots.length>1?('캡처 '+(i+1)+'/'+shots.length+' · '):'')+nsReadLine(s)+'</div></div>'}).join('')
       :'<div style="margin-top:10px;font-size:12px;color:#ef4444;font-weight:700">⚠ 캡처 없음</div>')
     +(st==='반려'&&r.reason?'<div style="margin-top:8px;background:#fef2f2;border-left:3px solid #ef4444;padding:8px 10px;border-radius:6px;font-size:12px;color:#b91c1c"><b>반려 사유</b> · '+nsEsc(r.reason)+'</div>':'')
-    +(st!=='대기'&&r.checkedByName?'<div style="margin-top:8px;font-size:11px;color:#94a3b8">'+(st==='확인'?'확인':'반려')+' · '+nsEsc(r.checkedByName)+' · '+nsEsc(r.checkedAtStr||'')+'</div>':'')
-    +(st==='대기'
+    +(st!=='대기'&&st!=='부족'&&r.checkedByName?'<div style="margin-top:8px;font-size:11px;color:#94a3b8">'+(st==='확인'?'확인':'반려')+' · '+nsEsc(r.checkedByName)+' · '+nsEsc(r.checkedAtStr||'')+'</div>':'')
+    +(f==='over'&&!r.refunded?'<button class="gbtn sec sm" style="width:100%;margin-top:10px;color:#1d4ed8" onclick="nsRefund(\''+nsEsc(id)+'\')">차액 '+nsWon((+r.paid||0)-(+r.total||0))+' 반환 완료</button>':'')
+    +(r.refunded?'<div style="margin-top:8px;font-size:11px;color:#16a34a;font-weight:700">✅ 차액 반환 완료 · '+nsEsc(r.refunded.byName||'')+' · '+nsEsc(r.refunded.atStr||'')+'</div>':'')
+    +((st==='대기'||st==='부족')
       ?'<div style="display:flex;gap:8px;margin-top:12px"><button class="gbtn sec sm" style="flex:1;color:#dc2626" onclick="nsReject(\''+nsEsc(id)+'\')">반려</button>'
        +'<button class="gbtn pri sm" style="flex:2" onclick="nsApprove(\''+nsEsc(id)+'\')">확인 완료</button></div>'
       :'<div style="margin-top:12px"><button class="gbtn sec sm" style="width:100%" onclick="nsRevert(\''+nsEsc(id)+'\')">대기로 되돌리기</button></div>')
     +'</div>'}
 function nsStamp(){var n=new Date();return n.getFullYear()+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+('0'+n.getDate()).slice(-2)+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}
 function nsApprove(id){var r=(NS_ADM||{})[id];if(!r)return;
-  _showPopup({type:'confirm',title:'확인 완료',msg:nsEsc(r.name)+' · '+nsWon(r.total)+'\n입금 캡처를 확인하셨나요?\n확인하면 인턴이 제품을 수령합니다.',cb:function(ok){if(!ok)return;
+  var f=nsFlagOf(r),extra='';
+  if(f==='short')extra='\n\n⚠️ 입금이 '+nsWon((+r.total||0)-(+r.paid||0))+' 부족한 상태예요.\n그래도 확인 처리할까요?';
+  else if(f==='over')extra='\n\n⚠️ '+nsWon((+r.paid||0)-(+r.total||0))+' 과입금 상태예요. 차액 반환을 잊지 마세요.';
+  else if(f==='unread')extra='\n\n⚠️ 캡처 금액을 자동으로 읽지 못했어요. 직접 확인하셨나요?';
+  else if(f==='dup')extra='\n\n⚠️ 다른 신청과 같은 이체내역으로 보입니다. 확인하셨나요?';
+  _showPopup({type:'confirm',title:'확인 완료',msg:nsEsc(r.name)+' · '+nsWon(r.total)+'\n입금 캡처를 확인하셨나요?\n확인하면 인턴이 제품을 수령합니다.'+extra,cb:function(ok){if(!ok)return;
     nsPatch('/naesu/'+NS_YM+'/'+id+'.json',{status:'확인',checkedBy:ME.phone,checkedByName:nsMe(),checkedAt:Date.now(),checkedAtStr:nsStamp(),reason:null})
       .then(function(){toast('확인 완료');nsAdmLoad()}).catch(function(){alert('처리 실패. 다시 시도해주세요.')})}})}
 function nsReject(id){var r=(NS_ADM||{})[id];if(!r)return;
@@ -2057,6 +2101,292 @@ function nsProdSave(cat){var c=NS_PROD[cat];if(!c)return;
   fbP('/naesuProducts/'+encodeURIComponent(cat)+'.json',{o:c.o||99,items:items})
     .then(function(){c.items=items;c._dirty=false;c._open=true;toast(cat+' 저장됐어요');nsProdRender()})
     .catch(function(){alert('저장 실패. 다시 시도해주세요.')})}
+/* 판독용으로만 900px 축소본을 base64 로 만든다(원본 저장본과 별개).
+   900px 면 이체화면 글자가 충분히 읽히고 토큰이 1/3로 줄어든다. */
+function nsResizeB64(file,cb){nsResize(file,900,0.85,function(blob){
+  if(!blob){cb(null);return}
+  var r=new FileReader();
+  r.onload=function(e){var s=String(e.target.result||'');var i=s.indexOf(',');cb(i<0?null:s.slice(i+1))};
+  r.onerror=function(){cb(null)};r.readAsDataURL(blob)})}
+/* 송금 캡처 판독 — 실패해도 신청은 계속 진행된다(판독은 참고용). */
+function nsVerify(file,expectAmount,expectAcct,cb){
+  nsResizeB64(file,function(b64){
+    if(!b64){cb(null);return}
+    var go=function(cfg){
+      if(!cfg||!cfg.url||!cfg.secret){cb(null);return}
+      var url=cfg.url.replace(/\/+$/,'')+'/ai/naesu-verify';
+      fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({secret:cfg.secret,imageB64:b64,mediaType:'image/jpeg',expectAmount:expectAmount,expectAcct:expectAcct})})
+        .then(function(r){return r.json()}).then(function(j){cb(j&&j.ok?j:null)}).catch(function(){cb(null)})};
+    if(typeof NW_CONFIG_LOADED!=='undefined'&&NW_CONFIG_LOADED)go(NW_CONFIG_CACHE);
+    else if(typeof loadNWConfig==='function')loadNWConfig().then(go).catch(function(){cb(null)});
+    else cb(null)})}
+function nsShotsPaid(shots){var any=false,t=0;
+  (shots||[]).forEach(function(s){if(s&&s.amount!=null){any=true;t+=(+s.amount||0)}});
+  return any?t:null}
+/* 신청 1건의 상태 플래그. 급한 순서대로 하나만 고른다. */
+function nsFlagOf(r){
+  if(!r||r.status==='반려')return '';
+  var tot=+r.total||0,paid=(r.paid==null?null:+r.paid);
+  if(paid==null)return 'unread';
+  if(paid<tot)return 'short';
+  if(paid>tot)return (r.refunded?'ok':'over');
+  if(r.acctBad)return 'acct';
+  if(r.dup)return 'dup';
+  return 'ok'}
+function nsIsBad(r){var f=nsFlagOf(r);return !!f&&f!=='ok'}
+/* 같은 이체일시+금액이 이미 쓰였는지 (캡처 재사용 탐지) */
+function nsDupHit(all,selfId,when,amount){
+  if(!when||amount==null)return null;var hit=null;
+  Object.keys(all||{}).forEach(function(id){if(hit||id===selfId)return;
+    var r=all[id];if(!r||r.status==='반려')return;
+    (r.shots||[]).forEach(function(s){if(hit||!s)return;
+      if(s.when===when&&(+s.amount||0)===(+amount||0))hit={id:id,name:r.name,date:r.date}})});
+  return hit}
+/* 판독 결과 한 줄 요약 (인턴·경영팀 공용) */
+function nsReadLine(s){
+  if(!s)return '';
+  if(s.amount==null)return '<span style="color:#b45309;font-weight:700">캡처를 자동으로 읽지 못했어요</span>';
+  return '<b>'+nsWon(s.amount)+'</b>'
+    +(s.when?' · '+nsEsc(s.when):'')
+    +(s.sender?' · '+nsEsc(s.sender):'')}
+function nsShotCard(s,idx){
+  return '<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:6px">'
+    +'<img src="'+nsEsc(s.url)+'" style="width:100%;display:block;max-height:240px;object-fit:contain;background:#f8fafc" onclick="nsViewShot(\''+nsEsc(s.url)+'\')">'
+    +'</div><div style="font-size:11.5px;color:#475569;margin:-2px 0 10px">'+nsReadLine(s)+'</div>'}
+/* 웍스 알림 payload — 제목에서 정상/오류가 바로 구분되도록 flag 를 같이 보낸다 */
+function nsNotify(rec,flagOverride){
+  if(typeof notifyNaverWorks!=='function')return;
+  var f=flagOverride||nsFlagOf(rec)||'ok';
+  var s0=(rec.shots||[])[0]||{};
+  notifyNaverWorks({
+    name:rec.name,branch:rec.branch,count:rec.count,qty:rec.qty,total:rec.total,
+    paid:rec.paid,diff:(rec.paid==null?null:Math.abs((+rec.total||0)-(+rec.paid||0))),
+    flag:f,acct:rec.acct,readAcct:s0.acct||null,when:s0.when||null,
+    items:(rec.items||[]).map(function(x){return {n:x.n,qty:x.qty}}),
+    date:rec.date,time:rec.time},'naesu')}
+/* 입금 현황 진행바 — 부족/과입금일 때만 의미가 있다 */
+function nsPayBar(r){
+  var tot=+r.total||0,paid=(r.paid==null?null:+r.paid);
+  if(paid==null)return '<div style="font-size:12px;color:#b45309;font-weight:700;margin-top:8px">⚠️ 캡처 금액을 읽지 못했어요 — 경영팀 확인 필요</div>';
+  if(paid===tot)return '';
+  var pct=Math.max(0,Math.min(100,tot?Math.round(paid*100/tot):0));
+  var over=paid>tot;
+  return '<div style="margin-top:10px">'
+    +'<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#64748b;margin-bottom:4px">'
+    +'<span>입금 현황</span><span><b style="color:'+(over?'#1d4ed8':'#b91c1c')+'">'+nsWon(paid)+'</b> / '+nsWon(tot)+'</span></div>'
+    +'<div style="height:7px;border-radius:99px;background:#eef2f6;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:'+(over?'#3b82f6':'#ef4444')+'"></div></div>'
+    +'<div style="font-size:12px;font-weight:800;color:'+(over?'#1d4ed8':'#b91c1c')+';margin-top:5px">'
+    +(over?(nsWon(paid-tot)+' 과입금 — 경영팀이 차액을 돌려드려요'):(nsWon(tot-paid)+' 부족'))+'</div></div>'}
+/* 부족분 보충 — 캡처를 한 장 더 올려 합산한다 */
+function nsAddShot(id,input){
+  var f=input.files&&input.files[0];input.value='';
+  if(!f)return;
+  if(!/^image\//.test(f.type)){alert('이미지 파일만 첨부할 수 있어요');return}
+  var r=(NS_MINE||{})[id];if(!r)return;
+  var tot=+r.total||0,cur=(r.paid==null?0:+r.paid),needed=Math.max(0,tot-cur);
+  toast('캡처 올리는 중…');
+  var url=null,vr=null,done=0;
+  function fin(){if(++done<2)return;
+    if(!url){alert('업로드 실패. 다시 시도해주세요.');return}
+    var rd=(vr&&vr.read)||{};
+    var shot={url:url,amount:(rd.amount==null?null:+rd.amount),acct:rd.toAccount||null,
+      sender:rd.sender||null,when:rd.when||null,conf:(rd.confidence==null?null:+rd.confidence),at:Date.now()};
+    var shots=(r.shots||[]).concat([shot]);
+    var paid=nsShotsPaid(shots);
+    var st=(paid!=null&&paid<tot)?'부족':'대기';
+    nsPatch('/naesu/'+NS_MYM+'/'+id+'.json',{shots:shots,paid:paid,short:(paid==null?null:tot-paid),status:st})
+      .then(function(){
+        var nr=Object.assign({},r,{shots:shots,paid:paid,short:(paid==null?null:tot-paid),status:st});
+        toast(st==='부족'?('아직 '+nsWon(tot-paid)+' 부족해요'):'입금이 채워졌어요 — 경영팀 확인을 기다려주세요');
+        if(st!=='부족')nsNotify(nr,'filled');
+        nsLoadMine()})
+      .catch(function(){alert('저장 실패. 다시 시도해주세요.')})}
+  nsUpload(f,function(u){url=u;fin()});
+  nsVerify(f,needed||tot,r.acct||'',function(j){vr=j;fin()})}
+/* 경영팀 카드 맨 위 — 판독 대조 결과를 한눈에 */
+function nsAdmBanner(r){
+  var f=nsFlagOf(r);if(!f)return '';
+  var tot=+r.total||0,paid=(r.paid==null?null:+r.paid),s0=(r.shots||[])[0]||{};
+  function box(c,bg,bd,title,sub){return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:10px 12px;margin:10px 0">'
+    +'<div style="font-size:12.5px;font-weight:800;color:'+c+'">'+title+'</div>'
+    +(sub?'<div style="font-size:11.5px;color:#475569;margin-top:3px;line-height:1.55">'+sub+'</div>':'')+'</div>'}
+  var det='캡처 판독 '+(paid==null?'—':nsWon(paid))+' / 신청 '+nsWon(tot)
+    +(s0.when?' · 이체 '+nsEsc(s0.when):'')+(s0.sender?' · 보낸분 '+nsEsc(s0.sender):'')
+    +((r.shots||[]).length>1?' · 캡처 '+r.shots.length+'장 합산':'');
+  if(f==='short')return box('#b91c1c','#fef2f2','#fecaca','⚠️ 입금 '+nsWon(tot-paid)+' 부족',det);
+  if(f==='over')return box('#1d4ed8','#eff6ff','#bfdbfe','⚠️ '+nsWon(paid-tot)+' 과입금 — 차액 반환 필요',det);
+  if(f==='acct')return box('#b45309','#fffbeb','#fde68a','⚠️ 근무지 계좌가 아닌 곳으로 입금',det+'<br>판독 계좌 '+nsEsc(s0.acct||'—')+' · 근무지 계좌 '+nsEsc(r.acct||''));
+  if(f==='dup')return box('#b45309','#fffbeb','#fde68a','⚠️ 캡처 중복 의심',det+'<br>'+nsEsc((r.dup&&r.dup.name)||'')+' '+nsEsc((r.dup&&r.dup.date)||'')+' 신청과 같은 이체내역으로 보여요');
+  if(f==='unread')return box('#b45309','#fffbeb','#fde68a','❓ 캡처를 자동으로 읽지 못했어요','캡처를 직접 확인해주세요');
+  return box('#16a34a','#f0fdf4','#bbf7d0','✅ 입금 '+nsWon(paid)+' 일치',det+(r.refunded?' · 차액 반환 완료':''))}
+function nsRefund(id){var r=(NS_ADM||{})[id];if(!r)return;
+  var over=(+r.paid||0)-(+r.total||0);
+  _showPopup({type:'confirm',title:'차액 반환',msg:nsEsc(r.name)+'님께 '+nsWon(over)+'을 돌려주셨나요?\n\n확인을 누르면 반환 완료로 기록됩니다.',cb:function(ok){if(!ok)return;
+    nsPatch('/naesu/'+NS_YM+'/'+id+'.json',{refunded:{by:ME.phone,byName:nsMe(),at:Date.now(),atStr:nsStamp(),amount:over}})
+      .then(function(){toast('반환 완료로 기록했어요');nsAdmLoad()}).catch(function(){alert('처리 실패. 다시 시도해주세요.')})}})}
+
+/* ═══ 내수 → 발주 연동 ═══
+   발주 확인 화면 맨 아래에 '확인 완료된 내수건'을 모아 보여주고,
+   체크해서 발주 장바구니에 담는다.
+   내수가표와 발주 제품DB는 이름 체계가 달라 자동 매칭이 안 된다
+   (80품목 중 이름 일치 1개). 그래서 처음 나오는 품목만 발주자가 한 번
+   연결해주고, 연결 정보는 /naesuLink 에 남아 다음부터 자동 적용된다. */
+var NSO_ROWS=[],NSO_SEL={},NSO_LINK=null,NSO_YM='',NSO_PICK=null;
+function nsoKey(cat,n){return (String(cat||'')+'|'+String(n||'')).replace(/[.$#\[\]\/]/g,'_')}
+function nsoLoadLinks(cb){if(NSO_LINK){cb();return}
+  fbG('/naesuLink.json').then(function(d){NSO_LINK=d||{};cb()}).catch(function(){NSO_LINK={};cb()})}
+/* 저장된 연결을 현재 발주 제품DB 위치로 다시 찾는다 (제품 관리에서 순서가 바뀌어도 안전) */
+function nsoResolve(link){
+  if(!link)return null;
+  var db=(typeof getDB==='function')?getDB():null;if(!db)return null;
+  var arr=db[link.sup]&&db[link.sup][link.br];if(!arr)return null;
+  for(var i=0;i<arr.length;i++)if(arr[i]&&arr[i].n===link.n)return link.sup+'|'+link.br+'|'+i;
+  return null}
+function nsoWrap(){return document.getElementById('NSO-WRAP')}
+function nsoLoad(){
+  var w=nsoWrap();if(!w)return;
+  if(typeof ordMode!=='undefined'&&ordMode!=='prod'){w.innerHTML='';return}   // 비품 발주엔 해당 없음
+  NSO_YM=nsYm();NSO_SEL={};
+  w.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:10px 2px">내수 신청 확인 중…</div>';
+  nsoLoadLinks(function(){
+    fbG('/naesu/'+NSO_YM+'.json').then(function(d){nsoBuild(d||{});nsoRender()})
+      .catch(function(){NSO_ROWS=[];nsoRender()})})}
+function nsoBuild(all){
+  var agg={};
+  Object.keys(all).forEach(function(id){
+    var r=all[id];if(!r||r.status!=='확인')return;                        // 입금 확인된 건만
+    (r.items||[]).forEach(function(it,idx){
+      if(!it||it.ordered)return;                                          // 이미 발주에 반영된 품목 제외
+      var k=nsoKey(it.cat,it.n);
+      if(!agg[k])agg[k]={key:k,cat:it.cat||'',n:it.n||'',qty:0,who:{},srcs:[]};
+      agg[k].qty+=(it.qty||1);agg[k].who[r.name||'']=1;
+      agg[k].srcs.push({id:id,idx:idx})})});
+  NSO_ROWS=Object.keys(agg).map(function(k){var x=agg[k];x.people=Object.keys(x.who).join(', ');return x})
+    .sort(function(a,b){return a.cat.localeCompare(b.cat,'ko')||a.n.localeCompare(b.n,'ko')})}
+function nsoRender(){
+  var w=nsoWrap();if(!w)return;
+  if(!NSO_ROWS.length){w.innerHTML='';return}
+  var linked=0;
+  var body=NSO_ROWS.map(function(r){
+    var lk=(NSO_LINK||{})[r.key],ck=lk?nsoResolve(lk):null;
+    if(ck)linked++;
+    var on=!!NSO_SEL[r.key];
+    return '<div style="display:flex;gap:9px;align-items:flex-start;padding:10px 0;border-top:1px solid #f1f5f9">'
+      +'<input type="checkbox" '+(ck?'':'disabled ')+(on&&ck?'checked ':'')
+        +'onchange="nsoTog(\''+nsEsc(r.key)+'\',this.checked)" style="width:18px;height:18px;margin-top:2px;flex:0 0 auto">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:13px;font-weight:700;color:#1e293b;line-height:1.4">'+nsEsc(r.n)
+      +' <span style="color:#185FA5">×'+r.qty+'</span></div>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-top:1px">'+nsEsc(r.cat)+' · '+nsEsc(r.people)+'</div>'
+      +(ck
+        ? '<div style="font-size:11.5px;color:#16a34a;font-weight:700;margin-top:3px">→ '+nsEsc(lk.sup)+' · '+nsEsc(lk.n)+' <span style="color:#94a3b8;font-weight:600">연결됨</span> '
+          +'<a onclick="nsoPick(\''+nsEsc(r.key)+'\')" style="color:#64748b;cursor:pointer;text-decoration:underline">변경</a></div>'
+        : '<div style="margin-top:5px"><span style="font-size:11.5px;color:#b45309;font-weight:700">발주 목록에서 못 찾음</span> '
+          +'<button class="gbtn sec sm" style="width:auto;padding:4px 10px;font-size:11px;margin-left:4px" onclick="nsoPick(\''+nsEsc(r.key)+'\')">연결하기</button></div>')
+      +'</div></div>'}).join('');
+  var nsel=Object.keys(NSO_SEL).filter(function(k){return NSO_SEL[k]}).length;
+  w.innerHTML='<div style="background:#fff;border:1px solid #eef2f6;border-radius:14px;padding:14px 16px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'
+    +'<div style="font-size:13.5px;font-weight:800">🧴 내수 추가 발주</div>'
+    +'<div style="font-size:11px;color:#94a3b8;font-weight:700">확인 완료 '+NSO_ROWS.length+'품목</div></div>'
+    +'<div style="font-size:11.5px;color:#94a3b8;margin-top:3px;line-height:1.55">인턴이 입금까지 마친 내수건이에요. 발주에 같이 담을 품목을 고르세요.</div>'
+    +body
+    +'<button class="gbtn pri sm" style="width:100%;margin-top:12px" onclick="nsoAdd()"'+(nsel?'':' disabled style="width:100%;margin-top:12px;opacity:.45"')+'>'
+    +(nsel?('선택한 '+nsel+'품목 발주에 추가'):'담을 품목을 선택하세요')+'</button>'
+    +(linked<NSO_ROWS.length?'<div style="font-size:11px;color:#94a3b8;margin-top:8px;line-height:1.55">연결이 안 된 품목은 발주 목록에 같은 제품이 없거나 이름이 달라서예요. 한 번만 연결해두면 다음부터 자동으로 잡힙니다.</div>':'')
+    +'</div>'}
+function nsoTog(k,on){NSO_SEL[k]=!!on;nsoRender()}
+function nsoAdd(){
+  var keys=Object.keys(NSO_SEL).filter(function(k){return NSO_SEL[k]});
+  if(!keys.length)return;
+  var added=0,ups=[],touched={};
+  keys.forEach(function(k){
+    var r=null;NSO_ROWS.forEach(function(x){if(x.key===k)r=x});
+    if(!r)return;
+    var ck=nsoResolve((NSO_LINK||{})[k]);if(!ck)return;
+    cart[ck]=(cart[ck]||0)+r.qty;added++;
+    r.srcs.forEach(function(s){(touched[s.id]=touched[s.id]||[]).push(s.idx)})});
+  if(!added){alert('담을 수 있는 품목이 없어요');return}
+  // 같은 내수 품목이 다음 발주에 또 뜨지 않도록 반영 표시
+  Object.keys(touched).forEach(function(id){
+    ups.push(fbG('/naesu/'+NSO_YM+'/'+id+'/items.json').then(function(items){
+      if(!items)return;
+      touched[id].forEach(function(i){if(items[i])items[i].ordered=true});
+      return fbP('/naesu/'+NSO_YM+'/'+id+'/items.json',items)})); });
+  Promise.all(ups).catch(function(){}).then(function(){
+    NSO_SEL={};
+    toast(added+'품목을 발주에 담았어요');
+    if(typeof updateCB==='function')updateCB();
+    if(typeof autoSaveDraft==='function')autoSaveDraft();
+    goReview()})}
+/* ── 발주 품목 연결 고르기 ── */
+function nsoPick(k){
+  NSO_PICK=k;
+  var r=null;NSO_ROWS.forEach(function(x){if(x.key===k)r=x});
+  if(!r)return;
+  var bg=document.createElement('div');bg.className='modal-bg';bg.id='nso-modal';bg.style.display='flex';bg.style.zIndex='10000';
+  bg.innerHTML='<div class="modal-box" style="max-width:420px;text-align:left;max-height:82vh;display:flex;flex-direction:column">'
+    +'<div style="font-size:15px;font-weight:800;margin-bottom:4px">발주 품목 연결</div>'
+    +'<div style="font-size:12px;color:#64748b;line-height:1.5;margin-bottom:10px">내수 <b>'+nsEsc(r.n)+'</b> 와 같은 제품을<br>발주 목록에서 찾아 골라주세요. 한 번만 하면 됩니다.</div>'
+    +'<input id="NSO-Q" placeholder="발주 제품명 검색" oninput="nsoPickRender()" style="width:100%;padding:10px 12px;font-size:13px;margin-bottom:8px">'
+    +'<div id="NSO-RES" style="flex:1;overflow-y:auto;min-height:120px"></div>'
+    +'<button class="gbtn sec" style="margin-top:10px" onclick="nsoPickClose()">닫기</button></div>';
+  bg.onclick=function(e){if(e.target===bg)nsoPickClose()};
+  document.body.appendChild(bg);
+  var q=document.getElementById('NSO-Q');
+  if(q){q.value=nsoGuess(r.n);q.focus()}
+  nsoPickRender()}
+/* 검색어 초기값 — 제품명에서 수식어를 턴 뒤, 실제로 결과가 나오는 가장 구체적인 후보를 고른다.
+   (내수가표와 발주 제품DB는 이름 체계가 달라 긴 검색어는 0건이 되기 쉽다) */
+function nsoHits(q){
+  if(!q)return 0;
+  q=q.toLowerCase();var db=(typeof getDB==='function')?getDB():{},n=0;
+  Object.keys(db||{}).forEach(function(sup){Object.keys(db[sup]||{}).forEach(function(br){
+    (db[sup][br]||[]).forEach(function(p){if(p&&p.n&&(p.n.toLowerCase().indexOf(q)>=0||sup.toLowerCase().indexOf(q)>=0))n++})})});
+  return n}
+function nsoGuess(n){
+  var t=String(n||'').replace(/<[^>]*>|\[[^\]]*\]|\([^)]*\)/g,' ').replace(/\d+\s*(ml|g|kg)\b/gi,' ');
+  var w=t.split(/\s+/).filter(function(x){return x.length>1});
+  var cands=[];
+  if(w.length>=2)cands.push(w.slice(0,2).join(' '));
+  w.forEach(function(x){cands.push(x)});
+  for(var i=0;i<cands.length;i++)if(nsoHits(cands[i])>0)return cands[i];
+  return w[0]||''}
+function nsoSetQ(q){var e=document.getElementById('NSO-Q');if(e){e.value=q;nsoPickRender()}}
+function nsoPickClose(){var m=document.getElementById('nso-modal');if(m&&m.parentNode)m.parentNode.removeChild(m);NSO_PICK=null}
+function nsoPickRender(){
+  var el=document.getElementById('NSO-RES');if(!el)return;
+  var q=((document.getElementById('NSO-Q')||{}).value||'').trim().toLowerCase();
+  var db=(typeof getDB==='function')?getDB():{},out=[];
+  Object.keys(db||{}).forEach(function(sup){Object.keys(db[sup]||{}).forEach(function(br){
+    (db[sup][br]||[]).forEach(function(p,i){
+      if(!p||!p.n)return;
+      if(q&&p.n.toLowerCase().indexOf(q)<0&&sup.toLowerCase().indexOf(q)<0)return;
+      out.push({sup:sup,br:br,i:i,n:p.n,c:p.c||''})})})});
+  if(!q){el.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:14px 2px">검색어를 입력하면 발주 목록에서 찾아드려요</div>';return}
+  if(!out.length){
+    var alt=q.split(/\s+/).filter(function(x){return x.length>1&&nsoHits(x)>0});
+    el.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:14px 2px;line-height:1.6">검색 결과가 없어요.'
+      +(alt.length?'<br>이렇게 찾아보세요 → '+alt.slice(0,3).map(function(x){
+          return '<a onclick="nsoSetQ(\''+nsEsc(x)+'\')" style="color:#185FA5;font-weight:700;cursor:pointer;text-decoration:underline;margin-right:8px">'+nsEsc(x)+'</a>'}).join('')
+        :'<br>발주 목록에 아직 없는 제품이면 <b>제품 관리</b>에서 먼저 추가해주세요.')
+      +'</div>';return}
+  el.innerHTML=out.slice(0,40).map(function(x){
+    return '<div onclick="nsoPickSet(\''+nsEsc(x.sup)+'\',\''+nsEsc(x.br)+'\','+x.i+')" style="cursor:pointer;padding:9px 10px;border:1px solid #eef2f6;border-radius:9px;margin-bottom:6px">'
+      +'<div style="font-size:12.5px;font-weight:700;color:#1e293b;line-height:1.4">'+nsEsc(x.n)+'</div>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-top:1px">'+nsEsc(x.sup)+(x.c?' · '+nsEsc(x.c):'')+'</div></div>'}).join('')
+    +(out.length>40?'<div style="font-size:11px;color:#94a3b8;padding:6px 2px">… 외 '+(out.length-40)+'건. 검색어를 더 좁혀주세요.</div>':'')}
+function nsoPickSet(sup,br,i){
+  if(!NSO_PICK)return;
+  var db=(typeof getDB==='function')?getDB():{};
+  var p=db[sup]&&db[sup][br]&&db[sup][br][i];if(!p)return;
+  var key=NSO_PICK,link={sup:sup,br:br,idx:i,n:p.n,at:Date.now(),by:(ME&&ME.phone)||''};
+  NSO_LINK=NSO_LINK||{};NSO_LINK[key]=link;
+  fbP('/naesuLink/'+encodeURIComponent(key)+'.json',link).catch(function(){});
+  NSO_SEL[key]=true;
+  nsoPickClose();toast('연결했어요 — 다음부터 자동으로 잡혀요');nsoRender()}
 
 function loadMoreHub(){var el=$('MORE-HUB');if(!el||!ME)return;var _v=viewFlags(ME);var isHQ=_v.hq,isDes=_v.des,isIntern=_v.intern,isCounter=_v.counter;function it(ico,c,lbl,desc,clk,badge){return '<div onclick="'+clk+'" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border-radius:12px;margin-bottom:8px;border:1px solid #eef2f6"><div style="width:36px;height:36px;border-radius:10px;background:'+c.bg+';color:'+c.fg+';display:flex;align-items:center;justify-content:center"><i data-lucide="'+ico+'"></i></div><div style="flex:1"><div style="font-size:13px;font-weight:700">'+lbl+'</div>'+(desc?'<div style="font-size:11px;color:#64748b;margin-top:2px">'+desc+'</div>':'')+'</div>'+(badge?'<span style="background:#dc2626;color:#fff;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:800">'+badge+'</span>':'')+'<i data-lucide="chevron-right" style="color:#cbd5e1"></i></div>'}function sec(t){return '<div style="font-size:10px;font-weight:800;color:#64748b;letter-spacing:.04em;text-transform:uppercase;margin:10px 4px 6px">'+t+'</div>'}var h='';h+=sec('구매')+it('shopping-bag',{bg:'#ede9fe',fg:'#6d28d9'},'가발 공동구매','업체별 취합 · 단독주문','openWig()','');if(can('menu.naesu'))h+=it('shopping-cart',{bg:'#dbeafe',fg:'#1d4ed8'},'제품 내수','제품 구매 · 송금 캡처 첨부','openNaesu()','');if(isHQ){h+=sec('아카데미');h+=it('check-circle-2',{bg:'#dcfce7',fg:'#15803d'},'교육 완료','주차 체크','openEduCheck()','');h+=it('file-text',{bg:'#fee2e2',fg:'#dc2626'},'숙제 출제','','openHWAssign()','');h+=it('user-check',{bg:'#e9d5ff',fg:'#7c3aed'},'교육자 현황','디자이너별 통계','openEduStatsHQ()','');h+=it('file-check',{bg:'#dbeafe',fg:'#1e40af'},'시험 결과 입력','오프라인·구글폼 직접 입력','openExamManualInput()','');h+=it('clipboard-check',{bg:'#e0f2fe',fg:'#0369a1'},'시험 채점 관리','채점 세션 · 공유','openExamAdmin()','');h+=it('sliders',{bg:'#f1f5f9',fg:'#334155'},'평가항목 설정','레벨·과목·항목','openExamTplConfig()','');h+=it('clipboard-check',{bg:'#dbeafe',fg:'#1e40af'},'채점할 시험','내가 채점','openExamMyGrading()','');h+=it('trending-up',{bg:'#ede9fe',fg:'#6d28d9'},'인턴 성장 현황','시험·연습 지표','openExamGrowthList()','');h+=it('trophy',{bg:'#fed7aa',fg:'#d97706'},'연습 랭킹','전체 인턴','openPracticeRank()','');h+=sec('휴가 관리');h+=it('calendar-days',{bg:'#e9d5ff',fg:'#7c3aed'},'연차/휴무 관리','승인/현황 조회',"go('p-adm-leave');loadAdmLeave()",'');h+=it('gift',{bg:'#fce7f3',fg:'#be185d'},'인턴 휴가 추가','보너스 휴가',"go('p-adm-addleave');loadAddLeave()",'');h+=it('palmtree',{bg:'#e9d5ff',fg:'#7c3aed'},'전체 휴가 달력','전 브랜드/지점/직급','openLeaveCal()','');h+=sec('본인 근태');h+=it('coffee',{bg:'#fed7aa',fg:'#c2410c'},'내 휴게시간','','openBreak()','');h+=it('utensils',{bg:'#fef3c7',fg:'#a16207'},'내 식대 기록','오늘 입력','openMealRecord()','');h+=it('list',{bg:'#dbeafe',fg:'#1e40af'},'내 식대 내역','','openMealList()','');h+=it('alarm-clock',{bg:'#fee2e2',fg:'#dc2626'},'지각 기록','','openLate()','');h+=it('palmtree',{bg:'#e9d5ff',fg:'#7c3aed'},'연차 신청','',"openLeave('연차')",'');h+=it('briefcase',{bg:'#cffafe',fg:'#0e7490'},'외근','','openExternalModal&&openExternalModal()','');h+=sec('시스템');if(can('menu.salonEdit'))h+=it('store',{bg:'#f1f5f9',fg:'#334155'},'매장 정보 관리','고객 화면 · 상담 · 매장 안내','openSalonEdit()','');h+=it('bell',{bg:'#dbeafe',fg:'#1e40af'},'알림 설정','','openNotifConfig()','');h+=it('download',{bg:'#dcfce7',fg:'#15803d'},'전체 백업 다운로드','','downloadFullBackup()','');h+=it('eye',{bg:'#cffafe',fg:'#0e7490'},'다른 역할로 보기','인턴/디자이너 시점 미리보기','openPreviewModal&&openPreviewModal()','');h+=it('log-out',{bg:'#fee2e2',fg:'#dc2626'},'로그아웃','','logout()','')}else if(isIntern){h+=sec('시험');h+=it('award',{bg:'#dbeafe',fg:'#1e40af'},'시험 리포트','공유된 결과','openExamMyResults()','');h+=sec('팀');h+=it('coffee',{bg:'#fef3c7',fg:'#a16207'},'티타임 (팀 회의)','월 1회 디자이너↔인턴','openTeaTime()','');h+=sec('근태');h+=it('alarm-clock',{bg:'#fee2e2',fg:'#dc2626'},'지각 보고','','openLate()','');h+=it('briefcase',{bg:'#cffafe',fg:'#0e7490'},'외근','','openExternalModal&&openExternalModal()','');h+=it('coffee',{bg:'#fed7aa',fg:'#c2410c'},'지점 휴게 현황','실시간','openBreakMgmt()','');h+=sec('휴가');h+=it('palmtree',{bg:'#e9d5ff',fg:'#7c3aed'},'연차/반차 신청','',"openLeave('연차')",'');h+=it('calendar',{bg:'#e9d5ff',fg:'#7c3aed'},'브랜드 휴가 달력','지점별/전지점','openLeaveCal()','');h+=sec('계정');h+=it('log-out',{bg:'#fee2e2',fg:'#dc2626'},'로그아웃','','logout()','')}else if(isDes){h+=sec('시험');h+=it('clipboard-check',{bg:'#dbeafe',fg:'#1e40af'},'채점할 시험','인턴 실기 채점','openExamMyGrading()','');h+=it('trending-up',{bg:'#ede9fe',fg:'#6d28d9'},'지점 인턴 성장','','openExamGrowthList()','');h+=sec('팀/매출');h+=it('coffee',{bg:'#fef3c7',fg:'#a16207'},'티타임 (팀 회의)','월 1회 진행 체크','openTeaTime()','');h+=it('dollar-sign',{bg:'#dcfce7',fg:'#15803d'},'일일 매출 입력','매일 매출 기록','openSalesInput()','');h+=it('calendar',{bg:'#dbeafe',fg:'#1e40af'},'내 매출 현황','월별 달력 · 기입/휴무/미기입','openSalesMy()','');h+=sec('근태');h+=it('briefcase',{bg:'#cffafe',fg:'#0e7490'},'외근','','openExternalModal&&openExternalModal()','');h+=it('alarm-clock',{bg:'#fee2e2',fg:'#dc2626'},'지각 보고','','openLate()','');h+=it('coffee',{bg:'#fed7aa',fg:'#c2410c'},'지점 휴게 현황','실시간','openBreakMgmt()','');h+=sec('발주');h+=it('package',{bg:'#dbeafe',fg:'#1e40af'},'발주 현황','','openOrderView()','');h+=sec('휴가');h+=it('calendar-days',{bg:'#e9d5ff',fg:'#7c3aed'},'휴무 신청','',"openLeave('휴무')",'');h+=it('calendar',{bg:'#e9d5ff',fg:'#7c3aed'},'브랜드 휴가 달력','지점별/전지점','openLeaveCal()','');h+=sec('계정');h+=it('log-out',{bg:'#fee2e2',fg:'#dc2626'},'로그아웃','','logout()','')}else if(isCounter){h+=sec('근무 정보');h+=it('coffee',{bg:'#fed7aa',fg:'#c2410c'},'지점 휴게 현황','실시간','openBreakMgmt()','');h+=it('trophy',{bg:'#fed7aa',fg:'#d97706'},'인턴 연습 랭킹','DAY:MEAN 전체','openPracticeRank()','');h+=sec('시스템');h+=it('bell',{bg:'#dbeafe',fg:'#1e40af'},'알림 설정','','openNotifConfig&&openNotifConfig()','');h+=it('log-out',{bg:'#fee2e2',fg:'#dc2626'},'로그아웃','매장 종료 시','logout()','')}el.innerHTML=h;if(window.renderIcons)renderIcons()}
 
