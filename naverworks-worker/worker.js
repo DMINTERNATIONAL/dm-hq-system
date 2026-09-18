@@ -170,6 +170,24 @@ function buildMessage(body) {
     return { content: { type: 'text', text } };
   }
 
+  if (type === 'naesu') {
+    const o = order || {};
+    const lines = (Array.isArray(o.items) ? o.items : [])
+      .slice(0, 8)
+      .map(it => '• ' + (it.n || '') + ' ×' + (it.qty || 1))
+      .join('\n');
+    const more = (Array.isArray(o.items) && o.items.length > 8)
+      ? '\n  ... 외 ' + (o.items.length - 8) + '품목' : '';
+    const text = '🧴 인턴 제품 내수 신청이 들어왔어요!\n\n' +
+      '👤 ' + (o.name || '') + ' · ' + (o.branch || '') + '\n' +
+      '🧾 ' + (o.count || 0) + '개 품목 · 총 ' + (o.qty || 0) + '개\n' +
+      '💰 ' + Number(o.total || 0).toLocaleString('ko-KR') + '원\n' +
+      (lines ? '\n' + lines + more + '\n' : '') +
+      '\n🕐 ' + (o.date || '') + ' ' + (o.time || '') +
+      '\n\n→ 본사 시스템에서 송금 캡처 확인해주세요';
+    return { content: { type: 'text', text } };
+  }
+
   let title;
   if (type === 'test') title = '✅ 테스트 메시지';
   else if (type === 'refund') title = '💰 환불 요청이 들어왔어요';
