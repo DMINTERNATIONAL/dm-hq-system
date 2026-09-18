@@ -2070,6 +2070,7 @@ function nsProdRender(){var el=$('NSP-LIST');if(!el)return;
         +'<input value="'+(+p.price||0)+'" inputmode="numeric" oninput="nsProdSet(\''+nsEsc(cat)+'\','+i+',\'price\',this.value)" style="flex:1;min-width:0;font-size:12.5px;padding:7px 10px;text-align:right">'
         +'<span style="font-size:11.5px;color:#94a3b8;flex:0 0 auto">원</span>'
         +'<button class="gbtn sec sm" style="flex:0 0 auto;padding:6px 10px" onclick="nsProdOff(\''+nsEsc(cat)+'\','+i+')">'+(p.off?'재개':'중지')+'</button>'
+        +'<button class="gbtn sec sm" style="flex:0 0 auto;padding:6px 10px'+(p.noOrder?';color:#b45309;font-weight:800':'')+'" title="발주로 들여오지 않는 내수 전용" onclick="nsProdNoOrd(\''+nsEsc(cat)+'\','+i+')">'+(p.noOrder?'발주X':'발주')+'</button>'
         +'<button class="gbtn sec sm" style="flex:0 0 auto;padding:6px 10px;color:#dc2626" onclick="nsProdDel(\''+nsEsc(cat)+'\','+i+')">삭제</button>'
         +'</div></div>'});
     h+='<div style="display:flex;gap:6px;margin-top:10px">'
@@ -2082,6 +2083,8 @@ function nsProdSet(cat,i,f,v){var c=NS_PROD[cat];if(!c||!c.items||!c.items[i])re
   c.items[i][f]=(f==='price')?(parseInt(String(v).replace(/[^0-9]/g,''),10)||0):v;c._dirty=true}
 function nsProdOff(cat,i){var c=NS_PROD[cat];if(!c||!c.items||!c.items[i])return;
   c.items[i].off=!c.items[i].off;c._open=true;nsProdRender()}
+function nsProdNoOrd(cat,i){var c=NS_PROD[cat];if(!c||!c.items||!c.items[i])return;
+  c.items[i].noOrder=!c.items[i].noOrder;c._open=true;nsProdRender()}
 function nsProdDel(cat,i){var c=NS_PROD[cat];if(!c||!c.items||!c.items[i])return;var nm=c.items[i].n;
   _showPopup({type:'confirm',title:'품목 삭제',msg:'"'+nm+'" 을(를) 목록에서 삭제할까요?\n이미 신청된 과거 내역에는 그대로 남습니다.',cb:function(ok){if(!ok)return;
     c.items.splice(i,1);c._open=true;nsProdRender();nsProdSave(cat)}})}
@@ -2096,7 +2099,7 @@ function nsProdAddCat(){_showPopup({type:'prompt',title:'분류 추가',msg:'새
   NS_PROD[v]={o:mx+1,items:[{n:'',price:0}],_open:true};nsProdRender()}})}
 function nsProdSave(cat){var c=NS_PROD[cat];if(!c)return;
   var items=(c.items||[]).filter(function(p){return String(p.n||'').trim()})
-    .map(function(p){var o={n:String(p.n).trim(),price:+p.price||0};if(p.off)o.off=true;return o});
+    .map(function(p){var o={n:String(p.n).trim(),price:+p.price||0};if(p.off)o.off=true;if(p.noOrder)o.noOrder=true;return o});
   if(!items.length){alert('이름이 있는 품목이 하나도 없어요');return}
   fbP('/naesuProducts/'+encodeURIComponent(cat)+'.json',{o:c.o||99,items:items})
     .then(function(){c.items=items;c._dirty=false;c._open=true;toast(cat+' 저장됐어요');nsProdRender()})
@@ -2234,6 +2237,10 @@ function nsRefund(id){var r=(NS_ADM||{})[id];if(!r)return;
    (80품목 중 이름 일치 1개). 그래서 처음 나오는 품목만 발주자가 한 번
    연결해주고, 연결 정보는 /naesuLink 에 남아 다음부터 자동 적용된다. */
 var NSO_ROWS=[],NSO_SEL={},NSO_LINK=null,NSO_YM='',NSO_PICK=null;
+/* 제품 마스터에서 noOrder 로 표시된 품목 = 발주로 들여오지 않는 내수 전용 */
+function nsoNoOrderSet(){var out={};var d=NS_PROD||{};
+  Object.keys(d).forEach(function(cat){((d[cat]||{}).items||[]).forEach(function(p){
+    if(p&&p.noOrder)out[nsoKey(cat,p.n)]=1})});return out}
 function nsoKey(cat,n){return (String(cat||'')+'|'+String(n||'')).replace(/[.$#\[\]\/]/g,'_')}
 function nsoLoadLinks(cb){if(NSO_LINK){cb();return}
   fbG('/naesuLink.json').then(function(d){NSO_LINK=d||{};cb()}).catch(function(){NSO_LINK={};cb()})}
@@ -2250,15 +2257,16 @@ function nsoLoad(){
   if(typeof ordMode!=='undefined'&&ordMode!=='prod'){w.innerHTML='';return}   // 비품 발주엔 해당 없음
   NSO_YM=nsYm();NSO_SEL={};
   w.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:10px 2px">내수 신청 확인 중…</div>';
-  nsoLoadLinks(function(){
+  nsoLoadLinks(function(){nsLoadProd(function(){
     fbG('/naesu/'+NSO_YM+'.json').then(function(d){nsoBuild(d||{});nsoRender()})
-      .catch(function(){NSO_ROWS=[];nsoRender()})})}
+      .catch(function(){NSO_ROWS=[];nsoRender()})})})}
 function nsoBuild(all){
-  var agg={};
+  var agg={},skip=nsoNoOrderSet();
   Object.keys(all).forEach(function(id){
     var r=all[id];if(!r||r.status!=='확인')return;                        // 입금 확인된 건만
     (r.items||[]).forEach(function(it,idx){
       if(!it||it.ordered)return;                                          // 이미 발주에 반영된 품목 제외
+      if(skip[nsoKey(it.cat,it.n)])return;                                // 내수로만 파는 품목(발주 안 함)
       var k=nsoKey(it.cat,it.n);
       if(!agg[k])agg[k]={key:k,cat:it.cat||'',n:it.n||'',qty:0,who:{},srcs:[]};
       agg[k].qty+=(it.qty||1);agg[k].who[r.name||'']=1;
