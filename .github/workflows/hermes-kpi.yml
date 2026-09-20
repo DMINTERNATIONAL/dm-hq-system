@@ -53,6 +53,9 @@ jobs:
           HANDSOS_CHECK_TRIES: '1'                       # 프록시 데이터 절약: 재확인 생략(D-1 1회만 수집)
           HANDSOS_REFRESH_OFFSETS: '1,7'                 # 재수집 나이 D-1·D-7만(4개→2개, 데이터 절반). 환불은 대부분 1주 내
           HANDSOS_FRESH_HOURS: '10'                      # 다중 크론 백업: D-1이 10h내 이미 수집됐으면 핸드SOS 생략(프록시 1회분만)
+          HANDSOS_RETRY: '3'                             # 프록시 연결이 간헐적으로 끊김(실측 8%) → 네트워크 오류 시 새 세션으로 재시도
+          # 앞 2회 크론은 실패해도 exit 0. 마지막 07:07까지 실패해야 진짜 실패로 보고 메일이 간다.
+          HERMES_SOFT_FAIL: ${{ (github.event.schedule == '7 19 * * *' || github.event.schedule == '7 20 * * *') && 'true' || 'false' }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}

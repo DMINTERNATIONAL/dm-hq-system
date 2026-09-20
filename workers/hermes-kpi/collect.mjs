@@ -18,18 +18,46 @@ const cptable = cptableMod.default || cptableMod;
 // 핸드SOS는 데이터센터 IP(GitHub Actions·클라우드)를 차단 → 핸드SOS 요청만 한국 레지덴셜 프록시로 우회한다.
 // HANDSOS_PROXY = http://user:pass@host:port (예: IPRoyal 한국 sticky). 미설정이면 직결(로컬/한국 IP 실행용).
 (() => {
-  let proxyUrl = process.env.HANDSOS_PROXY;
-  if (!proxyUrl) return;
-  // sticky 세션 ID를 실행마다 새로 발급 → 매번 신선한 한국 IP(오래된/플래그된 IP 고착 방지). 한 실행 내에선 동일 IP 유지.
-  if (/_session-/i.test(proxyUrl)) proxyUrl = proxyUrl.replace(/_session-[^_@]+/i, '_session-' + Math.random().toString(36).slice(2, 12));
-  const dispatcher = new ProxyAgent(proxyUrl);
+  const rawProxy = process.env.HANDSOS_PROXY;
+  if (!rawProxy) return;
+  // sticky 세션 ID를 새로 발급 → 신선한 한국 IP(오래된/플래그된 IP 고착 방지). 한 세션 안에선 동일 IP 유지.
+  const newSession = (u) => /_session-/i.test(u)
+    ? u.replace(/_session-[^_@]+/i, '_session-' + Math.random().toString(36).slice(2, 12)) : u;
+  let proxyUrl = newSession(rawProxy);
+  let dispatcher = new ProxyAgent(proxyUrl);
+
+  // 프록시가 순간적으로 안 붙는 일이 있다(실측 8%). 네트워크 오류면 세션을 갈아끼우고 재시도.
+  // HTTP 에러코드는 재시도하지 않는다(로그인 실패·빈 리포트는 그대로 올려보내야 함).
+  const TRIES = Math.max(1, Number(process.env.HANDSOS_RETRY || 3));
+  const BASE_WAIT = Math.max(1000, Number(process.env.HANDSOS_RETRY_WAIT_MS || 5000));
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function viaProxy(input, init) {
+    let last;
+    for (let i = 1; i <= TRIES; i++) {
+      try { return await undiciFetch(input, { ...(init || {}), dispatcher }); }
+      catch (e) {
+        last = e;
+        if (i === TRIES) break;
+        const wait = BASE_WAIT * i;
+        console.error(`[proxy] 연결 실패(${e.message}) — ${wait / 1000}초 후 새 세션으로 재시도 ${i}/${TRIES - 1}`);
+        await sleep(wait);
+        proxyUrl = newSession(rawProxy);
+        try { dispatcher.close?.(); } catch (_) {}
+        dispatcher = new ProxyAgent(proxyUrl);
+      }
+    }
+    throw last;
+  }
+
   const orig = globalThis.fetch;
   globalThis.fetch = (input, init = {}) => {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
-    if (/handsos\.com/i.test(url)) return undiciFetch(input, { ...(init || {}), dispatcher });
+    if (/handsos\.com/i.test(url)) return viaProxy(input, init);
     return orig(input, init);
   };
-  console.error('[proxy] 핸드SOS 요청은 프록시 경유:', proxyUrl.replace(/\/\/[^@]*@/, '//***@'));
+  console.error('[proxy] 핸드SOS 요청은 프록시 경유:', proxyUrl.replace(/\/\/[^@]*@/, '//***@'),
+    `(네트워크 오류 시 ${TRIES - 1}회 재시도)`);
 })();
 
 /* ═══ 설정 ═══ */
@@ -234,7 +262,16 @@ async function main() {
     try { console.log('[official]', JSON.stringify(await collectOfficialSns(kstDateString(0), dry))); }
     catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
   }
-  if (errors.length) { console.error('FAILED:', errors.join(' | ')); process.exit(1); }
+  if (errors.length) {
+    console.error('FAILED:', errors.join(' | '));
+    // 하루 3회 크론 중 앞 2회는 뒤에 백업이 남아 있으므로 실패로 처리하지 않는다.
+    // (실패 처리하면 백업이 정상 수집해도 GitHub 실패 메일이 이미 나가버린다)
+    if (process.env.HERMES_SOFT_FAIL === 'true') {
+      console.error('[soft] 뒤에 백업 실행이 남아 있어 실패로 끝내지 않습니다. 다음 실행에서 재시도합니다.');
+      return;
+    }
+    process.exit(1);
+  }
 }
 
 /* ═══ 매출 수집 ═══ */
