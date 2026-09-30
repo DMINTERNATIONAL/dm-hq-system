@@ -3963,7 +3963,11 @@ function stRecolGo(){
     stRecolNote('<b>'+nsEsc(name)+' · '+nsEsc(ym)+' 재수집 중…</b> 예상 '+eta+'분<br>'
       +'<span id="STF-RECOL-PROG" style="color:#475569">시작하는 중…</span>','#EFF6FF','#BFDBFE','#1E40AF');
     var btn=$('STF-RECOL'); if(btn){btn.disabled=true;btn.textContent='재수집 중…'}
-    stWatchRecollect(ym,Date.now(),shop,eta);
+    /* 시작 직전의 확정 시각을 읽어 기준으로 넘긴다 */
+    var w=(shop==='daymean')?'moment':'eto';
+    fbG('/stores/'+w+'/monthly/'+ym+'/verify.json').then(function(v){
+      stWatchRecollect(ym,Date.now(),shop,eta,(v&&v.verified_at)||'');
+    }).catch(function(){ stWatchRecollect(ym,Date.now(),shop,eta,''); });
   }).catch(function(e){
     b.disabled=false; b.textContent='재수집 시작';
     alert(e.message||'재수집을 시작하지 못했습니다');
@@ -3974,10 +3978,12 @@ function stRecolNote(html,bg,bd,fg){
   el.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:10px 12px;'
     +'margin-top:6px;font-size:11.5px;line-height:1.6;color:'+fg+'">'+html+'</div>';
 }
-function stWatchRecollect(ym,startedAt,shop,eta){
+function stWatchRecollect(ym,startedAt,shop,eta,before){
   if(ST_RECOLLECT_T)clearTimeout(ST_RECOLLECT_T);
   var watch=(shop==='daymean')?'moment':'eto';      // 진행률은 대표 지점 하나만 본다
-  var before=(ST_VERIFY&&ST_VERIFY.verified_at)||'';
+  /* 시작 시점의 확정 시각을 기준으로 삼는다. ST_VERIFY 는 그 달을 불러온 적이
+     없으면 비어 있어서, 예전 기록을 방금 끝난 것으로 잘못 읽는다. */
+  before=before||'';
   function done(){
     var b=$('STF-RECOL'); if(b){b.disabled=false;b.textContent='핸드SOS 매출 다시 긁어오기'}
   }
