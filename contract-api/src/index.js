@@ -443,6 +443,111 @@ export default {
         return json({ ok: true, phone, name: user.name || '', role }, 200, origin);
       }
 
+      /* ═══ 수수료명세서 ═══
+         계산은 브라우저에서 하고, 서버는 확정 시점의 설정·입력·결과를
+         통째로 받아 스냅샷으로 저장한다. 발행 후 재계산은 하지 않는다. */
+      if (path === '/statements' && request.method === 'POST') {
+        if (me.role === 'staff') return json({ ok: false, error: '발행 권한이 없습니다' }, 403, origin);
+        const body = await request.json().catch(() => null);
+        if (!body) return json({ ok: false, error: '요청 본문을 읽지 못했습니다' }, 400, origin);
+        const { brandId, branchId, period, staffPhone, staffName, birthDate, input, result, terms, displayMode } = body;
+        if (!brandId || !branchId) return json({ ok: false, error: '브랜드·지점이 필요합니다' }, 400, origin);
+        if (!/^\d{4}-\d{2}$/.test(String(period || ''))) return json({ ok: false, error: '기간은 YYYY-MM 형식입니다' }, 400, origin);
+        if (!staffName || !String(staffName).trim()) return json({ ok: false, error: '대상자 성명이 필요합니다' }, 400, origin);
+        if (!result || typeof result !== 'object') return json({ ok: false, error: '계산 결과가 없습니다' }, 400, origin);
+
+        const hit = [];
+        const safe = (v) => stripSensitive(v, hit);
+
+        const branch = await dbGet(env, `/brands/${brandId}/branches/${branchId}`);
+        if (!branch) return json({ ok: false, error: '지점을 찾을 수 없습니다' }, 404, origin);
+
+        const ym = String(period).replace('-', '');
+        const number = await nextNumber(env, `${brandId.toUpperCase()}-${ym}`, 4);
+
+        const rec = {
+          number, brandId, branchId, period,
+          staffPhone: staffPhone ? String(staffPhone) : '',
+          staffName: String(staffName).trim(),
+          birthDate: birthDate ? String(birthDate) : '',
+          status: 'issued',
+          displayMode: displayMode || (branch.contractDefaults || {}).displayMode || 'gross',
+          issuedAt: Date.now(),
+          issuedBy: { phone: me.phone, name: me.name || '', role: me.role },
+          snapshot: {
+            branch,
+            terms: safe(terms || (branch.contractDefaults || {})),
+            input: safe(input || {}),
+            result: safe(result),
+          },
+          netPayout: Number(result.netPayout) || 0,
+          grossSales: Number((result.totals || {}).grossSales) || 0,
+        };
+        const id = (await dbPush(env, '/statements', rec)).name;
+        await auditLog(env, { kind: 'statement.issue', by: me.phone, statementId: id, number,
+          brandId, branchId, period, staffName: rec.staffName, netPayout: rec.netPayout });
+        return json({ ok: true, id, number, statement: { id, ...rec } }, 200, origin);
+      }
+
+      /* 명세서 목록 — 기간·대상자로 좁힐 수 있다 */
+      if (path === '/statements' && request.method === 'GET') {
+        if (me.role === 'staff') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        const qPeriod = url.searchParams.get('period') || '';
+        const all = (await dbGet(env, '/statements')) || {};
+        let rows = Object.keys(all).map(k => {
+          const c = all[k];
+          return { id: k, number: c.number, brandId: c.brandId, branchId: c.branchId,
+            period: c.period, staffName: c.staffName, status: c.status,
+            grossSales: c.grossSales || 0, netPayout: c.netPayout || 0,
+            issuedAt: c.issuedAt, issuedBy: (c.issuedBy || {}).name || '',
+            acknowledgedAt: c.acknowledgedAt || null, voidReason: c.voidReason || '' };
+        });
+        if (qPeriod) rows = rows.filter(r => r.period === qPeriod);
+        rows.sort((a, b) => (b.issuedAt || 0) - (a.issuedAt || 0));
+        return json({ ok: true, rows }, 200, origin);
+      }
+
+      /* 명세서 단건 — 인쇄·재출력용. 저장된 result 만 돌려준다. */
+      if (/^\/statements\/[A-Za-z0-9_-]+$/.test(path) && request.method === 'GET') {
+        if (me.role === 'staff') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        const id = path.split('/')[2];
+        const c = await dbGet(env, '/statements/' + id);
+        if (!c) return json({ ok: false, error: '명세서를 찾을 수 없습니다' }, 404, origin);
+        await auditLog(env, { kind: 'statement.read', by: me.phone, statementId: id, number: c.number });
+        return json({ ok: true, statement: { id, ...c } }, 200, origin);
+      }
+
+      /* 무효 처리 — 수정이 아니라 void 후 재발행이다 */
+      if (/^\/statements\/[A-Za-z0-9_-]+\/void$/.test(path) && request.method === 'POST') {
+        if (me.role !== 'owner') return json({ ok: false, error: '무효 처리는 대표만 가능합니다' }, 403, origin);
+        const id = path.split('/')[2];
+        const { reason } = await request.json().catch(() => ({}));
+        if (!reason || String(reason).trim().length < 2) return json({ ok: false, error: '무효 사유를 적어주세요' }, 400, origin);
+        const c = await dbGet(env, '/statements/' + id);
+        if (!c) return json({ ok: false, error: '명세서를 찾을 수 없습니다' }, 404, origin);
+        if (c.status === 'void') return json({ ok: false, error: '이미 무효 처리된 명세서입니다' }, 400, origin);
+        await dbPut(env, `/statements/${id}/status`, 'void');
+        await dbPut(env, `/statements/${id}/voidReason`, String(reason).trim());
+        await dbPut(env, `/statements/${id}/voidedAt`, Date.now());
+        await dbPut(env, `/statements/${id}/voidedBy`, me.phone || '');
+        await auditLog(env, { kind: 'statement.void', by: me.phone, statementId: id, number: c.number, reason: String(reason).trim() });
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* 무효건 삭제 — owner 만. 발행 상태는 거부한다. */
+      if (/^\/statements\/[A-Za-z0-9_-]+$/.test(path) && request.method === 'DELETE') {
+        if (me.role !== 'owner') return json({ ok: false, error: '삭제 권한이 없습니다' }, 403, origin);
+        const id = path.split('/')[2];
+        const c = await dbGet(env, '/statements/' + id);
+        if (!c) return json({ ok: false, error: '명세서를 찾을 수 없습니다' }, 404, origin);
+        if (c.status !== 'void')
+          return json({ ok: false, error: '무효 처리된 명세서만 지울 수 있습니다. 먼저 무효 처리하세요.' }, 400, origin);
+        await dbPut(env, '/statements/' + id, null);
+        await auditLog(env, { kind: 'statement.delete', by: me.phone, statementId: id,
+          number: c.number, period: c.period, staffName: c.staffName });
+        return json({ ok: true }, 200, origin);
+      }
+
       return json({ ok: false, error: '없는 경로입니다' }, 404, origin);
 
     } catch (e) {

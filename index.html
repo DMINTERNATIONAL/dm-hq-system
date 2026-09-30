@@ -487,6 +487,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <div class="pg" id="p-edu-stats"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">내 교육 실적</div></div><div id="EDU-STATS"></div></div><div class="pg" id="p-des-intern-rank"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">인턴 연습 랭킹</div><div class="psub">같은 브랜드 전체 인턴 (지점 무관)</div></div><div id="DES-INTERN-RANK"></div></div><div class="pg" id="p-leave-cal"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">휴가 달력</div><div class="psub" id="LC-SUB"></div></div><div id="LC-FILTERS" style="margin-bottom:12px"></div><div id="LC-CAL"></div><div id="LC-LIST" style="margin-top:12px"></div></div><div class="pg" id="p-hq-order-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">발주 관리</div><div class="psub">전체 발주 현황 및 처리</div></div><div id="HQ-ORDER-HUB"></div></div><div class="pg" id="p-supplier-eta"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">거래처 예상 배송일</div><div class="psub">발주 확정 시 자동 계산되는 영업일</div></div><div style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1px solid #BFDBFE;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#1E40AF;line-height:1.55">⏱ 발주가 확정되면 입력한 <b>영업일 수</b>(주말/공휴일 제외)만큼 더해 예상 도착일을 계산합니다. 빈 값으로 두면 기본 룰(3영업일) 사용.</div><div id="SE-LIST"></div><div style="position:sticky;bottom:12px;margin-top:14px;background:#fff;border-radius:12px;padding:10px;display:flex;gap:8px;box-shadow:0 -4px 14px rgba(0,0,0,.06)"><button class="gbtn sec" style="flex:1" onclick="openHQOrderHub()">취소</button><button class="gbtn pri" style="flex:1" onclick="saveSupplierETA()">저장</button></div></div><div class="pg" id="p-hq-staff-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">직원 관리</div><div class="psub">가입 승인 / 직원 / 아카데미</div></div><div id="HQ-STAFF-HUB"></div></div><div class="pg" id="p-hq-meal-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">휴게·식대</div><div class="psub">식대 + 휴게 통합 관리</div></div><div id="HQ-MEAL-HUB"></div></div><div class="pg" id="p-in-practice-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">연습</div><div class="psub">연습 측정 / 기록 / 랭킹</div></div><div id="IN-PRACTICE-HUB"></div></div><div class="pg" id="p-in-acad-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">아카데미</div><div class="psub">진도 / 시험 / 숙제</div></div><div id="IN-ACAD-HUB"></div></div><div class="pg" id="p-in-meal-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">휴게·식대</div><div class="psub">오늘 식대 + 휴게</div></div><div id="IN-MEAL-HUB"></div></div><div class="pg" id="p-des-interns-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">내 인턴</div><div class="psub">진도 / 연습량 / 시험</div></div><div id="DES-INTERNS-HUB"></div></div><div class="pg" id="p-des-edu-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">교육</div><div class="psub">교육 완료 / 숙제 / 통계</div></div><div id="DES-EDU-HUB"></div></div><div class="pg" id="p-cnt-order-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">발주 조회</div><div class="psub">우리 지점 발주 현황</div></div><div id="CNT-ORDER-HUB"></div></div><div class="pg" id="p-cnt-interns-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">지점 인턴</div><div class="psub">활동 중인 인턴</div></div><div id="CNT-INTERNS-HUB"></div></div><div class="pg" id="p-more-hub"><button class="backbtn" onclick="openDash()">← 뒤로</button><div class="ph"><div class="ptitle">더보기</div><div class="psub">전체 메뉴</div></div><div id="MORE-HUB"></div></div><div class="pg" id="p-wig"><div id="WIG-ROOT" style="padding:14px 14px 90px"></div></div><div class="pg" id="p-contracts"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">위탁계약서</div><div class="psub" id="CT-SUB"></div></div><div id="CT-ROOT"></div></div>
 <div class="pg" id="p-contract-new"><button class="backbtn" onclick="openContracts()">← 뒤로</button><div class="ph"><div class="ptitle">새 계약서</div><div class="psub">입력한 내용으로 위탁계약서를 만듭니다</div></div><div id="CT-NEW"></div></div>
 <div class="modal-bg" id="ct-confirm-modal" style="display:none"><div class="modal-box"><h4 style="margin-bottom:6px">입력 내용 확인</h4><div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11.5px;line-height:1.55">발행하면 <b>이 내용 그대로 고정</b>됩니다. 고칠 일이 생기면 수정이 아니라 무효 처리 후 다시 발행해야 합니다.</div><div id="CT-CONF-BODY" style="max-height:46vh;overflow-y:auto;margin-bottom:14px"></div><div style="display:flex;gap:8px"><button class="gbtn sec" style="flex:1" onclick="ctCloseConfirm()">돌아가기</button><button class="gbtn pri" style="flex:2" id="CT-CONF-BTN" onclick="ctIssue()">계약서 만들기</button></div></div></div>
+<div class="pg" id="p-statement-new"><button class="backbtn" onclick="openSettlements()">← 뒤로</button><div class="ph"><div class="ptitle">새 명세서</div><div class="psub">매출을 입력하면 즉시 계산됩니다</div></div><div id="ST-NEW"></div></div>
+<div class="modal-bg" id="st-confirm-modal" style="display:none"><div class="modal-box"><h4 style="margin-bottom:6px">발행 내용 확인</h4><div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11.5px;line-height:1.55">발행하면 <b>이 금액 그대로 고정</b>됩니다. 고칠 일이 생기면 수정이 아니라 무효 처리 후 다시 발행해야 합니다.</div><div id="ST-CONF-BODY" style="max-height:46vh;overflow-y:auto;margin-bottom:14px"></div><div style="display:flex;gap:8px"><button class="gbtn sec" style="flex:1" onclick="stCloseConfirm()">돌아가기</button><button class="gbtn pri" style="flex:2" id="ST-CONF-BTN" onclick="stIssue()">발행하기</button></div></div></div>
 <div class="pg" id="p-settlements"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">수수료명세서</div><div class="psub" id="ST-SUB"></div></div><div id="ST-ROOT"></div></div>
 <div class="pg" id="p-naesu"><button class="backbtn" onclick="backToDash()">← 뒤로</button><div class="ph"><div class="ptitle">제품 내수</div><div class="psub" id="NS-SUB"></div></div><button class="gbtn sec sm" style="width:100%;margin-bottom:12px" onclick="openNaesuMine()">내 내수 내역 <span id="NS-MINE-BADGE" style="display:none;background:#dc2626;color:#fff;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:800;margin-left:4px"></span></button><div class="sb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="NS-SEARCH" placeholder="제품명 검색" oninput="nsRenderList()"></div><div class="ctbar" id="NS-CATS"></div><div id="NS-LIST"></div></div>
 <div class="pg" id="p-naesu-review"><button class="backbtn" onclick="nsBackToList()">← 품목 선택</button><div class="ph"><div class="ptitle">내수 신청</div><div class="psub" id="NSR-SUB"></div></div><div class="card"><div id="NSR-LIST"></div></div><div id="NSR-ACCT" style="margin:14px 0"></div><div class="fg"><label class="flbl">송금 캡처 <span style="color:#dc2626">*</span></label><div id="NSR-SHOT"></div></div><div class="fg" style="margin-top:14px"><label class="flbl">비고 (선택)</label><textarea id="NSR-NOTE" placeholder="전달할 내용이 있으면 적어주세요" style="min-height:56px;resize:vertical"></textarea></div><button class="gbtn pri" id="NSR-SUBMIT" onclick="nsSubmit()" disabled style="opacity:.45">내수 신청</button><div style="font-size:11.5px;color:#94a3b8;text-align:center;margin-top:10px;line-height:1.6">신청하면 경영팀 전원에게 알림이 갑니다.<br>확인 완료되면 제품을 수령하세요.</div></div>
@@ -3172,12 +3174,648 @@ function ctVoid(id,number){
       toast('무효 처리했습니다');openContracts();
     }).catch(function(e){alert(e.message)});
 }
+/* <<ST_ENGINE  scratchpad/gen/settlement-engine.js 와 같은 내용. 고칠 때 양쪽 같이. >> */
+/* 수수료명세서 계산 엔진 — Node(검증)와 브라우저(앱)에서 같은 코드를 쓴다.
+   본문은 hermes-contract-settlement/src/settlement/calculate.js 원본 그대로다.
+   실제 발행 명세서 7개월치를 역산해 검증한 로직이라 손대지 않는다.
+     · 부가세·수수료는 버림(floor). 반올림이 아니다.
+     · 원천징수는 소득세 3%와 지방소득세 0.3%를 각각 10원 절사 후 합산한다.
+       3.3%를 한 번에 곱하면 매월 10~20원씩 어긋난다. */
+(function(root,factory){
+  if(typeof module==='object'&&module.exports)module.exports=factory();
+  else root.STCalc=factory();
+})(typeof self!=='undefined'?self:this,function(){
+'use strict';
+
+
+// ── 반올림 유틸 ────────────────────────────────────────────────
+const floorTo = (v, unit = 1) => Math.floor(v / unit) * unit;
+const roundHalfUp = (v) => Math.floor(v + 0.5);
+
+function applyRounding(v, mode) {
+  if (mode === 'ceil') return Math.ceil(v);
+  if (mode === 'floor') return Math.floor(v);
+  return roundHalfUp(v);
+}
+
+// ── 정산율 결정 ────────────────────────────────────────────────
+function resolveRate(totalGrossSales, terms) {
+  if (terms.rateOverride != null) {
+    return { rate: terms.rateOverride, source: 'override' };
+  }
+  if (terms.rateMode === 'flat') {
+    return { rate: terms.flatRate, source: 'flat' };
+  }
+  // bracket: 세전매출 합계 기준으로 구간 판정
+  const b = terms.brackets.find(
+    (x) =>
+      totalGrossSales >= x.minGrossSales &&
+      (x.maxGrossSales == null || totalGrossSales <= x.maxGrossSales)
+  );
+  if (!b) throw new Error(`정산율 구간을 찾을 수 없습니다: ${totalGrossSales}`);
+  return { rate: b.rate, source: 'bracket' };
+}
+
+/**
+ * @param {Object} input
+ *   salesRows        [{ method:'card'|'cash'|'online'|'etc', label, grossSales, serviceCharge? }]
+ *   allowances       [{ label, amount, taxable }]   점판수당·교육비 등
+ *   businessSupport  { enabled, amount }            정착지원금(업무추진비)
+ *   deductions       [{ label, amount, preTax }]    기타 공제
+ *   customerCount    number|null
+ * @param {Object} terms  계약서에서 확정된 정산 조건
+ * @returns {Object} StatementResult
+ */
+function calculateStatement(input, terms) {
+  const {
+    salesRows = [],
+    allowances = [],
+    businessSupport = { enabled: false, amount: 0 },
+    deductions = [],
+    customerCount = null,
+  } = input;
+
+  const incentiveRounding = terms.incentiveRounding || 'ceil';
+  const facilityFeeTotalSource = terms.facilityFeeTotalSource || 'computed';
+
+  // 1) 매출 행별 계산
+  const totalGrossSales = salesRows.reduce((s, r) => s + r.grossSales, 0);
+  const { rate, source: rateSource } = resolveRate(totalGrossSales, terms);
+
+  const rows = salesRows.map((r) => {
+    const vat = Math.floor(r.grossSales * terms.vatRate);
+    const cardFee =
+      r.method === 'card' ? Math.floor(r.grossSales * terms.cardFeeRate) : 0;
+    const onlineFee =
+      r.method === 'online' ? Math.floor(r.grossSales * terms.onlineFeeRate) : 0;
+    const etcFee =
+      r.method === 'etc' ? Math.floor(r.grossSales * (terms.etcFeeRate || 0)) : 0;
+    const netSales = r.grossSales - vat - cardFee - onlineFee - etcFee;
+    const incentive = applyRounding(netSales * rate, incentiveRounding);
+    return {
+      method: r.method,
+      label: r.label,
+      grossSales: r.grossSales,
+      serviceCharge: r.serviceCharge || 0,
+      vat,
+      cardFee,
+      onlineFee,
+      etcFee,
+      netSales,
+      incentive,
+    };
+  });
+
+  const sum = (k) => rows.reduce((s, r) => s + r[k], 0);
+  const netSalesTotal = sum('netSales');
+  const incentiveTotal = sum('incentive');
+
+  // 2) 시설이용료
+  const facilityItems = (terms.facilityFeeItems || []).map((it) => ({
+    key: it.key,
+    label: it.label,
+    amount: roundHalfUp(netSalesTotal * it.rateOfNetSales),
+  }));
+  const facilityFeeTotal =
+    facilityFeeTotalSource === 'sumOfItems'
+      ? facilityItems.reduce((s, x) => s + x.amount, 0)
+      : roundHalfUp(netSalesTotal * terms.facilityFeeRate);
+
+  // 3) 정착지원금 (guarantee: 기준액과 실인센티브 중 큰 쪽의 차액만 가산)
+  let supportAmount = 0;
+  if (businessSupport.enabled) {
+    if (terms.settlementSupport && terms.settlementSupport.mode === 'additive') {
+      supportAmount = businessSupport.amount;
+    } else {
+      const base = incentiveTotal - facilityFeeTotal;
+      supportAmount = Math.max(0, businessSupport.amount - base);
+    }
+  }
+
+  // 4) 수당
+  const allowanceItems = allowances.map((a) => ({
+    label: a.label,
+    amount: a.amount,
+    taxable: a.taxable === true,
+  }));
+  const taxableAllowanceTotal = allowanceItems
+    .filter((a) => a.taxable)
+    .reduce((s, a) => s + a.amount, 0);
+  const allowanceSum = allowanceItems.reduce((s, a) => s + a.amount, 0);
+  const allowanceTotal = incentiveTotal + allowanceSum + supportAmount;
+
+  // 5) 원천징수
+  //    소득세 3%와 지방소득세 0.3%를 각각 계산해 각각 10원 절사 후 합산한다.
+  //    3.3%를 한 번에 곱하면 실제 명세서와 매월 10~20원씩 어긋난다.
+  const taxBase =
+    incentiveTotal - facilityFeeTotal + taxableAllowanceTotal + supportAmount;
+  const unit = terms.taxRoundingUnit || 10;
+  const incomeTax = floorTo(taxBase * terms.incomeTaxRate, unit);
+  const localTax = floorTo(taxBase * terms.localTaxRate, unit);
+  const withholdingTotal = incomeTax + localTax;
+
+  // 6) 공제 합계 및 실지급
+  const preTaxDeductionTotal = deductions
+    .filter((d) => d.preTax)
+    .reduce((s, d) => s + d.amount, 0);
+  const postTaxDeductionTotal = deductions
+    .filter((d) => !d.preTax)
+    .reduce((s, d) => s + d.amount, 0);
+  const deductionTotal =
+    facilityFeeTotal + preTaxDeductionTotal + postTaxDeductionTotal + withholdingTotal;
+
+  const serviceChargePayout = sum('serviceCharge');
+  const netPayout = allowanceTotal - deductionTotal;
+
+  return {
+    salesRows: rows,
+    totals: {
+      grossSales: totalGrossSales,
+      serviceCharge: serviceChargePayout,
+      vat: sum('vat'),
+      cardFee: sum('cardFee'),
+      onlineFee: sum('onlineFee'),
+      etcFee: sum('etcFee'),
+      netSales: netSalesTotal,
+    },
+    appliedRate: rate,
+    appliedRateSource: rateSource,
+    incentiveTotal,
+    facilityFee: { items: facilityItems, total: facilityFeeTotal },
+    allowances: allowanceItems,
+    businessSupportAmount: supportAmount,
+    allowanceTotal,
+    withholding: {
+      taxBase,
+      incomeTax,
+      localTax,
+      total: withholdingTotal, // 명세서에는 '사업소득세' 1줄로 합산 표시
+    },
+    preTaxDeductionTotal,
+    postTaxDeductionTotal,
+    deductionTotal,
+    serviceChargePayout,
+    incentivePayout: netPayout - serviceChargePayout,
+    netPayout,
+    customerCount,
+  };
+}
+
+return { calculateStatement: calculateStatement, floorTo: floorTo,
+         roundHalfUp: roundHalfUp, resolveRate: resolveRate };
+});
+/* <</ST_ENGINE>> */
+
+/* ── 수수료명세서 화면 ────────────────────────────────────────────────
+   계산은 검증된 엔진(STCalc)으로 브라우저에서 하고, 서버에는 확정 시점의
+   설정·입력·결과를 통째로 스냅샷 저장한다. 발행 후 재계산하지 않는다. */
+var ST_BRANCH=null, ST_STAFF=null, ST_PENDING=null;
+var ST_BRAND_ID='etoh', ST_BRANCH_ID='hapjeong';
+
+function stLoadRefs(){
+  if(ST_BRANCH&&ST_STAFF)return Promise.resolve();
+  return Promise.all([
+    fbG('/brands/'+ST_BRAND_ID+'/branches/'+ST_BRANCH_ID+'.json'),
+    fbG('/users.json')
+  ]).then(function(r){
+    if(!r[0])throw new Error('지점 정보를 찾을 수 없습니다');
+    ST_BRANCH=r[0];
+    var us=r[1]||{},out=[];
+    Object.keys(us).forEach(function(ph){
+      var u=us[ph];
+      if(!u||typeof u!=='object')return;
+      if(u.brand!=='ETOH'||u.status==='퇴사')return;
+      out.push({phone:ph,name:u.name||'',nick:u.nick||'',birthDate:u.birthDate||'',role:u.role||''});
+    });
+    out.sort(function(a,b){return (a.name||'').localeCompare(b.name||'')});
+    ST_STAFF=out;
+  });
+}
+/* 지점 설정 → 엔진이 받는 terms. 요율의 원천은 계약(지점 설정)이다. */
+function stTerms(){
+  var cd=(ST_BRANCH&&ST_BRANCH.contractDefaults)||{};
+  return {
+    rateMode:cd.rateMode||'flat', flatRate:cd.flatRate, brackets:cd.brackets||[],
+    vatRate:cd.vatRate, cardFeeRate:cd.cardFeeRate, onlineFeeRate:cd.onlineFeeRate,
+    etcFeeRate:cd.etcFeeRate||0,
+    incentiveRounding:cd.incentiveRounding||'ceil',
+    facilityFeeRate:cd.facilityFeeRate,
+    facilityFeeItems:cd.facilityFeeItems||[],
+    facilityFeeTotalSource:cd.facilityFeeTotalSource||'computed',
+    settlementSupport:cd.settlementSupport||{mode:'guarantee'},
+    incomeTaxRate:cd.incomeTaxRate, localTaxRate:cd.localTaxRate,
+    taxRoundingUnit:cd.taxRoundingUnit||10
+  };
+}
+function stNum(id){var e=$(id);if(!e)return 0;var v=String(e.value||'').replace(/[^0-9.\-]/g,'');return v?Math.round(+v):0}
+function stWon(n){return (n==null||isNaN(n))?'-':Number(n).toLocaleString('ko-KR')}
+function stDash(n){return (!n)?'-':Number(n).toLocaleString('ko-KR')}
+function stPct(r){return r==null?'':(+(Number(r)*100).toFixed(4))+'%'}
+function stThisMonth(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)}
+
+/* 화면 입력 → 엔진 입력 */
+function stInput(){
+  var cd=(ST_BRANCH&&ST_BRANCH.contractDefaults)||{};
+  var rows=[];
+  function push(m,l,g,sc){ if(g||sc) rows.push({method:m,label:l,grossSales:g,serviceCharge:sc||0}) }
+  push('card','카드매출',stNum('STF-CARD'),stNum('STF-CARD-SC'));
+  push('cash','현금매출',stNum('STF-CASH'),stNum('STF-CASH-SC'));
+  push('online','온라인매출',stNum('STF-ONLINE'),stNum('STF-ONLINE-SC'));
+  /* 정액권(선불권)은 결제 시점에 전액 매출로 잡으므로, 나중에 그 정액권을
+     쓴 시술분은 매출로 중복 인정하지 않는다 → 그 달 매출에서 뺀다. */
+  var pre=stNum('STF-PREPAID');
+  if(pre)rows.push({method:'etc',label:'정액권 사용분 차감',grossSales:-pre,serviceCharge:0});
+
+  var al=[];
+  var prod=stNum('STF-PROD'), edu=stNum('STF-EDU');
+  if(prod)al.push({label:'점판수당',amount:prod,taxable:cd.productAllowanceTaxable!==false});
+  if(edu) al.push({label:'교육비',  amount:edu, taxable:cd.eduAllowanceTaxable!==false});
+
+  var sup=$('STF-SUP')&&$('STF-SUP').checked;
+  var ded=[];
+  var d1l=($('STF-DED1-L')||{}).value, d1a=stNum('STF-DED1-A');
+  if(d1a)ded.push({label:(d1l||'기타 공제').trim(),amount:d1a,preTax:($('STF-DED1-T')||{}).value!=='post'});
+  var d2l=($('STF-DED2-L')||{}).value, d2a=stNum('STF-DED2-A');
+  if(d2a)ded.push({label:(d2l||'기타 공제').trim(),amount:d2a,preTax:($('STF-DED2-T')||{}).value!=='post'});
+
+  var cc=($('STF-CUST')||{}).value;
+  return {
+    salesRows:rows, allowances:al,
+    businessSupport:{enabled:!!sup,amount:stNum('STF-SUP-AMT')},
+    deductions:ded,
+    customerCount:(cc===''||cc==null)?null:Math.round(+cc)
+  };
+}
+function stCalc(){
+  try{ return STCalc.calculateStatement(stInput(),stTerms()) }catch(e){ return {__err:e.message} }
+}
+function stRecalc(){
+  var p=$('ST-CALC'); if(!p)return;
+  var sup=$('STF-SUP')&&$('STF-SUP').checked;
+  if($('STF-SUP-WRAP'))$('STF-SUP-WRAP').style.display=sup?'':'none';
+  var r=stCalc();
+  if(r.__err){p.innerHTML='<div style="color:#B91C1C;font-size:12px;padding:10px">'+nsEsc(r.__err)+'</div>';return}
+  function line(l,v,o){o=o||{};return '<div style="display:flex;justify-content:space-between;gap:10px;padding:'
+    +(o.big?'7px 0':'3px 0')+';font-size:'+(o.big?'13px':'12px')+(o.dim?';color:#94A3B8':'')
+    +(o.big?';border-top:1px solid #E2E8F0;margin-top:4px':'')+'">'
+    +'<span style="'+(o.big?'font-weight:800':'color:#64748B')+'">'+l+'</span>'
+    +'<b style="font-variant-numeric:tabular-nums'+(o.neg?';color:#B91C1C':'')+(o.big?';font-size:14px':'')+'">'
+    +(o.neg&&v?'-':'')+stWon(v)+'</b></div>'}
+  p.innerHTML=
+     '<div style="font-size:11px;font-weight:800;color:#94A3B8;margin-bottom:4px">매출</div>'
+    +line('세전매출',r.totals.grossSales)
+    +line('부가세',r.totals.vat,{neg:1})
+    +line('카드수수료',r.totals.cardFee,{neg:1})
+    +line('온라인수수료',r.totals.onlineFee,{neg:1})
+    +(r.totals.etcFee?line('기타수수료',r.totals.etcFee,{neg:1}):'')
+    +line('세후매출',r.totals.netSales)
+    +'<div style="font-size:11px;font-weight:800;color:#94A3B8;margin:12px 0 4px">인센티브</div>'
+    +line('요율 '+stPct(r.appliedRate),r.incentiveTotal)
+    +(r.allowances||[]).map(function(a){return line(a.label+(a.taxable?'':' (비과세)'),a.amount)}).join('')
+    +(r.businessSupportAmount?line('정착지원금',r.businessSupportAmount):'')
+    +line('수당 합계',r.allowanceTotal)
+    +'<div style="font-size:11px;font-weight:800;color:#94A3B8;margin:12px 0 4px">공제</div>'
+    +(r.facilityFee.items||[]).map(function(i){return line(i.label,i.amount,{neg:1})}).join('')
+    +line('이용료 합계',r.facilityFee.total,{neg:1})
+    +(r.preTaxDeductionTotal?line('공제(세전)',r.preTaxDeductionTotal,{neg:1}):'')
+    +(r.postTaxDeductionTotal?line('공제(세후)',r.postTaxDeductionTotal,{neg:1}):'')
+    +line('사업소득세',r.withholding.total,{neg:1})
+    +line('공제 합계',r.deductionTotal,{neg:1})
+    +line('봉사료 수령액',r.serviceChargePayout)
+    +line('총 수령액',r.netPayout,{big:1});
+}
+
+/* ── 목록 ── */
 function openSettlements(){
   if(!can('menu.settlement')){toast('열람 권한이 없어요');return}
   go('p-settlements');
   if($('ST-SUB'))$('ST-SUB').textContent='월별 수수료명세서 발행·조회';
-  if($('ST-ROOT'))$('ST-ROOT').innerHTML=ctStatusCard()
-    +'<div class="empty">명세서 발행 기능은 준비 중입니다 (Phase 3).</div>';
+  var R=$('ST-ROOT');if(!R)return;
+  if(!ctCanIssue()){R.innerHTML=ctStatusCard()+'<div class="empty">명세서 발행·조회 권한이 없습니다.</div>';return}
+  R.innerHTML=ctStatusCard()+'<div class="empty">불러오는 중…</div>';
+  ctFetch('/statements').then(function(j){
+    var btn='<button class="gbtn pri" style="width:100%;margin-bottom:14px" onclick="openStatementNew()">＋ 새 명세서 작성</button>';
+    if(!j||!j.ok){R.innerHTML=ctStatusCard()+btn+'<div class="empty">'+nsEsc((j&&j.error)||'목록을 불러오지 못했습니다')+'</div>';return}
+    var rows=j.rows||[];
+    var by={};rows.forEach(function(r){(by[r.period]=by[r.period]||[]).push(r)});
+    var periods=Object.keys(by).sort().reverse();
+    var list=periods.length?periods.map(function(p){
+      return '<div style="font-size:12px;font-weight:800;color:#64748B;margin:14px 0 8px">'+nsEsc(p)+'</div>'
+        +by[p].map(stRowCard).join('');
+    }).join(''):'<div class="empty">발행된 명세서가 없습니다.</div>';
+    R.innerHTML=ctStatusCard()+btn+list;
+  }).catch(function(e){R.innerHTML=ctStatusCard()+'<div class="empty">'+nsEsc(e.message)+'</div>'});
+}
+function stRowCard(s){
+  var v=s.status==='void';
+  return '<div style="background:#fff;border:1px solid var(--line,#E2E8F0);border-radius:12px;padding:13px 15px;margin-bottom:10px'
+    +(v?';opacity:.6':'')+'">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
+    +'<b style="font-size:13.5px">'+nsEsc(s.staffName||'')+'</b>'
+    +(v?'<span style="background:#FEE2E2;color:#B91C1C;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px">무효</span>'
+       :'<span style="background:#DCFCE7;color:#15803D;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px">발행</span>')
+    +'<span style="margin-left:auto;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums">'+stWon(s.netPayout)+'원</span></div>'
+    +'<div style="font-size:11.5px;color:#64748B;line-height:1.6">'+nsEsc(s.number||'')
+    +' · 세전 '+stWon(s.grossSales)+'원'
+    +(v&&s.voidReason?'<br><span style="color:#B91C1C">무효 사유: '+nsEsc(s.voidReason)+'</span>':'')+'</div>'
+    +'<div style="display:flex;gap:6px;margin-top:10px">'
+    +'<button class="gbtn sec" style="flex:1;font-size:12px;padding:8px" onclick="stPrint(\''+s.id+'\')">인쇄</button>'
+    +(v||!ctIsOwner()?'':'<button class="gbtn sec" style="flex:1;font-size:12px;padding:8px;color:#B91C1C" onclick="stVoid(\''+s.id+'\',\''+nsEsc(s.number||'').replace(/\x27/g,'')+'\')">무효 처리</button>')
+    +'</div></div>';
+}
+
+/* ── 작성 ── */
+function openStatementNew(){
+  if(!ctCanIssue()){toast('발행 권한이 없어요');return}
+  go('p-statement-new');
+  var R=$('ST-NEW');if(!R)return;
+  R.innerHTML='<div class="empty">불러오는 중…</div>';
+  stLoadRefs().then(function(){R.innerHTML=stFormHtml();stRecalc()})
+    .catch(function(e){R.innerHTML='<div class="empty">'+nsEsc(e.message)+'</div>'});
+}
+function stFormHtml(){
+  var cd=(ST_BRANCH&&ST_BRANCH.contractDefaults)||{};
+  var ss=cd.settlementSupport||{};
+  var money=' inputmode="numeric" oninput="stRecalc()" placeholder="0" style="text-align:right"';
+  function sales(l,id,note){
+    return '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">'
+      +'<div style="flex:1"><label class="flbl">'+l+'</label><input id="STF-'+id+'"'+money+'></div>'
+      +'<div style="width:96px"><label class="flbl" style="font-size:10.5px;color:#94A3B8">봉사료</label>'
+      +'<input id="STF-'+id+'-SC"'+money+'></div></div>'
+      +(note?'<div class="fhint" style="margin:-4px 0 10px">'+note+'</div>':'');
+  }
+  return ''
+  +'<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:12px 15px;margin-bottom:14px;font-size:12px;color:#64748B;line-height:1.6">'
+  +'<b style="color:#0F172A">'+nsEsc(ST_BRANCH.businessName||'')+'</b><br>'
+  +'정산율 '+stPct(cd.flatRate)+' · 시설이용료 '+stPct(cd.facilityFeeRate)+' · 부가세 '+stPct(cd.vatRate)
+  +' · 카드 '+stPct(cd.cardFeeRate)+' · 온라인 '+stPct(cd.onlineFeeRate)+'</div>'
+
+  +'<div class="fg"><label class="flbl">정산 기간 *</label><input id="STF-PERIOD" type="month" value="'+stThisMonth()+'"></div>'
+  +'<div class="fg"><label class="flbl">대상자 *</label><select id="STF-STAFF" onchange="stStaffChg()">'
+  +'<option value="">선택</option>'
+  +ST_STAFF.map(function(s){return '<option value="'+nsEsc(s.phone)+'">'+nsEsc(s.name)+(s.nick?' ('+nsEsc(s.nick)+')':'')+'</option>'}).join('')
+  +'</select></div>'
+  +'<div class="fg"><label class="flbl">생년월일 *</label><input id="STF-BIRTH" type="date"><div class="fhint">명세서 머리말에 들어갑니다.</div></div>'
+
+  +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">매출정보</div>'
+  +sales('카드매출','CARD')+sales('현금매출','CASH')+sales('온라인매출','ONLINE')
+  +'<div class="fg"><label class="flbl">정액권 사용분 차감</label><input id="STF-PREPAID"'+money+'>'
+  +'<div class="fhint">정액권은 <b>결제한 달</b>에 전액 매출로 잡습니다. 나중에 그 정액권으로 시술한 금액은 여기에 적어 이번 달 매출에서 뺍니다 (중복 인정 방지). 정액권을 안 쓰면 비워두세요.</div></div>'
+
+  +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">수당</div>'
+  +'<div class="fg"><label class="flbl">점판수당</label><input id="STF-PROD"'+money+'>'
+  +'<div class="fhint">'+(cd.productAllowanceTaxable!==false?'원천징수 대상':'비과세')+'</div></div>'
+  +'<div class="fg"><label class="flbl">교육비</label><input id="STF-EDU"'+money+'>'
+  +'<div class="fhint">1회 '+stWon(cd.eduUnitPrice||60000)+'원 · '+(cd.eduAllowanceTaxable!==false?'원천징수 대상':'비과세')+'</div></div>'
+
+  +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">정착지원금</div>'
+  +'<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:10px;cursor:pointer">'
+  +'<input type="checkbox" id="STF-SUP" onchange="stRecalc()" style="width:16px;height:16px"> 적용 '
+  +'<span style="color:#64748B">'+(ss.mode==='additive'?'전액 가산':'보장 방식 — 기준액에 못 미치는 만큼만 채움')+'</span></label>'
+  +'<div id="STF-SUP-WRAP" style="display:none"><div class="fg"><label class="flbl">기준 금액</label>'
+  +'<input id="STF-SUP-AMT"'+money+' value="'+(ss.monthlyAmount||1000000)+'"></div></div>'
+
+  +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">기타 공제</div>'
+  +[1,2].map(function(i){return '<div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:8px">'
+      +'<div style="flex:1"><label class="flbl">항목 '+i+'</label><input id="STF-DED'+i+'-L" placeholder="예: 가불" autocomplete="off"></div>'
+      +'<div style="width:86px"><label class="flbl" style="font-size:10.5px;color:#94A3B8">구분</label>'
+      +'<select id="STF-DED'+i+'-T" onchange="stRecalc()"><option value="pre">세전</option><option value="post">세후</option></select></div>'
+      +'<div style="width:110px"><label class="flbl" style="font-size:10.5px;color:#94A3B8">금액</label>'
+      +'<input id="STF-DED'+i+'-A"'+money+'></div></div>'}).join('')
+
+  +'<div class="fg" style="margin-top:14px"><label class="flbl">고객수 (선택)</label>'
+  +'<input id="STF-CUST" inputmode="numeric" oninput="stRecalc()" placeholder="비워두면 - 로 표기"></div>'
+
+  +'<div style="font-size:13px;font-weight:800;margin:22px 0 10px">계산 결과</div>'
+  +'<div id="ST-CALC" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:12px 15px"></div>'
+  +'<div class="fhint" style="margin-top:6px">입력할 때마다 즉시 다시 계산합니다. 발행 전에는 저장되지 않습니다.</div>'
+
+  +'<div style="position:sticky;bottom:12px;margin-top:16px;background:#fff;border-radius:12px;padding:10px;display:flex;gap:8px;box-shadow:0 -4px 14px rgba(0,0,0,.06)">'
+  +'<button class="gbtn sec" style="flex:1" onclick="openSettlements()">취소</button>'
+  +'<button class="gbtn pri" style="flex:2" onclick="stReview()">입력 확인</button></div>';
+}
+function stStaffChg(){
+  var ph=($('STF-STAFF')||{}).value;
+  var s=(ST_STAFF||[]).filter(function(x){return x.phone===ph})[0];
+  if(s&&s.birthDate&&$('STF-BIRTH'))$('STF-BIRTH').value=s.birthDate;
+}
+
+/* ── 확인 팝업 ── */
+function stReview(){
+  var ph=($('STF-STAFF')||{}).value;
+  var s=(ST_STAFF||[]).filter(function(x){return x.phone===ph})[0];
+  var period=($('STF-PERIOD')||{}).value;
+  var birth=($('STF-BIRTH')||{}).value;
+  var miss=[];
+  if(!period)miss.push('정산 기간');
+  if(!s)miss.push('대상자');
+  if(!birth)miss.push('생년월일');
+  if(miss.length)return alert('다음 항목을 채워주세요.\n\n· '+miss.join('\n· '));
+  var r=stCalc();
+  if(r.__err)return alert(r.__err);
+  if(!r.totals.grossSales&&!r.allowanceTotal)return alert('매출이나 수당을 하나는 입력해주세요.');
+  if(r.netPayout<0&&!confirm('총 수령액이 마이너스('+stWon(r.netPayout)+'원)입니다.\n그대로 진행할까요?'))return;
+
+  ST_PENDING={period:period,staff:{phone:s.phone,name:s.name,birthDate:birth},input:stInput(),result:r};
+  function row(l,v,o){o=o||{};return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:12.5px">'
+    +'<span style="color:#64748B">'+l+'</span><b style="font-variant-numeric:tabular-nums'+(o.big?';font-size:15px':'')+'">'+v+'</b></div>'}
+  $('ST-CONF-BODY').innerHTML=
+     row('정산 기간',nsEsc(period))
+    +row('대상자',nsEsc(s.name))
+    +row('세전매출',stWon(r.totals.grossSales)+'원')
+    +row('세후매출',stWon(r.totals.netSales)+'원')
+    +row('인센티브 ('+stPct(r.appliedRate)+')',stWon(r.incentiveTotal)+'원')
+    +row('공제 합계','-'+stWon(r.deductionTotal)+'원')
+    +row('사업소득세','-'+stWon(r.withholding.total)+'원')
+    +row('총 수령액',stWon(r.netPayout)+'원',{big:1});
+  $('ST-CONF-BTN').disabled=false;
+  $('ST-CONF-BTN').textContent='발행하기';
+  $('st-confirm-modal').style.display='flex';
+}
+function stCloseConfirm(){$('st-confirm-modal').style.display='none'}
+
+function stIssue(){
+  if(!ST_PENDING)return;
+  var p=ST_PENDING,btn=$('ST-CONF-BTN');
+  btn.disabled=true;btn.textContent='발행 중…';
+  ctFetch('/statements',{method:'POST',body:JSON.stringify({
+    brandId:ST_BRAND_ID, branchId:ST_BRANCH_ID, period:p.period,
+    staffPhone:p.staff.phone, staffName:p.staff.name,
+    birthDate:p.staff.birthDate,
+    input:p.input, result:p.result, terms:stTerms(),
+    displayMode:((ST_BRANCH.contractDefaults||{}).displayMode)||'gross'
+  })}).then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||'발행에 실패했습니다');
+    toast(j.number+' 발행 완료');
+    stCloseConfirm();ST_PENDING=null;
+    openSettlements();
+    setTimeout(function(){stPrint(j.id)},400);
+  }).catch(function(e){
+    btn.disabled=false;btn.textContent='발행하기';
+    alert(e.message||'발행에 실패했습니다');
+  });
+}
+function stVoid(id,number){
+  var reason=prompt('무효 처리 사유를 적어주세요.\n명세서 '+number+' 는 수정되지 않고 무효로 남습니다.');
+  if(reason==null)return;
+  if(!reason.trim()||reason.trim().length<2)return alert('사유를 적어주세요');
+  ctFetch('/statements/'+id+'/void',{method:'POST',body:JSON.stringify({reason:reason.trim()})})
+    .then(function(j){
+      if(!j||!j.ok)throw new Error((j&&j.error)||'무효 처리에 실패했습니다');
+      toast('무효 처리했습니다');openSettlements();
+    }).catch(function(e){alert(e.message)});
+}
+
+/* ── 명세서 인쇄 ──────────────────────────────────────────────────────
+   가로 A4 1장 = 좌우 2부(회사 보관용 / 위탁자 지급용), 중앙 절취선.
+   저장된 result 만 그린다. 여기서 다시 계산하지 않는다. */
+function stPrint(id){
+  toast('불러오는 중…');
+  ctFetch('/statements/'+id).then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||'명세서를 불러오지 못했습니다');
+    var w=window.open('','_blank');
+    if(!w)return alert('팝업이 차단됐습니다. 이 사이트의 팝업을 허용해주세요.');
+    w.document.write(stPrintHtml(j.statement));
+    w.document.close();
+  }).catch(function(e){alert(e.message||'인쇄에 실패했습니다')});
+}
+function stPrintHtml(s){
+  var snap=s.snapshot||{}, r=snap.result||{}, br=snap.branch||{}, terms=snap.terms||{};
+  var mode=s.displayMode||'gross';
+  var period=(s.period||'').replace('-','년 ')+'월';
+  var correct=(terms.objectionPeriodDays||7);
+  var E=function(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+  var N=function(n){return (!n||isNaN(n))?'-':Number(n).toLocaleString('ko-KR')};
+
+  /* (b) 매출정보 — 8열, 빈 행 포함 5행 고정 */
+  function salesTable(){
+    var rows=(r.salesRows||[]).slice(0,5);
+    var body='';
+    for(var i=0;i<5;i++){
+      var x=rows[i];
+      body+='<tr>'+(x
+        ?'<td>'+E(x.label)+'</td><td class="n">'+N(x.grossSales)+'</td><td class="n">'+N(x.serviceCharge)
+         +'</td><td class="n">'+N(x.vat)+'</td><td class="n">'+N(x.cardFee)+'</td><td class="n">'+N(x.onlineFee)
+         +'</td><td class="n">'+N(x.etcFee)+'</td><td class="n">'+N(x.netSales)+'</td>'
+        :'<td>-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td>')
+        +'</tr>';
+    }
+    var t=r.totals||{};
+    return '<table><colgroup><col style="width:13%"><col style="width:14%"><col style="width:10%"><col style="width:11%">'
+      +'<col style="width:12%"><col style="width:13%"><col style="width:12%"><col style="width:15%"></colgroup>'
+      +'<tr class="hd"><th>매출구분</th><th>세전매출</th><th>봉사료</th><th>부가세</th><th>카드수수료</th>'
+      +'<th>온라인수수료</th><th>기타수수료</th><th>세후매출</th></tr>'+body
+      +'<tr class="tot"><td>합계</td><td class="n">'+N(t.grossSales)+'</td><td class="n">'+N(t.serviceCharge)
+      +'</td><td class="n">'+N(t.vat)+'</td><td class="n">'+N(t.cardFee)+'</td><td class="n">'+N(t.onlineFee)
+      +'</td><td class="n">'+N(t.etcFee)+'</td><td class="n">'+N(t.netSales)+'</td></tr></table>';
+  }
+  /* (c) 인센티브계산 / 공제계산 — 빈 슬롯 유지, 양쪽 행 수 맞춤 */
+  function rateLabel(copy){
+    if(mode==='split'&&copy==='company'){
+      var fac=terms.facilityFeeRate||0, tot=terms.flatRate||0;
+      return '~ '+(+((tot-fac)*100).toFixed(4))+'%  ~ '+(+(fac*100).toFixed(4))+'%';
+    }
+    return '~ '+(+((r.appliedRate||0)*100).toFixed(4))+'%';
+  }
+  function L(l,v){return '<tr><td>'+l+'</td><td class="n">'+v+'</td></tr>'}
+  function H(l){return '<tr class="sec"><td colspan="2">'+l+'</td></tr>'}
+  function slot(n){var o='';for(var i=0;i<n;i++)o+='<tr><td>&nbsp;</td><td class="n">-</td></tr>';return o}
+  function leftTable(copy){
+    var sr=r.salesRows||[];
+    var byM={};sr.forEach(function(x){byM[x.label]=x.incentive});
+    var lines=sr.slice(0,3).map(function(x){return L(E(x.label),N(x.incentive))}).join('');
+    var pad=slot(Math.max(0,5-Math.min(sr.length,5)));
+    var al=r.allowances||[];
+    var taxed=al.filter(function(a){return a.taxable}), free=al.filter(function(a){return !a.taxable});
+    return '<table class="half">'
+      +H('매출인센티브')+lines+pad
+      +H('인센티브 요율 및 합계')+L(rateLabel(copy),N(r.incentiveTotal))
+      +H('수당(세전)')+free.map(function(a){return L(E(a.label),N(a.amount))}).join('')+slot(Math.max(0,2-free.length))
+      +H('수당(세후)')+taxed.map(function(a){return L(E(a.label),N(a.amount))}).join('')+slot(Math.max(0,2-taxed.length))
+      +H('업무추진비')+L(r.businessSupportAmount?'Y':'N',N(r.businessSupportAmount))
+      +'<tr class="tot"><td>수당 합계</td><td class="n">'+N(r.allowanceTotal)+'</td></tr></table>';
+  }
+  function rightTable(){
+    var fi=(r.facilityFee||{}).items||[];
+    var pre=(snap.input&&snap.input.deductions||[]).filter(function(d){return d.preTax});
+    var post=(snap.input&&snap.input.deductions||[]).filter(function(d){return !d.preTax});
+    return '<table class="half">'
+      +H('이용료')+fi.map(function(i){return L(E(i.label),N(i.amount))}).join('')+slot(Math.max(0,4-fi.length))
+      +L('<b>이용료 합계</b>','<b>'+N((r.facilityFee||{}).total)+'</b>')
+      +H('공제(세전)')+pre.map(function(d){return L(E(d.label),N(d.amount))}).join('')+slot(Math.max(0,2-pre.length))
+      +H('공제(세후)')+post.map(function(d){return L(E(d.label),N(d.amount))}).join('')+slot(Math.max(0,2-post.length))
+      +H('원천징수')+L('사업소득세',N((r.withholding||{}).total))+slot(1)
+      +'<tr class="tot"><td>공제 합계</td><td class="n">'+N(r.deductionTotal)+'</td></tr></table>';
+  }
+  function copy(kind){
+    var isCompany=kind==='company';
+    return '<div class="copy">'
+      +'<div class="hdr"><div class="hl"><div class="no">발행번호 '+E(s.number)+'</div>'
+      +'<div>1. 귀하의 노고에 진심으로 감사드립니다.</div>'
+      +'<div>2. 귀하의 세부 수수료 내역을 아래와 같이 통보드립니다.</div></div>'
+      +'<div class="ttl">'+E(period)+'분 수수료명세서</div>'
+      +'<div class="hr"><div>성명 : <b>'+E(s.staffName)+'</b></div><div>생년월일 : '+E(s.birthDate||'-')+'</div></div></div>'
+      +'<div class="blk"><div class="vl">매출정보</div><div class="bd">'+salesTable()+'</div></div>'
+      +'<div class="two">'
+      +'<div class="blk"><div class="vl">인센티브계산</div><div class="bd">'+leftTable(kind)+'</div></div>'
+      +'<div class="blk"><div class="vl">공제계산</div><div class="bd">'+rightTable()+'</div></div></div>'
+      +'<div class="notice">위탁계약서에 의거하여 상기내용은 타인에게 노출하는 것을 금하고 있습니다<br>'
+      +'정산내역의 정정 기한은 '+correct+'일 이내로 하며, '+correct+'일을 경과하면 부제소 합의 한다.</div>'
+      +'<table class="sum"><tr><td>봉사료 수령액</td><td class="n">'+N(r.serviceChargePayout)+'</td>'
+      +'<td>인센티브수령액</td><td class="n">'+N(r.incentivePayout)+'</td></tr>'
+      +'<tr><td>고객수</td><td class="n">'+(r.customerCount==null?'-':r.customerCount)+'</td>'
+      +'<td>총 수령액</td><td class="n big">'+N(r.netPayout)+'</td></tr></table>'
+      +'<div class="agree">* 위탁계약 또는 매출정산기준표에 의한 공제내용에 따라 해당 금액을 공제하는 것을 동의합니다.</div>'
+      +'<div class="foot"><div class="brand">'+E(br.businessName||'')+'</div>'
+      +'<div class="sign">'+(isCompany
+          ? '서명 ______________  '+E(s.staffName)+' (인)'
+          : '직인생략 ______________')+'</div></div>'
+      +'<div class="kind">'+(isCompany?'회사 보관용':'위탁자 지급용')+'</div></div>';
+  }
+  return '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+    +'<title>'+E(s.number)+' '+E(s.staffName)+' 수수료명세서</title><style>'
+    +'@page{size:A4 landscape;margin:8mm}'
+    +'*{box-sizing:border-box}'
+    +'body{margin:0;font-family:"맑은 고딕","Malgun Gothic",AppleSDGothicNeo-Regular,sans-serif;'
+    +'font-size:8.5pt;color:#111;background:#fff}'
+    +'.bar{padding:10px;text-align:center;background:#F1F5F9;border-bottom:1px solid #CBD5E1}'
+    +'.bar button{font:inherit;font-size:11pt;padding:8px 20px;margin:0 4px;border:1px solid #CBD5E1;'
+    +'border-radius:8px;background:#fff;cursor:pointer}.bar .p{background:#0F172A;color:#fff;border-color:#0F172A}'
+    +'.sheet{display:grid;grid-template-columns:1fr 1fr;gap:0}'
+    +'.copy{padding:0 6mm;position:relative}'
+    +'.copy:first-child{border-right:1px dashed #d33}'
+    +'table{border-collapse:collapse;width:100%;table-layout:fixed}'
+    +'td,th{border:0.4pt solid #333;padding:1.2mm 1.5mm;font-weight:400;word-break:break-all}'
+    +'.n{text-align:right;font-variant-numeric:tabular-nums}'
+    +'.hd th,.sec td{background:#FDF6D8;text-align:center;font-weight:700}'
+    +'.tot td{background:#F3F4F6;font-weight:700}'
+    +'.hdr{display:flex;align-items:flex-start;gap:4mm;padding:3mm 0 2mm}'
+    +'.hl{flex:1;line-height:1.5;font-size:7.5pt}.hl .no{font-weight:700;margin-bottom:1mm}'
+    +'.ttl{flex:0 0 auto;font-size:13pt;font-weight:800;letter-spacing:-0.3px;align-self:center}'
+    +'.hr{flex:1;text-align:right;background:#F3F4F6;border:0.4pt solid #333;padding:1.5mm 2mm;line-height:1.7}'
+    +'.blk{display:flex;margin-bottom:1.5mm}'
+    +'.vl{writing-mode:vertical-rl;letter-spacing:2px;background:#FDF6D8;border:0.4pt solid #333;'
+    +'border-right:0;padding:1mm 0.6mm;text-align:center;font-weight:700;flex:0 0 auto}'
+    +'.bd{flex:1;min-width:0}'
+    +'.two{display:grid;grid-template-columns:1fr 1fr;gap:1.5mm}'
+    +'.notice{text-align:center;font-size:7pt;line-height:1.6;padding:2mm 0;color:#333}'
+    +'.sum td{padding:1.6mm 2mm}.sum td:nth-child(odd){background:#FDF6D8;font-weight:700;width:22%;text-align:center}'
+    +'.sum .big{font-size:11pt;font-weight:800}'
+    +'.agree{font-size:7pt;padding:2mm 0;color:#333}'
+    +'.foot{display:flex;align-items:flex-end;justify-content:space-between;padding-top:3mm}'
+    +'.brand{font-size:12pt;font-weight:800;letter-spacing:2px}'
+    +'.sign{font-size:8pt}'
+    +'.kind{position:absolute;top:1mm;left:6mm;font-size:7pt;color:#94A3B8}'
+    +'@media print{.bar{display:none}.sheet{page-break-inside:avoid}}'
+    +'</style></head><body>'
+    +'<div class="bar"><button class="p" onclick="window.print()">인쇄 / PDF 저장</button>'
+    +'<button onclick="window.close()">닫기</button>'
+    +'<span style="margin-left:12px;font-size:10pt;color:#64748B">가로 A4 1장 · 좌 회사 보관용 / 우 위탁자 지급용</span></div>'
+    +'<div class="sheet">'+copy('company')+copy('staff')+'</div>'
+    +(s.status==='void'?'<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
+      +'font-size:60pt;color:rgba(220,38,38,.18);font-weight:800;pointer-events:none">무효</div>':'')
+    +'</body></html>';
 }
 
 function notifyNaverWorks(order,type){
