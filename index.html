@@ -2662,6 +2662,9 @@ var TBL_W=9900;
 /* 【토큰】 → 값 경로 매핑 */
 var MAP={
   '0%':'terms.prepaidRate',
+  '甲: 상호':'branch.businessName',
+  '甲: 대표자':'branch.representative',
+  '甲: 소재지':'branch.address',
   '50%':'terms.productShare',
   '60%':'terms.rate',
   '乙: 성명':'staff.name',
@@ -2839,7 +2842,7 @@ return {build:build,missing:missing,resolve:resolve,MAP:MAP,INPUT_KEYS:INPUT_KEY
    질문지 → 확인 팝업 → DOCX 생성. 생성은 브라우저에서 하고,
    서버에는 발행번호와 스냅샷만 남긴다. 주민등록번호는 서버로 보내지 않는다. */
 var CT_TPL=null, CT_BRANCH=null, CT_BDEF=null;
-var CT_BRAND_ID='etoh', CT_BRANCH_ID='hapjeong', CT_TPL_VER='etoh-v1';
+var CT_BRAND_ID='etoh', CT_BRANCH_ID='hapjeong', CT_TPL_VER='etoh-v3';
 var CT_PENDING=null;      // 확인 팝업이 들고 있는 입력값
 var CT_DOCX=null, CT_DOCX_LOADING=null;   // 지연 로드한 docx 라이브러리
 
@@ -2896,9 +2899,13 @@ function ctToday(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth(
 
 /* 지점 설정 + 질문지 입력 → 템플릿 치환값. 조건은 지점 설정이 원천이다. */
 function ctValues(form,number){
-  var cd=(CT_BRANCH&&CT_BRANCH.contractDefaults)||{};
+  var b=CT_BRANCH||{};
+  var cd=b.contractDefaults||{};
   var cs=cd.contentService||{};
   return {
+    branch:{
+      businessName:b.businessName||'', representative:b.representative||'', address:b.address||''
+    },
     terms:{
       rate:ctPct(cd.flatRate), facilityFeeRate:ctPct(cd.facilityFeeRate),
       vatRate:ctPct(cd.vatRate), cardFeeRate:ctPct(cd.cardFeeRate),
@@ -3092,14 +3099,14 @@ function ctIssue(){
   var f=CT_PENDING, btn=$('CT-CONF-BTN');
   btn.disabled=true;btn.textContent='발행 중…';
   var vals=ctValues(f,'');
-  /* 서버에는 주민등록번호를 뺀 값만 보낸다 */
+  /* 서버에는 주민등록번호를 뺀 값만 보낸다.
+     키를 'terms.startDate' 처럼 펴서 보내면 안 된다 — RTDB 는 키에 . $ # [ ] / 를 못 쓴다. */
   var send={};Object.keys(vals).forEach(function(g){send[g]={};
     Object.keys(vals[g]).forEach(function(k){if(k!=='residentNumber')send[g][k]=vals[g][k]})});
-  var flatSend={};Object.keys(send).forEach(function(g){Object.keys(send[g]).forEach(function(k){flatSend[g+'.'+k]=send[g][k]})});
 
   ctFetch('/contracts',{method:'POST',body:JSON.stringify({
     brandId:CT_BRAND_ID, branchId:CT_BRANCH_ID, templateVersion:CT_TPL_VER,
-    staffName:f.name, values:flatSend
+    staffName:f.name, values:send
   })}).then(function(j){
     if(!j||!j.ok)throw new Error((j&&j.error)||'발행에 실패했습니다');
     var full=ctValues(f,j.number);
@@ -3139,14 +3146,12 @@ function ctRedownload(id){
   toast('불러오는 중…');
   ctFetch('/contracts/'+id).then(function(j){
     if(!j||!j.ok)throw new Error((j&&j.error)||'계약서를 불러오지 못했습니다');
-    var c=j.contract, snap=c.snapshot||{}, flatV=snap.values||{};
-    /* 발행 당시 스냅샷으로 되돌린다. 지점 정보가 그 뒤 바뀌어도 옛 값으로 나온다. */
-    var values={terms:{},staff:{}};
-    Object.keys(flatV).forEach(function(k){
-      var i=k.indexOf('.');if(i<0)return;
-      var g=k.slice(0,i),f=k.slice(i+1);
-      if(!values[g])values[g]={};values[g][f]=flatV[k];
-    });
+    var c=j.contract, snap=c.snapshot||{};
+    /* 발행 당시 스냅샷으로 되돌린다. 지점 정보가 그 뒤 바뀌어도 옛 값으로 나온다.
+       주민등록번호는 저장하지 않으므로 그 칸만 비어서 나온다. */
+    var values=snap.values||{terms:{},staff:{}};
+    if(!values.terms)values.terms={};
+    if(!values.staff)values.staff={};
     var prevTpl=CT_TPL;
     return fbG('/contractTemplates/'+(c.templateVersion||CT_TPL_VER)+'.json').then(function(tpl){
       if(tpl&&tpl.docs)CT_TPL=tpl;

@@ -173,14 +173,19 @@ async function nextNumber(env, counterId, pad = 4) {
 /* ═══ 고유식별정보 차단 ═══
    주민등록번호는 문서 생성에만 쓰고 저장하지 않는다(개인정보보호법 §24).
    앱이 실수로 보내와도 서버에서 걷어내고, 걷어낸 사실을 감사 로그에 남긴다. */
-const SENSITIVE_KEY = /resident|rrn|ssn|주민/i;
 const RRN_VALUE = /\b\d{6}\s*-\s*\d{7}\b/;
+/* 부분문자열로 판정하면 안 된다 — /ssn/i 는 'businessName' 에 걸린다.
+   카멜케이스·구분자로 쪼갠 뒤 단어 단위로 본다. */
+function isSensitiveKey(k) {
+  if (/resident|주민/i.test(k)) return true;
+  return String(k).split(/[^A-Za-z가-힣]+|(?=[A-Z])/).some(w => /^(?:rrn|ssn)$/i.test(w));
+}
 function stripSensitive(v, hit) {
   if (Array.isArray(v)) return v.map(x => stripSensitive(x, hit));
   if (v && typeof v === 'object') {
     const out = {};
     for (const k of Object.keys(v)) {
-      if (SENSITIVE_KEY.test(k)) { hit.push(k); continue; }
+      if (isSensitiveKey(k)) { hit.push(k); continue; }
       out[k] = stripSensitive(v[k], hit);
     }
     return out;
@@ -320,6 +325,10 @@ export default {
         const year = new Date().getFullYear();
         const number = await nextNumber(env, `${brandId.toUpperCase()}-${year}`, 4);
 
+        /* 발행번호는 채번 후에 정해지므로 스냅샷에 여기서 박아 넣는다.
+           그러지 않으면 재다운로드 때 문서번호 칸이 비어서 나온다. */
+        if (safeValues.terms && typeof safeValues.terms === 'object') safeValues.terms.documentNumber = number;
+
         const rec = {
           number, brandId, branchId, templateVersion,
           staffName: String(staffName).trim(),
@@ -343,8 +352,8 @@ export default {
           return { id: k, number: c.number, brandId: c.brandId, branchId: c.branchId,
             staffName: c.staffName, status: c.status, issuedAt: c.issuedAt,
             issuedBy: (c.issuedBy || {}).name || '',
-            startDate: ((c.snapshot || {}).values || {})['terms.startDate'] || '',
-            endDate: ((c.snapshot || {}).values || {})['terms.endDate'] || '',
+            startDate: (((c.snapshot || {}).values || {}).terms || {}).startDate || '',
+            endDate: (((c.snapshot || {}).values || {}).terms || {}).endDate || '',
             voidReason: c.voidReason || '' };
         }).sort((a, b) => (b.issuedAt || 0) - (a.issuedAt || 0));
         return json({ ok: true, rows }, 200, origin);
