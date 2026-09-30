@@ -1,0 +1,11 @@
+# DM INTERNATIONAL — 계약서·수수료명세서 API
+# 배포: cd contract-api && npx wrangler deploy
+# 시크릿:
+#   npx wrangler secret put FIREBASE_SA        (서비스 계정 JSON 전체)
+#   npx wrangler secret put SESSION_SECRET     (토큰 서명용 랜덤 문자열)
+name = "dm-contract-api"
+main = "src/index.js"
+compatibility_date = "2026-09-30"
+
+[vars]
+FIREBASE_URL = "https://dm-orders-4792a-default-rtdb.firebaseio.com"

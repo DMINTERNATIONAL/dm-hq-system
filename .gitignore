@@ -21,3 +21,7 @@ Thumbs.db
 
 # DAY:MEAN 디자이너 채용 덱 (별도 배포)
 recruit-deck/
+
+# Firebase 서비스 계정 키 (절대 커밋 금지)
+*firebase-adminsdk*.json
+*serviceAccountKey*.json
