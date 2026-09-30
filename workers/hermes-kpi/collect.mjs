@@ -813,6 +813,18 @@ async function collectMonthlyRetail(ym, dry) {
    명세서를 주기 전에 그 달을 통째로 다시 긁어 확정한다.
    collectSales 는 멱등이고 값이 바뀌면 revisions 에 남으므로,
    어느 날이 바뀌었는지도 같이 기록한다. */
+/* 담당자별로 정산에 쓰는 값이 바뀌었는지 본다.
+   결제수단 합·접객수·점판·정액권사용 — 명세서에 그대로 들어가는 것들. */
+function designerDiff(before, after) {
+  const b = before || {}, a = after || {};
+  const names = [...new Set([...Object.keys(b), ...Object.keys(a)])];
+  const pick = (d) => {
+    const p = (d && d.pay) || {};
+    return [+(p['카드'] || 0), +(p['현금'] || 0), +(p['통장'] || 0), +(p['Pay'] || 0), +(p['기타'] || 0),
+            +((d && d.guests) || 0), +((d && d.retail_amount) || 0), +((d && d.prepaid_used) || 0)].join('|');
+  };
+  return names.filter(n => pick(b[n]) !== pick(a[n]));
+}
 async function verifyMonth(ym, dry) {
   if (!/^\d{4}-\d{2}$/.test(String(ym || ''))) throw new Error('기간은 YYYY-MM 형식입니다');
   const [y, m] = ym.split('-').map(Number);
@@ -822,6 +834,12 @@ async function verifyMonth(ym, dry) {
   for (let d = 1; d <= last; d++) {
     const date = `${ym}-${String(d).padStart(2, '0')}`;
     if (date > today) break;                       // 미래 날짜는 건너뛴다
+    // 재수집 전 담당자별 값을 떠둔다. collectSales 의 revised 는 매장 합계 기준이라
+    // 담당자끼리 매출이 옮겨가거나 결제수단만 바뀐 정정은 잡지 못한다.
+    // 명세서는 담당자별로 나가므로 그쪽이 더 중요하다.
+    const before = {};
+    for (const shop of CONFIG.shops) before[shop.shop] = await fbGET(`/stores/${enc(shop.shop)}/daily/${enc(date)}/designers.json`);
+
     let res = [];
     try { const r = await collectSales(date, dry); res = (r && r.shops) || []; }
     catch (e) { console.error(`[month] ${date} 실패: ${e.message}`); continue; }
@@ -829,7 +847,15 @@ async function verifyMonth(ym, dry) {
       const k = x.shop;
       done[k] = (done[k] || 0) + 1;
       if (x.closed || x.ok === false) (missing[k] = missing[k] || []).push(date);
-      if (x.revised) (changed[k] = changed[k] || []).push(date);
+    }
+    if (!dry) {
+      for (const shop of CONFIG.shops) {
+        const after = await fbGET(`/stores/${enc(shop.shop)}/daily/${enc(date)}/designers.json`);
+        const diff = designerDiff(before[shop.shop], after);
+        if (diff.length) (changed[shop.shop] = changed[shop.shop] || []).push({ date, who: diff });
+      }
+    } else {
+      for (const x of res) if (x.revised) (changed[x.shop] = changed[x.shop] || []).push({ date, who: ['(매장 합계)'] });
     }
     try { await collectVisits(date, dry); } catch (e) { /* 방문구분은 정산에 안 쓰므로 실패해도 진행 */ }
   }
@@ -853,7 +879,8 @@ async function verifyMonth(ym, dry) {
   const totalChanged = Object.values(changed).reduce((a, x) => a + x.length, 0);
   if (totalChanged) {
     await notify(`[Hermes] ${ym} 월 확정 재수집 — 매출이 바뀐 날 ${totalChanged}건. `
-      + Object.entries(changed).map(([k, v]) => `${k}: ${v.join(',')}`).join(' / '));
+      + Object.entries(changed).map(([k, v]) =>
+          `${k}: ` + v.map(x => `${x.date}(${x.who.join(',')})`).join(' ')).join(' / '));
   }
   return out;
 }
