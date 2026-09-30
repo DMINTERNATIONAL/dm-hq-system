@@ -90,6 +90,7 @@ async function dbGet(env, path) {
   return r.json();
 }
 async function dbPut(env, path, value) {
+  if (value === undefined) throw new Error('DB 쓰기 거부: ' + path + ' 값이 undefined 입니다');
   const t = await accessToken(env);
   const r = await fetch(`${env.FIREBASE_URL}${path}.json?access_token=${t}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value),
@@ -239,6 +240,7 @@ export default {
       const bearer = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
       const me = await verifyToken(env, bearer);
       if (!me) return json({ ok: false, error: '로그인이 필요합니다(토큰 없음/만료)' }, 401, origin);
+      me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
 
@@ -396,6 +398,49 @@ export default {
         await dbPut(env, '/counters/' + cid, null);
         await auditLog(env, { kind: 'counter.delete', by: me.phone, counterId: cid });
         return json({ ok: true }, 200, origin);
+      }
+
+      /* 무효 처리된 계약서 삭제 — owner 만.
+         발행 상태인 문서는 지울 수 없다. 반드시 void 를 거쳐야 한다.
+         지워도 감사 로그에는 남으므로 흔적 없는 삭제는 되지 않는다. */
+      if (/^\/contracts\/[A-Za-z0-9_-]+$/.test(path) && request.method === 'DELETE') {
+        if (me.role !== 'owner') return json({ ok: false, error: '삭제 권한이 없습니다' }, 403, origin);
+        const id = path.split('/')[2];
+        const c = await dbGet(env, '/contracts/' + id);
+        if (!c) return json({ ok: false, error: '계약서를 찾을 수 없습니다' }, 404, origin);
+        if (c.status !== 'void')
+          return json({ ok: false, error: '무효 처리된 계약서만 지울 수 있습니다. 먼저 무효 처리하세요.' }, 400, origin);
+        await dbPut(env, '/contracts/' + id, null);
+        await auditLog(env, { kind: 'contract.delete', by: me.phone, contractId: id,
+          number: c.number, staffName: c.staffName, voidReason: c.voidReason || '' });
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* 계약 모듈 역할 조회·지정 — owner 만.
+         /contractRoles 는 보안 규칙으로 잠겨 있어 앱에서 직접 못 건드린다. */
+      if (path === '/roles' && request.method === 'GET') {
+        if (me.role !== 'owner') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        const all = (await dbGet(env, '/contractRoles')) || {};
+        return json({ ok: true, roles: all }, 200, origin);
+      }
+      if (path === '/roles' && request.method === 'POST') {
+        if (me.role !== 'owner') return json({ ok: false, error: '역할 지정은 대표만 가능합니다' }, 403, origin);
+        const { phone, role, branches } = await request.json().catch(() => ({}));
+        if (!phone || !/^0\d{9,10}$/.test(String(phone)))
+          return json({ ok: false, error: '전화번호 형식이 올바르지 않습니다' }, 400, origin);
+        if (!['owner', 'manager', 'staff'].includes(role))
+          return json({ ok: false, error: 'role 은 owner / manager / staff 중 하나입니다' }, 400, origin);
+        const user = await dbGet(env, '/users/' + phone);
+        if (!user) return json({ ok: false, error: '등록되지 않은 계정입니다' }, 404, origin);
+        if (user.status === '퇴사') return json({ ok: false, error: '퇴사 처리된 계정입니다' }, 400, origin);
+        const before = await dbGet(env, '/contractRoles/' + phone).catch(() => null);
+        await dbPut(env, '/contractRoles/' + phone, {
+          role, branches: Array.isArray(branches) ? branches : [],
+          name: user.name || '', setBy: me.phone, setAt: Date.now(),
+        });
+        await auditLog(env, { kind: 'role.set', by: me.phone, phone,
+          name: user.name || '', from: (before && before.role) || 'staff', to: role });
+        return json({ ok: true, phone, name: user.name || '', role }, 200, origin);
       }
 
       return json({ ok: false, error: '없는 경로입니다' }, 404, origin);
