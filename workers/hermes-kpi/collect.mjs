@@ -713,12 +713,21 @@ function buildDesigner(name, list, I) {
   const menuTotal = Object.values(menuAmt).reduce((a, b) => a + b, 0);
   const menu_mix = {}; for (const k of Object.keys(menuAmt)) menu_mix[k] = menuTotal > 0 ? +(menuAmt[k] / menuTotal).toFixed(4) : 0;
   // 결제수단: 명세(시술+점판) 행에서만 합산 (소계행 결제컬럼은 버그, 스펙 3-4)
-  const pay = { '현금': 0, '카드': 0, '통장': 0, 'Pay': 0, '기타': 0 };
-  for (const s of serviceRows.concat(retailRows)) {
-    pay['현금'] += val(s.row, I.cash); pay['카드'] += val(s.row, I.card); pay['통장'] += val(s.row, I.bank);
-    pay['Pay'] += val(s.row, I.pay); pay['기타'] += val(s.row, I.etc);
-  }
-  return { name, payroll_base, service_payroll, service_perf, prepaid_sold, prepaid_used, guests, service_count, avg_ticket, items_per_guest, retail_amount, retail_items, menus: menuAmt, menu_mix, pay };
+  // 명세서의 '매출' 은 시술만이다. 점판은 매출이 아니라 점판수당으로 따로 정산하므로
+  // 시술분(pay_service)과 점판분(pay_retail)을 나눠 둔다. pay 는 예전 호환용 합계.
+  const mkPay = () => ({ '현금': 0, '카드': 0, '통장': 0, 'Pay': 0, '기타': 0 });
+  const addPay = (acc, rows) => {
+    for (const s of rows) {
+      acc['현금'] += val(s.row, I.cash); acc['카드'] += val(s.row, I.card); acc['통장'] += val(s.row, I.bank);
+      acc['Pay'] += val(s.row, I.pay); acc['기타'] += val(s.row, I.etc);
+    }
+    return acc;
+  };
+  const pay_service = addPay(mkPay(), serviceRows);
+  const pay_retail = addPay(mkPay(), retailRows);
+  const pay = mkPay();
+  for (const k of Object.keys(pay)) pay[k] = pay_service[k] + pay_retail[k];
+  return { name, payroll_base, service_payroll, service_perf, prepaid_sold, prepaid_used, guests, service_count, avg_ticket, items_per_guest, retail_amount, retail_items, menus: menuAmt, menu_mix, pay, pay_service, pay_retail };
 }
 // Report B 디자이너들 → 매장 집계 도출 (Report A 없을 때)
 function storeFromDesigners(designers) {

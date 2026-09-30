@@ -3861,13 +3861,17 @@ function stFetchHandsos(){
     return Promise.all(present.map(function(d){
       return fbG('/stores/'+ST_SHOP+'/daily/'+d+'/designers.json').catch(function(){return null});
     })).then(function(list){
-      var sum={card:0,cash:0,bank:0,pay:0,etc:0,guests:0,prepaidUsed:0}, hit=0, key=null;
+      var sum={card:0,cash:0,bank:0,pay:0,etc:0,guests:0,prepaidUsed:0,legacy:0}, hit=0, key=null;
       list.forEach(function(ds){
         if(!ds)return;
         if(!key)key=stMatchName(ds,s);
         var v=key?ds[key]:null; if(!v)return;
         hit++;
-        var p=v.pay||{};
+        /* 명세서의 '매출' 은 시술만이다. 점판은 매출이 아니라 점판수당으로 따로 정산하므로
+           섞어 넣으면 인센티브가 부풀고 점판수당까지 얹혀 이중 계상이 된다.
+           pay_service 가 없는(예전에 수집된) 날은 점판이 섞인 값이라 표시해 둔다. */
+        var p=v.pay_service||v.pay||{};
+        if(!v.pay_service)sum.legacy++;
         sum.card+=+(p['카드']||0); sum.cash+=+(p['현금']||0); sum.bank+=+(p['통장']||0);
         sum.pay+=+(p['Pay']||0);  sum.etc+=+(p['기타']||0);
         sum.guests+=+(v.guests||0); sum.prepaidUsed+=+(v.prepaid_used||0);
@@ -3894,6 +3898,8 @@ function stFetchHandsos(){
     if(o.missing.length)warn.push('<b>'+o.missing.length+'일 수집 데이터 없음</b> — 휴무인지 수집 실패인지 확인하세요.<br>'
       +'<span style="color:#94A3B8">'+nsEsc(o.missing.slice(0,10).join(', '))+(o.missing.length>10?' …':'')+'</span>');
     if(!o.hasMonthly)warn.push('<b>점판수익 데이터 없음</b> — 점판수당은 직접 넣어주세요. (월 확정 재수집은 매월 2일·5일에 돌아갑니다)');
+    if(o.sum.legacy)warn.push('<b>'+o.sum.legacy+'일치는 점판 매출이 시술 매출에 섞인 옛 형식</b>입니다. '
+      +'<b>[다시 긁어오기]</b>를 눌러 다시 받아주세요. 그대로 쓰면 매출이 부풀고 점판수당이 이중 계상됩니다.');
     $('STF-PULL-NOTE').innerHTML=
       '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#166534">'
       +'✅ '+nsEsc(o.key)+' · '+o.hit+'일치 불러옴'+stVerifyBadge(o.verify)
@@ -4014,6 +4020,45 @@ function stPrintHtml(s){
       +'</div>';
   }
 
+  /* 검산용 계산 근거 — 저장된 값을 식과 함께 늘어놓기만 한다. 다시 계산하지 않는다. */
+  function pct(x){return (+(Number(x||0)*100).toFixed(4))+'%'}
+  function proof(){
+    var t=r.totals||{}, f=r.facilityFee||{}, w=r.withholding||{};
+    var rows=[];
+    function L(a,b,c,o){o=o||{};rows.push('<tr'+(o.sum?' class="s"':'')+'><td>'+a+'</td>'
+      +'<td class="f">'+(b||'')+'</td><td class="v">'+(o.neg&&c?'−':'')+N(c)+'</td></tr>')}
+    function H(x){rows.push('<tr class="h"><td colspan="3">'+x+'</td></tr>')}
+    H('매출');
+    L('세전매출','카드+현금+온라인',t.grossSales);
+    L('부가세','세전매출 × '+pct(terms.vatRate)+' (버림)',t.vat,{neg:1});
+    if(t.cardFee)L('카드수수료','카드매출 × '+pct(terms.cardFeeRate)+' (버림)',t.cardFee,{neg:1});
+    if(t.onlineFee)L('온라인수수료','온라인매출 × '+pct(terms.onlineFeeRate)+' (버림)',t.onlineFee,{neg:1});
+    if(t.etcFee)L('기타수수료','기타매출 × '+pct(terms.etcFeeRate)+' (버림)',t.etcFee,{neg:1});
+    L('세후매출','위를 모두 뺀 값',t.netSales,{sum:1});
+    H('받는 것');
+    L('인센티브','세후매출 × '+pct(r.appliedRate)+' (매출 행마다 올림 후 합산)',r.incentiveTotal);
+    (r.allowances||[]).forEach(function(a){L(E(a.label),a.taxable?'원천징수 대상':'비과세',a.amount)});
+    if(r.businessSupportAmount)L('정착지원금','기준액에 못 미치는 만큼',r.businessSupportAmount);
+    L('수당 합계','인센티브 + 수당 + 정착지원금',r.allowanceTotal,{sum:1});
+    H('빼는 것');
+    (f.items||[]).forEach(function(i){L(E(i.label),'세후매출 × 해당 요율 (반올림)',i.amount,{neg:1})});
+    L('시설이용료 합계','세후매출 × '+pct(terms.facilityFeeRate),f.total,{neg:1});
+    ((snap.input&&snap.input.deductions)||[]).forEach(function(d){
+      L(E(d.label),d.preTax?'세전 공제':'세후 공제',d.amount,{neg:1})});
+    L('과세표준','인센티브 − 시설이용료 + 과세수당 + 정착지원금',w.taxBase);
+    L('소득세','과세표준 × '+pct(terms.incomeTaxRate)+' (10원 절사)',w.incomeTax,{neg:1});
+    L('지방소득세','과세표준 × '+pct(terms.localTaxRate)+' (10원 절사)',w.localTax,{neg:1});
+    L('사업소득세','소득세 + 지방소득세 — 명세서엔 한 줄로 표기',w.total,{neg:1});
+    L('공제 합계','시설이용료 + 공제 + 원천징수',r.deductionTotal,{neg:1,sum:1});
+    H('결과');
+    L('총 수령액','수당 합계 − 공제 합계',r.netPayout,{sum:1});
+    L('봉사료 수령액','',r.serviceChargePayout);
+    L('인센티브 수령액','총 수령액 − 봉사료',r.incentivePayout);
+    return '<div class="proof" id="proof"><h4>계산 근거 <span>검산용 · 인쇄되지 않습니다</span></h4>'
+      +'<table>'+rows.join('')+'</table>'
+      +'<p class="warn">부가세·수수료는 <b>버림</b>, 시설이용료는 <b>반올림</b>, 원천징수는 소득세와 지방소득세를 '
+      +'<b>각각 10원 절사한 뒤 합산</b>합니다. 3.3%를 한 번에 곱하면 매달 10~20원씩 어긋납니다.</p></div>';
+  }
   function copy(kind){
     var isCompany=kind==='company';
     return '<div class="copy">'
@@ -4107,13 +4152,28 @@ function stPrintHtml(s){
     +'.sign{display:flex;align-items:flex-end;gap:5mm;font-size:8.6pt;color:#5A626D;'
     +'border-bottom:0.5pt solid #C3C8CF;padding:0 2mm 1.2mm;min-width:52mm;justify-content:space-between}'
     +'.sign .who{color:#1A1D21;font-weight:500}'
+    +'.proof{max-width:281mm;margin:14px auto 30px;background:#fff;border:1px solid #E5E7EB;border-radius:10px;'
+    +'padding:18px 22px;display:none}'
+    +'.proof h4{margin:0 0 12px;font-size:12pt;font-weight:600}'
+    +'.proof h4 span{font-size:8.5pt;font-weight:400;color:#8A929D;margin-left:8px}'
+    +'.proof table{width:100%;border-collapse:collapse;font-size:9pt}'
+    +'.proof td{border:0;border-bottom:1px solid #F1F3F5;padding:5px 6px;white-space:normal}'
+    +'.proof tr.h td{background:#F7F8FA;font-weight:600;color:#374151;padding:6px;border-bottom:0}'
+    +'.proof tr.s td{font-weight:700;border-bottom:1.5px solid #D8DCE1}'
+    +'.proof td.f{color:#8A929D;font-size:8.2pt}'
+    +'.proof td.v{text-align:right;font-variant-numeric:tabular-nums;width:18%;white-space:nowrap}'
+    +'.proof .warn{margin:12px 0 0;font-size:8.5pt;color:#92400E;background:#FFFBEB;'
+    +'border:1px solid #FDE68A;border-radius:8px;padding:9px 12px;line-height:1.7}'
+    +'@media print{.proof{display:none!important}}'
     +'@media print{.bar{display:none}body{background:#fff}.stage{padding:0;overflow:visible}'
     +'.sheet{box-shadow:none;transform:none!important}.copy{page-break-inside:avoid}}'
     +'</style></head><body>'
     +'<div class="bar"><button class="p" onclick="window.print()">인쇄 / PDF 저장</button>'
     +'<button onclick="window.close()">닫기</button>'
+    +'<button onclick="var p=document.getElementById(\'proof\');p.style.display=p.style.display===\'block\'?\'none\':\'block\'">계산 근거</button>'
     +'<span style="margin-left:12px;font-size:10pt;color:#64748B">가로 A4 1장 · 좌 회사 보관용 / 우 위탁자 지급용</span></div>'
     +'<div class="stage"><div class="sheet" id="sheet">'+copy('company')+copy('staff')+'</div></div>'
+    +proof()
     +(s.status==='void'?'<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
       +'font-size:60pt;color:rgba(220,38,38,.18);font-weight:800;pointer-events:none">무효</div>':'')
     /* 화면에서만 창 폭에 맞춰 축소해 보여준다. 인쇄에는 영향 없다. */
