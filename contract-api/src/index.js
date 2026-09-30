@@ -278,9 +278,10 @@ export default {
         await dbPut(env, base, next);
         for (const c of changes) {
           await auditLog(env, {
+            kind: 'branch.update', by: me.phone,      // 다른 기록과 모양을 맞춘다
             targetType: 'branch', targetId: `${brandId}/${branchId}`,
             field: c.field, oldValue: c.oldValue === undefined ? null : c.oldValue,
-            newValue: c.newValue, changedBy: me.ph, changedByName: me.name || '',
+            newValue: c.newValue, changedByName: me.name || '',
             reason: reason || null,
           });
         }
