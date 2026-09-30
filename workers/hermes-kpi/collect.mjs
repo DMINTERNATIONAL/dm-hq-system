@@ -259,7 +259,7 @@ async function main() {
   if (mode === 'month') {
     // 명세서 발행 전 그 달 전체 재수집·확정. --ym=YYYY-MM, 없으면 지난달
     const ym = opt.ym || prevMonthKst();
-    try { console.log('[month]', ym, JSON.stringify(await verifyMonth(ym, dry), null, 1)); }
+    try { console.log('[month]', ym, opt.shop || '전지점', JSON.stringify(await verifyMonth(ym, dry, opt.shop), null, 1)); }
     catch (e) { errors.push('month ' + ym + ': ' + e.message); await notify('[Hermes] 월 확정 재수집 실패 ' + ym + ': ' + e.message); }
   }
   if (mode === 'retail') {
@@ -790,14 +790,14 @@ async function retailProfit(session, shopCode, pkStaff, from, to) {
   if (!/점판금액/.test(html)) return { retail_amount: 0, retail_profit: 0, no_data: true };
   return null;
 }
-async function collectMonthlyRetail(ym, dry) {
+async function collectMonthlyRetail(ym, dry, onlyShops) {
   if (!/^\d{4}-\d{2}$/.test(String(ym || ''))) throw new Error('기간은 YYYY-MM 형식입니다');
   const [y, m] = ym.split('-').map(Number);
   const from = `${ym}-01`;
   const to = `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
   const session = await handsosLogin();
   const out = [];
-  for (const shop of CONFIG.shops) {
+  for (const shop of (onlyShops || CONFIG.shops)) {
     const staff = await staffList(session, shop.code);
     const rows = [];
     for (const st of staff) {
@@ -834,12 +834,25 @@ function designerDiff(before, after) {
   };
   return names.filter(n => pick(b[n]) !== pick(a[n]));
 }
-async function verifyMonth(ym, dry) {
+async function verifyMonth(ym, dry, only) {
   if (!/^\d{4}-\d{2}$/.test(String(ym || ''))) throw new Error('기간은 YYYY-MM 형식입니다');
+  // only: 'eto' | 'daymean' | 지점키. 없으면 전 지점.
+  const want = !only || only === 'all' ? null
+    : (only === 'daymean' ? ['flagship', 'moment'] : String(only).split(',').map(x => x.trim()));
+  const shops = want ? CONFIG.shops.filter(s => want.includes(s.shop)) : CONFIG.shops;
+  if (!shops.length) throw new Error('해당하는 지점이 없습니다: ' + only);
   const [y, m] = ym.split('-').map(Number);
   const last = new Date(y, m, 0).getDate();
   const today = kstDateString(0);
   const changed = {}, missing = {}, done = {};
+  // 진행률을 남겨 앱이 얼마나 남았는지 보여줄 수 있게 한다
+  const totalDays = Math.min(last, ym === today.slice(0, 7) ? +today.slice(-2) : last);
+  const progress = async (i, phase) => {
+    if (dry) return;
+    for (const shop of shops) await rtdbPut(`/stores/${enc(shop.shop)}/monthly/${enc(ym)}/verify_progress`,
+      { period: ym, day: i, totalDays, phase, at: nowIso() });
+  };
+  await progress(0, 'start');
   for (let d = 1; d <= last; d++) {
     const date = `${ym}-${String(d).padStart(2, '0')}`;
     if (date > today) break;                       // 미래 날짜는 건너뛴다
@@ -847,7 +860,7 @@ async function verifyMonth(ym, dry) {
     // 담당자끼리 매출이 옮겨가거나 결제수단만 바뀐 정정은 잡지 못한다.
     // 명세서는 담당자별로 나가므로 그쪽이 더 중요하다.
     const before = {};
-    for (const shop of CONFIG.shops) before[shop.shop] = await fbGET(`/stores/${enc(shop.shop)}/daily/${enc(date)}/designers.json`);
+    for (const shop of shops) before[shop.shop] = await fbGET(`/stores/${enc(shop.shop)}/daily/${enc(date)}/designers.json`);
 
     let res = [];
     try { const r = await collectSales(date, dry); res = (r && r.shops) || []; }
@@ -858,7 +871,7 @@ async function verifyMonth(ym, dry) {
       if (x.closed || x.ok === false) (missing[k] = missing[k] || []).push(date);
     }
     if (!dry) {
-      for (const shop of CONFIG.shops) {
+      for (const shop of shops) {
         const after = await fbGET(`/stores/${enc(shop.shop)}/daily/${enc(date)}/designers.json`);
         const diff = designerDiff(before[shop.shop], after);
         if (diff.length) (changed[shop.shop] = changed[shop.shop] || []).push({ date, who: diff });
@@ -867,14 +880,16 @@ async function verifyMonth(ym, dry) {
       for (const x of res) if (x.revised) (changed[x.shop] = changed[x.shop] || []).push({ date, who: ['(매장 합계)'] });
     }
     try { await collectVisits(date, dry); } catch (e) { /* 방문구분은 정산에 안 쓰므로 실패해도 진행 */ }
+    await progress(d, 'daily');
   }
   // 점판 수익도 같이 갱신 (명세서 점판수당)
+  await progress(totalDays, 'retail');
   let retail = null;
-  try { retail = await collectMonthlyRetail(ym, dry); }
+  try { retail = await collectMonthlyRetail(ym, dry, shops); }
   catch (e) { console.error('[month] 점판수익 실패: ' + e.message); }
 
   const out = [];
-  for (const shop of CONFIG.shops) {
+  for (const shop of shops) {
     const v = {
       period: ym, verified_at: nowIso(), verified_by: 'month-mode',
       days_collected: done[shop.shop] || 0,
@@ -882,7 +897,8 @@ async function verifyMonth(ym, dry) {
       days_changed: changed[shop.shop] || [],
       retail_ok: !!retail,
     };
-    if (!dry) await rtdbPut(`/stores/${shop.shop}/monthly/${ym}/verify`, v);
+    if (!dry) { await rtdbPut(`/stores/${shop.shop}/monthly/${ym}/verify`, v);
+      await rtdbPut(`/stores/${shop.shop}/monthly/${ym}/verify_progress`, null); }
     out.push({ shop: shop.shop, ...v });
   }
   const totalChanged = Object.values(changed).reduce((a, x) => a + x.length, 0);

@@ -31,6 +31,9 @@ on:
       ym:
         description: '대상 월 YYYY-MM (mode=month/retail, 비우면 지난달)'
         required: false
+      shop:
+        description: '재수집 대상 (mode=month) — eto | daymean | 비우면 전 지점'
+        required: false
       dry:
         description: '드라이런(저장 안 함) true/false'
         required: false
@@ -80,6 +83,7 @@ jobs:
           [ -n "${{ github.event.inputs.from }}" ] && ARGS="$ARGS --from=${{ github.event.inputs.from }}"
           [ -n "${{ github.event.inputs.to }}" ] && ARGS="$ARGS --to=${{ github.event.inputs.to }}"
           [ -n "${{ github.event.inputs.ym }}" ] && ARGS="$ARGS --ym=${{ github.event.inputs.ym }}"
+          [ -n "${{ github.event.inputs.shop }}" ] && ARGS="$ARGS --shop=${{ github.event.inputs.shop }}"
           [ "${{ github.event.inputs.dry }}" = "true" ] && ARGS="$ARGS --dry"
           echo "실행: node collect.mjs $ARGS"
           node collect.mjs $ARGS

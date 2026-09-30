@@ -559,9 +559,11 @@ export default {
         if (me.role === 'staff') return json({ ok: false, error: '재수집 권한이 없습니다' }, 403, origin);
         if (!env.GH_TOKEN || !env.GH_REPO)
           return json({ ok: false, error: '재수집이 아직 설정되지 않았습니다 (GH_TOKEN/GH_REPO 미설정)' }, 503, origin);
-        const { ym } = await request.json().catch(() => ({}));
+        const { ym, shop } = await request.json().catch(() => ({}));
         if (!/^\d{4}-\d{2}$/.test(String(ym || '')))
           return json({ ok: false, error: '기간은 YYYY-MM 형식입니다' }, 400, origin);
+        if (shop && !['eto', 'daymean', 'all'].includes(String(shop)))
+          return json({ ok: false, error: '지점은 eto / daymean / all 중 하나입니다' }, 400, origin);
         const now = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 7);
         if (ym > now) return json({ ok: false, error: '아직 오지 않은 달입니다' }, 400, origin);
 
@@ -575,14 +577,15 @@ export default {
             'User-Agent': 'dm-contract-api',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ref: env.GH_REF || 'main', inputs: { mode: 'month', ym } }),
+          body: JSON.stringify({ ref: env.GH_REF || 'main',
+            inputs: Object.assign({ mode: 'month', ym }, shop && shop !== 'all' ? { shop } : {}) }),
         });
         if (r.status !== 204) {
           const t = await r.text().catch(() => '');
           return json({ ok: false, error: `재수집 실행 실패 (${r.status}) ${t.slice(0, 160)}` }, 502, origin);
         }
-        await auditLog(env, { kind: 'collect.month', by: me.phone, period: ym });
-        return json({ ok: true, ym, note: '재수집을 시작했습니다. 보통 3~5분 걸립니다.' }, 200, origin);
+        await auditLog(env, { kind: 'collect.month', by: me.phone, period: ym, shop: shop || 'all' });
+        return json({ ok: true, ym, shop: shop || 'all' }, 200, origin);
       }
 
       /* 재수집 진행 상황 — 최근 실행의 상태를 그대로 돌려준다 */
