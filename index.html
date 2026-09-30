@@ -3177,10 +3177,11 @@ function ctVoid(id,number){
 /* <<ST_ENGINE  scratchpad/gen/settlement-engine.js 와 같은 내용. 고칠 때 양쪽 같이. >> */
 /* 수수료명세서 계산 엔진 — Node(검증)와 브라우저(앱)에서 같은 코드를 쓴다.
    본문은 hermes-contract-settlement/src/settlement/calculate.js 원본 그대로다.
-   실제 발행 명세서 7개월치를 역산해 검증한 로직이라 손대지 않는다.
+   실제 발행 명세서를 역산해 검증한 로직이라 손대지 않는다.
      · 부가세·수수료는 버림(floor). 반올림이 아니다.
      · 원천징수는 소득세 3%와 지방소득세 0.3%를 각각 10원 절사 후 합산한다.
-       3.3%를 한 번에 곱하면 매월 10~20원씩 어긋난다. */
+       3.3%를 한 번에 곱하면 매월 10~20원씩 어긋난다.
+     · incentiveMode:'payoutFirst' 는 ETOH 실지급 방식(세후 × 실지급률 한 번). */
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports=factory();
   else root.STCalc=factory();
@@ -3268,7 +3269,7 @@ function calculateStatement(input, terms) {
 
   const sum = (k) => rows.reduce((s, r) => s + r[k], 0);
   const netSalesTotal = sum('netSales');
-  const incentiveTotal = sum('incentive');
+  let incentiveTotal = sum('incentive');
 
   // 2) 시설이용료
   const facilityItems = (terms.facilityFeeItems || []).map((it) => ({
@@ -3280,6 +3281,25 @@ function calculateStatement(input, terms) {
     facilityFeeTotalSource === 'sumOfItems'
       ? facilityItems.reduce((s, x) => s + x.amount, 0)
       : roundHalfUp(netSalesTotal * terms.facilityFeeRate);
+
+  // 2-1) 실지급률 방식 (terms.incentiveMode === 'payoutFirst')
+  //   ETOH 는 세후매출에 실지급률(정산율 − 시설이용료율)을 한 번 곱해 지급액을 낸다.
+  //   행마다 올림한 뒤 이용료를 빼는 기본 방식과는 올림이 붙는 위치가 달라
+  //   매달 0~2원씩 어긋난다. 실제 지급 방식에 맞춘다.
+  //   기본값은 건드리지 않으므로 데이민 기존 계산은 그대로다.
+  if (terms.incentiveMode === 'payoutFirst') {
+    const payoutRate = rate - (terms.facilityFeeRate || 0);
+    const payout = applyRounding(netSalesTotal * payoutRate, incentiveRounding);
+    incentiveTotal = payout + facilityFeeTotal;
+    // 행별 표시값도 합계에 맞춘다 (차액은 가장 큰 행에 붙인다)
+    if (rows.length) {
+      let acc = 0;
+      rows.forEach((r) => { r.incentive = Math.floor(r.netSales * rate); acc += r.incentive; });
+      let big = 0;
+      rows.forEach((r, i) => { if (r.netSales > rows[big].netSales) big = i; });
+      rows[big].incentive += incentiveTotal - acc;
+    }
+  }
 
   // 3) 정착지원금 (guarantee: 기준액과 실인센티브 중 큰 쪽의 차액만 가산)
   let supportAmount = 0;
@@ -3399,6 +3419,7 @@ function stTerms(){
     vatRate:cd.vatRate, cardFeeRate:cd.cardFeeRate, onlineFeeRate:cd.onlineFeeRate,
     etcFeeRate:cd.etcFeeRate||0,
     incentiveRounding:cd.incentiveRounding||'ceil',
+    incentiveMode:cd.incentiveMode||undefined,   // 'payoutFirst' = 세후매출 × 실지급률 한 번 (ETOH 실지급 방식)
     facilityFeeRate:cd.facilityFeeRate,
     facilityFeeItems:cd.facilityFeeItems||[],
     facilityFeeTotalSource:cd.facilityFeeTotalSource||'computed',
