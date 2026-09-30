@@ -3726,6 +3726,13 @@ function stVoid(id,number){
    평소 재수집(D-1·D-7)만으로는 월초 정정이 반영되지 않는다.
    월이 끝난 뒤 한 번은 통째로 다시 긁어야 그 달 숫자가 확정된다. */
 var ST_VERIFY=null;
+/* 점판수당 = 점판 수익금에서 부가세와 카드수수료를 뺀 뒤 배분율을 곱한다.
+   점판 카드수수료는 3% 로 시술(3.2%)과 다르다.
+   예) 53,500 − 10% − 3% = 46,545 × 50% = 23,272.5 → 23,273 */
+function stRetailAllowance(profit,vatRate,cardRate,share){
+  var base=(+profit||0)*(1-(+vatRate||0)-(+cardRate||0));
+  return Math.floor(base*(+share||0)+0.5);      // 반올림
+}
 /* 핸드SOS 에서 불러온 값을 기준선으로 잡아둔다.
    사람이 손으로 고치면 발행 직전에 어디를 얼마나 바꿨는지 보여준다.
    매출을 잘못 고친 채로 발행하면 틀린 금액이 나가므로 그냥 넘기지 않는다. */
@@ -3906,12 +3913,16 @@ function stFetchHandsos(){
     if(!o.key)throw new Error('핸드SOS 기록에서 "'+(s.nick||s.name)+'" 을(를) 찾지 못했습니다. 활동명이 다를 수 있습니다.');
     var cd=(ST_BRANCH&&ST_BRANCH.contractDefaults)||{};
     var share=(cd.productProfitShare==null?0.5:cd.productProfitShare);
+    var ra=cd.retailAllowance||{};
+    var rVat=(ra.vatRate==null?(cd.vatRate==null?0.1:cd.vatRate):ra.vatRate);
+    var rCard=(ra.cardFeeRate==null?0.03:ra.cardFeeRate);   // 점판은 3% — 시술(3.2%)과 다르다
+    var prodAmt=stRetailAllowance(o.profit,rVat,rCard,share);
     $('STF-CARD').value=o.sum.card||'';
     $('STF-CASH').value=(o.sum.cash+o.sum.bank)||'';     // 현금 + 통장(계좌이체)
     $('STF-ONLINE').value=(o.sum.pay+o.sum.etc)||'';
     $('STF-CUST').value=o.sum.guests||'';
     $('STF-PREPAID').value=o.sum.prepaidUsed||'';
-    $('STF-PROD').value=o.hasMonthly?Math.floor(o.profit*share):'';
+    $('STF-PROD').value=o.hasMonthly?prodAmt:'';
     stRecalc();
     stSnapshotBase();      // 불러온 값을 기준선으로
     var warn=[], block=stVerifyWarn(ym,o.verify);
@@ -3924,7 +3935,10 @@ function stFetchHandsos(){
     $('STF-PULL-NOTE').innerHTML=
       '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#166534">'
       +'✅ '+nsEsc(o.key)+' · '+o.hit+'일치 불러옴'+stVerifyBadge(o.verify)
-      +(o.hasMonthly?'<br>점판 '+stWon(o.retail)+'원 → 수익 '+stWon(o.profit)+'원 × '+(+(share*100).toFixed(2))+'% = <b>'+stWon(Math.floor(o.profit*share))+'원</b>':'')
+      +(o.hasMonthly?'<br>점판 '+stWon(o.retail)+'원 → 수익 '+stWon(o.profit)+'원'
+        +' − 부가세 '+(+(rVat*100).toFixed(2))+'% − 카드수수료 '+(+(rCard*100).toFixed(2))+'%'
+        +' → '+stWon(Math.round(o.profit*(1-rVat-rCard)))+'원 × '+(+(share*100).toFixed(2))+'%'
+        +' = <b>'+stWon(prodAmt)+'원</b>':'')
       +'</div>'
       +(warn.length?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;'
         +'margin-top:6px;font-size:11.5px;line-height:1.6;color:#92400E">⚠️ '+warn.join('<br><br>⚠️ ')+'</div>':'')
