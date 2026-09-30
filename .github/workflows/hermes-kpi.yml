@@ -8,10 +8,13 @@ on:
     - cron: '7 19 * * *'   # 04:07 KST (기본)
     - cron: '7 20 * * *'   # 05:07 KST (백업1)
     - cron: '7 22 * * *'   # 07:07 KST (백업2)
+    # 점판 수익(명세서 점판수당용)은 월 1회면 충분하다. 매월 2일 06:07 KST 에 지난달분 수집.
+    # 1일이 아니라 2일인 이유 — 말일 매출이 뒤늦게 정정되는 경우를 하루 기다린다.
+    - cron: '7 21 2 * *'   # 매월 2일 06:07 KST (점판 수익)
   workflow_dispatch:
     inputs:
       mode:
-        description: 'both | sales | sns | shops | ig(연결테스트)'
+        description: 'both | sales | sns | retail(점판수익) | shops | ig(연결테스트)'
         required: false
         default: 'both'
       date:
@@ -22,6 +25,9 @@ on:
         required: false
       to:
         description: '소급 종료일 YYYY-MM-DD'
+        required: false
+      ym:
+        description: '점판수익 수집 기간 YYYY-MM (mode=retail, 비우면 지난달)'
         required: false
       dry:
         description: '드라이런(저장 안 함) true/false'
@@ -62,10 +68,14 @@ jobs:
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
         run: |
-          ARGS="${{ github.event.inputs.mode || 'both' }}"
+          MODE="${{ github.event.inputs.mode || 'both' }}"
+          # 월 1회 크론은 점판 수익만 수집한다
+          [ "${{ github.event.schedule }}" = "7 21 2 * *" ] && MODE="retail"
+          ARGS="$MODE"
           [ -n "${{ github.event.inputs.date }}" ] && ARGS="$ARGS --date=${{ github.event.inputs.date }}"
           [ -n "${{ github.event.inputs.from }}" ] && ARGS="$ARGS --from=${{ github.event.inputs.from }}"
           [ -n "${{ github.event.inputs.to }}" ] && ARGS="$ARGS --to=${{ github.event.inputs.to }}"
+          [ -n "${{ github.event.inputs.ym }}" ] && ARGS="$ARGS --ym=${{ github.event.inputs.ym }}"
           [ "${{ github.event.inputs.dry }}" = "true" ] && ARGS="$ARGS --dry"
           echo "실행: node collect.mjs $ARGS"
           node collect.mjs $ARGS

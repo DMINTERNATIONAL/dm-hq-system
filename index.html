@@ -3558,6 +3558,9 @@ function stFormHtml(){
   +'<div class="fg"><label class="flbl">생년월일 *</label><input id="STF-BIRTH" type="date"><div class="fhint">명세서 머리말에 들어갑니다.</div></div>'
 
   +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">매출정보</div>'
+  +'<button class="gbtn sec" id="STF-PULL" onclick="stFetchHandsos()" style="width:100%;margin-bottom:8px">'
+  +'핸드SOS에서 불러오기</button>'
+  +'<div id="STF-PULL-NOTE" style="margin-bottom:12px"></div>'
   +sales('카드매출','CARD','<b>단말기로 긁은 건 전부 여기.</b> 네이버페이·카카오페이도 단말기 결제면 카드매출입니다.')
   +sales('현금매출','CASH','현금 · 계좌이체. 수수료 없음.')
   +sales('온라인매출','ONLINE','온라인으로 바로 결제된 건 (네이버예약·간편결제, 소셜커머스 쿠폰). 계약서상 <b>소셜수수료</b> 항목입니다.')
@@ -3666,6 +3669,93 @@ function stVoid(id,number){
       if(!j||!j.ok)throw new Error((j&&j.error)||'무효 처리에 실패했습니다');
       toast('무효 처리했습니다');openSettlements();
     }).catch(function(e){alert(e.message)});
+}
+
+/* ── 핸드SOS 자동 채움 ────────────────────────────────────────────────
+   매출·고객수는 일별 수집분(stores/{shop}/daily)을 그 달만큼 합산하고,
+   점판수당은 월별 점판수익(stores/{shop}/monthly)에 계약 요율을 곱한다.
+   핸드SOS는 앱에서 직접 못 부른다(자격증명·차단) — 수집기가 넣어둔 값을 읽는다. */
+var ST_SHOP='eto';   // ETOH 합정점. 브랜드가 늘면 지점 설정에서 받아온다.
+
+function stDaysOf(ym){
+  var p=String(ym||'').split('-'); if(p.length!==2)return [];
+  var y=+p[0], m=+p[1], last=new Date(y,m,0).getDate(), out=[];
+  for(var d=1;d<=last;d++)out.push(ym+'-'+('0'+d).slice(-2));
+  return out;
+}
+/* 수집기가 저장한 이름은 활동명(닉네임)이다. 성명과 다를 수 있어 둘 다 본다. */
+function stMatchName(rec,staff){
+  var keys=[staff.nick,staff.name].filter(Boolean);
+  for(var i=0;i<keys.length;i++){ if(rec[keys[i]])return keys[i] }
+  var ks=Object.keys(rec||{});
+  for(var j=0;j<ks.length;j++){
+    for(var k=0;k<keys.length;k++) if(ks[j].indexOf(keys[k])>=0||keys[k].indexOf(ks[j])>=0) return ks[j];
+  }
+  return null;
+}
+function stFetchHandsos(){
+  var ph=($('STF-STAFF')||{}).value, ym=($('STF-PERIOD')||{}).value;
+  var s=(ST_STAFF||[]).filter(function(x){return x.phone===ph})[0];
+  if(!s)return alert('대상자를 먼저 골라주세요.');
+  if(!ym)return alert('정산 기간을 먼저 골라주세요.');
+  var btn=$('STF-PULL'); if(btn){btn.disabled=true;btn.textContent='불러오는 중…'}
+  var days=stDaysOf(ym);
+  Promise.all([
+    fbG('/stores/'+ST_SHOP+'/daily.json?shallow=true'),
+    fbG('/stores/'+ST_SHOP+'/monthly/'+ym+'/designers.json')
+  ]).then(function(r){
+    var have=r[0]||{}, monthly=r[1]||{};
+    var present=days.filter(function(d){return have[d]});
+    var missing=days.filter(function(d){return !have[d]});
+    if(!present.length)throw new Error(ym+' 수집 데이터가 없습니다. KPI 수집기를 먼저 돌려주세요.');
+    return Promise.all(present.map(function(d){
+      return fbG('/stores/'+ST_SHOP+'/daily/'+d+'/designers.json').catch(function(){return null});
+    })).then(function(list){
+      var sum={card:0,cash:0,bank:0,pay:0,etc:0,guests:0,prepaidUsed:0}, hit=0, key=null;
+      list.forEach(function(ds){
+        if(!ds)return;
+        if(!key)key=stMatchName(ds,s);
+        var v=key?ds[key]:null; if(!v)return;
+        hit++;
+        var p=v.pay||{};
+        sum.card+=+(p['카드']||0); sum.cash+=+(p['현금']||0); sum.bank+=+(p['통장']||0);
+        sum.pay+=+(p['Pay']||0);  sum.etc+=+(p['기타']||0);
+        sum.guests+=+(v.guests||0); sum.prepaidUsed+=+(v.prepaid_used||0);
+      });
+      var mk=stMatchName(monthly,s);
+      var profit=mk?+(monthly[mk].retail_profit||0):0;
+      var retail=mk?+(monthly[mk].retail_amount||0):0;
+      return {sum:sum,hit:hit,missing:missing,profit:profit,retail:retail,hasMonthly:!!mk,key:key};
+    });
+  }).then(function(o){
+    if(!o.key)throw new Error('핸드SOS 기록에서 "'+(s.nick||s.name)+'" 을(를) 찾지 못했습니다. 활동명이 다를 수 있습니다.');
+    var cd=(ST_BRANCH&&ST_BRANCH.contractDefaults)||{};
+    var share=(cd.productProfitShare==null?0.5:cd.productProfitShare);
+    $('STF-CARD').value=o.sum.card||'';
+    $('STF-CASH').value=(o.sum.cash+o.sum.bank)||'';     // 현금 + 통장(계좌이체)
+    $('STF-ONLINE').value=(o.sum.pay+o.sum.etc)||'';
+    $('STF-CUST').value=o.sum.guests||'';
+    $('STF-PREPAID').value=o.sum.prepaidUsed||'';
+    $('STF-PROD').value=o.hasMonthly?Math.floor(o.profit*share):'';
+    stRecalc();
+    var warn=[];
+    if(o.missing.length)warn.push('<b>'+o.missing.length+'일 수집 데이터 없음</b> — 휴무인지 수집 실패인지 확인하세요.<br>'
+      +'<span style="color:#94A3B8">'+nsEsc(o.missing.slice(0,10).join(', '))+(o.missing.length>10?' …':'')+'</span>');
+    if(!o.hasMonthly)warn.push('<b>점판수익 데이터 없음</b> — 점판수당은 직접 넣어주세요. (월별 수집은 매월 2일에 돌아갑니다)');
+    $('STF-PULL-NOTE').innerHTML=
+      '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#166534">'
+      +'✅ '+nsEsc(o.key)+' · '+o.hit+'일치 불러옴'
+      +(o.hasMonthly?'<br>점판 '+stWon(o.retail)+'원 → 수익 '+stWon(o.profit)+'원 × '+(+(share*100).toFixed(2))+'% = <b>'+stWon(Math.floor(o.profit*share))+'원</b>':'')
+      +'</div>'
+      +(warn.length?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;'
+        +'margin-top:6px;font-size:11.5px;line-height:1.6;color:#92400E">⚠️ '+warn.join('<br><br>⚠️ ')+'</div>':'')
+      +'<div class="fhint" style="margin-top:6px">교육비는 자동으로 못 가져옵니다. 직접 넣어주세요. 값은 전부 수정할 수 있습니다.</div>';
+  }).catch(function(e){
+    $('STF-PULL-NOTE').innerHTML='<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;'
+      +'padding:10px 12px;font-size:11.5px;color:#B91C1C">'+nsEsc(e.message||'불러오지 못했습니다')+'</div>';
+  }).then(function(){
+    if(btn){btn.disabled=false;btn.textContent='핸드SOS에서 불러오기'}
+  });
 }
 
 /* ── 명세서 인쇄 ──────────────────────────────────────────────────────

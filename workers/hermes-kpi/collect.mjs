@@ -256,6 +256,13 @@ async function main() {
       }
     }
   }
+  if (mode === 'retail') {
+    // 월별 점판 수익 (명세서 점판수당 계산용). --ym=YYYY-MM, 없으면 지난달
+    const ym = opt.ym || (() => { const d = new Date(Date.now() + 9 * 3600e3); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
+      return d.toISOString().slice(0, 7); })();
+    try { console.log('[retail]', ym, JSON.stringify(await collectMonthlyRetail(ym, dry), null, 1)); }
+    catch (e) { errors.push('retail ' + ym + ': ' + e.message); await notify('[Hermes] 점판수익 수집 실패 ' + ym + ': ' + e.message); }
+  }
   if (mode === 'sns' || mode === 'both') {
     try { console.log('[sns]', JSON.stringify(await collectSns(kstDateString(0), dry))); }
     catch (e) { errors.push('sns: ' + e.message); await notify('[Hermes] SNS 수집 실패: ' + e.message); }
@@ -720,6 +727,79 @@ function storeFromDesigners(designers) {
   const mt = Object.values(menus).reduce((a, b) => a + b, 0);
   const menu_mix = {}; for (const k of Object.keys(menus)) menu_mix[k] = mt > 0 ? +(menus[k] / mt).toFixed(4) : 0;
   return { net_sales: net, total_amount: net, service_amount: svc, service_count: cnt, guests, retail_amount: retail, menus, menu_mix, pays, derived_from: 'reportB' };
+}
+
+/* ═══ 월별 점판 수익 수집 ═══
+   명세서의 점판수당은 '수익금의 50%' 라서 매출이 아니라 수익금이 필요하다.
+   수익금은 우리가 매일 긁는 담당자별 리포트에는 없고,
+   '일일 매출 분석'(report.asp) 의 점판총계 아래 두 열에만 나온다.
+     점판금액  = 점판 매출
+     점판수익률 = 이름과 달리 비율이 아니라 수익 '금액' 이다
+   월 1회만 필요하므로 daily 와 분리해 둔다. */
+async function getPage(session, path, referer) {
+  const h = { 'Cookie': session.cookie, 'User-Agent': UA };
+  if (referer) h['Referer'] = referer;
+  const r = await fetch(reportHost() + path, { headers: h });
+  return decodeEucKr(await r.arrayBuffer());
+}
+async function staffList(session, shopCode) {
+  const html = await getPage(session, `/work/detail/saleStaffList.asp?PkCompany=${shopCode}`);
+  const sel = html.match(/<select[^>]*name=["']?pkStaff["']?[\s\S]*?<\/select>/i);
+  if (!sel) return [];
+  const out = [];
+  for (const m of sel[0].matchAll(/<option[^>]*value=["']?([^"'>\s]+)["']?[^>]*>([^<]*)</gi)) {
+    const name = m[2].replace(/\s+/g, ' ').trim();
+    if (m[1] && name) out.push({ pk: m[1], name });
+  }
+  return out;
+}
+async function retailProfit(session, shopCode, pkStaff, from, to) {
+  const q = `?strPopup=1&PkCompany=${shopCode}&strDateS=${from}&strDateE=${to}&pkStaff=${pkStaff}`;
+  const html = await getPage(session, '/work/detail/report/report.asp' + q,
+    reportHost() + '/work/detail/report/report_main.asp');
+  const tables = gridTables(html);
+  for (const t of tables) {
+    const flat = t.map(r => r.join('')).join('');
+    if (!/점판금액/.test(flat)) continue;
+    // 헤더 2행(대분류/소분류) 다음이 데이터. '합계' 행을 쓴다.
+    const sub = t.find(r => r.some(c => /점판금액/.test(c || '')));
+    if (!sub) continue;
+    const iAmt = sub.findIndex(c => /점판금액/.test(c || ''));
+    const iPrf = sub.findIndex(c => /점판수익/.test(c || ''));
+    const row = t.find(r => /^합계$/.test((r[0] || '').trim())) || t.find(r => /^1$/.test((r[0] || '').trim()));
+    // 표는 있는데 데이터 행이 없으면 그 기간에 실적이 없는 담당자(인턴·비지명 등)다.
+    if (!row) return { retail_amount: 0, retail_profit: 0, no_data: true };
+    if (iAmt < 0) continue;
+    return { retail_amount: num(row[iAmt]), retail_profit: iPrf >= 0 ? num(row[iPrf]) : 0 };
+  }
+  // 표 자체가 없으면 그 기간에 매출이 없는 담당자다. 조회 실패와 구분한다.
+  if (!/점판금액/.test(html)) return { retail_amount: 0, retail_profit: 0, no_data: true };
+  return null;
+}
+async function collectMonthlyRetail(ym, dry) {
+  if (!/^\d{4}-\d{2}$/.test(String(ym || ''))) throw new Error('기간은 YYYY-MM 형식입니다');
+  const [y, m] = ym.split('-').map(Number);
+  const from = `${ym}-01`;
+  const to = `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+  const session = await handsosLogin();
+  const out = [];
+  for (const shop of CONFIG.shops) {
+    const staff = await staffList(session, shop.code);
+    const rows = [];
+    for (const st of staff) {
+      let r = null;
+      try { r = await retailProfit(session, shop.code, st.pk, from, to); }
+      catch (e) { rows.push({ name: st.name, error: e.message }); continue; }
+      if (!r) { rows.push({ name: st.name, error: '점판 표를 읽지 못함' }); continue; }
+      rows.push({ name: st.name, ...r });
+      if (!dry && !r.no_data) await rtdbPut(`/stores/${shop.shop}/monthly/${ym}/designers/${enc(safeKey(st.name))}`,
+        { ...r, name: st.name, pkStaff: st.pk, collected_at: new Date().toISOString() });
+    }
+    if (!dry) await rtdbPut(`/stores/${shop.shop}/monthly/${ym}/meta`,
+      { period: ym, from, to, designers: rows.length, collected_at: new Date().toISOString(), source: 'report.asp' });
+    out.push({ shop: shop.shop, period: ym, rows });
+  }
+  return out;
 }
 
 /* ═══ 인스타그램 ═══ */
