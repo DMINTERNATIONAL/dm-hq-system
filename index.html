@@ -3405,7 +3405,8 @@ function stLoadRefs(){
       var u=us[ph];
       if(!u||typeof u!=='object')return;
       if(u.brand!=='ETOH'||u.status==='퇴사')return;
-      out.push({phone:ph,name:u.name||'',nick:u.nick||'',birthDate:u.birthDate||'',role:u.role||''});
+      out.push({phone:ph,name:u.name||'',nick:u.nick||'',birthDate:u.birthDate||'',
+        role:u.role||'',startDate:u.startDate||''});
     });
     out.sort(function(a,b){return (a.name||'').localeCompare(b.name||'')});
     ST_STAFF=out;
@@ -3472,7 +3473,25 @@ function stInput(){
   };
 }
 function stCalc(){
-  try{ return STCalc.calculateStatement(stInput(),stTerms()) }catch(e){ return {__err:e.message} }
+  try{
+    var input=stInput(), terms=stTerms();
+    var r=STCalc.calculateStatement(input,terms);
+    /* 정착지원금이 실제로 지급되는 달에는 점판수당을 받지 않는다.
+       체크만 되어 있고 지급액이 0이면(이미 기준액을 넘긴 달) 점판수당은 그대로다. */
+    if(r.businessSupportAmount>0&&input.allowances.some(function(a){return a.label==='점판수당'})){
+      input.allowances=input.allowances.filter(function(a){return a.label!=='점판수당'});
+      r=STCalc.calculateStatement(input,terms);
+      r.__prodDropped=true;
+    }
+    return r;
+  }catch(e){ return {__err:e.message} }
+}
+/* 입사 후 몇 개월차인지 (입사월이 1개월차) */
+function stTenure(startDate,ym){
+  if(!startDate||!ym)return null;
+  var a=String(startDate).split('-'), b=String(ym).split('-');
+  if(a.length<2||b.length<2)return null;
+  return (+b[0]-+a[0])*12+(+b[1]-+a[1])+1;
 }
 function stRecalc(){
   var p=$('ST-CALC'); if(!p)return;
@@ -3499,6 +3518,7 @@ function stRecalc(){
     +line('요율 '+stPct(r.appliedRate),r.incentiveTotal)
     +(r.allowances||[]).map(function(a){return line(a.label+(a.taxable?'':' (비과세)'),a.amount)}).join('')
     +(r.businessSupportAmount?line('정착지원금',r.businessSupportAmount):'')
+    +(r.__prodDropped?'<div style="font-size:11px;color:#B45309;padding:3px 0">정착지원금이 나가는 달이라 점판수당은 지급하지 않습니다</div>':'')
     +line('수당 합계',r.allowanceTotal)
     +'<div style="font-size:11px;font-weight:800;color:#94A3B8;margin:12px 0 4px">공제</div>'
     +(r.facilityFee.items||[]).map(function(i){return line(i.label,i.amount,{neg:1})}).join('')
@@ -3576,7 +3596,7 @@ function stFormHtml(){
   +'정산율 '+stPct(cd.flatRate)+' · 시설이용료 '+stPct(cd.facilityFeeRate)+' · 부가세 '+stPct(cd.vatRate)
   +' · 카드 '+stPct(cd.cardFeeRate)+' · 온라인 '+stPct(cd.onlineFeeRate)+'</div>'
 
-  +'<div class="fg"><label class="flbl">정산 기간 *</label><input id="STF-PERIOD" type="month" value="'+stThisMonth()+'"></div>'
+  +'<div class="fg"><label class="flbl">정산 기간 *</label><input id="STF-PERIOD" type="month" value="'+stThisMonth()+'" onchange="stStaffChg()"></div>'
   +'<div class="fg"><label class="flbl">대상자 *</label><select id="STF-STAFF" onchange="stStaffChg()">'
   +'<option value="">선택</option>'
   +ST_STAFF.map(function(s){return '<option value="'+nsEsc(s.phone)+'">'+nsEsc(s.name)+(s.nick?' ('+nsEsc(s.nick)+')':'')+'</option>'}).join('')
@@ -3605,8 +3625,10 @@ function stFormHtml(){
 
   +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">정착지원금</div>'
   +'<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:10px;cursor:pointer">'
-  +'<input type="checkbox" id="STF-SUP" onchange="stRecalc()" style="width:16px;height:16px"> 적용 '
-  +'<span style="color:#64748B">'+(ss.mode==='additive'?'전액 가산':'보장 방식 — 기준액에 못 미치는 만큼만 채움')+'</span></label>'
+  +'<input type="checkbox" id="STF-SUP" onchange="stRecalc()" style="width:16px;height:16px"> 지급 '
+  +'<span style="color:#64748B">기준 '+stWon(ss.monthlyAmount||1000000)+'원 · '+(ss.supportMonths||3)+'개월</span>'
+  +'<span id="STF-SUP-COUNT" style="margin-left:auto;font-size:11.5px"></span></label>'
+  +'<div class="fhint" id="STF-SUP-NOTE" style="margin:-4px 0 8px">대상자를 고르면 입사일 기준으로 자동 판정합니다.</div>'
   +'<div id="STF-SUP-WRAP" style="display:none"><div class="fg"><label class="flbl">기준 금액</label>'
   +'<input id="STF-SUP-AMT"'+money+' value="'+(ss.monthlyAmount||1000000)+'"></div></div>'
 
@@ -3647,7 +3669,49 @@ function stStaffChg(){
       ? '<b style="color:#B45309">'+nsEsc((s&&s.name)||'')+' 님은 원천징수 예외로 등록돼 있습니다.</b> 필요하면 직접 바꿀 수 있습니다.'
       : '떼지 않고 지급하는 경우 체크를 해제하세요. 해제하면 명세서 사업소득세가 0으로 나갑니다.';
   }
+  stSupportCheck(s);
   stRecalc();
+}
+/* 입사 N개월 이내면 정착지원금 대상으로 잡아준다. 최종 판단은 사람이 한다. */
+/* 자동으로 켜지 않는다 — 지급 여부는 사람이 정한다.
+   대신 입사 개월차와 지금까지 몇 번 나갔는지를 옆에 보여준다. */
+var ST_SUP_PAID=null;
+function stSupportCheck(s){
+  var cd=(ST_BRANCH&&ST_BRANCH.contractDefaults)||{}, ss=cd.settlementSupport||{};
+  var months=ss.supportMonths||3, ym=($('STF-PERIOD')||{}).value;
+  var n=s?stTenure(s.startDate,ym):null;
+  var el=$('STF-SUP-NOTE'), badge=$('STF-SUP-COUNT');
+  if(!$('STF-SUP'))return;
+  var head=(n!=null)
+    ? (n>=1&&n<=months
+        ? '<b style="color:#B45309">입사 '+n+'개월차 — 정착지원금 기간입니다.</b> ('+nsEsc(s.startDate)+' 입사 · '+months+'개월까지)'
+        : '입사 '+n+'개월차 — 정착지원금 기간('+months+'개월)이 지났습니다.')
+    : '입사일이 등록돼 있지 않습니다.';
+  if(el)el.innerHTML=head+'<br>지급할 달이면 <b>직접 켜세요.</b> 최종 지급액이 기준 금액에 못 미치면 '
+    +'그 차액만큼 채워 지급하고, 실제로 지급되는 달에는 <b>점판수당을 받지 않습니다.</b>';
+  if(badge)badge.innerHTML='<span style="color:#94A3B8">지급 이력 확인 중…</span>';
+  if(!s){if(badge)badge.innerHTML='';return}
+  stSupportPaidCount(s).then(function(c){
+    if(!badge)return;
+    badge.innerHTML=c.total
+      ? '<b style="color:#B45309">이미 '+c.total+'회 지급</b>'
+        +'<span style="color:#94A3B8"> ('+nsEsc(c.periods.join(', '))+')</span>'
+        +(c.total>=months?' <b style="color:#B91C1C">· '+months+'회를 채웠습니다</b>':'')
+      : '<span style="color:#94A3B8">지급 이력 없음</span>';
+  }).catch(function(){if(badge)badge.innerHTML=''});
+}
+/* 발행된 명세서 중 정착지원금이 실제로 나간 건을 센다. 무효건은 빼고 센다. */
+function stSupportPaidCount(s){
+  return ctFetch('/statements').then(function(j){
+    var rows=(j&&j.ok&&j.rows)||[];
+    var mine=rows.filter(function(r){
+      if(r.status==='void')return false;
+      if(!(+r.supportAmount>0))return false;
+      return r.staffPhone? r.staffPhone===s.phone : (r.staffName===s.name);
+    });
+    mine.sort(function(a,b){return (a.period||'').localeCompare(b.period||'')});
+    return {total:mine.length, periods:mine.map(function(r){return r.period})};
+  });
 }
 /* 지점 설정 contractDefaults.withholdingExempt 에 전화번호를 넣어 관리한다. */
 function stTaxExempt(phone){
@@ -3706,6 +3770,9 @@ function stReview(){
     +row('공제 합계','-'+stWon(r.deductionTotal)+'원')
     +row('사업소득세',stTaxOn()?('-'+stWon(r.withholding.total)+'원')
         :'<span style="color:#B45309">적용 안 함</span>')
+    +(r.businessSupportAmount?row('<b style="color:#B45309">정착지원금 지급</b>',
+        '<b style="color:#B45309">'+stWon(r.businessSupportAmount)+'원</b>'
+        +(r.__prodDropped?'<br><span style="font-size:11px;color:#92400E">점판수당 미지급</span>':'')):'')
     +row('총 수령액',stWon(r.netPayout)+'원',{big:1});
   $('ST-CONF-BTN').disabled=false;
   $('ST-CONF-BTN').textContent='발행하기';
@@ -4052,8 +4119,8 @@ function stPrintHtml(s){
     out=out.concat(pad(free.map(function(a){return L(E(a.label),N(a.amount))}),3));
     out.push(H('수당(세후)'));
     out=out.concat(pad(taxed.map(function(a){return L(E(a.label),N(a.amount))}),4));
-    out.push(H('업무추진비'));
-    out.push(L(r.businessSupportAmount?'Y':'N',N(r.businessSupportAmount)));
+    out.push(H('정착지원금'));
+    out.push(L(r.businessSupportAmount?'지급':'해당 없음',N(r.businessSupportAmount)));
     return out;
   }
   function rightRows(){

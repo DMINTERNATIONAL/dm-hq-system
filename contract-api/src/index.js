@@ -497,9 +497,11 @@ export default {
         const all = (await dbGet(env, '/statements')) || {};
         let rows = Object.keys(all).map(k => {
           const c = all[k];
+          const res = ((c.snapshot || {}).result) || {};
           return { id: k, number: c.number, brandId: c.brandId, branchId: c.branchId,
-            period: c.period, staffName: c.staffName, status: c.status,
+            period: c.period, staffName: c.staffName, staffPhone: c.staffPhone || '', status: c.status,
             grossSales: c.grossSales || 0, netPayout: c.netPayout || 0,
+            supportAmount: +res.businessSupportAmount || 0,   // 정착지금 지급 횟수 집계용
             issuedAt: c.issuedAt, issuedBy: (c.issuedBy || {}).name || '',
             acknowledgedAt: c.acknowledgedAt || null, voidReason: c.voidReason || '' };
         });
