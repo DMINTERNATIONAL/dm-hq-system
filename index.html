@@ -3558,8 +3558,12 @@ function stFormHtml(){
   +'<div class="fg"><label class="flbl">생년월일 *</label><input id="STF-BIRTH" type="date"><div class="fhint">명세서 머리말에 들어갑니다.</div></div>'
 
   +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">매출정보</div>'
-  +'<button class="gbtn sec" id="STF-PULL" onclick="stFetchHandsos()" style="width:100%;margin-bottom:8px">'
+  +'<button class="gbtn sec" id="STF-PULL" onclick="stFetchHandsos()" style="width:100%;margin-bottom:6px">'
   +'핸드SOS에서 불러오기</button>'
+  +'<button class="gbtn sec" id="STF-RECOL" onclick="stRecollect()" style="width:100%;margin-bottom:8px;font-size:12px">'
+  +'핸드SOS 매출 다시 긁어오기</button>'
+  +'<div class="fhint" style="margin:-2px 0 8px">매출을 고친 게 있으면 <b>다시 긁어오기</b>를 먼저 누르세요. 그 달 전체를 다시 확인합니다.</div>'
+  +'<div id="STF-RECOL-NOTE"></div>'
   +'<div id="STF-PULL-NOTE" style="margin-bottom:12px"></div>'
   +sales('카드매출','CARD','<b>단말기로 긁은 건 전부 여기.</b> 네이버페이·카카오페이도 단말기 결제면 카드매출입니다.')
   +sales('현금매출','CASH','현금 · 계좌이체. 수수료 없음.')
@@ -3705,7 +3709,53 @@ function stVerifyBadge(v){
   return '<br>확정 재수집 '+nsEsc(new Date(v.verified_at).toLocaleString('ko-KR'))
     +(ch?' · <b>그때 매출이 바뀐 날 '+ch+'일</b> ('+nsEsc((v.days_changed||[]).join(', '))+')':' · 바뀐 날 없음');
 }
-var ST_SHOP='eto';   // ETOH 합정점. 브랜드가 늘면 지점 설정에서 받아온다.
+var ST_SHOP='eto';
+/* 재수집 실행 — 핸드SOS 를 앱에서 직접 못 부르므로 Worker 가 GitHub Actions 를 대신 돌린다.
+   보통 3~5분 걸리고, 끝나면 verify 시각이 갱신된다. 그때까지 확인 버튼만 눌러보면 된다. */
+var ST_RECOLLECT_T=null;
+function stRecollect(){
+  var ym=($('STF-PERIOD')||{}).value;
+  if(!ym)return alert('정산 기간을 먼저 골라주세요.');
+  if(!confirm(ym+' 매출을 핸드SOS에서 다시 긁어옵니다.\n\n그 달 전체를 다시 확인하며 보통 3~5분 걸립니다.\n진행할까요?'))return;
+  var btn=$('STF-RECOL'); if(btn){btn.disabled=true;btn.textContent='재수집 시작 중…'}
+  ctFetch('/collect/month',{method:'POST',body:JSON.stringify({ym:ym})}).then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||'재수집을 시작하지 못했습니다');
+    stRecolNote('<b>재수집 중…</b> 보통 3~5분 걸립니다. 끝나면 자동으로 다시 불러옵니다.','#EFF6FF','#BFDBFE','#1E40AF');
+    stWatchRecollect(ym, Date.now());
+  }).catch(function(e){
+    if(btn){btn.disabled=false;btn.textContent='핸드SOS 매출 다시 긁어오기'}
+    stRecolNote(nsEsc(e.message),'#FEF2F2','#FECACA','#B91C1C');
+  });
+}
+function stRecolNote(html,bg,bd,fg){
+  var el=$('STF-RECOL-NOTE'); if(!el)return;
+  el.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:10px 12px;'
+    +'margin-top:6px;font-size:11.5px;line-height:1.6;color:'+fg+'">'+html+'</div>';
+}
+function stWatchRecollect(ym,startedAt){
+  if(ST_RECOLLECT_T)clearTimeout(ST_RECOLLECT_T);
+  var before=(ST_VERIFY&&ST_VERIFY.verified_at)||'';
+  function tick(){
+    fbG('/stores/'+ST_SHOP+'/monthly/'+ym+'/verify.json').then(function(v){
+      if(v&&v.verified_at&&v.verified_at!==before){
+        var btn=$('STF-RECOL'); if(btn){btn.disabled=false;btn.textContent='핸드SOS 매출 다시 긁어오기'}
+        var ch=(v.days_changed||[]).length;
+        stRecolNote('✅ <b>재수집 완료</b> — '+nsEsc(new Date(v.verified_at).toLocaleString('ko-KR'))
+          +(ch?'<br><b>매출이 바뀐 날 '+ch+'일</b>: '+nsEsc((v.days_changed||[]).join(', ')):'<br>바뀐 날 없음')
+          +'<br>값을 다시 불러옵니다.','#F0FDF4','#BBF7D0','#166534');
+        setTimeout(stFetchHandsos,600);
+        return;
+      }
+      if(Date.now()-startedAt>10*60*1000){
+        var b=$('STF-RECOL'); if(b){b.disabled=false;b.textContent='핸드SOS 매출 다시 긁어오기'}
+        stRecolNote('재수집이 10분 넘게 안 끝납니다. GitHub Actions 탭에서 상태를 확인해주세요.','#FFFBEB','#FDE68A','#92400E');
+        return;
+      }
+      ST_RECOLLECT_T=setTimeout(tick,15000);
+    }).catch(function(){ST_RECOLLECT_T=setTimeout(tick,15000)});
+  }
+  ST_RECOLLECT_T=setTimeout(tick,20000);
+}   // ETOH 합정점. 브랜드가 늘면 지점 설정에서 받아온다.
 
 function stDaysOf(ym){
   var p=String(ym||'').split('-'); if(p.length!==2)return [];

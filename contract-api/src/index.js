@@ -549,6 +549,57 @@ export default {
         return json({ ok: true }, 200, origin);
       }
 
+      /* ═══ 월 확정 재수집 실행 ═══
+         핸드SOS 는 Cloudflare 발신을 막고 자격증명도 GitHub 시크릿에만 있다.
+         그래서 여기서 직접 긁지 않고 GitHub Actions 를 대신 실행시킨다.
+         (GitHub API 는 Cloudflare 에서 잘 나간다) */
+      if (path === '/collect/month' && request.method === 'POST') {
+        if (me.role === 'staff') return json({ ok: false, error: '재수집 권한이 없습니다' }, 403, origin);
+        if (!env.GH_TOKEN || !env.GH_REPO)
+          return json({ ok: false, error: '재수집이 아직 설정되지 않았습니다 (GH_TOKEN/GH_REPO 미설정)' }, 503, origin);
+        const { ym } = await request.json().catch(() => ({}));
+        if (!/^\d{4}-\d{2}$/.test(String(ym || '')))
+          return json({ ok: false, error: '기간은 YYYY-MM 형식입니다' }, 400, origin);
+        const now = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 7);
+        if (ym > now) return json({ ok: false, error: '아직 오지 않은 달입니다' }, 400, origin);
+
+        const wf = env.GH_WORKFLOW || 'hermes-kpi.yml';
+        const r = await fetch(`https://api.github.com/repos/${env.GH_REPO}/actions/workflows/${wf}/dispatches`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + env.GH_TOKEN,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'dm-contract-api',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ref: env.GH_REF || 'main', inputs: { mode: 'month', ym } }),
+        });
+        if (r.status !== 204) {
+          const t = await r.text().catch(() => '');
+          return json({ ok: false, error: `재수집 실행 실패 (${r.status}) ${t.slice(0, 160)}` }, 502, origin);
+        }
+        await auditLog(env, { kind: 'collect.month', by: me.phone, period: ym });
+        return json({ ok: true, ym, note: '재수집을 시작했습니다. 보통 3~5분 걸립니다.' }, 200, origin);
+      }
+
+      /* 재수집 진행 상황 — 최근 실행의 상태를 그대로 돌려준다 */
+      if (path === '/collect/status' && request.method === 'GET') {
+        if (me.role === 'staff') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        if (!env.GH_TOKEN || !env.GH_REPO) return json({ ok: true, configured: false }, 200, origin);
+        const wf = env.GH_WORKFLOW || 'hermes-kpi.yml';
+        const r = await fetch(`https://api.github.com/repos/${env.GH_REPO}/actions/workflows/${wf}/runs?per_page=1`, {
+          headers: { 'Authorization': 'Bearer ' + env.GH_TOKEN, 'Accept': 'application/vnd.github+json',
+                     'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'dm-contract-api' },
+        });
+        if (!r.ok) return json({ ok: false, error: '상태 조회 실패 ' + r.status }, 502, origin);
+        const j = await r.json();
+        const run = (j.workflow_runs || [])[0];
+        return json({ ok: true, configured: true, run: run ? {
+          id: run.id, status: run.status, conclusion: run.conclusion,
+          started: run.run_started_at, url: run.html_url } : null }, 200, origin);
+      }
+
       return json({ ok: false, error: '없는 경로입니다' }, 404, origin);
 
     } catch (e) {
