@@ -3424,10 +3424,14 @@ function stTerms(){
     facilityFeeItems:cd.facilityFeeItems||[],
     facilityFeeTotalSource:cd.facilityFeeTotalSource||'computed',
     settlementSupport:cd.settlementSupport||{mode:'guarantee'},
-    incomeTaxRate:cd.incomeTaxRate, localTaxRate:cd.localTaxRate,
+    /* 원천징수는 대상자마다 다르다. 대표 바버처럼 3.3%를 떼지 않는 경우가 있어
+       화면에서 끄면 요율을 0으로 넘긴다. 끈 사실은 스냅샷에 남는다. */
+    incomeTaxRate:stTaxOn()?cd.incomeTaxRate:0,
+    localTaxRate:stTaxOn()?cd.localTaxRate:0,
     taxRoundingUnit:cd.taxRoundingUnit||10
   };
 }
+function stTaxOn(){var e=$('STF-TAX');return e?!!e.checked:true}
 function stNum(id){var e=$(id);if(!e)return 0;var v=String(e.value||'').replace(/[^0-9.\-]/g,'');return v?Math.round(+v):0}
 function stWon(n){return (n==null||isNaN(n))?'-':Number(n).toLocaleString('ko-KR')}
 function stDash(n){return (!n)?'-':Number(n).toLocaleString('ko-KR')}
@@ -3614,6 +3618,12 @@ function stFormHtml(){
       +'<div style="width:110px"><label class="flbl" style="font-size:10.5px;color:#94A3B8">금액</label>'
       +'<input id="STF-DED'+i+'-A"'+money+'></div></div>'}).join('')
 
+  +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">원천징수</div>'
+  +'<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:6px;cursor:pointer">'
+  +'<input type="checkbox" id="STF-TAX" checked onchange="stRecalc()" style="width:16px;height:16px"> '
+  +'사업소득세 공제 <span style="color:#64748B">소득세 '+(+((cd.incomeTaxRate||0)*100).toFixed(2))+'% + 지방소득세 '
+  +(+((cd.localTaxRate||0)*100).toFixed(2))+'%</span></label>'
+  +'<div class="fhint" style="margin-bottom:8px">떼지 않고 지급하는 경우 체크를 해제하세요. 해제하면 명세서 사업소득세가 0으로 나갑니다.</div>'
   +'<div class="fg" style="margin-top:14px"><label class="flbl">고객수 (선택)</label>'
   +'<input id="STF-CUST" inputmode="numeric" oninput="stRecalc()" placeholder="비워두면 - 로 표기"></div>'
 
@@ -3677,7 +3687,8 @@ function stReview(){
     +row('세후매출',stWon(r.totals.netSales)+'원')
     +row('인센티브 ('+stPct(r.appliedRate)+')',stWon(r.incentiveTotal)+'원')
     +row('공제 합계','-'+stWon(r.deductionTotal)+'원')
-    +row('사업소득세','-'+stWon(r.withholding.total)+'원')
+    +row('사업소득세',stTaxOn()?('-'+stWon(r.withholding.total)+'원')
+        :'<span style="color:#B45309">적용 안 함</span>')
     +row('총 수령액',stWon(r.netPayout)+'원',{big:1});
   $('ST-CONF-BTN').disabled=false;
   $('ST-CONF-BTN').textContent='발행하기';
