@@ -3558,7 +3558,9 @@ function stFormHtml(){
   +'<div class="fg"><label class="flbl">생년월일 *</label><input id="STF-BIRTH" type="date"><div class="fhint">명세서 머리말에 들어갑니다.</div></div>'
 
   +'<div style="font-size:13px;font-weight:800;margin:20px 0 10px">매출정보</div>'
-  +sales('카드매출','CARD')+sales('현금매출','CASH')+sales('온라인매출','ONLINE')
+  +sales('카드매출','CARD','<b>단말기로 긁은 건 전부 여기.</b> 네이버페이·카카오페이도 단말기 결제면 카드매출입니다.')
+  +sales('현금매출','CASH','현금 · 계좌이체. 수수료 없음.')
+  +sales('온라인매출','ONLINE','온라인으로 바로 결제된 건 (네이버예약·간편결제, 소셜커머스 쿠폰). 계약서상 <b>소셜수수료</b> 항목입니다.')
   +'<div class="fg"><label class="flbl">정액권 사용분 차감</label><input id="STF-PREPAID"'+money+'>'
   +'<div class="fhint">정액권은 <b>결제한 달</b>에 전액 매출로 잡습니다. 나중에 그 정액권으로 시술한 금액은 여기에 적어 이번 달 매출에서 뺍니다 (중복 인정 방지). 정액권을 안 쓰면 비워두세요.</div></div>'
 
@@ -3668,6 +3670,8 @@ function stVoid(id,number){
 
 /* ── 명세서 인쇄 ──────────────────────────────────────────────────────
    가로 A4 1장 = 좌우 2부(회사 보관용 / 위탁자 지급용), 중앙 절취선.
+   용지 폭(281mm = A4가로 297 - 여백 8×2)을 고정한다. 폭을 안 잡으면
+   화면 폭에 따라 표가 글자 단위로 쪼개진다.
    저장된 result 만 그린다. 여기서 다시 계산하지 않는다. */
 function stPrint(id){
   toast('불러오는 중…');
@@ -3682,7 +3686,7 @@ function stPrint(id){
 function stPrintHtml(s){
   var snap=s.snapshot||{}, r=snap.result||{}, br=snap.branch||{}, terms=snap.terms||{};
   var mode=s.displayMode||'gross';
-  var period=(s.period||'').replace('-','년 ')+'월';
+  var ym=String(s.period||'').split('-');
   var correct=(terms.objectionPeriodDays||7);
   var E=function(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
@@ -3690,131 +3694,197 @@ function stPrintHtml(s){
 
   /* (b) 매출정보 — 8열, 빈 행 포함 5행 고정 */
   function salesTable(){
-    var rows=(r.salesRows||[]).slice(0,5);
-    var body='';
+    var rows=(r.salesRows||[]).slice(0,5), body='';
     for(var i=0;i<5;i++){
       var x=rows[i];
       body+='<tr>'+(x
-        ?'<td>'+E(x.label)+'</td><td class="n">'+N(x.grossSales)+'</td><td class="n">'+N(x.serviceCharge)
+        ?'<td class="lb">'+E(x.label)+'</td><td class="n">'+N(x.grossSales)+'</td><td class="n">'+N(x.serviceCharge)
          +'</td><td class="n">'+N(x.vat)+'</td><td class="n">'+N(x.cardFee)+'</td><td class="n">'+N(x.onlineFee)
          +'</td><td class="n">'+N(x.etcFee)+'</td><td class="n">'+N(x.netSales)+'</td>'
-        :'<td>-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">-</td>')
+        :'<td class="lb">&nbsp;</td><td class="n mt">-</td><td class="n mt">-</td><td class="n mt">-</td><td class="n mt">-</td><td class="n mt">-</td><td class="n mt">-</td><td class="n mt">-</td>')
         +'</tr>';
     }
     var t=r.totals||{};
-    return '<table><colgroup><col style="width:13%"><col style="width:14%"><col style="width:10%"><col style="width:11%">'
-      +'<col style="width:12%"><col style="width:13%"><col style="width:12%"><col style="width:15%"></colgroup>'
+    return '<table class="sales"><colgroup><col style="width:12%"><col style="width:14%"><col style="width:11%">'
+      +'<col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:11%"><col style="width:16%"></colgroup>'
       +'<tr class="hd"><th>매출구분</th><th>세전매출</th><th>봉사료</th><th>부가세</th><th>카드수수료</th>'
       +'<th>온라인수수료</th><th>기타수수료</th><th>세후매출</th></tr>'+body
       +'<tr class="tot"><td>합계</td><td class="n">'+N(t.grossSales)+'</td><td class="n">'+N(t.serviceCharge)
       +'</td><td class="n">'+N(t.vat)+'</td><td class="n">'+N(t.cardFee)+'</td><td class="n">'+N(t.onlineFee)
       +'</td><td class="n">'+N(t.etcFee)+'</td><td class="n">'+N(t.netSales)+'</td></tr></table>';
   }
-  /* (c) 인센티브계산 / 공제계산 — 빈 슬롯 유지, 양쪽 행 수 맞춤 */
-  function rateLabel(copy){
+
+  /* (c) 인센티브계산 / 공제계산 — 빈 슬롯 유지, 양쪽 행 수를 맞춰 하단 정렬 */
+  var H=function(l){return '<tr class="sec"><td colspan="2">'+l+'</td></tr>'};
+  var L=function(l,v){return '<tr><td class="lb">'+l+'</td><td class="n">'+v+'</td></tr>'};
+  var BLANK='<tr><td class="lb">&nbsp;</td><td class="n mt">-</td></tr>';
+  function pad(arr,n){while(arr.length<n)arr.push(BLANK);return arr}
+
+  function leftRows(copy){
+    var out=[], sr=r.salesRows||[];
+    out.push(H('매출인센티브'));
+    var lines=sr.slice(0,5).map(function(x){return L(E(x.label),N(x.incentive))});
+    pad(lines,5); out=out.concat(lines);
+    out.push(H('인센티브 요율 및 합계'));
+    /* 회사 보관용에서만 [실지급률 + 이용료율] 분해 표기 (displayMode: split) */
     if(mode==='split'&&copy==='company'){
-      var fac=terms.facilityFeeRate||0, tot=terms.flatRate||0;
-      return '~ '+(+((tot-fac)*100).toFixed(4))+'%  ~ '+(+(fac*100).toFixed(4))+'%';
+      var fac=terms.facilityFeeRate||0, tot=r.appliedRate||0;
+      out.push('<tr><td class="lb">~ '+(+((tot-fac)*100).toFixed(4))+'%</td>'
+        +'<td class="lb" style="text-align:center">~ '+(+(fac*100).toFixed(4))+'%</td>'
+        +'<td class="n">'+N(r.incentiveTotal)+'</td></tr>');
+    }else{
+      out.push(L('~ '+(+((r.appliedRate||0)*100).toFixed(4))+'%',N(r.incentiveTotal)));
     }
-    return '~ '+(+((r.appliedRate||0)*100).toFixed(4))+'%';
-  }
-  function L(l,v){return '<tr><td>'+l+'</td><td class="n">'+v+'</td></tr>'}
-  function H(l){return '<tr class="sec"><td colspan="2">'+l+'</td></tr>'}
-  function slot(n){var o='';for(var i=0;i<n;i++)o+='<tr><td>&nbsp;</td><td class="n">-</td></tr>';return o}
-  function leftTable(copy){
-    var sr=r.salesRows||[];
-    var byM={};sr.forEach(function(x){byM[x.label]=x.incentive});
-    var lines=sr.slice(0,3).map(function(x){return L(E(x.label),N(x.incentive))}).join('');
-    var pad=slot(Math.max(0,5-Math.min(sr.length,5)));
     var al=r.allowances||[];
-    var taxed=al.filter(function(a){return a.taxable}), free=al.filter(function(a){return !a.taxable});
-    return '<table class="half">'
-      +H('매출인센티브')+lines+pad
-      +H('인센티브 요율 및 합계')+L(rateLabel(copy),N(r.incentiveTotal))
-      +H('수당(세전)')+free.map(function(a){return L(E(a.label),N(a.amount))}).join('')+slot(Math.max(0,2-free.length))
-      +H('수당(세후)')+taxed.map(function(a){return L(E(a.label),N(a.amount))}).join('')+slot(Math.max(0,2-taxed.length))
-      +H('업무추진비')+L(r.businessSupportAmount?'Y':'N',N(r.businessSupportAmount))
-      +'<tr class="tot"><td>수당 합계</td><td class="n">'+N(r.allowanceTotal)+'</td></tr></table>';
+    var free=al.filter(function(a){return !a.taxable}), taxed=al.filter(function(a){return a.taxable});
+    out.push(H('수당(세전)'));
+    out=out.concat(pad(free.map(function(a){return L(E(a.label),N(a.amount))}),3));
+    out.push(H('수당(세후)'));
+    out=out.concat(pad(taxed.map(function(a){return L(E(a.label),N(a.amount))}),4));
+    out.push(H('업무추진비'));
+    out.push(L(r.businessSupportAmount?'Y':'N',N(r.businessSupportAmount)));
+    return out;
   }
-  function rightTable(){
-    var fi=(r.facilityFee||{}).items||[];
-    var pre=(snap.input&&snap.input.deductions||[]).filter(function(d){return d.preTax});
-    var post=(snap.input&&snap.input.deductions||[]).filter(function(d){return !d.preTax});
-    return '<table class="half">'
-      +H('이용료')+fi.map(function(i){return L(E(i.label),N(i.amount))}).join('')+slot(Math.max(0,4-fi.length))
-      +L('<b>이용료 합계</b>','<b>'+N((r.facilityFee||{}).total)+'</b>')
-      +H('공제(세전)')+pre.map(function(d){return L(E(d.label),N(d.amount))}).join('')+slot(Math.max(0,2-pre.length))
-      +H('공제(세후)')+post.map(function(d){return L(E(d.label),N(d.amount))}).join('')+slot(Math.max(0,2-post.length))
-      +H('원천징수')+L('사업소득세',N((r.withholding||{}).total))+slot(1)
-      +'<tr class="tot"><td>공제 합계</td><td class="n">'+N(r.deductionTotal)+'</td></tr></table>';
+  function rightRows(){
+    var out=[], fi=(r.facilityFee||{}).items||[];
+    var ded=(snap.input&&snap.input.deductions)||[];
+    var pre=ded.filter(function(d){return d.preTax}), post=ded.filter(function(d){return !d.preTax});
+    out.push(H('이용료'));
+    out=out.concat(pad(fi.map(function(i){return L(E(i.label),N(i.amount))}),5));
+    out.push(H('공제(세전)'));
+    out=out.concat(pad(pre.map(function(d){return L(E(d.label),N(d.amount))}),3));
+    out.push(H('공제(세후)'));
+    out=out.concat(pad(post.map(function(d){return L(E(d.label),N(d.amount))}),3));
+    out.push(H('원천징수'));
+    out=out.concat(pad([L('사업소득세',N((r.withholding||{}).total))],2));
+    return out;
   }
+  function calcTables(copy){
+    var a=leftRows(copy), b=rightRows();
+    var n=Math.max(a.length,b.length);      // 하단이 어긋나지 않게 짧은 쪽을 채운다
+    pad(a,n); pad(b,n);
+    var head='<colgroup><col style="width:58%"><col style="width:42%"></colgroup>';
+    return '<div class="two">'
+      +'<div class="blk"><div class="vl">인센티브계산</div><div class="bd"><table class="half">'+head
+      +a.join('')+'<tr class="tot"><td>수당 합계</td><td class="n">'+N(r.allowanceTotal)+'</td></tr></table></div></div>'
+      +'<div class="blk"><div class="vl">공제계산</div><div class="bd"><table class="half">'+head
+      +b.join('')+'<tr class="tot"><td>공제 합계</td><td class="n">'+N(r.deductionTotal)+'</td></tr></table></div></div>'
+      +'</div>';
+  }
+
   function copy(kind){
     var isCompany=kind==='company';
     return '<div class="copy">'
-      +'<div class="hdr"><div class="hl"><div class="no">발행번호 '+E(s.number)+'</div>'
-      +'<div>1. 귀하의 노고에 진심으로 감사드립니다.</div>'
-      +'<div>2. 귀하의 세부 수수료 내역을 아래와 같이 통보드립니다.</div></div>'
-      +'<div class="ttl">'+E(period)+'분 수수료명세서</div>'
-      +'<div class="hr"><div>성명 : <b>'+E(s.staffName)+'</b></div><div>생년월일 : '+E(s.birthDate||'-')+'</div></div></div>'
+      +'<div class="kind">'+(isCompany?'회사 보관용':'위탁자 지급용')+'</div>'
+      +'<div class="hdr">'
+      +'<div class="no">발행번호 '+E(s.number)+'</div>'
+      +'<div class="ttl"><span class="ym">'+E(ym[0]||'')+'-'+E(ym[1]||'')+'</span> 월분 수수료명세서</div>'
+      +'<div class="hr"><div><span>성명</span><b>'+E(s.staffName)+'</b></div>'
+      +'<div><span>생년월일</span><b>'+E(s.birthDate||'-')+'</b></div></div></div>'
+      +'<div class="greet"><span>1. 귀하의 노고에 진심으로 감사드립니다.</span>'
+      +'<span>2. 귀하의 세부 수수료 내역을 아래와 같이 통보드립니다.</span></div>'
       +'<div class="blk"><div class="vl">매출정보</div><div class="bd">'+salesTable()+'</div></div>'
-      +'<div class="two">'
-      +'<div class="blk"><div class="vl">인센티브계산</div><div class="bd">'+leftTable(kind)+'</div></div>'
-      +'<div class="blk"><div class="vl">공제계산</div><div class="bd">'+rightTable()+'</div></div></div>'
+      +calcTables(kind)
       +'<div class="notice">위탁계약서에 의거하여 상기내용은 타인에게 노출하는 것을 금하고 있습니다<br>'
       +'정산내역의 정정 기한은 '+correct+'일 이내로 하며, '+correct+'일을 경과하면 부제소 합의 한다.</div>'
-      +'<table class="sum"><tr><td>봉사료 수령액</td><td class="n">'+N(r.serviceChargePayout)+'</td>'
-      +'<td>인센티브수령액</td><td class="n">'+N(r.incentivePayout)+'</td></tr>'
-      +'<tr><td>고객수</td><td class="n">'+(r.customerCount==null?'-':r.customerCount)+'</td>'
-      +'<td>총 수령액</td><td class="n big">'+N(r.netPayout)+'</td></tr></table>'
+      +'<table class="sum"><colgroup><col style="width:22%"><col style="width:28%"><col style="width:22%"><col style="width:28%"></colgroup>'
+      +'<tr><td class="k">봉사료 수령액</td><td class="n">'+N(r.serviceChargePayout)+'</td>'
+      +'<td class="k">인센티브수령액</td><td class="n">'+N(r.incentivePayout)+'</td></tr>'
+      +'<tr><td class="k">고객수</td><td class="n">'+(r.customerCount==null?'-':r.customerCount)+'</td>'
+      +'<td class="k">총 수령액</td><td class="n b">'+N(r.netPayout)+'</td></tr></table>'
       +'<div class="agree">* 위탁계약 또는 매출정산기준표에 의한 공제내용에 따라 해당 금액을 공제하는 것을 동의합니다.</div>'
       +'<div class="foot"><div class="brand">'+E(br.businessName||'')+'</div>'
-      +'<div class="sign">'+(isCompany
-          ? '서명 ______________  '+E(s.staffName)+' (인)'
-          : '직인생략 ______________')+'</div></div>'
-      +'<div class="kind">'+(isCompany?'회사 보관용':'위탁자 지급용')+'</div></div>';
+      +(isCompany
+         ? '<div class="sign"><span>서명</span><span class="who">'+E(s.staffName)+'</span><span>(인)</span><i></i></div>'
+         : '<div class="sign"><span>직인생략</span></div>')
+      +'</div></div>';
   }
+
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
     +'<title>'+E(s.number)+' '+E(s.staffName)+' 수수료명세서</title><style>'
     +'@page{size:A4 landscape;margin:8mm}'
+    +'@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");'
     +'*{box-sizing:border-box}'
-    +'body{margin:0;font-family:"맑은 고딕","Malgun Gothic",AppleSDGothicNeo-Regular,sans-serif;'
-    +'font-size:8.5pt;color:#111;background:#fff}'
-    +'.bar{padding:10px;text-align:center;background:#F1F5F9;border-bottom:1px solid #CBD5E1}'
-    +'.bar button{font:inherit;font-size:11pt;padding:8px 20px;margin:0 4px;border:1px solid #CBD5E1;'
-    +'border-radius:8px;background:#fff;cursor:pointer}.bar .p{background:#0F172A;color:#fff;border-color:#0F172A}'
-    +'.sheet{display:grid;grid-template-columns:1fr 1fr;gap:0}'
-    +'.copy{padding:0 6mm;position:relative}'
-    +'.copy:first-child{border-right:1px dashed #d33}'
+    +'html,body{margin:0;padding:0}'
+    +'body{font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;'
+    +'font-size:8.3pt;font-weight:400;color:#1A1D21;background:#EEF0F3;letter-spacing:-0.01em;'
+    +'-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.bar{padding:12px;text-align:center;background:#fff;border-bottom:1px solid #E5E7EB}'
+    +'.bar button{font:inherit;font-size:10.5pt;font-weight:500;padding:9px 22px;margin:0 4px;'
+    +'border:1px solid #D8DCE1;border-radius:9px;background:#fff;cursor:pointer;color:#1A1D21}'
+    +'.bar .p{background:#1A1D21;color:#fff;border-color:#1A1D21}'
+    +'.stage{padding:16px;overflow:auto}'
+    /* 용지 크기 고정 — 화면 폭과 무관하게 인쇄물과 같은 배치가 되게 한다 */
+    +'.sheet{width:281mm;background:#fff;display:grid;grid-template-columns:1fr 1fr;gap:0;'
+    +'transform-origin:top left;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06)}'
+    +'.copy{padding:2.5mm 5mm 3mm;position:relative}'
+    +'.copy:first-child{border-right:0.5pt dashed #E5484D}'
+    /* 표 — 굵은 검정 테두리 대신 얇은 회색선 */
     +'table{border-collapse:collapse;width:100%;table-layout:fixed}'
-    +'td,th{border:0.4pt solid #333;padding:1.2mm 1.5mm;font-weight:400;word-break:break-all}'
-    +'.n{text-align:right;font-variant-numeric:tabular-nums}'
-    +'.hd th,.sec td{background:#FDF6D8;text-align:center;font-weight:700}'
-    +'.tot td{background:#F3F4F6;font-weight:700}'
-    +'.hdr{display:flex;align-items:flex-start;gap:4mm;padding:3mm 0 2mm}'
-    +'.hl{flex:1;line-height:1.5;font-size:7.5pt}.hl .no{font-weight:700;margin-bottom:1mm}'
-    +'.ttl{flex:0 0 auto;font-size:13pt;font-weight:800;letter-spacing:-0.3px;align-self:center}'
-    +'.hr{flex:1;text-align:right;background:#F3F4F6;border:0.4pt solid #333;padding:1.5mm 2mm;line-height:1.7}'
-    +'.blk{display:flex;margin-bottom:1.5mm}'
-    +'.vl{writing-mode:vertical-rl;letter-spacing:2px;background:#FDF6D8;border:0.4pt solid #333;'
-    +'border-right:0;padding:1mm 0.6mm;text-align:center;font-weight:700;flex:0 0 auto}'
+    +'td,th{border:0.3pt solid #D5D9DF;padding:0.8mm 1.6mm;font-weight:400;line-height:1.3;'
+    +'white-space:nowrap;color:#1A1D21}'
+    +'.sales td,.sales th{font-size:7.6pt;padding:0.9mm 1.1mm}'
+    +'.half td{font-size:7.9pt;padding:0.62mm 1.5mm}'
+    +'.n{text-align:right;font-variant-numeric:tabular-nums;letter-spacing:0}'
+    +'.lb{padding-left:2.8mm;color:#3F4650}'
+    +'.hd th,.sec td{background:#F4F6F8;text-align:center;font-weight:600;color:#404852;'
+    +'letter-spacing:0.01em;border-color:#D5D9DF}'
+    +'.tot td{background:#EBEEF2;font-weight:600;text-align:center;color:#1A1D21}'
+    +'.tot td.n{text-align:right}'
+    /* 빈 슬롯의 - 는 옅게 */
+    +'.mt{color:#C3C8CF}'
+    +'.kind{text-align:right;font-size:7pt;color:#98A0AB;letter-spacing:0.04em;padding-bottom:1.2mm}'
+    +'.hdr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4mm}'
+    +'.no{font-size:8pt;font-weight:500;color:#5A626D;white-space:nowrap}'
+    +'.ttl{font-size:14.5pt;font-weight:600;white-space:nowrap;letter-spacing:-0.02em}'
+    +'.ttl .ym{font-weight:500;color:#6B7280;margin-right:3.5mm;letter-spacing:0.02em;font-size:12pt}'
+    +'.hr{justify-self:end;display:flex;gap:5mm;font-size:8pt;white-space:nowrap;background:#F4F6F8;'
+    +'border:0.3pt solid #E2E6EB;border-radius:1.2mm;padding:1.2mm 3mm}'
+    +'.hr div{display:flex;align-items:baseline;gap:2mm}'
+    +'.hr span{color:#8A929D;font-size:7.2pt}'
+    +'.hr b{font-weight:600}'
+    /* 인사말 — 전체 폭으로 빼서 두 줄로 쪼개지지 않게 한다 */
+    +'.greet{display:flex;gap:7mm;font-size:7.5pt;color:#6B7280;white-space:nowrap;'
+    +'padding:2mm 0 2.6mm;border-bottom:0.3pt solid #EAEDF1;margin-bottom:2.4mm}'
+    +'.blk{display:flex;margin-bottom:1.2mm}'
+    +'.vl{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:-0.06em;background:#F4F6F8;'
+    +'border:0.3pt solid #D5D9DF;border-right:0;text-align:center;font-weight:600;color:#6B7280;'
+    +'flex:0 0 5.6mm;display:flex;align-items:center;justify-content:center;font-size:7.3pt}'
     +'.bd{flex:1;min-width:0}'
-    +'.two{display:grid;grid-template-columns:1fr 1fr;gap:1.5mm}'
-    +'.notice{text-align:center;font-size:7pt;line-height:1.6;padding:2mm 0;color:#333}'
-    +'.sum td{padding:1.6mm 2mm}.sum td:nth-child(odd){background:#FDF6D8;font-weight:700;width:22%;text-align:center}'
-    +'.sum .big{font-size:11pt;font-weight:800}'
-    +'.agree{font-size:7pt;padding:2mm 0;color:#333}'
-    +'.foot{display:flex;align-items:flex-end;justify-content:space-between;padding-top:3mm}'
-    +'.brand{font-size:12pt;font-weight:800;letter-spacing:2px}'
-    +'.sign{font-size:8pt}'
-    +'.kind{position:absolute;top:1mm;left:6mm;font-size:7pt;color:#94A3B8}'
-    +'@media print{.bar{display:none}.sheet{page-break-inside:avoid}}'
+    +'.two{display:grid;grid-template-columns:1fr 1fr;gap:1.4mm;margin-bottom:1.4mm}'
+    +'.two .blk{margin-bottom:0}'
+    +'.notice{text-align:center;font-size:7.2pt;line-height:1.75;padding:2.2mm 0;color:#7A828D}'
+    +'.sum{border-collapse:separate;border-spacing:0}'
+    +'.sum td{padding:1.8mm 2.4mm;font-size:8.6pt;border-color:#D5D9DF}'
+    +'.sum .k{background:#F4F6F8;font-weight:500;text-align:center;color:#5A626D;font-size:7.9pt}'
+    +'.sum .b{font-weight:700;font-size:11pt;letter-spacing:-0.02em}'
+    +'.sum tr:last-child .b{background:#F7F8FA}'
+    +'.agree{font-size:7.2pt;padding:2mm 0 0;color:#8A929D}'
+    +'.foot{display:flex;align-items:flex-end;justify-content:space-between;padding-top:3.5mm;min-height:11mm}'
+    +'.brand{font-size:12.5pt;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;color:#1A1D21}'
+    +'.sign{display:flex;align-items:flex-end;gap:5mm;font-size:8.6pt;color:#5A626D;'
+    +'border-bottom:0.5pt solid #C3C8CF;padding:0 2mm 1.2mm;min-width:52mm;justify-content:space-between}'
+    +'.sign .who{color:#1A1D21;font-weight:500}'
+    +'@media print{.bar{display:none}body{background:#fff}.stage{padding:0;overflow:visible}'
+    +'.sheet{box-shadow:none;transform:none!important}.copy{page-break-inside:avoid}}'
     +'</style></head><body>'
     +'<div class="bar"><button class="p" onclick="window.print()">인쇄 / PDF 저장</button>'
     +'<button onclick="window.close()">닫기</button>'
     +'<span style="margin-left:12px;font-size:10pt;color:#64748B">가로 A4 1장 · 좌 회사 보관용 / 우 위탁자 지급용</span></div>'
-    +'<div class="sheet">'+copy('company')+copy('staff')+'</div>'
+    +'<div class="stage"><div class="sheet" id="sheet">'+copy('company')+copy('staff')+'</div></div>'
     +(s.status==='void'?'<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
       +'font-size:60pt;color:rgba(220,38,38,.18);font-weight:800;pointer-events:none">무효</div>':'')
+    /* 화면에서만 창 폭에 맞춰 축소해 보여준다. 인쇄에는 영향 없다. */
+    +'<script>(function(){var st=document.querySelector(".stage"),s=document.getElementById("sheet");'
+    +'function fit(){s.style.transform="";st.style.height="";'
+    +'var k=Math.min(1,(st.clientWidth-4)/s.offsetWidth);if(k>=1)return;'
+    +'s.style.transform="scale("+k+")";st.style.height=(s.offsetHeight*k+20)+"px"}'
+    +'function clear(){s.style.transform="";st.style.height=""}'
+    +'window.addEventListener("resize",fit);'
+    +'window.addEventListener("beforeprint",clear);window.addEventListener("afterprint",fit);'
+    +'if(window.matchMedia){var m=window.matchMedia("print");'
+    +'(m.addEventListener?m.addEventListener("change",function(e){e.matches?clear():fit()}):0)}'
+    +'fit()})();<\/script>'
     +'</body></html>';
 }
 
