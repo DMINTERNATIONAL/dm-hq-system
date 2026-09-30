@@ -40,7 +40,7 @@ function cors(origin) {
   const ok = ALLOWED_ORIGINS.includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
@@ -170,6 +170,25 @@ async function nextNumber(env, counterId, pad = 4) {
   throw new Error('채번 경합이 계속됩니다. 다시 시도해주세요.');
 }
 
+/* ═══ 고유식별정보 차단 ═══
+   주민등록번호는 문서 생성에만 쓰고 저장하지 않는다(개인정보보호법 §24).
+   앱이 실수로 보내와도 서버에서 걷어내고, 걷어낸 사실을 감사 로그에 남긴다. */
+const SENSITIVE_KEY = /resident|rrn|ssn|주민/i;
+const RRN_VALUE = /\b\d{6}\s*-\s*\d{7}\b/;
+function stripSensitive(v, hit) {
+  if (Array.isArray(v)) return v.map(x => stripSensitive(x, hit));
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v)) {
+      if (SENSITIVE_KEY.test(k)) { hit.push(k); continue; }
+      out[k] = stripSensitive(v[k], hit);
+    }
+    return out;
+  }
+  if (typeof v === 'string' && RRN_VALUE.test(v)) { hit.push('value'); return v.replace(RRN_VALUE, '******-*******'); }
+  return v;
+}
+
 /* ═══ 라우팅 ═══ */
 export default {
   async fetch(request, env) {
@@ -218,6 +237,57 @@ export default {
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
 
+      /* 지점 계약 기본값 수정 — owner 만. 변경 전후를 감사 로그에 남긴다.
+         brands 는 외부 쓰기가 막혀 있어 이 경로가 유일한 수정 통로다. */
+      if (path === '/branch/update' && request.method === 'POST') {
+        if (me.role !== 'owner') return json({ ok: false, error: '마스터 데이터 수정 권한이 없습니다' }, 403, origin);
+        const { brandId, branchId, patch, reason } = await request.json().catch(() => ({}));
+        if (!brandId || !branchId || !patch || typeof patch !== 'object')
+          return json({ ok: false, error: 'brandId / branchId / patch 가 필요합니다' }, 400, origin);
+        if (!/^[a-z0-9\-]{2,40}$/.test(brandId) || !/^[a-z0-9\-]{2,40}$/.test(branchId))
+          return json({ ok: false, error: 'id 형식이 올바르지 않습니다' }, 400, origin);
+
+        const base = `/brands/${brandId}/branches/${branchId}`;
+        const before = await dbGet(env, base);
+        if (!before) return json({ ok: false, error: '지점을 찾을 수 없습니다' }, 404, origin);
+
+        // patch 는 { 'contractDefaults.prepaidPolicy': 'onPayment' } 같은 점 표기를 받는다
+        const changes = [];
+        const next = JSON.parse(JSON.stringify(before));
+        for (const key of Object.keys(patch)) {
+          const parts = key.split('.');
+          let cur = next, old = before;
+          for (let i = 0; i < parts.length - 1; i++) {
+            cur[parts[i]] = cur[parts[i]] || {};
+            cur = cur[parts[i]];
+            old = (old && old[parts[i]]) || {};
+          }
+          const leaf = parts[parts.length - 1];
+          changes.push({ field: key, oldValue: old ? old[leaf] : null, newValue: patch[key] });
+          cur[leaf] = patch[key];
+        }
+        next.updatedAt = new Date().toISOString().slice(0, 10);
+        next.updatedBy = me.ph;
+        await dbPut(env, base, next);
+        for (const c of changes) {
+          await auditLog(env, {
+            targetType: 'branch', targetId: `${brandId}/${branchId}`,
+            field: c.field, oldValue: c.oldValue === undefined ? null : c.oldValue,
+            newValue: c.newValue, changedBy: me.ph, changedByName: me.name || '',
+            reason: reason || null,
+          });
+        }
+        return json({ ok: true, changes }, 200, origin);
+      }
+
+      /* 감사 로그 조회 — owner 만 */
+      if (path === '/auditlogs' && request.method === 'GET') {
+        if (me.role !== 'owner') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        const all = (await dbGet(env, '/auditLogs')) || {};
+        const rows = Object.keys(all).map(k => ({ id: k, ...all[k] })).sort((a, b) => (b.at || 0) - (a.at || 0));
+        return json({ ok: true, rows: rows.slice(0, 100) }, 200, origin);
+      }
+
       /* 발행번호 채번 — owner/manager 만 */
       if (path === '/counters/next' && request.method === 'POST') {
         if (me.role === 'staff') return json({ ok: false, error: '발행 권한이 없습니다' }, 403, origin);
@@ -226,6 +296,97 @@ export default {
           return json({ ok: false, error: 'counterId 형식이 올바르지 않습니다' }, 400, origin);
         const number = await nextNumber(env, counterId, pad || 4);
         return json({ ok: true, number }, 200, origin);
+      }
+
+      /* ═══ 계약서 발행 ═══
+         확정 시점의 지점 설정·템플릿 버전·치환값을 통째로 스냅샷 저장한다.
+         이후 지점 주소가 바뀌어도 이 계약서는 옛 주소로 다시 출력된다. */
+      if (path === '/contracts' && request.method === 'POST') {
+        if (me.role === 'staff') return json({ ok: false, error: '발행 권한이 없습니다' }, 403, origin);
+        const body = await request.json().catch(() => null);
+        if (!body) return json({ ok: false, error: '요청 본문을 읽지 못했습니다' }, 400, origin);
+        const { brandId, branchId, templateVersion, values, staffName } = body;
+        if (!brandId || !branchId) return json({ ok: false, error: '브랜드·지점이 필요합니다' }, 400, origin);
+        if (!templateVersion) return json({ ok: false, error: '템플릿 버전이 필요합니다' }, 400, origin);
+        if (!staffName || !String(staffName).trim()) return json({ ok: false, error: '계약자 성명이 필요합니다' }, 400, origin);
+
+        const hit = [];
+        const safeValues = stripSensitive(values || {}, hit);
+
+        const branch = await dbGet(env, `/brands/${brandId}/branches/${branchId}`);
+        if (!branch) return json({ ok: false, error: '지점을 찾을 수 없습니다' }, 404, origin);
+        const brandDefaults = (await dbGet(env, `/brands/${brandId}/defaults`)) || {};
+
+        const year = new Date().getFullYear();
+        const number = await nextNumber(env, `${brandId.toUpperCase()}-${year}`, 4);
+
+        const rec = {
+          number, brandId, branchId, templateVersion,
+          staffName: String(staffName).trim(),
+          status: 'issued',
+          issuedAt: Date.now(),
+          issuedBy: { phone: me.phone, name: me.name || '', role: me.role },
+          snapshot: { branch, brandDefaults, values: safeValues },
+        };
+        const id = (await dbPush(env, '/contracts', rec)).name;   // dbPush 는 {name} 을 돌려준다
+        await auditLog(env, { kind: 'contract.issue', by: me.phone, contractId: id, number,
+          brandId, branchId, staffName: rec.staffName, stripped: hit.length ? hit : undefined });
+        return json({ ok: true, id, number, contract: { id, ...rec }, stripped: hit }, 200, origin);
+      }
+
+      /* 계약서 목록 */
+      if (path === '/contracts' && request.method === 'GET') {
+        if (me.role === 'staff') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        const all = (await dbGet(env, '/contracts')) || {};
+        const rows = Object.keys(all).map(k => {
+          const c = all[k];
+          return { id: k, number: c.number, brandId: c.brandId, branchId: c.branchId,
+            staffName: c.staffName, status: c.status, issuedAt: c.issuedAt,
+            issuedBy: (c.issuedBy || {}).name || '',
+            startDate: ((c.snapshot || {}).values || {})['terms.startDate'] || '',
+            endDate: ((c.snapshot || {}).values || {})['terms.endDate'] || '',
+            voidReason: c.voidReason || '' };
+        }).sort((a, b) => (b.issuedAt || 0) - (a.issuedAt || 0));
+        return json({ ok: true, rows }, 200, origin);
+      }
+
+      /* 계약서 단건 — 재다운로드용 스냅샷 */
+      if (/^\/contracts\/[A-Za-z0-9_-]+$/.test(path) && request.method === 'GET') {
+        if (me.role === 'staff') return json({ ok: false, error: '조회 권한이 없습니다' }, 403, origin);
+        const id = path.split('/')[2];
+        const c = await dbGet(env, '/contracts/' + id);
+        if (!c) return json({ ok: false, error: '계약서를 찾을 수 없습니다' }, 404, origin);
+        await auditLog(env, { kind: 'contract.read', by: me.phone, contractId: id, number: c.number });
+        return json({ ok: true, contract: { id, ...c } }, 200, origin);
+      }
+
+      /* 무효 처리 — owner 만. 수정이 아니라 void 후 재발행이다. */
+      if (/^\/contracts\/[A-Za-z0-9_-]+\/void$/.test(path) && request.method === 'POST') {
+        if (me.role !== 'owner') return json({ ok: false, error: '무효 처리는 대표만 가능합니다' }, 403, origin);
+        const id = path.split('/')[2];
+        const { reason } = await request.json().catch(() => ({}));
+        if (!reason || String(reason).trim().length < 2) return json({ ok: false, error: '무효 사유를 적어주세요' }, 400, origin);
+        const c = await dbGet(env, '/contracts/' + id);
+        if (!c) return json({ ok: false, error: '계약서를 찾을 수 없습니다' }, 404, origin);
+        if (c.status === 'void') return json({ ok: false, error: '이미 무효 처리된 계약서입니다' }, 400, origin);
+        await dbPut(env, `/contracts/${id}/status`, 'void');
+        await dbPut(env, `/contracts/${id}/voidReason`, String(reason).trim());
+        await dbPut(env, `/contracts/${id}/voidedAt`, Date.now());
+        await dbPut(env, `/contracts/${id}/voidedBy`, me.phone);
+        await auditLog(env, { kind: 'contract.void', by: me.phone, contractId: id, number: c.number, reason: String(reason).trim() });
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* 카운터 삭제 — owner 만. 테스트로 만든 채번기를 지울 때 쓴다. */
+      if (/^\/counters\/[A-Za-z0-9\-]{3,40}$/.test(path) && request.method === 'DELETE') {
+        if (me.role !== 'owner') return json({ ok: false, error: '삭제 권한이 없습니다' }, 403, origin);
+        const cid = path.split('/')[2];
+        const used = (await dbGet(env, '/contracts')) || {};
+        const inUse = Object.keys(used).some(k => String((used[k] || {}).number || '').startsWith(cid + '-'));
+        if (inUse) return json({ ok: false, error: '이 채번기로 발행된 문서가 있어 지울 수 없습니다' }, 400, origin);
+        await dbPut(env, '/counters/' + cid, null);
+        await auditLog(env, { kind: 'counter.delete', by: me.phone, counterId: cid });
+        return json({ ok: true }, 200, origin);
       }
 
       return json({ ok: false, error: '없는 경로입니다' }, 404, origin);
