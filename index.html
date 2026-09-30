@@ -3675,6 +3675,36 @@ function stVoid(id,number){
    매출·고객수는 일별 수집분(stores/{shop}/daily)을 그 달만큼 합산하고,
    점판수당은 월별 점판수익(stores/{shop}/monthly)에 계약 요율을 곱한다.
    핸드SOS는 앱에서 직접 못 부른다(자격증명·차단) — 수집기가 넣어둔 값을 읽는다. */
+/* 그 달이 '확정 재수집' 을 거쳤는지 본다.
+   디자이너가 잘못 올린 매출을 월말·익월초에 핸드SOS에서 고치는 일이 있어서,
+   평소 재수집(D-1·D-7)만으로는 월초 정정이 반영되지 않는다.
+   월이 끝난 뒤 한 번은 통째로 다시 긁어야 그 달 숫자가 확정된다. */
+var ST_VERIFY=null;
+function stMonthEnd(ym){
+  var p=String(ym||'').split('-'); if(p.length!==2)return null;
+  return new Date(+p[0], +p[1], 1);      // 다음 달 1일 00:00
+}
+function stVerifyWarn(ym,v){
+  var end=stMonthEnd(ym); if(!end)return '';
+  if(Date.now()<end.getTime())
+    return '<b>아직 끝나지 않은 달입니다.</b> 지금 발행하면 남은 날 매출이 빠집니다.';
+  if(!v||!v.verified_at)
+    return '<b>이 달은 아직 확정 재수집을 안 했습니다.</b><br>'
+      +'핸드SOS에서 매출을 고친 게 있으면 반영되지 않은 값입니다. '
+      +'GitHub Actions → Hermes KPI 수집 → Run workflow 에서 '
+      +'<b>mode: month, ym: '+nsEsc(ym)+'</b> 로 먼저 돌려주세요.';
+  var vt=new Date(v.verified_at);
+  if(vt.getTime()<end.getTime())
+    return '<b>확정 재수집이 달이 끝나기 전에 돌았습니다</b> ('+vt.toLocaleString('ko-KR')+').<br>'
+      +'그 뒤 매출이 바뀌었을 수 있습니다. mode: month 로 다시 돌려주세요.';
+  return '';
+}
+function stVerifyBadge(v){
+  if(!v||!v.verified_at)return '';
+  var ch=(v.days_changed||[]).length;
+  return '<br>확정 재수집 '+nsEsc(new Date(v.verified_at).toLocaleString('ko-KR'))
+    +(ch?' · <b>그때 매출이 바뀐 날 '+ch+'일</b> ('+nsEsc((v.days_changed||[]).join(', '))+')':' · 바뀐 날 없음');
+}
 var ST_SHOP='eto';   // ETOH 합정점. 브랜드가 늘면 지점 설정에서 받아온다.
 
 function stDaysOf(ym){
@@ -3702,9 +3732,11 @@ function stFetchHandsos(){
   var days=stDaysOf(ym);
   Promise.all([
     fbG('/stores/'+ST_SHOP+'/daily.json?shallow=true'),
-    fbG('/stores/'+ST_SHOP+'/monthly/'+ym+'/designers.json')
+    fbG('/stores/'+ST_SHOP+'/monthly/'+ym+'/designers.json'),
+    fbG('/stores/'+ST_SHOP+'/monthly/'+ym+'/verify.json')
   ]).then(function(r){
-    var have=r[0]||{}, monthly=r[1]||{};
+    var have=r[0]||{}, monthly=r[1]||{}, verify=r[2]||null;
+    ST_VERIFY=verify;
     var present=days.filter(function(d){return have[d]});
     var missing=days.filter(function(d){return !have[d]});
     if(!present.length)throw new Error(ym+' 수집 데이터가 없습니다. KPI 수집기를 먼저 돌려주세요.');
@@ -3725,7 +3757,7 @@ function stFetchHandsos(){
       var mk=stMatchName(monthly,s);
       var profit=mk?+(monthly[mk].retail_profit||0):0;
       var retail=mk?+(monthly[mk].retail_amount||0):0;
-      return {sum:sum,hit:hit,missing:missing,profit:profit,retail:retail,hasMonthly:!!mk,key:key};
+      return {sum:sum,hit:hit,missing:missing,profit:profit,retail:retail,hasMonthly:!!mk,key:key,verify:verify};
     });
   }).then(function(o){
     if(!o.key)throw new Error('핸드SOS 기록에서 "'+(s.nick||s.name)+'" 을(를) 찾지 못했습니다. 활동명이 다를 수 있습니다.');
@@ -3738,13 +3770,14 @@ function stFetchHandsos(){
     $('STF-PREPAID').value=o.sum.prepaidUsed||'';
     $('STF-PROD').value=o.hasMonthly?Math.floor(o.profit*share):'';
     stRecalc();
-    var warn=[];
+    var warn=[], block=stVerifyWarn(ym,o.verify);
+    if(block)warn.push(block);
     if(o.missing.length)warn.push('<b>'+o.missing.length+'일 수집 데이터 없음</b> — 휴무인지 수집 실패인지 확인하세요.<br>'
       +'<span style="color:#94A3B8">'+nsEsc(o.missing.slice(0,10).join(', '))+(o.missing.length>10?' …':'')+'</span>');
-    if(!o.hasMonthly)warn.push('<b>점판수익 데이터 없음</b> — 점판수당은 직접 넣어주세요. (월별 수집은 매월 2일에 돌아갑니다)');
+    if(!o.hasMonthly)warn.push('<b>점판수익 데이터 없음</b> — 점판수당은 직접 넣어주세요. (월 확정 재수집은 매월 2일·5일에 돌아갑니다)');
     $('STF-PULL-NOTE').innerHTML=
       '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#166534">'
-      +'✅ '+nsEsc(o.key)+' · '+o.hit+'일치 불러옴'
+      +'✅ '+nsEsc(o.key)+' · '+o.hit+'일치 불러옴'+stVerifyBadge(o.verify)
       +(o.hasMonthly?'<br>점판 '+stWon(o.retail)+'원 → 수익 '+stWon(o.profit)+'원 × '+(+(share*100).toFixed(2))+'% = <b>'+stWon(Math.floor(o.profit*share))+'원</b>':'')
       +'</div>'
       +(warn.length?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;'

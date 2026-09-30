@@ -256,10 +256,15 @@ async function main() {
       }
     }
   }
+  if (mode === 'month') {
+    // 명세서 발행 전 그 달 전체 재수집·확정. --ym=YYYY-MM, 없으면 지난달
+    const ym = opt.ym || prevMonthKst();
+    try { console.log('[month]', ym, JSON.stringify(await verifyMonth(ym, dry), null, 1)); }
+    catch (e) { errors.push('month ' + ym + ': ' + e.message); await notify('[Hermes] 월 확정 재수집 실패 ' + ym + ': ' + e.message); }
+  }
   if (mode === 'retail') {
     // 월별 점판 수익 (명세서 점판수당 계산용). --ym=YYYY-MM, 없으면 지난달
-    const ym = opt.ym || (() => { const d = new Date(Date.now() + 9 * 3600e3); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
-      return d.toISOString().slice(0, 7); })();
+    const ym = opt.ym || prevMonthKst();
     try { console.log('[retail]', ym, JSON.stringify(await collectMonthlyRetail(ym, dry), null, 1)); }
     catch (e) { errors.push('retail ' + ym + ': ' + e.message); await notify('[Hermes] 점판수익 수집 실패 ' + ym + ': ' + e.message); }
   }
@@ -802,6 +807,57 @@ async function collectMonthlyRetail(ym, dry) {
   return out;
 }
 
+/* ═══ 월 전체 재수집 (정산 전 확정) ═══
+   디자이너가 잘못 올린 매출을 월말·익월초에 핸드SOS에서 고치는 일이 있다.
+   평소 재수집은 D-1·D-7 뿐이라 그보다 오래된 날의 정정은 반영되지 않는다.
+   명세서를 주기 전에 그 달을 통째로 다시 긁어 확정한다.
+   collectSales 는 멱등이고 값이 바뀌면 revisions 에 남으므로,
+   어느 날이 바뀌었는지도 같이 기록한다. */
+async function verifyMonth(ym, dry) {
+  if (!/^\d{4}-\d{2}$/.test(String(ym || ''))) throw new Error('기간은 YYYY-MM 형식입니다');
+  const [y, m] = ym.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const today = kstDateString(0);
+  const changed = {}, missing = {}, done = {};
+  for (let d = 1; d <= last; d++) {
+    const date = `${ym}-${String(d).padStart(2, '0')}`;
+    if (date > today) break;                       // 미래 날짜는 건너뛴다
+    let res = [];
+    try { const r = await collectSales(date, dry); res = (r && r.shops) || []; }
+    catch (e) { console.error(`[month] ${date} 실패: ${e.message}`); continue; }
+    for (const x of res) {
+      const k = x.shop;
+      done[k] = (done[k] || 0) + 1;
+      if (x.closed || x.ok === false) (missing[k] = missing[k] || []).push(date);
+      if (x.revised) (changed[k] = changed[k] || []).push(date);
+    }
+    try { await collectVisits(date, dry); } catch (e) { /* 방문구분은 정산에 안 쓰므로 실패해도 진행 */ }
+  }
+  // 점판 수익도 같이 갱신 (명세서 점판수당)
+  let retail = null;
+  try { retail = await collectMonthlyRetail(ym, dry); }
+  catch (e) { console.error('[month] 점판수익 실패: ' + e.message); }
+
+  const out = [];
+  for (const shop of CONFIG.shops) {
+    const v = {
+      period: ym, verified_at: nowIso(), verified_by: 'month-mode',
+      days_collected: done[shop.shop] || 0,
+      days_closed: missing[shop.shop] || [],
+      days_changed: changed[shop.shop] || [],
+      retail_ok: !!retail,
+    };
+    if (!dry) await rtdbPut(`/stores/${shop.shop}/monthly/${ym}/verify`, v);
+    out.push({ shop: shop.shop, ...v });
+  }
+  const totalChanged = Object.values(changed).reduce((a, x) => a + x.length, 0);
+  if (totalChanged) {
+    await notify(`[Hermes] ${ym} 월 확정 재수집 — 매출이 바뀐 날 ${totalChanged}건. `
+      + Object.entries(changed).map(([k, v]) => `${k}: ${v.join(',')}`).join(' / '));
+  }
+  return out;
+}
+
 /* ═══ 인스타그램 ═══ */
 // 지점(한글) → shop 키. 인스타 대상은 앱 직원관리(/users)의 재직 지점원(shop 매핑+ig_username 보유)에서 읽는다.
 const BRANCH_TO_SHOP = { '플래그십점': 'flagship', '모먼트점': 'moment', '합정점': 'eto' };
@@ -957,6 +1013,7 @@ async function fbGET(path) {
 /* ═══ 헬퍼 ═══ */
 function json(x) { return JSON.stringify(x); }
 function enc(s) { return encodeURIComponent(s); }
+function prevMonthKst() { const d = new Date(Date.now() + 9 * 3600e3); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); }
 export function safeKey(s) { return String(s).replace(/[/.#$\[\]]/g, '·').trim(); }
 function stripName(d) { const { name, ...rest } = d; return rest; }
 function encodePairs(pairs) { return pairs.map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&'); }

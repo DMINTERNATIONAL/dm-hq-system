@@ -8,13 +8,15 @@ on:
     - cron: '7 19 * * *'   # 04:07 KST (기본)
     - cron: '7 20 * * *'   # 05:07 KST (백업1)
     - cron: '7 22 * * *'   # 07:07 KST (백업2)
-    # 점판 수익(명세서 점판수당용)은 월 1회면 충분하다. 매월 2일 06:07 KST 에 지난달분 수집.
-    # 1일이 아니라 2일인 이유 — 말일 매출이 뒤늦게 정정되는 경우를 하루 기다린다.
-    - cron: '7 21 2 * *'   # 매월 2일 06:07 KST (점판 수익)
+    # 명세서 발행 전 지난달 전체 재수집·확정. 평소 재수집은 D-1·D-7 뿐이라
+    # 익월초에 고친 월초 매출이 반영되지 않는다. 월 전체를 다시 긁어 확정한다.
+    # 2일·5일 두 번 — 2일엔 대부분 잡히고, 그 뒤 늦게 고친 건 5일에 잡힌다.
+    - cron: '7 21 2 * *'   # 매월 2일 06:07 KST (월 확정 재수집)
+    - cron: '7 21 5 * *'   # 매월 5일 06:07 KST (월 확정 재수집 2차)
   workflow_dispatch:
     inputs:
       mode:
-        description: 'both | sales | sns | retail(점판수익) | shops | ig(연결테스트)'
+        description: 'both | sales | sns | month(월확정재수집) | retail(점판수익) | shops | ig(연결테스트)'
         required: false
         default: 'both'
       date:
@@ -27,7 +29,7 @@ on:
         description: '소급 종료일 YYYY-MM-DD'
         required: false
       ym:
-        description: '점판수익 수집 기간 YYYY-MM (mode=retail, 비우면 지난달)'
+        description: '대상 월 YYYY-MM (mode=month/retail, 비우면 지난달)'
         required: false
       dry:
         description: '드라이런(저장 안 함) true/false'
@@ -69,8 +71,10 @@ jobs:
           ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
         run: |
           MODE="${{ github.event.inputs.mode || 'both' }}"
-          # 월 1회 크론은 점판 수익만 수집한다
-          [ "${{ github.event.schedule }}" = "7 21 2 * *" ] && MODE="retail"
+          # 월초 크론은 지난달 전체 재수집·확정 (점판 수익 포함)
+          case "${{ github.event.schedule }}" in
+            "7 21 2 * *"|"7 21 5 * *") MODE="month" ;;
+          esac
           ARGS="$MODE"
           [ -n "${{ github.event.inputs.date }}" ] && ARGS="$ARGS --date=${{ github.event.inputs.date }}"
           [ -n "${{ github.event.inputs.from }}" ] && ARGS="$ARGS --from=${{ github.event.inputs.from }}"
