@@ -3,9 +3,14 @@
 # 시크릿:
 #   npx wrangler secret put FIREBASE_SA        (서비스 계정 JSON 전체)
 #   npx wrangler secret put SESSION_SECRET     (토큰 서명용 랜덤 문자열)
+#   npx wrangler secret put GH_TOKEN           (GitHub PAT — 월 재수집 실행용, Actions: read/write)
 name = "dm-contract-api"
 main = "src/index.js"
 compatibility_date = "2026-09-30"
 
 [vars]
 FIREBASE_URL = "https://dm-orders-4792a-default-rtdb.firebaseio.com"
+# 월 재수집을 GitHub Actions 로 돌린다 (핸드SOS 가 Cloudflare 발신을 막아 직접 못 긁는다)
+GH_REPO = "DMINTERNATIONAL/dm-hq-system"
+GH_WORKFLOW = "hermes-kpi.yml"
+GH_REF = "main"
