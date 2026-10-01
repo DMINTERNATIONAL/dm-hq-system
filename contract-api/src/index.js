@@ -14,13 +14,14 @@
  *   - 마스터 데이터 변경 감사 로그
  */
 
-const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs'];
+const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets'];
 const ALLOWED_ORIGINS = [
   'https://dminternational.github.io',
   'http://localhost:8012',
   'http://127.0.0.1:8012',
 ];
-const TOKEN_TTL_SEC = 12 * 60 * 60;   // 12시간
+const TOKEN_TTL_SEC = 12 * 60 * 60;        // 12시간
+const REMEMBER_TTL_SEC = 30 * 24 * 60 * 60; // 로그인 유지 30일
 
 /* ═══ 공통 유틸 ═══ */
 const enc = new TextEncoder();
@@ -98,6 +99,12 @@ async function dbPut(env, path, value) {
   if (!r.ok) throw new Error('DB 쓰기 실패 ' + r.status);
   return r.json();
 }
+async function dbDelete(env, path) {
+  const t = await accessToken(env);
+  const r = await fetch(`${env.FIREBASE_URL}${path}.json?access_token=${t}`, { method: 'DELETE' });
+  if (!r.ok) throw new Error('DB 삭제 실패 ' + r.status);
+  return true;
+}
 async function dbPush(env, path, value) {
   const t = await accessToken(env);
   const r = await fetch(`${env.FIREBASE_URL}${path}.json?access_token=${t}`, {
@@ -105,6 +112,71 @@ async function dbPush(env, path, value) {
   });
   if (!r.ok) throw new Error('DB 추가 실패 ' + r.status);
   return r.json();     // { name: '-Oxxxx' }
+}
+
+/* ═══ 비밀번호 ═══
+   users 트리는 앱이 직접 읽어야 해서 공개로 둘 수밖에 없다. RTDB 규칙은 위에서
+   아래로만 전파되므로 users/$ph/pw 만 따로 잠글 방법이 없다. 그래서 비밀번호는
+   users 밖의 잠긴 경로(/authSecrets)로 빼고, 평문이 아니라 PBKDF2 해시로 둔다.
+   이 Worker는 서비스 계정으로 붙으므로 규칙과 무관하게 읽고 쓴다. */
+const PW_ITER = 100000;
+
+function b64(bytes) {
+  let s = '';
+  const b = new Uint8Array(bytes);
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+function unb64(str) {
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function pwDerive(pw, salt, iter) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(String(pw)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, key, 256);
+  return b64(bits);
+}
+async function pwHash(pw) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return { alg: 'pbkdf2-sha256', iter: PW_ITER, salt: b64(salt), hash: await pwDerive(pw, salt, PW_ITER), at: Date.now() };
+}
+/* 타이밍으로 글자가 새지 않게 길이·내용을 한 번에 비교한다 */
+function sameStr(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+async function pwVerify(rec, pw) {
+  if (!rec || !rec.hash || !rec.salt) return false;
+  return sameStr(rec.hash, await pwDerive(pw, unb64(rec.salt), +rec.iter || PW_ITER));
+}
+async function pwSet(env, phone, pw) {
+  await dbPut(env, '/authSecrets/' + encodeURIComponent(String(phone)), await pwHash(pw));
+}
+/* 로그인 성공 시 호출. 아직 평문으로 남아 있으면 그 자리에서 해시로 바꾸고 평문을 지운다.
+   한 번에 다 못 옮기더라도 쓰는 사람부터 저절로 정리된다. */
+async function pwUpgrade(env, phone, pw) {
+  try {
+    await pwSet(env, phone, pw);
+    await dbDelete(env, '/users/' + encodeURIComponent(String(phone)) + '/pw');
+  } catch (e) { /* 전환 실패가 로그인을 막아서는 안 된다 */ }
+}
+/* 비밀번호를 남의 것까지 바꿀 수 있는 사람을 서버에서 판정한다.
+   config/gradePerms 는 공개 경로라 조작될 수 있으므로 서버는 읽지 않는다.
+   여기서 정한 경영팀·관리자가 상한이고, 그 안에서 화면 설정이 더 좁힐 수 있다. */
+const PW_ADMIN_GRADES = ['경영팀', '관리자'];
+async function canManageStaff(env, me) {
+  if (me && me.role === 'owner') return true;
+  const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
+  if (!u || u.status === '퇴사') return false;
+  if (u.systemGrade) return PW_ADMIN_GRADES.indexOf(u.systemGrade) >= 0;
+  /* systemGrade 가 없는 옛 계정은 본사 소속 + 경영팀/관리자 직급으로 본다 */
+  return u.branch === '본사' && PW_ADMIN_GRADES.indexOf(u.role) >= 0;
 }
 
 /* ═══ 세션 토큰 (HMAC 서명) ═══ */
@@ -222,18 +294,53 @@ export default {
       /* 로그인 → 토큰 발급.
          비밀번호 대조를 브라우저가 아니라 여기서 한다. */
       if (path === '/auth/login' && request.method === 'POST') {
-        const { phone, pw } = await request.json().catch(() => ({}));
+        const { phone, pw, remember } = await request.json().catch(() => ({}));
         if (!phone || !pw) return json({ ok: false, error: '전화번호와 비밀번호가 필요합니다' }, 400, origin);
-        const u = await dbGet(env, '/users/' + encodeURIComponent(String(phone)));
-        if (!u || String(u.pw) !== String(pw)) return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
+        const ph = encodeURIComponent(String(phone));
+        const u = await dbGet(env, '/users/' + ph);
+        if (!u) return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
+
+        /* 해시가 있으면 해시로, 아직 안 옮긴 계정은 평문으로 확인하고 그 자리에서 전환한다.
+           전환 기간에 아무도 로그인 못 하는 구간이 생기지 않게 두 길을 다 연다. */
+        const sec = await dbGet(env, '/authSecrets/' + ph).catch(() => null);
+        let ok = false, upgrade = false;
+        if (sec && sec.hash) ok = await pwVerify(sec, pw);
+        else if (u.pw != null) { ok = sameStr(u.pw, pw); upgrade = ok; }
+        if (!ok) return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
         if (u.status === '퇴사') return json({ ok: false, error: '퇴사 처리된 계정입니다' }, 403, origin);
+        if (upgrade) await pwUpgrade(env, phone, pw);
+
         const { role, branches } = await resolveRole(env, String(phone), u);
         const now = Math.floor(Date.now() / 1000);
+        /* 로그인 유지를 켜면 길게 준다. 예전에는 이걸 위해 평문 비밀번호를 폰에 저장해
+           두고 만료될 때마다 다시 보냈는데, 토큰만 두면 그럴 필요가 없다. */
+        const ttl = remember ? REMEMBER_TTL_SEC : TOKEN_TTL_SEC;
         const token = await signToken(env, {
           ph: String(phone), name: u.nick || u.name || '', role, branches,
-          iat: now, exp: now + TOKEN_TTL_SEC,
+          iat: now, exp: now + ttl,
         });
-        return json({ ok: true, token, role, branches, expiresIn: TOKEN_TTL_SEC }, 200, origin);
+        delete u.pw;                 // 혹시 남아 있어도 내보내지 않는다
+        return json({ ok: true, token, role, branches, expiresIn: ttl, user: u }, 200, origin);
+      }
+
+      /* 가입 신청 — 로그인 전이라 무인증. 비밀번호는 해시로만 들어간다.
+         이미 쓰는 번호면 거부한다. 안 그러면 남의 번호로 신청해서 그 사람 비밀번호를 갈아치울 수 있다. */
+      if (path === '/auth/signup' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const phone = String(body.phone || '').trim();
+        const pw = String(body.pw || '');
+        const profile = body.profile || {};
+        if (!/^[0-9]{8,12}$/.test(phone)) return json({ ok: false, error: '전화번호 형식이 올바르지 않습니다' }, 400, origin);
+        if (pw.length < 4) return json({ ok: false, error: '비밀번호는 4자 이상이어야 합니다' }, 400, origin);
+        const ph = encodeURIComponent(phone);
+        const existing = await dbGet(env, '/users/' + ph).catch(() => null);
+        if (existing) return json({ ok: false, error: '이미 등록된 전화번호입니다. 로그인해주세요.' }, 409, origin);
+        const dup = await dbGet(env, '/pending/' + ph).catch(() => null);
+        if (dup) return json({ ok: false, error: '이미 가입 신청이 접수되어 있습니다.' }, 409, origin);
+        delete profile.pw;
+        await dbPut(env, '/pending/' + ph, profile);
+        await pwSet(env, phone, pw);
+        return json({ ok: true }, 200, origin);
       }
 
       /* 이하 인증 필요 */
@@ -243,6 +350,65 @@ export default {
       me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
+
+      /* 비밀번호 설정 — 본인이거나 직원 관리 권한자. 관리자 재발급·직원 직접 추가가 여기로 온다. */
+      if (path === '/auth/setpw' && request.method === 'POST') {
+        const { phone, newPw } = await request.json().catch(() => ({}));
+        const target = String(phone || '').trim();
+        if (!/^[0-9]{8,12}$/.test(target)) return json({ ok: false, error: '전화번호 형식이 올바르지 않습니다' }, 400, origin);
+        if (String(newPw || '').length < 4) return json({ ok: false, error: '비밀번호는 4자 이상이어야 합니다' }, 400, origin);
+        const self = target === String(me.ph);
+        if (!self && !(await canManageStaff(env, me)))
+          return json({ ok: false, error: '비밀번호를 변경할 권한이 없습니다' }, 403, origin);
+        await pwSet(env, target, String(newPw));
+        /* 옛 평문이 남아 있으면 같이 지운다. 안 지우면 바꾼 비밀번호와 따로 놀며 계속 노출된다. */
+        await dbDelete(env, '/users/' + encodeURIComponent(target) + '/pw').catch(() => {});
+        if (!self) await dbPush(env, '/auditLogs', {
+          at: Date.now(), by: String(me.ph), byName: me.name || '', action: 'pw.reset', target,
+        }).catch(() => {});
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* 본인 비밀번호 확인 — 시험 점수 수정처럼 민감한 동작 직전의 재확인용.
+         남의 비밀번호는 확인해 주지 않는다(맞다/틀리다만 줘도 대입 통로가 된다). */
+      if (path === '/auth/verify' && request.method === 'POST') {
+        const { pw } = await request.json().catch(() => ({}));
+        if (!pw) return json({ ok: false, error: '비밀번호가 필요합니다' }, 400, origin);
+        const ph = encodeURIComponent(String(me.ph));
+        const sec = await dbGet(env, '/authSecrets/' + ph).catch(() => null);
+        let ok = false;
+        if (sec && sec.hash) ok = await pwVerify(sec, pw);
+        else {
+          const u = await dbGet(env, '/users/' + ph).catch(() => null);
+          if (u && u.pw != null) { ok = sameStr(u.pw, pw); if (ok) await pwUpgrade(env, String(me.ph), pw); }
+        }
+        return json({ ok: true, match: ok }, 200, origin);
+      }
+
+      /* 평문 비밀번호 일괄 전환 — 1회성. 멱등하므로 중간에 끊기면 다시 돌리면 된다. */
+      if (path === '/auth/migrate' && request.method === 'POST') {
+        if (!(await canManageStaff(env, me)))
+          return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        const { dry } = await request.json().catch(() => ({}));
+        const users = (await dbGet(env, '/users').catch(() => null)) || {};
+        const out = { total: 0, 전환: 0, 이미됨: 0, 비밀번호없음: 0, 실패: [] };
+        for (const phone of Object.keys(users)) {
+          out.total++;
+          const u = users[phone] || {};
+          const ph = encodeURIComponent(phone);
+          const sec = await dbGet(env, '/authSecrets/' + ph).catch(() => null);
+          if (sec && sec.hash) {
+            out.이미됨++;
+            if (u.pw != null && !dry) await dbDelete(env, '/users/' + ph + '/pw').catch(() => {});
+            continue;
+          }
+          if (u.pw == null) { out.비밀번호없음++; continue; }
+          if (dry) { out.전환++; continue; }
+          try { await pwSet(env, phone, String(u.pw)); await dbDelete(env, '/users/' + ph + '/pw'); out.전환++; }
+          catch (e) { out.실패.push(phone + ': ' + e.message); }
+        }
+        return json({ ok: true, dry: !!dry, result: out }, 200, origin);
+      }
 
       /* 지점 계약 기본값 수정 — owner 만. 변경 전후를 감사 로그에 남긴다.
          brands 는 외부 쓰기가 막혀 있어 이 경로가 유일한 수정 통로다. */
