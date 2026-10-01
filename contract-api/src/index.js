@@ -416,16 +416,36 @@ export default {
         return json({ ok: true }, 200, origin);
       }
 
-      /* AI 추천 — 릴레이 비밀키를 브라우저에 주지 않고 서버가 들고 호출한다. */
+      /* AI 추천 — 릴레이 비밀키를 브라우저에 주지 않고 서버가 들고 호출한다.
+         캐시 조회·저장도 여기서 한다. 예전에는 손님 브라우저가 /recCache 를 직접 읽고 썼는데,
+         캐시 키가 '언어_답변조합_제품해시' 라 전부 적어볼 수 있었다. 미리 아무 내용이나 써두면
+         손님 화면에 그게 그대로 떴다. 유출이 아니라 내용 조작 문제다. */
       if (path === '/public/reco' && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        const key = String(b.key || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
+
+        if (key) {
+          const hit = await dbGet(env, '/recCache/' + key).catch(() => null);
+          if (hit && Array.isArray(hit.items) && hit.items.length) {
+            return json({ ok: true, intro: hit.intro, items: hit.items, cached: true }, 200, origin);
+          }
+        }
+
         const cfg = await dbGet(env, '/config/naverWorks').catch(() => null);
         if (!cfg || !cfg.url || !cfg.secret) return json({ ok: false, error: 'AI 설정이 없어요' }, 503, origin);
-        const b = await request.json().catch(() => ({}));
-        const r = await fetch(String(cfg.url).replace(/\/+$/, '') + '/ai/recommend', {
+        /* 같은 계정의 Worker 는 HTTP 로 못 부른다(error 1042). 서비스 바인딩으로 넘긴다.
+           바인딩이 없는 환경에서는 예전처럼 URL 로 간다. */
+        const relayReq = new Request(String(cfg.url).replace(/\/+$/, '') + '/ai/recommend', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ secret: cfg.secret, summary: b.summary, lang: b.lang, products: b.products }),
         });
+        const r = env.AI_RELAY ? await env.AI_RELAY.fetch(relayReq) : await fetch(relayReq);
         const t = await r.text();
+        let d = null;
+        try { d = JSON.parse(t); } catch (e) { /* 릴레이 응답이 JSON 이 아니면 그대로 넘긴다 */ }
+        if (key && d && d.ok && Array.isArray(d.items) && d.items.length) {
+          await dbPut(env, '/recCache/' + key, { intro: d.intro || '', items: d.items, ts: Date.now() }).catch(() => {});
+        }
         return new Response(t, { status: r.status, headers: { 'Content-Type': 'application/json', ...cors(origin) } });
       }
 

@@ -16,3 +16,9 @@ FIREBASE_WEB_KEY = "AIzaSyB1kisg-779cQZMkcT_s3PsRLmHHBlOwOM"
 GH_REPO = "DMINTERNATIONAL/dm-hq-system"
 GH_WORKFLOW = "hermes-kpi.yml"
 GH_REF = "main"
+
+# 같은 계정의 Worker 끼리는 HTTP 로 못 부른다(Cloudflare error 1042).
+# 서비스 바인딩으로 직접 넘긴다 — 고객 화면 AI 추천이 이 경로를 쓴다.
+[[services]]
+binding = "AI_RELAY"
+service = "dm-naverworks-relay"
