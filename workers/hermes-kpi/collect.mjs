@@ -951,8 +951,7 @@ async function collectSns(date, dry) {
           /* 지난달도 같이 고쳐 둔다. 말일 밤에 올린 글은 그 달의 마지막 수집(새벽 04:07) 뒤라
              예전 방식으로는 영영 안 잡혔다. 월초 며칠간만 손대고, 25개를 꽉 채워 지난달을
              다 못 본 경우에는 건드리지 않는다(실제보다 적게 덮어쓸 수 있다). */
-          const d = +date.slice(8, 10);
-          if (d <= 7 && metrics.months_complete) {
+          if (metrics.months_complete) {
             const pm = new Date(Date.parse(date + 'T12:00:00+09:00'));
             pm.setUTCDate(1); pm.setUTCMonth(pm.getUTCMonth() - 1);
             const pym = pm.getUTCFullYear() + '-' + String(pm.getUTCMonth() + 1).padStart(2, '0');
