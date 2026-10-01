@@ -1051,13 +1051,49 @@ export function computeSnsMetrics(bd, date) {
   };
 }
 
-/* ═══ RTDB ═══ */
+/* ═══ RTDB ═══
+   DB 를 잠그면(보안 규칙 .read/.write=false) 무인증 호출은 401 이 된다. 서비스 계정으로
+   액세스 토큰을 받아 붙인다. FIREBASE_SA 가 없으면 예전처럼 무인증으로 간다 —
+   비밀을 넣기 전/후 어느 쪽에서도 수집이 멈추지 않게 하려는 것이다. */
+let _saTok = null;
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function saAccessToken() {
+  if (!process.env.FIREBASE_SA) return null;
+  if (_saTok && _saTok.exp > Date.now() + 60000) return _saTok.v;
+  const sa = JSON.parse(process.env.FIREBASE_SA);
+  const now = Math.floor(Date.now() / 1000);
+  const head = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const body = b64url(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
+  }));
+  const der = Buffer.from(sa.private_key.replace(/-----BEGIN[^-]+-----|-----END[^-]+-----/g, '').replace(/\s+/g, ''), 'base64');
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, Buffer.from(`${head}.${body}`));
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${head}.${body}.${b64url(sig)}` }),
+  });
+  if (!r.ok) throw new Error(`서비스 계정 토큰 발급 실패 ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const j = await r.json();
+  _saTok = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  return _saTok.v;
+}
+/* path 에 이미 ?가 붙어 올 수 있어 구분자를 가려 쓴다 */
+async function fbAuthed(url) {
+  const t = await saAccessToken();
+  if (!t) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'access_token=' + t;
+}
 async function rtdbPut(path, value) {
-  const resp = await fetch(`${fbUrl()}${path}.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+  const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
   if (!resp.ok) throw new Error(`RTDB PUT ${path} → ${resp.status}`);
 }
 async function fbGET(path) {
-  const resp = await fetch(`${fbUrl()}${path}`, { cache: 'no-store' });
+  const resp = await fetch(await fbAuthed(`${fbUrl()}${path}`), { cache: 'no-store' });
   if (!resp.ok) return null;
   return await resp.json();
 }

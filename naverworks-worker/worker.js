@@ -20,6 +20,48 @@
 
 let _tokenCache = null;
 const FB_DEFAULT = 'https://dm-orders-4792a-default-rtdb.firebaseio.com';
+
+/* ═══ RTDB 접근 ═══
+   DB 를 보안 규칙으로 잠그면 무인증 호출이 401 이 된다. 서비스 계정 토큰을 붙여 부른다.
+   FIREBASE_SA 가 없으면 예전처럼 무인증으로 간다 — 비밀을 넣기 전후 어느 쪽에서도
+   휴게 자동종료·정리 작업이 멈추지 않게 하려는 것이다. */
+let _saTok = null;
+function _b64url(buf) {
+  let s = ''; const b = new Uint8Array(buf);
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function saAccessToken(env) {
+  if (!env || !env.FIREBASE_SA) return null;
+  if (_saTok && _saTok.exp > Date.now() + 60000) return _saTok.v;
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const now = Math.floor(Date.now() / 1000);
+  const head = _b64url(new TextEncoder().encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
+  const body = _b64url(new TextEncoder().encode(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
+  })));
+  const raw = atob(sa.private_key.replace(/-----BEGIN[^-]+-----|-----END[^-]+-----/g, '').replace(/\s+/g, ''));
+  const der = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) der[i] = raw.charCodeAt(i);
+  const key = await crypto.subtle.importKey('pkcs8', der.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(`${head}.${body}`));
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${head}.${body}.${_b64url(sig)}` }),
+  });
+  if (!r.ok) throw new Error(`서비스 계정 토큰 발급 실패 ${r.status}`);
+  const j = await r.json();
+  _saTok = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  return _saTok.v;
+}
+/* path 에 이미 ?가 붙어 올 수 있어 구분자를 가려 쓴다 */
+async function fbFetch(env, url, opts) {
+  const t = await saAccessToken(env);
+  if (t) url += (url.includes('?') ? '&' : '?') + 'access_token=' + t;
+  return fetch(url, opts);
+}
 const BREAK_GRACE_MS = 5 * 60 * 1000; // 60분 + 5분 그레이스 = 65분 후 자동 종료
 
 export default {
@@ -267,7 +309,7 @@ async function cleanupStaleBreaks(env) {
   const now = Date.now();
 
   // 모든 활성 휴게 가져오기
-  const resp = await fetch(FB + '/breakActive.json', { cache: 'no-store' });
+  const resp = await fbFetch(env, FB + '/breakActive.json', { cache: 'no-store' });
   if (!resp.ok) return;
   const ba = await resp.json();
   if (!ba) return;
@@ -304,7 +346,7 @@ async function cleanupStaleBreaks(env) {
       ts: now
     };
     try {
-      await fetch(FB + '/break.json', {
+      await fbFetch(env, FB + '/break.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(record)
@@ -313,14 +355,14 @@ async function cleanupStaleBreaks(env) {
 
     // 2) /breakActive/{phone} 삭제
     try {
-      await fetch(FB + '/breakActive/' + encodeURIComponent(phone) + '.json', {
+      await fbFetch(env, FB + '/breakActive/' + encodeURIComponent(phone) + '.json', {
         method: 'DELETE'
       });
     } catch (e) { console.log('breakActive del err', e); }
 
     // 3) /breakAutoEnded/{phone} 에 알림용 플래그 저장 (앱 다음 열 때 팝업)
     try {
-      await fetch(FB + '/breakAutoEnded/' + encodeURIComponent(phone) + '.json', {
+      await fbFetch(env, FB + '/breakAutoEnded/' + encodeURIComponent(phone) + '.json', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -350,13 +392,13 @@ async function cleanupOldRecords(env) {
 
   // 1) /break.json — keyed POST id, has .date
   try {
-    const r = await fetch(FB + '/break.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/break.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const id in data) {
         const rec = data[id];
         if (rec && rec.date && rec.date < cutoffStr) {
-          await fetch(FB + '/break/' + id + '.json', { method: 'DELETE' });
+          await fbFetch(env, FB + '/break/' + id + '.json', { method: 'DELETE' });
           summary.break++;
         }
       }
@@ -365,13 +407,13 @@ async function cleanupOldRecords(env) {
 
   // 2) /meal/{uid}/{date} — meals
   try {
-    const r = await fetch(FB + '/meal.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/meal.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const uid in data) {
         for (const date in data[uid]) {
           if (date < cutoffStr) {
-            await fetch(FB + '/meal/' + encodeURIComponent(uid) + '/' + date + '.json', { method: 'DELETE' });
+            await fbFetch(env, FB + '/meal/' + encodeURIComponent(uid) + '/' + date + '.json', { method: 'DELETE' });
             summary.meal++;
           }
         }
@@ -381,13 +423,13 @@ async function cleanupOldRecords(env) {
 
   // 3) /late.json — keyed POST id, has .date
   try {
-    const r = await fetch(FB + '/late.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/late.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const id in data) {
         const rec = data[id];
         if (rec && rec.date && rec.date < cutoffStr) {
-          await fetch(FB + '/late/' + id + '.json', { method: 'DELETE' });
+          await fbFetch(env, FB + '/late/' + id + '.json', { method: 'DELETE' });
           summary.late++;
         }
       }
@@ -396,13 +438,13 @@ async function cleanupOldRecords(env) {
 
   // 4) /practiceLog.json
   try {
-    const r = await fetch(FB + '/practiceLog.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/practiceLog.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const id in data) {
         const rec = data[id];
         if (rec && rec.date && rec.date < cutoffStr) {
-          await fetch(FB + '/practiceLog/' + id + '.json', { method: 'DELETE' });
+          await fbFetch(env, FB + '/practiceLog/' + id + '.json', { method: 'DELETE' });
           summary.practiceLog++;
         }
       }
@@ -411,13 +453,13 @@ async function cleanupOldRecords(env) {
 
   // 5) /leave/requests
   try {
-    const r = await fetch(FB + '/leave/requests.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/leave/requests.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const id in data) {
         const rec = data[id];
         if (rec && rec.date && rec.date < cutoffStr) {
-          await fetch(FB + '/leave/requests/' + id + '.json', { method: 'DELETE' });
+          await fbFetch(env, FB + '/leave/requests/' + id + '.json', { method: 'DELETE' });
           summary.leave++;
         }
       }
@@ -426,13 +468,13 @@ async function cleanupOldRecords(env) {
 
   // 6) /education/logs
   try {
-    const r = await fetch(FB + '/education/logs.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/education/logs.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const id in data) {
         const rec = data[id];
         if (rec && rec.date && rec.date < cutoffStr) {
-          await fetch(FB + '/education/logs/' + id + '.json', { method: 'DELETE' });
+          await fbFetch(env, FB + '/education/logs/' + id + '.json', { method: 'DELETE' });
           summary.eduLogs++;
         }
       }
@@ -441,7 +483,7 @@ async function cleanupOldRecords(env) {
 
   // 7) /orders/{brand}/{branch}/{id}
   try {
-    const r = await fetch(FB + '/orders.json', { cache: 'no-store' });
+    const r = await fbFetch(env, FB + '/orders.json', { cache: 'no-store' });
     const data = await r.json();
     if (data) {
       for (const brand in data) {
@@ -449,7 +491,7 @@ async function cleanupOldRecords(env) {
           for (const oid in data[brand][branch]) {
             const o = data[brand][branch][oid];
             if (o && o.date && o.date < cutoffStr) {
-              await fetch(FB + '/orders/' + encodeURIComponent(brand) + '/' + encodeURIComponent(branch) + '/' + oid + '.json', { method: 'DELETE' });
+              await fbFetch(env, FB + '/orders/' + encodeURIComponent(brand) + '/' + encodeURIComponent(branch) + '/' + oid + '.json', { method: 'DELETE' });
               summary.orders++;
             }
           }
@@ -461,7 +503,7 @@ async function cleanupOldRecords(env) {
   console.log('cleanup summary (cutoff ' + cutoffStr + '):', JSON.stringify(summary));
   // 로그를 Firebase에 남기기 (감사용)
   try {
-    await fetch(FB + '/maintenance/cleanupLog.json', {
+    await fbFetch(env, FB + '/maintenance/cleanupLog.json', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ts: Date.now(), cutoff: cutoffStr, summary })
@@ -697,11 +739,11 @@ async function handleBotCallback(body, env) {
 
   try {
     if (channelId) {
-      await fetch(FB + '/debug/botChannels/' + encodeURIComponent(channelId) + '.json', {
+      await fbFetch(env, FB + '/debug/botChannels/' + encodeURIComponent(channelId) + '.json', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
       });
     }
-    await fetch(FB + '/debug/lastCallback.json', {
+    await fbFetch(env, FB + '/debug/lastCallback.json', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
     });
   } catch (e) { console.log('callback store err', e); }
