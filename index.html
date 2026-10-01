@@ -700,12 +700,29 @@ function fbG(p){return fbReq(p,{cache:'no-store'}).then(function(r){
     return j;
   }).catch(function(){return null});
 })}
-function fbP(p,d){return fbReq(p,{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
+/* 저장·삭제가 막혀도 호출부 126곳이 그냥 다음 단계로 넘어가 "완료" 를 띄웠다.
+   조용히 잃는 것보다 멈추는 게 낫다. 실패는 예외로 던지고, 아무도 안 받으면
+   아래 전역 처리기가 화면에 띄운다. */
+function fbFail(r,what){var e=new Error(what+' 실패 ('+r.status+(r.status===401?' 권한 없음':'')+')');e.__db=true;return e}
+function fbP(p,d){return fbReq(p,{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){
+  if(!r.ok)throw fbFail(r,'저장');
+  return r;
+})}
+
 function fbPost(p,d){return fbReq(p,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){
-  if(!r.ok)throw new Error('저장 실패 ('+r.status+')');
+  if(!r.ok)throw fbFail(r,'저장');
   return r.json();
 })}
-function fbD(p){return fbReq(p,{method:'DELETE',cache:'no-store'})}
+function fbD(p){return fbReq(p,{method:'DELETE',cache:'no-store'}).then(function(r){
+  if(!r.ok)throw fbFail(r,'삭제');
+  return r;
+})}
+/* 아무도 받지 않은 저장 실패를 삼키지 않는다 */
+window.addEventListener('unhandledrejection',function(ev){
+  var e=ev&&ev.reason;
+  if(e&&e.__db){ev.preventDefault();if(typeof toast==='function')toast('⚠️ '+e.message+' — 다시 시도해주세요')}
+  console.log('처리되지 않은 오류',e);
+});
 function doConnect(){var u=$('fbi').value.trim().replace(/\/$/,'');if(!u||!u.startsWith('https://'))return alert('올바른 Firebase URL을 입력해주세요');FB=u;localStorage.setItem('dm_fb',u);initFB()}
 function migrateRoles(){fbG('/users.json').then(function(d){if(!d)return;Object.keys(d).forEach(function(ph){var u=d[ph];if(u.role==='매니저'&&u.branch==='본사'){fbP('/users/'+ph+'/role.json','경영팀')}else if(u.role==='본사경영팀'){fbP('/users/'+ph+'/role.json','경영팀')}})})}
 function dbgRun(){var d=$('DBG-AREA');d.style.display='block';d.innerHTML='진단 중...';var info='FB URL: '+FB+'<br>localStorage: '+(safeLS(function(){return localStorage.getItem('dm_fb')})||'없음')+'<br>UA: '+navigator.userAgent.slice(0,50)+'<br><br>';d.innerHTML=info+'fetch 시도 중...';fetch(FB+'/.json?shallow=true',{cache:'no-store'}).then(function(r){d.innerHTML=info+'✅ 응답 수신<br>Status: '+r.status+' '+r.statusText;return r.text()}).then(function(t){d.innerHTML+='<br>Body: '+t.slice(0,200)}).catch(function(e){d.innerHTML=info+'❌ 에러: '+e.message+'<br>Type: '+e.name+'<br><br>가능한 원인:<br>1. Firebase 규칙 만료<br>2. 네트워크 차단<br>3. 잘못된 URL'})}
