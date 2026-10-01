@@ -1059,8 +1059,12 @@ let _saTok = null;
 function b64url(buf) {
   return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+let _saWarned = false;
 async function saAccessToken() {
-  if (!process.env.FIREBASE_SA) return null;
+  if (!process.env.FIREBASE_SA) {
+    if (!_saWarned) { _saWarned = true; console.log('[rtdb] ⚠️ FIREBASE_SA 없음 — 무인증으로 접근합니다(DB를 잠그면 401이 됩니다)'); }
+    return null;
+  }
   if (_saTok && _saTok.exp > Date.now() + 60000) return _saTok.v;
   const sa = JSON.parse(process.env.FIREBASE_SA);
   const now = Math.floor(Date.now() / 1000);
@@ -1080,6 +1084,7 @@ async function saAccessToken() {
   if (!r.ok) throw new Error(`서비스 계정 토큰 발급 실패 ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   _saTok = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  console.log(`[rtdb] 서비스 계정 인증 사용 (${sa.client_email})`);
   return _saTok.v;
 }
 /* path 에 이미 ?가 붙어 올 수 있어 구분자를 가려 쓴다 */
