@@ -5656,9 +5656,9 @@ function pwmRow(k,v,warn){return '<div style="display:flex;justify-content:space
 function pwmLoad(){
   var R=$('PWM-ROOT');if(!R)return;
   R.innerHTML='<div class="card" style="padding:18px"><div style="color:var(--text-3);font-size:13px">확인 중...</div></div>';
-  ctFetch('/auth/migrate',{method:'POST',body:JSON.stringify({dry:true})}).then(ctOk)
+  ctFetch('/auth/migrate',{method:'POST',body:JSON.stringify({})}).then(ctOk)
     .then(function(j){
-      var r=(j&&j.result)||{},남=+r['전환']||0;
+      var r=(j&&j.result)||{},남=+r['남음']||0;
       var h='<div class="card" style="padding:18px;margin-bottom:12px">';
       h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">현황</div>';
       h+=pwmRow('전체 계정',(r.total||0)+'명');
@@ -5689,15 +5689,25 @@ function nsEscPwm(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':
 function pwmRun(){
   customConfirm('평문 비밀번호를 전부 해시로 바꿉니다.\n직원들은 쓰던 비밀번호를 그대로 쓰면 됩니다.\n\n진행할까요?',function(ok){
     if(!ok)return;
-    var b=$('pwm-run');if(b){b.disabled=true;b.textContent='전환 중...'}
-    ctFetch('/auth/migrate',{method:'POST',body:JSON.stringify({dry:false})}).then(ctOk)
-      .then(function(j){
-        var r=(j&&j.result)||{};
-        toast('전환 완료 · '+(r['전환']||0)+'명');
-        if(r['실패']&&r['실패'].length)alert('일부 실패:\n'+r['실패'].join('\n'));
-        pwmLoad();
-      })
-      .catch(function(e){alert('전환 실패: '+(e&&e.message||'서버 오류'));pwmLoad()});
+    var b=$('pwm-run');if(b)b.disabled=true;
+    var 한계=0,실패=[],총=0;
+    /* 한 번에 10명씩. 남은 수가 0이 될 때까지 이어서 부른다. */
+    function step(){
+      if(++한계>60){alert('전환이 끝나지 않았습니다. 화면을 다시 열어 남은 인원을 확인해주세요.');return pwmLoad()}
+      if(b)b.textContent='전환 중... '+(총?총+'명 완료':'');
+      ctFetch('/auth/migrate',{method:'POST',body:JSON.stringify({run:true,limit:10})}).then(ctOk)
+        .then(function(j){
+          var r=(j&&j.result)||{};
+          총+=(+r['전환']||0);
+          if(r['실패']&&r['실패'].length)실패=실패.concat(r['실패']);
+          if((+r['남음']||0)>0&&(+r['전환']||0)>0)return step();
+          toast('전환 완료 · '+총+'명');
+          if(실패.length)alert('일부 실패:\n'+실패.join('\n'));
+          pwmLoad();
+        })
+        .catch(function(e){alert('전환 실패: '+(e&&e.message||'서버 오류')+'\n여기까지 '+총+'명 완료. 다시 누르면 이어서 진행됩니다.');pwmLoad()});
+    }
+    step();
   });
 }
 function examAdminEditAsk(id){_showPopup({type:'prompt',title:'점수 수정 · 본인 확인',msg:'본인 비밀번호를 입력하세요',defaultValue:'',cb:function(v){if(v==null)return;v=String(v);

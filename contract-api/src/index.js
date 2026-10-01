@@ -99,6 +99,21 @@ async function dbPut(env, path, value) {
   if (!r.ok) throw new Error('DB 쓰기 실패 ' + r.status);
   return r.json();
 }
+async function dbPatch(env, path, obj) {
+  const t = await accessToken(env);
+  const r = await fetch(`${env.FIREBASE_URL}${path}.json?access_token=${t}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj),
+  });
+  if (!r.ok) throw new Error('DB 일괄쓰기 실패 ' + r.status);
+  return r.json();
+}
+/* 키 목록만 받아온다. 계정마다 따로 조회하면 요청 수가 계정 수만큼 늘어난다. */
+async function dbKeys(env, path) {
+  const t = await accessToken(env);
+  const r = await fetch(`${env.FIREBASE_URL}${path}.json?shallow=true&access_token=${t}`, { cache: 'no-store' });
+  if (!r.ok) throw new Error('DB 읽기 실패 ' + r.status);
+  return (await r.json()) || {};
+}
 async function dbDelete(env, path) {
   const t = await accessToken(env);
   const r = await fetch(`${env.FIREBASE_URL}${path}.json?access_token=${t}`, { method: 'DELETE' });
@@ -385,29 +400,49 @@ export default {
         return json({ ok: true, match: ok }, 200, origin);
       }
 
-      /* 평문 비밀번호 일괄 전환 — 1회성. 멱등하므로 중간에 끊기면 다시 돌리면 된다. */
+      /* 평문 비밀번호 일괄 전환.
+         한 번에 다 돌리면 계정 수만큼 요청이 나가 Worker 한도에 걸린다. 그래서 한 번에
+         limit 명씩만 처리하고 남은 수를 돌려준다. 화면이 0이 될 때까지 반복 호출한다.
+         쓰기는 PATCH 로 묶어 한 번에 보낸다. 멱등하므로 중간에 끊겨도 다시 부르면 된다. */
       if (path === '/auth/migrate' && request.method === 'POST') {
         if (!(await canManageStaff(env, me)))
           return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
-        const { dry } = await request.json().catch(() => ({}));
+        const { run, limit } = await request.json().catch(() => ({}));
         const users = (await dbGet(env, '/users').catch(() => null)) || {};
-        const out = { total: 0, 전환: 0, 이미됨: 0, 비밀번호없음: 0, 실패: [] };
-        for (const phone of Object.keys(users)) {
-          out.total++;
-          const u = users[phone] || {};
-          const ph = encodeURIComponent(phone);
-          const sec = await dbGet(env, '/authSecrets/' + ph).catch(() => null);
-          if (sec && sec.hash) {
-            out.이미됨++;
-            if (u.pw != null && !dry) await dbDelete(env, '/users/' + ph + '/pw').catch(() => {});
-            continue;
-          }
-          if (u.pw == null) { out.비밀번호없음++; continue; }
-          if (dry) { out.전환++; continue; }
-          try { await pwSet(env, phone, String(u.pw)); await dbDelete(env, '/users/' + ph + '/pw'); out.전환++; }
+        const done = await dbKeys(env, '/authSecrets').catch(() => ({}));
+
+        const phones = Object.keys(users);
+        const todo = phones.filter((ph) => !done[ph] && users[ph] && users[ph].pw != null);
+        const out = {
+          total: phones.length,
+          이미됨: phones.filter((ph) => !!done[ph]).length,
+          전환: 0,
+          남음: todo.length,
+          비밀번호없음: phones.filter((ph) => !done[ph] && (!users[ph] || users[ph].pw == null)).length,
+          실패: [],
+        };
+        if (!run) return json({ ok: true, dry: true, result: out }, 200, origin);
+
+        const batch = todo.slice(0, Math.min(Math.max(+limit || 10, 1), 20));
+        const secrets = {}, clears = {};
+        for (const phone of batch) {
+          try { secrets[phone] = await pwHash(String(users[phone].pw)); clears[phone + '/pw'] = null; }
           catch (e) { out.실패.push(phone + ': ' + e.message); }
         }
-        return json({ ok: true, dry: !!dry, result: out }, 200, origin);
+        const n = Object.keys(secrets).length;
+        if (n) {
+          await dbPatch(env, '/authSecrets', secrets);   // 해시를 먼저 쓰고
+          await dbPatch(env, '/users', clears);          // 그다음 평문을 지운다
+          out.전환 = n;
+          out.남음 = todo.length - n;
+        }
+        /* 이미 해시가 있는데 평문이 남은 계정도 같이 정리한다 */
+        const stale = {};
+        for (const ph of phones) if (done[ph] && users[ph] && users[ph].pw != null) stale[ph + '/pw'] = null;
+        const staleN = Object.keys(stale).length;
+        if (staleN) { await dbPatch(env, '/users', stale); out.평문잔여정리 = staleN; }
+
+        return json({ ok: true, result: out }, 200, origin);
       }
 
       /* 지점 계약 기본값 수정 — owner 만. 변경 전후를 감사 로그에 남긴다.
