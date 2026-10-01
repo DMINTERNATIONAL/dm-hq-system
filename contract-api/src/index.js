@@ -187,6 +187,9 @@ async function pwUpgrade(env, phone, pw) {
 const PW_ADMIN_GRADES = ['경영팀', '관리자'];
 async function canManageStaff(env, me) {
   if (me && me.role === 'owner') return true;
+  /* 본사 관리자는 users 에 기록이 없다. 계정이 아니라 비밀번호만으로 들어오는 입구라
+     아래의 users 조회로는 영영 판정이 안 된다. 직원 비밀번호 재발급이 이 입구의 주 용도다. */
+  if (me && me.admin === true) return true;
   const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
   if (!u || u.status === '퇴사') return false;
   if (u.systemGrade) return PW_ADMIN_GRADES.indexOf(u.systemGrade) >= 0;
