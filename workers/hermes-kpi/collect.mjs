@@ -946,7 +946,23 @@ async function collectSns(date, dry) {
         // 인턴 연습 KPI용: 이번달 업로드수(피드+릴스, 스토리 제외)를 phone키로 저장 → 프론트가 연습보정에 사용.
         // 인턴만(매출 없는 교육 대상). ym=수집일(KST) 기준 달.
         if ((u.academyRole === '인턴' || u.role === '인턴')) {
-          await rtdbPut(`/practiceIg/${enc(date.slice(0, 7))}/${enc(ph)}`, { uploads: metrics.uploads_thismonth, username, at: nowIso() });
+          const ym = date.slice(0, 7);
+          await rtdbPut(`/practiceIg/${enc(ym)}/${enc(ph)}`, { uploads: metrics.uploads_thismonth, username, at: nowIso() });
+          /* 지난달도 같이 고쳐 둔다. 말일 밤에 올린 글은 그 달의 마지막 수집(새벽 04:07) 뒤라
+             예전 방식으로는 영영 안 잡혔다. 월초 며칠간만 손대고, 25개를 꽉 채워 지난달을
+             다 못 본 경우에는 건드리지 않는다(실제보다 적게 덮어쓸 수 있다). */
+          const d = +date.slice(8, 10);
+          if (d <= 7 && metrics.months_complete) {
+            const pm = new Date(Date.parse(date + 'T12:00:00+09:00'));
+            pm.setUTCDate(1); pm.setUTCMonth(pm.getUTCMonth() - 1);
+            const pym = pm.getUTCFullYear() + '-' + String(pm.getUTCMonth() + 1).padStart(2, '0');
+            const prev = (metrics.uploads_by_month || {})[pym] || 0;
+            const was = await fbGET(`/practiceIg/${enc(pym)}/${enc(ph)}.json`);
+            if (!was || (+was.uploads || 0) !== prev) {
+              await rtdbPut(`/practiceIg/${enc(pym)}/${enc(ph)}`, { uploads: prev, username, at: nowIso(), fixed: true });
+              console.log(`[sns] ${name} ${pym} 업로드 ${was ? (+was.uploads || 0) : '-'} → ${prev} (말일 누락분 보정)`);
+            }
+          }
         }
       }
       out.push({ shop, name, username, ok: true, ...metrics });
@@ -1010,8 +1026,17 @@ export function computeSnsMetrics(bd, date) {
   const _md = new Date(Date.parse(date + 'T12:00:00+09:00'));
   const monthStartMs = Date.parse(_md.getUTCFullYear() + '-' + String(_md.getUTCMonth() + 1).padStart(2, '0') + '-01T00:00:00+09:00');
   let uploads_7d = 0, uploads_thisweek = 0, uploads_thismonth = 0; const matured = [];
+  /* 달이 바뀌면 지난달 숫자가 그 시점에 멈춘다. 수집은 새벽 04:07 에만 도는데, 말일 밤에
+     올린 글은 그 달의 마지막 수집 이후라 영영 안 잡혔다(실제로 9/30 23시 업로드가 누락됐다).
+     그래서 달별로 세어 두고, 호출한 쪽이 지난달도 다시 쓸 수 있게 한다. KST 기준. */
+  const byMonth = {};
+  let oldestTs = Infinity;
   for (const m of media) {
     const ts = Date.parse(m.timestamp); if (!Number.isFinite(ts)) continue;
+    if (ts < oldestTs) oldestTs = ts;
+    const kst = new Date(ts + 9 * 3600000);
+    const ym = kst.getUTCFullYear() + '-' + String(kst.getUTCMonth() + 1).padStart(2, '0');
+    byMonth[ym] = (byMonth[ym] || 0) + 1;
     if (ts >= weekStartMs) uploads_thisweek++;
     if (ts >= monthStartMs) uploads_thismonth++;
     if (nowMs - ts < winMs) uploads_7d++; else matured.push({ ts, like: num(m.like_count), cmt: num(m.comments_count) });
@@ -1038,6 +1063,10 @@ export function computeSnsMetrics(bd, date) {
   const by_weekday = {}; for (const k of Object.keys(wd)) { const w = wd[k]; by_weekday[k] = { n: w.n, avg_likes: +(w.l / w.n).toFixed(1), avg_comments: +(w.c / w.n).toFixed(1) }; }
   return {
     followers, following, media_count, uploads_7d, uploads_thisweek, uploads_thismonth,
+    uploads_by_month: byMonth,
+    /* media 는 최근 25개까지만 온다. 25개를 꽉 채웠고 그 안에 지난달 이전 글이 없으면
+       지난달을 다 못 본 것이므로 덮어쓰면 안 된다. */
+    months_complete: media.length < 25 || oldestTs < monthStartMs,
     top_posts, recent_posts, by_weekday,
     avg_likes: n ? +(sumLikes / n).toFixed(1) : 0, avg_comments: n ? +(sumCmts / n).toFixed(1) : 0,
     engagement_rate: (n && followers) ? +(((sumLikes + sumCmts) / n / followers) * 100).toFixed(3) : 0,
