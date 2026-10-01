@@ -20,7 +20,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:8012',
   'http://127.0.0.1:8012',
 ];
-const TOKEN_TTL_SEC = 12 * 60 * 60;        // 12시간
+const TOKEN_TTL_SEC = 7 * 24 * 60 * 60;   // 7일
 const REMEMBER_TTL_SEC = 30 * 24 * 60 * 60; // 로그인 유지 30일
 
 /* ═══ 공통 유틸 ═══ */

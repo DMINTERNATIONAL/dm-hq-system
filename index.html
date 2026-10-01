@@ -670,7 +670,12 @@ function dbTokenFresh(){return DB_TOKEN&&DB_TOKEN_EXP>Date.now()+120000}
 function dbToken(){
   if(dbTokenFresh())return Promise.resolve(DB_TOKEN);
   if(DB_TOKEN_WAIT)return DB_TOKEN_WAIT;      /* 동시에 여러 호출이 몰려도 발급은 한 번만 */
-  if(!CT_TOKEN&&!ctRestore())return Promise.resolve(null);
+  if(!CT_TOKEN&&!ctRestore()){
+    /* 쓰는 도중에 유효기간이 지났다. 그냥 null 을 돌려주면 모든 조회가 빈값이 되어
+       '직원이 0명' 같은 화면이 나온다. 한 번만 알리고 로그인으로 보낸다. */
+    if(ME)sessionExpired();
+    return Promise.resolve(null);
+  }
   DB_TOKEN_WAIT=ctFetch('/auth/dbtoken',{method:'POST',body:'{}'})
     .then(function(j){
       if(j&&j.ok&&j.idToken){DB_TOKEN=j.idToken;DB_TOKEN_EXP=Date.now()+(j.expiresIn||3600)*1000;return DB_TOKEN}
@@ -681,6 +686,14 @@ function dbToken(){
   return DB_TOKEN_WAIT;
 }
 function dbClearToken(){DB_TOKEN=null;DB_TOKEN_EXP=0;DB_TOKEN_WAIT=null}
+var _sessExpired=false;
+function sessionExpired(){
+  if(_sessExpired)return; _sessExpired=true;
+  ME=null;dbClearToken();
+  safeLS(function(){localStorage.removeItem('dm_me');localStorage.removeItem('dm_remember_pw')});
+  if(typeof go==='function')go('p-login');
+  setTimeout(function(){alert('로그인 유효기간이 지났습니다.\n다시 로그인해주세요.')},300);
+}
 function fbUrl(p,t){return FB+p+(t?((p.indexOf('?')>=0?'&':'?')+'auth='+t):'')}
 function fbReq(p,opts){
   return dbToken().then(function(t){return fetch(fbUrl(p,t),opts)}).then(function(r){
@@ -972,13 +985,9 @@ function doLogin(){var ph=$('li-ph').value.trim(),pw=$('li-pw').value;if(!ph||!p
       done();return openDash();
     }
     done();
-    if(j&&j.error&&!/맞지 않습니다/.test(j.error))return alert(j.error);
-    /* 비밀번호가 틀린 경우와 계정이 없는 경우를 나눠 안내한다 */
-    return fbG('/pending/'+ph+'.json').then(function(pd){
-      if(pd)return alert('가입 승인 대기 중입니다.\n본사 관리자 승인 후 로그인이 가능합니다.');
-      return fbG('/users/'+ph+'.json').then(function(u){
-        alert(u?'비밀번호가 일치하지 않습니다.':'등록되지 않은 계정입니다.\n가입 신청을 먼저 해주세요.')})
-    });
+    /* 로그인 전에는 토큰이 없어 DB 조회도 막힌다. 그 결과로 계정 유무를 판단하면
+       비밀번호만 틀렸는데 '등록되지 않은 계정' 이라고 겁을 준다. 서버 답만 믿는다. */
+    return alert((j&&j.error)||'전화번호 또는 비밀번호를 확인해주세요.');
   }).catch(function(){done();alert('로그인 서버에 연결할 수 없습니다.\n잠시 후 다시 시도해주세요.')})}
 function togglePwView(inputId,btn){var inp=$(inputId);if(!inp)return;if(inp.type==='password'){inp.type='text';btn.innerHTML='<i data-lucide="eye-off"></i>'}else{inp.type='password';btn.innerHTML='<i data-lucide="eye"></i>'}renderIcons()}
 function submitPwReset(){var name=$('pr-name').value.trim();var ph=$('pr-ph').value.trim();var bday=$('pr-bday').value;if(!name||!ph||!bday)return alert('모든 항목을 입력해주세요');fbG('/users/'+ph+'.json').then(function(u){if(!u)return alert('등록된 계정이 없습니다.\n전화번호를 다시 확인해주세요.');if(u.name!==name)return alert('이름이 일치하지 않습니다');if(u.birthDate&&u.birthDate!==bday)return alert('생년월일이 일치하지 않습니다');fbPost('/pwResetRequests.json',{userId:ph,userName:name,brand:u.brand||'',branch:u.branch||'',requestedAt:Date.now(),date:new Date().toISOString().slice(0,10),status:'pending'}).then(function(){alert('재설정 요청이 접수되었습니다.\n본사 관리자가 확인 후 새 비밀번호를 발급해드립니다.\n\n※ 관리자에게 직접 연락하시면 더 빠르게 처리됩니다.');$('pr-name').value='';$('pr-ph').value='';$('pr-bday').value='';go('p-login')})})}
@@ -4847,9 +4856,13 @@ window.addEventListener('load',function(){setTimeout(function(){if(dmIsStandalon
 })();
 function refreshPageData(id){try{if(id==='p-dash'){if(typeof renderDashBreak==='function')renderDashBreak();if(typeof loadHQAlerts==='function')loadHQAlerts()}else if(id==='p-hq-order-hub'){loadHQOrderHub()}else if(id==='p-hq-staff-hub'){loadHQStaffHub()}else if(id==='p-hq-meal-hub'){loadHQMealHub()}else if(id==='p-in-practice-hub'){if(typeof loadInternPracticeHub==='function')loadInternPracticeHub()}else if(id==='p-in-acad-hub'){if(typeof loadInternAcadHub==='function')loadInternAcadHub()}else if(id==='p-in-meal-hub'){if(typeof loadInternMealHub==='function')loadInternMealHub()}else if(id==='p-des-interns-hub'){if(typeof loadDesInternsHub==='function')loadDesInternsHub()}else if(id==='p-des-edu-hub'){if(typeof loadDesEduHub==='function')loadDesEduHub()}else if(id==='p-cnt-order-hub'){if(typeof loadCounterOrderHub==='function')loadCounterOrderHub()}else if(id==='p-cnt-interns-hub'){if(typeof loadCounterInternsHub==='function')loadCounterInternsHub()}else if(id==='p-more-hub'){loadMoreHub()}else if(id==='p-supplier-eta'){loadSupplierETA()}else if(id==='p-teatime'){loadTeaTime()}else if(id==='p-sales-input'){onSiDateChange()}else if(id==='p-sales-admin'){loadSalesAdmin()}else if(id==='p-sales-my'){loadSalesMy()}else if(id==='p-practice-admin'){loadPracticeAdmin()}else if(id==='p-hist'){openHist()}else if(id==='p-adm-ord'){loadAdmOrd()}else if(id==='p-adm-pend'){loadPend()}else if(id==='p-adm-staff'){loadStaff()}else if(id==='p-brk-mgmt'){renderBM&&renderBM();loadBMDone&&loadBMDone()}else if(id==='p-my-interns'){openMyInterns()}else if(id==='p-break-admin'){loadBreakAdmin()}else if(id==='p-meal-admin'){loadMealList()}else if(id==='p-refund-admin'){renderRefund()}else if(id==='p-order-stat'){loadOrderStat()}else if(id==='p-prod-mgmt'){renderProdMgmt()}else if(id==='p-acad-progress'){openAcadProg()}else if(id==='p-acad-exams'){openAcadExams()}else if(id==='p-acad-hw'){openAcadHW()}else if(id==='p-leave'){loadLeaveHist();if(ME&&ME.role==='인턴')loadLeaveInfo&&loadLeaveInfo()}else if(id==='p-adm-leave'){loadAdmLeave()}else if(id==='p-adm-addleave'){loadAddLeave()}else if(id==='p-late'){loadLateHist()}else if(id==='p-order-view'){openOrderView()}else if(id==='p-branch-interns'){openBranchInterns()}else if(id==='p-break'){openBreak()}else if(id==='p-edu-check'){loadECHist&&loadECHist()}else if(id==='p-ext-acad'){loadExtHist&&loadExtHist()}else if(id==='p-adm-acad'){loadAdmAcad()}else if(id==='p-edu-stats'){openEduStats()}else if(id==='p-edu-stats-hq'){renderEduStatsHQ()}else if(id==='p-notif-config'){openNotifConfig()}else if(id==='p-meal-list'){loadMyMealList&&loadMyMealList()}else if(id==='p-my-practice-log'){loadMyPracticeLog&&loadMyPracticeLog()}else if(id==='p-meal-record'){onMrDateChange&&onMrDateChange()}else if(id==='p-leave-cal'){if(typeof loadLeaveCal==='function')loadLeaveCal()}else if(id==='p-self-treatment-admin'){if(typeof loadSelfTreatmentAdmin==='function')loadSelfTreatmentAdmin()}}catch(e){console.log('refresh err',e)}}
 window.addEventListener('popstate',function(e){if(e.state&&e.state.page){var el=document.getElementById(e.state.page);if(el){document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});el.classList.add('on');window.scrollTo(0,0);if(typeof renderBotTab==='function')renderBotTab(e.state.page);refreshPageData(e.state.page)}}});window.addEventListener('DOMContentLoaded',function(){FB=safeLS(function(){return localStorage.getItem('dm_fb')})||safeLS(function(){return localStorage.getItem('dmi_fb_url')})||FIXED_URL;safeLS(function(){localStorage.setItem('dm_fb',FB)});initFB();setTimeout(loadProductDB,500);setTimeout(loadSupplierETAConfig,600);document.body.classList.add('no-sidebar');var s=safeLS(function(){return localStorage.getItem('dm_me')});if(s)try{ME=JSON.parse(s);if(ME.role==='매니저'&&ME.branch==='본사')ME.role='경영팀';if(ME.role==='본사경영팀')ME.role='경영팀';safeLS(function(){localStorage.setItem('dm_me',JSON.stringify(ME))});if(!ctRestore()){
-      /* 토큰이 만료됐다. 예전에는 폰에 저장해 둔 평문 비밀번호로 다시 받아왔지만
-         이제 그 값을 두지 않는다. 계약·명세서 메뉴만 잠기고 나머지는 그대로 쓴다. */
-      safeLS(function(){localStorage.removeItem('dm_remember_pw')});
+      /* 토큰이 끊겼다. DB를 잠근 뒤로는 토큰이 없으면 아무것도 못 읽는다. 예전처럼 그냥
+         넘어가면 '로그인은 돼 있는데 직원이 0명' 같은 화면이 나온다. 다시 로그인시킨다. */
+      safeLS(function(){localStorage.removeItem('dm_remember_pw');localStorage.removeItem('dm_me')});
+      ME=null;dbClearToken();
+      go('p-login');
+      setTimeout(function(){alert('로그인 유효기간이 지났습니다.\n다시 로그인해주세요.')},300);
+      return;
     }
     delete ME.pw;   /* 예전 세션에 평문이 남아 있을 수 있다 */
     openDash()}catch(e){}setTimeout(migrateRoles,2000);renderIcons();document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible')return;dashBrkLastFetch=0;brkLastFetch=0;notifLastCount=-1;dashBrkData=null;brkLiveData=null;if(ME)refreshNotif();var cur=document.querySelector('.pg.on');if(!cur)return;var id=cur.id;try{if(id==='p-dash'){renderDashBreak()}else if(id==='p-hist'){openHist()}else if(id==='p-adm-ord'){loadAdmOrd()}else if(id==='p-adm-pend'){loadPend()}else if(id==='p-adm-staff'){loadStaff()}else if(id==='p-brk-mgmt'){renderBM();loadBMDone()}else if(id==='p-my-interns'){openMyInterns()}else if(id==='p-break-admin'){loadBreakAdmin()}else if(id==='p-meal-admin'){loadMealList()}else if(id==='p-refund-admin'){renderRefund()}else if(id==='p-order-stat'){loadOrderStat()}else if(id==='p-prod-mgmt'){renderProdMgmt()}else if(id==='p-acad-progress'){openAcadProg()}else if(id==='p-acad-exams'){openAcadExams()}else if(id==='p-acad-hw'){openAcadHW()}else if(id==='p-leave'){loadLeaveHist();if(ME&&ME.role==='인턴')loadLeaveInfo()}else if(id==='p-adm-leave'){loadAdmLeave()}else if(id==='p-adm-addleave'){loadAddLeave()}else if(id==='p-late'){loadLateHist()}else if(id==='p-order-view'){openOrderView()}else if(id==='p-branch-interns'){openBranchInterns()}else if(id==='p-break'){openBreak()}else if(id==='p-edu-check'){loadECHist()}else if(id==='p-ext-acad'){loadExtHist()}else if(id==='p-adm-acad'){loadAdmAcad()}else if(id==='p-edu-stats'){openEduStats()}else if(id==='p-edu-stats-hq'){renderEduStatsHQ()}else if(id==='p-notif-config'){openNotifConfig()}else if(id==='p-meal-list'){loadMyMealList()}else if(id==='p-my-practice-log'){loadMyPracticeLog()}else if(id==='p-meal-record'){onMrDateChange()}}catch(e){console.log('refresh err',e)}})});</script>
