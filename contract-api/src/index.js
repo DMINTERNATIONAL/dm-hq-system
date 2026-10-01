@@ -491,6 +491,24 @@ export default {
         return json({ ok: true }, 200, origin);
       }
 
+      /* 본사 관리자 — 계정 없이 비밀번호만으로 들어간다.
+         예전에는 앱 코드에 비밀번호가 그대로 박혀 있어 공개 페이지 소스만 보면 알 수 있었고,
+         서버를 거치지 않아 토큰이 없어서 DB를 잠근 뒤로는 아무것도 안 보였다.
+         이제 잠긴 경로의 해시와 맞춰보고 진짜 토큰을 내준다. */
+      if (path === '/auth/adminlogin' && request.method === 'POST') {
+        const { pw } = await request.json().catch(() => ({}));
+        if (!pw) return json({ ok: false, error: '비밀번호를 입력해주세요' }, 400, origin);
+        const sec = await dbGet(env, '/authSecrets/__admin').catch(() => null);
+        if (!sec || !sec.hash) return json({ ok: false, error: '관리자 비밀번호가 아직 설정되지 않았습니다. 경영팀 계정에서 설정해주세요.' }, 503, origin);
+        if (!(await pwVerify(sec, pw))) return json({ ok: false, error: '비밀번호가 올바르지 않습니다' }, 401, origin);
+        const now = Math.floor(Date.now() / 1000);
+        const token = await signToken(env, {
+          ph: 'admin', name: '관리자', role: 'staff', branches: [], admin: true,
+          iat: now, exp: now + TOKEN_TTL_SEC,
+        });
+        return json({ ok: true, token, expiresIn: TOKEN_TTL_SEC }, 200, origin);
+      }
+
       /* 이하 인증 필요 */
       const bearer = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
       const me = await verifyToken(env, bearer);
@@ -502,8 +520,10 @@ export default {
       /* 앱이 DB에 직접 붙을 때 쓰는 토큰. 1시간짜리라 앱이 주기적으로 다시 받아간다. */
       if (path === '/auth/dbtoken' && request.method === 'POST') {
         if (!env.FIREBASE_WEB_KEY) return json({ ok: false, error: 'FIREBASE_WEB_KEY 미설정' }, 500, origin);
-        const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
-        if (!u || u.status === '퇴사') return json({ ok: false, error: '사용할 수 없는 계정입니다' }, 403, origin);
+        if (!me.admin) {
+          const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
+          if (!u || u.status === '퇴사') return json({ ok: false, error: '사용할 수 없는 계정입니다' }, 403, origin);
+        }
         try {
           const t = await firebaseIdToken(env, String(me.ph), { staff: true });
           return json({ ok: true, ...t }, 200, origin);
@@ -525,6 +545,16 @@ export default {
         if (!self) await dbPush(env, '/auditLogs', {
           at: Date.now(), by: String(me.ph), byName: me.name || '', action: 'pw.reset', target,
         }).catch(() => {});
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* 본사 관리자 비밀번호 설정·변경 */
+      if (path === '/auth/setadminpw' && request.method === 'POST') {
+        if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        const { newPw } = await request.json().catch(() => ({}));
+        if (String(newPw || '').length < 8) return json({ ok: false, error: '관리자 비밀번호는 8자 이상으로 해주세요' }, 400, origin);
+        await dbPut(env, '/authSecrets/__admin', await pwHash(String(newPw)));
+        await dbPush(env, '/auditLogs', { at: Date.now(), by: String(me.ph), byName: me.name || '', action: 'adminpw.set' }).catch(() => {});
         return json({ ok: true }, 200, origin);
       }
 

@@ -1105,7 +1105,40 @@ function renderBotTab(activePage){var el=$('BOT-TAB');if(!el)return;var tabs=get
 function loadBotTabBadges(){if(!ME)return;var _v=viewFlags(ME);var isHQ=_v.hq,isDes=_v.des,isIntern=_v.intern,isCounter=_v.counter;function setBadge(k,n){var b=$('BT-BADGE-'+k);if(!b)return;if(n>0){b.textContent=n>99?'99+':n;b.style.display='inline-block'}else b.style.display='none'}if(isHQ){var nowMs=Date.now();var todayStr=todayStrKR();var ym=todayStr.slice(0,7);Promise.all([fbG('/users.json'),fbG('/meal.json'),fbG('/breakActive.json'),fbG('/orders.json'),fbG('/config/supplierETA.json'),fbG('/productDB.json')]).then(function(arr){var users=arr[0]||{},meals=arr[1]||{},brkA=arr[2]||{},orders=arr[3]||{},etaCfg=arr[4]||{},pdb=arr[5]||{};var orderPend=0,orderDelay=0,staffPend=0,noMentor=0,mealMiss=0,brkOver=0;Object.keys(users).forEach(function(ph){var u=users[ph];if(!u)return;if(u.status==='대기')staffPend++;if((u.academyRole==='인턴'||u.role==='인턴')&&(u.status||'재직')==='재직'&&(!u.mentorId||!users[u.mentorId]))noMentor++});Object.keys(orders).forEach(function(brand){var bd=orders[brand]||{};Object.keys(bd).forEach(function(branch){var bn=bd[branch]||{};Object.keys(bn).forEach(function(id){var o=bn[id];if(!o)return;if(o.status==='대기')orderPend++;if(isOrderDelayed(o,todayStr))orderDelay++})})});Object.keys(meals).forEach(function(ph){var ms=meals[ph];if(!ms)return;Object.keys(ms).forEach(function(d){var r=ms[d];if(r&&d.slice(0,7)===ym&&(r.status==='pending'||!r.status))mealMiss++})});Object.keys(brkA).forEach(function(ph){var b=brkA[ph];if(b&&b.startedAt&&(nowMs-b.startedAt)>60*60*1000)brkOver++});var supsPdb={};['prod','bipm'].forEach(function(t){var tdb=pdb[t]||{};Object.keys(tdb).forEach(function(s){supsPdb[s]=1})});var etaMissing=0;Object.keys(supsPdb).forEach(function(s){if(!etaCfg[s]&&!SUPPLIER_RULES[s])etaMissing++});setBadge('order',orderPend+orderDelay+etaMissing);setBadge('staff',staffPend+noMentor);setBadge('meal',mealMiss+brkOver)}).catch(function(){})}else if(isIntern){fbG('/education/homework.json').then(function(d){var c=0;Object.keys(d||{}).forEach(function(id){var h=d[id];if(h&&h.internId===ME.phone&&!h.completed)c++});setBadge('acad',c)}).catch(function(){})}else if(isDes){fbG('/education/homework.json').then(function(d){var c=0;Object.keys(d||{}).forEach(function(id){var h=d[id];if(h&&h.assignedBy===ME.phone&&!h.completed)c++});setBadge('edu',c)}).catch(function(){})}else if(isCounter){fbG('/orders/'+ME.brand+'/'+ME.branch+'.json').then(function(d){var c=0;Object.keys(d||{}).forEach(function(id){var o=d[id];if(o&&o.status==='대기')c++});setBadge('order',c)}).catch(function(){})}}
 
 function backToAdmin(){try{if(history.length>1){history.back();return}}catch(_){}if(ME)openDash();else go('p-admin')}
-function doAdmLogin(){if($('adm-pw').value==='01082470187'){ME={name:'본사 관리자',nick:'관리자',brand:'DM INTERNATIONAL',branch:'본사',role:'경영팀',phone:'admin',orderPermission:'off',_adminLogin:true};localStorage.setItem('dm_me',JSON.stringify(ME));openDash();if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='flex';showQRBtn();renderIcons()}else alert('비밀번호가 올바르지 않습니다.')}
+/* 예전에는 비밀번호가 이 줄에 그대로 있었다. 공개 페이지라 소스만 보면 알 수 있었고,
+   서버를 안 거쳐 토큰이 없으니 DB를 잠근 뒤로는 들어가도 아무것도 안 보였다.
+   들어가는 방식(비밀번호만 입력)은 그대로 두고, 확인과 토큰 발급을 서버가 한다. */
+function doAdmLogin(){
+  var pw=$('adm-pw').value; if(!pw)return alert('비밀번호를 입력해주세요');
+  var btn=document.querySelector('#p-adminpw .gbtn.pri');
+  if(btn){btn.disabled=true;btn.textContent='확인 중...'}
+  function done(){if(btn){btn.disabled=false;btn.textContent='로그인'}}
+  fetch(CONTRACT_API+'/auth/adminlogin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw})})
+    .then(function(r){return r.json()})
+    .then(function(j){
+      done();
+      if(!j||!j.ok)return alert((j&&j.error)||'비밀번호가 올바르지 않습니다.');
+      ctSave(j.token,'staff',j.expiresIn); dbClearToken(); _sessExpired=false;
+      ME={name:'본사 관리자',nick:'관리자',brand:'DM INTERNATIONAL',branch:'본사',role:'경영팀',phone:'admin',orderPermission:'off',_adminLogin:true};
+      localStorage.setItem('dm_me',JSON.stringify(ME));
+      $('adm-pw').value='';
+      openDash();
+      if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='flex';
+      showQRBtn();renderIcons();
+    })
+    .catch(function(){done();alert('서버에 연결할 수 없습니다.\n잠시 후 다시 시도해주세요.')});
+}
+/* 관리자 비밀번호 설정 — 경영팀만. 비밀번호 보안 화면에서 부른다. */
+function admPwChange(){
+  customPrompt('본사 관리자 비밀번호 (8자 이상)','',function(np){
+    if(np==null)return;
+    np=String(np).trim();
+    if(np.length<8)return alert('8자 이상으로 해주세요');
+    ctFetch('/auth/setadminpw',{method:'POST',body:JSON.stringify({newPw:np})}).then(ctOk)
+      .then(function(){toast('본사 관리자 비밀번호가 설정됐습니다')})
+      .catch(function(e){alert('설정 실패: '+(e&&e.message||'서버 오류'))});
+  });
+}
 /* ═══ PRACTICE TIMER ═══ */
 var prTimer=null,prData=null;
 function fmtPrTime(s){var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);return(h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec}
@@ -5773,6 +5806,11 @@ function pwmLoad(){
       h+=pwmRow('아직 평문',남+'명',남>0);
       h+=pwmRow('비밀번호 없음',(r['비밀번호없음']||0)+'명');
       h+='</div>';
+      h+='<div class="card" style="padding:18px;margin-bottom:12px">'
+        +'<div style="font-size:14px;font-weight:800;margin-bottom:6px">본사 관리자 비밀번호</div>'
+        +'<div style="font-size:12px;color:var(--text-2);line-height:1.7;margin-bottom:12px">'
+        +'계정 없이 비밀번호만으로 들어가는 입구입니다. 여러 사람이 함께 쓰므로 주기적으로 바꿔주세요.</div>'
+        +'<button class="gbtn sec" onclick="admPwChange()">비밀번호 설정 · 변경</button></div>';
       if(남>0){
         h+='<div class="card" style="padding:18px">';
         h+='<div style="font-size:13px;color:var(--text-2);line-height:1.75;margin-bottom:14px">'
