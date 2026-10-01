@@ -31,8 +31,12 @@ function _b64url(buf) {
   for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+let _saWarned = false;
 async function saAccessToken(env) {
-  if (!env || !env.FIREBASE_SA) return null;
+  if (!env || !env.FIREBASE_SA) {
+    if (!_saWarned) { _saWarned = true; console.log('[rtdb] ⚠️ FIREBASE_SA 없음 — 무인증 접근(DB를 잠그면 401이 됩니다)'); }
+    return null;
+  }
   if (_saTok && _saTok.exp > Date.now() + 60000) return _saTok.v;
   const sa = JSON.parse(env.FIREBASE_SA);
   const now = Math.floor(Date.now() / 1000);
@@ -54,6 +58,7 @@ async function saAccessToken(env) {
   if (!r.ok) throw new Error(`서비스 계정 토큰 발급 실패 ${r.status}`);
   const j = await r.json();
   _saTok = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  console.log(`[rtdb] 서비스 계정 인증 사용 (${sa.client_email})`);
   return _saTok.v;
 }
 /* path 에 이미 ?가 붙어 올 수 있어 구분자를 가려 쓴다 */
@@ -92,6 +97,22 @@ export default {
     catch (e) { return cors(new Response('Invalid JSON', { status: 400 })); }
 
     // 네이버 웍스 봇 콜백 — 채팅방 channelId 캡처용 (진단)
+    /* DB 접근이 살아 있는지 확인용. 인증이 조용히 깨지면 휴게 자동종료와 정리 작업이
+       아무 소리 없이 멈추기 때문에 바깥에서 찔러볼 수 있는 곳을 둔다. 데이터는 안 돌려준다. */
+    if (pathname === '/health/db') {
+      const FB = env.FIREBASE_URL || FB_DEFAULT;
+      try {
+        const r = await fbFetch(env, FB + '/breakActive.json?shallow=true', { cache: 'no-store' });
+        return new Response(JSON.stringify({
+          ok: r.ok, status: r.status,
+          auth: env.FIREBASE_SA ? '서비스 계정' : '무인증',
+        }), { status: r.ok ? 200 : 500, headers: { 'Content-Type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: String(e && e.message || e) }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+
     if (pathname === '/callback' || pathname.endsWith('/callback')) {
       return cors(await handleBotCallback(body, env));
     }
