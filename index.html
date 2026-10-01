@@ -738,7 +738,7 @@ window.addEventListener('unhandledrejection',function(ev){
 });
 function doConnect(){var u=$('fbi').value.trim().replace(/\/$/,'');if(!u||!u.startsWith('https://'))return alert('올바른 Firebase URL을 입력해주세요');FB=u;localStorage.setItem('dm_fb',u);initFB()}
 function migrateRoles(){fbG('/users.json').then(function(d){if(!d)return;Object.keys(d).forEach(function(ph){var u=d[ph];if(u.role==='매니저'&&u.branch==='본사'){fbP('/users/'+ph+'/role.json','경영팀')}else if(u.role==='본사경영팀'){fbP('/users/'+ph+'/role.json','경영팀')}})})}
-function dbgRun(){var d=$('DBG-AREA');d.style.display='block';d.innerHTML='진단 중...';var info='FB URL: '+FB+'<br>localStorage: '+(safeLS(function(){return localStorage.getItem('dm_fb')})||'없음')+'<br>UA: '+navigator.userAgent.slice(0,50)+'<br><br>';d.innerHTML=info+'fetch 시도 중...';fetch(FB+'/.json?shallow=true',{cache:'no-store'}).then(function(r){d.innerHTML=info+'✅ 응답 수신<br>Status: '+r.status+' '+r.statusText;return r.text()}).then(function(t){d.innerHTML+='<br>Body: '+t.slice(0,200)}).catch(function(e){d.innerHTML=info+'❌ 에러: '+e.message+'<br>Type: '+e.name+'<br><br>가능한 원인:<br>1. Firebase 규칙 만료<br>2. 네트워크 차단<br>3. 잘못된 URL'})}
+function dbgRun(){var d=$('DBG-AREA');d.style.display='block';d.innerHTML='진단 중...';var info='FB URL: '+FB+'<br>localStorage: '+(safeLS(function(){return localStorage.getItem('dm_fb')})||'없음')+'<br>UA: '+navigator.userAgent.slice(0,50)+'<br><br>';d.innerHTML=info+'fetch 시도 중...';fetch(FB+'/brands.json?shallow=true',{cache:'no-store'}).then(function(r){d.innerHTML=info+'✅ 응답 수신<br>Status: '+r.status+' '+r.statusText;return r.text()}).then(function(t){d.innerHTML+='<br>Body: '+t.slice(0,200)}).catch(function(e){d.innerHTML=info+'❌ 에러: '+e.message+'<br>Type: '+e.name+'<br><br>가능한 원인:<br>1. Firebase 규칙 만료<br>2. 네트워크 차단<br>3. 잘못된 URL'})}
 function dbgReset(){safeLS(function(){localStorage.removeItem('dm_fb');localStorage.removeItem('dmi_fb_url');localStorage.removeItem('dm_me')});alert('초기화 완료. 새로고침해주세요.');location.reload()}
 /* 연결 확인은 루트가 아니라 brands 를 읽는다. 보안 규칙상 루트에는 .read 가 없고
    ($other 는 루트의 자식에만 걸린다) 루트에 .read:true 를 주면 전파되어 contracts·statements
@@ -1862,7 +1862,12 @@ function nsWon(n){return (+n||0).toLocaleString('ko-KR')+'원'}
 function nsYm(d){d=d||new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)}
 function nsYmShift(ym,d){var p=ym.split('-'),dt=new Date(+p[0],+p[1]-1+d,1);return nsYm(dt)}
 function nsYmLabel(ym){var p=ym.split('-');return p[0]+'년 '+(+p[1])+'월'}
-function nsPatch(p,d){return fetch(FB+p,{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
+/* fbReq 를 거쳐야 토큰이 붙는다. 직접 fetch 하면 DB를 잠근 뒤로 전부 401 이 되고,
+   호출부가 .ok 를 안 봐서 저장이 조용히 사라진다. */
+function nsPatch(p,d){return fbReq(p,{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){
+  if(!r.ok)throw fbFail(r,'저장');
+  return r;
+})}
 function nsIsHQ(){return !!(ME&&typeof viewFlags==='function'&&viewFlags(ME).hq)}
 function nsMe(){return (typeof dispNm==='function'&&ME)?dispNm(ME):((ME&&(ME.nick||ME.name))||'')}
 /* 근무지별 입금 계좌 — 가발 공동구매와 동일 계좌 */
@@ -5654,7 +5659,10 @@ function openExamMyGrading(){examPage('p-exam-mine');go('p-exam-mine');document.
 function examMineRender(mine){var el=document.getElementById('p-exam-mine');if(!el)return;var h=examBar('채점할 시험','backToDash()');var ph=examMyPhone();if(!mine.length)h+='<div style="text-align:center;color:#94a3b8;font-size:13px;padding:24px 0">채점할 시험이 없어요</div>';mine.forEach(function(s){var done=!!(s.scores&&s.scores[ph]&&s.scores[ph].submitted);h+='<div onclick="openExamGrade(\''+s._id+'\')" style="cursor:pointer;background:#fff;border:1px solid #eef2f6;border-radius:12px;padding:13px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="min-width:0"><div style="font-size:14.5px;font-weight:800">'+examEsc(s.internName||'')+'</div><div style="font-size:11.5px;color:#94a3b8;margin-top:4px">'+examEsc(s.label||s.level||'')+' · '+examEsc(s.examType||'')+' · '+examEsc(s.date||'')+'</div></div>'+(done?'<span style="font-size:11px;font-weight:800;color:#16a34a;flex:0 0 auto">✓ 제출완료</span>':'<span style="font-size:11px;font-weight:800;color:#d97706;flex:0 0 auto">채점하기 ›</span>')+'</div>'});el.innerHTML=h}
 
 /* ── 집계 · TEST REPORT · 공유 ── */
-function examPatch(path,obj){return fetch(FB+path,{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)})}
+function examPatch(path,obj){return fbReq(path,{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)}).then(function(r){
+  if(!r.ok)throw fbFail(r,'저장');
+  return r;
+})}
 function examResultBadge(r){if(!r)return '';var c=r==='합격'?['#0f172a','#f1f3f6']:['#64748b','#f4f6f9'];return '<span style="font-size:12px;font-weight:800;padding:4px 12px;border-radius:99px;background:'+c[1]+';color:'+c[0]+'">'+examEsc(r)+'</span>'}
 function examAggregate(s){
  var scored=s.mode!=='feedback';var gph=Object.keys(s.graders||{});var submitted=gph.filter(function(ph){return s.scores&&s.scores[ph]&&s.scores[ph].submitted});

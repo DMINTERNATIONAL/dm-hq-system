@@ -186,9 +186,6 @@ html,body{background:#fff;color:#0a0a0a;font-family:-apple-system,BlinkMacSystem
 </div>
 
 <script>
-var FB='https://dm-orders-4792a-default-rtdb.firebaseio.com';
-function fbG(p){return fetch(FB+p,{cache:'no-store'}).then(function(r){return r.json()})}
-function fbPost(p,d){return fetch(FB+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}
 /* 손님 화면이 DB를 직접 읽으면 필요 없는 것까지 브라우저로 내려온다.
    디자이너 이름 몇 개 때문에 전 직원 기록이 통째로 나가던 것을 서버 창구로 바꾼다. */
 var PUBLIC_API='https://dm-contract-api.swavey2803.workers.dev';
