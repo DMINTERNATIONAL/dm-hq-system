@@ -338,6 +338,56 @@ export default {
         return json({ ok: true, token, role, branches, expiresIn: ttl, user: u }, 200, origin);
       }
 
+      /* ═══ 고객 상담 페이지(consult.html)용 — 로그인 없는 공개 창구 ═══
+         예전에는 consult.html 이 /users 를 통째로 받아 디자이너 이름만 골라 썼다.
+         이름 몇 개 때문에 전 직원의 집주소·생년월일·비상연락처가 손님 브라우저로
+         내려갔다. AI 추천용 공유 비밀키도 마찬가지로 실려 나갔다.
+         필요한 것만 서버가 골라 주고, 비밀키는 서버 안에 둔다. */
+      if (path === '/public/designers' && request.method === 'GET') {
+        const brand = url.searchParams.get('brand') || 'DAY:MEAN';
+        const users = (await dbGet(env, '/users').catch(() => null)) || {};
+        const order = (await dbGet(env, '/salonInfo/designerOrder').catch(() => null)) || [];
+        const list = [];
+        for (const ph of Object.keys(users)) {
+          const x = users[ph] || {};
+          if (x.brand !== brand || x.status === '퇴사') continue;
+          const isDesigner = x.role === '디자이너' || (Array.isArray(x.roles) && x.roles.indexOf('디자이너') >= 0);
+          if (!isDesigner) continue;
+          /* 내보내는 것은 이 네 가지뿐이다. 늘리기 전에 손님에게 보여도 되는지 따져볼 것. */
+          list.push({ ph, name: x.nick || x.name || '', branch: x.branch || '', enName: x.enName || '' });
+        }
+        list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        if (Array.isArray(order) && order.length) {
+          const rank = (d) => { const i = order.indexOf(d.ph); return i < 0 ? 999 : i; };
+          list.sort((a, b) => rank(a) - rank(b));
+        }
+        return json({ ok: true, designers: list }, 200, origin);
+      }
+
+      /* 상담 접수 — 손님이 직접 쓰던 경로를 서버가 받는다. 받을 항목을 정해 두고 그 외는 버린다. */
+      if (path === '/public/consult' && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        const pick = ['date','lang','visitType','branch','name','designer','designerPh','scalp','shampoo','memo','source','phone','gender','age','concerns','styles','budget','products'];
+        const rec = { ts: Date.now(), status: 'new' };
+        for (const k of pick) if (b[k] !== undefined) rec[k] = typeof b[k] === 'string' ? String(b[k]).slice(0, 2000) : b[k];
+        if (!rec.date) rec.date = new Date().toISOString().slice(0, 10);
+        await dbPush(env, '/consults', rec);
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* AI 추천 — 릴레이 비밀키를 브라우저에 주지 않고 서버가 들고 호출한다. */
+      if (path === '/public/reco' && request.method === 'POST') {
+        const cfg = await dbGet(env, '/config/naverWorks').catch(() => null);
+        if (!cfg || !cfg.url || !cfg.secret) return json({ ok: false, error: 'AI 설정이 없어요' }, 503, origin);
+        const b = await request.json().catch(() => ({}));
+        const r = await fetch(String(cfg.url).replace(/\/+$/, '') + '/ai/recommend', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: cfg.secret, summary: b.summary, lang: b.lang, products: b.products }),
+        });
+        const t = await r.text();
+        return new Response(t, { status: r.status, headers: { 'Content-Type': 'application/json', ...cors(origin) } });
+      }
+
       /* 가입 신청 — 로그인 전이라 무인증. 비밀번호는 해시로만 들어간다.
          이미 쓰는 번호면 거부한다. 안 그러면 남의 번호로 신청해서 그 사람 비밀번호를 갈아치울 수 있다. */
       if (path === '/auth/signup' && request.method === 'POST') {
