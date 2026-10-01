@@ -654,10 +654,40 @@ var TOTAL_WEEKS=140;
 var FB='',FIXED_URL='https://dm-orders-4792a-default-rtdb.firebaseio.com';
 var brkLiveTimer=null,brkLiveData=null,brkLastFetch=0,bmTimer=null,miTimer=null,dashBrkTimer=null;
 function $(id){return document.getElementById(id)}
-function fbG(p){return fetch(FB+p,{cache:'no-store'}).then(function(r){return r.json()})}
-function fbP(p,d){return fetch(FB+p,{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
-function fbPost(p,d){return fetch(FB+p,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}
-function fbD(p){return fetch(FB+p,{method:'DELETE',cache:'no-store'})}
+/* ═══ DB 접근 ═══
+   보안 규칙이 staff 토큰을 요구하므로 모든 호출에 Firebase ID 토큰을 붙인다.
+   토큰은 Worker 가 발급하고 1시간짜리라 만료 전에 다시 받아온다. 호출부가 500곳이 넘어
+   여기 네 함수에서만 처리한다.
+   로그인 전에는 토큰이 없다 — 그 상태로 잠긴 경로를 읽으면 401 이 나고, 원래도
+   볼 수 없던 것이라 호출부의 기존 catch 가 받아낸다. */
+var DB_TOKEN=null,DB_TOKEN_EXP=0,DB_TOKEN_WAIT=null;
+function dbTokenFresh(){return DB_TOKEN&&DB_TOKEN_EXP>Date.now()+120000}
+function dbToken(){
+  if(dbTokenFresh())return Promise.resolve(DB_TOKEN);
+  if(DB_TOKEN_WAIT)return DB_TOKEN_WAIT;      /* 동시에 여러 호출이 몰려도 발급은 한 번만 */
+  if(!CT_TOKEN&&!ctRestore())return Promise.resolve(null);
+  DB_TOKEN_WAIT=ctFetch('/auth/dbtoken',{method:'POST',body:'{}'})
+    .then(function(j){
+      if(j&&j.ok&&j.idToken){DB_TOKEN=j.idToken;DB_TOKEN_EXP=Date.now()+(j.expiresIn||3600)*1000;return DB_TOKEN}
+      DB_TOKEN=null;DB_TOKEN_EXP=0;return null;
+    })
+    .catch(function(){DB_TOKEN=null;DB_TOKEN_EXP=0;return null})
+    .then(function(t){DB_TOKEN_WAIT=null;return t});
+  return DB_TOKEN_WAIT;
+}
+function dbClearToken(){DB_TOKEN=null;DB_TOKEN_EXP=0;DB_TOKEN_WAIT=null}
+function fbUrl(p,t){return FB+p+(t?((p.indexOf('?')>=0?'&':'?')+'auth='+t):'')}
+function fbReq(p,opts){
+  return dbToken().then(function(t){return fetch(fbUrl(p,t),opts)}).then(function(r){
+    /* 토큰이 중간에 만료되면 한 번만 새로 받아 다시 시도한다 */
+    if(r.status===401&&DB_TOKEN){dbClearToken();return dbToken().then(function(t2){return t2?fetch(fbUrl(p,t2),opts):r})}
+    return r;
+  });
+}
+function fbG(p){return fbReq(p,{cache:'no-store'}).then(function(r){return r.json()})}
+function fbP(p,d){return fbReq(p,{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
+function fbPost(p,d){return fbReq(p,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}
+function fbD(p){return fbReq(p,{method:'DELETE',cache:'no-store'})}
 function doConnect(){var u=$('fbi').value.trim().replace(/\/$/,'');if(!u||!u.startsWith('https://'))return alert('올바른 Firebase URL을 입력해주세요');FB=u;localStorage.setItem('dm_fb',u);initFB()}
 function migrateRoles(){fbG('/users.json').then(function(d){if(!d)return;Object.keys(d).forEach(function(ph){var u=d[ph];if(u.role==='매니저'&&u.branch==='본사'){fbP('/users/'+ph+'/role.json','경영팀')}else if(u.role==='본사경영팀'){fbP('/users/'+ph+'/role.json','경영팀')}})})}
 function dbgRun(){var d=$('DBG-AREA');d.style.display='block';d.innerHTML='진단 중...';var info='FB URL: '+FB+'<br>localStorage: '+(safeLS(function(){return localStorage.getItem('dm_fb')})||'없음')+'<br>UA: '+navigator.userAgent.slice(0,50)+'<br><br>';d.innerHTML=info+'fetch 시도 중...';fetch(FB+'/.json?shallow=true',{cache:'no-store'}).then(function(r){d.innerHTML=info+'✅ 응답 수신<br>Status: '+r.status+' '+r.statusText;return r.text()}).then(function(t){d.innerHTML+='<br>Body: '+t.slice(0,200)}).catch(function(e){d.innerHTML=info+'❌ 에러: '+e.message+'<br>Type: '+e.name+'<br><br>가능한 원인:<br>1. Firebase 규칙 만료<br>2. 네트워크 차단<br>3. 잘못된 URL'})}
@@ -993,7 +1023,7 @@ var dashBrkData=null,dashBrkLastFetch=0;
 function renderDashBreak(){var el=$('DASH-BRK');if(!el)return;var now=Date.now();if(!dashBrkData||now-dashBrkLastFetch>10000){dashBrkLastFetch=now;if(!ME||!ME.phone)return;fbG('/breakActive/'+ME.phone+'.json').then(function(b){dashBrkData=b||null;drawDashBreak()})}else{drawDashBreak()}}
 function drawDashBreak(){var el=$('DASH-BRK');if(!el)return;var b=dashBrkData;if(!b){el.innerHTML='';return}var remain=b.endsAt-Date.now(),over=remain<0;if(remain<-60000&&!window._autoEndingBreak){window._autoEndingBreak=true;autoEndBreak();return}var abs=Math.abs(remain),m=Math.floor(abs/60000),s=Math.floor((abs%60000)/1000);var timeStr=over?'초과 '+m+'분 '+s+'초':(m<10?'0':'')+m+':'+(s<10?'0':'')+s+' 남음';el.innerHTML='<div class="brk-banner'+(over?' over':'')+'" onclick="openBreak()"><div class="brk-banner-icon">☕</div><div class="brk-banner-info"><div class="brk-banner-title">'+(over?'⚠️ 휴게 시간 초과':'휴게시간 진행 중')+'</div><div class="brk-banner-timer">'+timeStr+'</div></div></div>'}
 function backToDash(){try{if(history.length>1){history.back();return}}catch(_){}if(ME)openDash();else go('p-admin')}
-function logout(){stopNotifPoll();ME=null;cart={};localStorage.removeItem('dm_me');if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
+function logout(){stopNotifPoll();ME=null;cart={};dbClearToken();localStorage.removeItem('dm_me');if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
 function showLogoutBtn(){if($('TB-LOGOUT')&&ME)$('TB-LOGOUT').style.display='flex';showQRBtn();renderIcons()}
 function showQRBtn(){var b=$('TB-QR');if(!b)return;var ok=ME&&(ME.brand==='DAY:MEAN'||ME.brand==='DM INTERNATIONAL'||ME.role==='경영팀'||ME.role==='본사경영팀');b.style.display=ok?'inline-flex':'none'}
 var _qrLibLoaded=false;function loadQRLib(cb){if(_qrLibLoaded&&window.QRCode){cb();return}var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js';s.onload=function(){_qrLibLoaded=true;cb()};s.onerror=function(){toast('QR 라이브러리 로드 실패 — 인터넷 확인')};document.head.appendChild(s)}
