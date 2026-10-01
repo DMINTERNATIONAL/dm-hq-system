@@ -689,9 +689,22 @@ function fbReq(p,opts){
     return r;
   });
 }
-function fbG(p){return fbReq(p,{cache:'no-store'}).then(function(r){return r.json()})}
+/* 실패 응답을 데이터로 넘기면 안 된다. 보안 규칙에 막히면 Firebase 는 HTTP 401 과 함께
+   {"error":"Permission denied"} 를 JSON 으로 돌려주는데, 호출부들이 그걸 레코드로 보고
+   '키 1개 = 1명' 으로 센다(실제로 휴게 중이 아닌데 "휴게 중 1명" 으로 떴다).
+   없는 것과 못 읽은 것을 똑같이 null 로 돌려준다 — 호출부가 전부 그렇게 다루고 있다. */
+function fbG(p){return fbReq(p,{cache:'no-store'}).then(function(r){
+  if(!r.ok)return null;
+  return r.json().then(function(j){
+    if(j&&typeof j==='object'&&!Array.isArray(j)&&j.error!==undefined&&Object.keys(j).length===1)return null;
+    return j;
+  }).catch(function(){return null});
+})}
 function fbP(p,d){return fbReq(p,{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
-function fbPost(p,d){return fbReq(p,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}
+function fbPost(p,d){return fbReq(p,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){
+  if(!r.ok)throw new Error('저장 실패 ('+r.status+')');
+  return r.json();
+})}
 function fbD(p){return fbReq(p,{method:'DELETE',cache:'no-store'})}
 function doConnect(){var u=$('fbi').value.trim().replace(/\/$/,'');if(!u||!u.startsWith('https://'))return alert('올바른 Firebase URL을 입력해주세요');FB=u;localStorage.setItem('dm_fb',u);initFB()}
 function migrateRoles(){fbG('/users.json').then(function(d){if(!d)return;Object.keys(d).forEach(function(ph){var u=d[ph];if(u.role==='매니저'&&u.branch==='본사'){fbP('/users/'+ph+'/role.json','경영팀')}else if(u.role==='본사경영팀'){fbP('/users/'+ph+'/role.json','경영팀')}})})}
