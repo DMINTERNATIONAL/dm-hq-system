@@ -990,7 +990,22 @@ function doLogin(){var ph=$('li-ph').value.trim(),pw=$('li-pw').value;if(!ph||!p
     return alert((j&&j.error)||'전화번호 또는 비밀번호를 확인해주세요.');
   }).catch(function(){done();alert('로그인 서버에 연결할 수 없습니다.\n잠시 후 다시 시도해주세요.')})}
 function togglePwView(inputId,btn){var inp=$(inputId);if(!inp)return;if(inp.type==='password'){inp.type='text';btn.innerHTML='<i data-lucide="eye-off"></i>'}else{inp.type='password';btn.innerHTML='<i data-lucide="eye"></i>'}renderIcons()}
-function submitPwReset(){var name=$('pr-name').value.trim();var ph=$('pr-ph').value.trim();var bday=$('pr-bday').value;if(!name||!ph||!bday)return alert('모든 항목을 입력해주세요');fbG('/users/'+ph+'.json').then(function(u){if(!u)return alert('등록된 계정이 없습니다.\n전화번호를 다시 확인해주세요.');if(u.name!==name)return alert('이름이 일치하지 않습니다');if(u.birthDate&&u.birthDate!==bday)return alert('생년월일이 일치하지 않습니다');fbPost('/pwResetRequests.json',{userId:ph,userName:name,brand:u.brand||'',branch:u.branch||'',requestedAt:Date.now(),date:new Date().toISOString().slice(0,10),status:'pending'}).then(function(){alert('재설정 요청이 접수되었습니다.\n본사 관리자가 확인 후 새 비밀번호를 발급해드립니다.\n\n※ 관리자에게 직접 연락하시면 더 빠르게 처리됩니다.');$('pr-name').value='';$('pr-ph').value='';$('pr-bday').value='';go('p-login')})})}
+/* 로그인 전 화면이라 토큰이 없다. DB를 직접 읽으면 401 이 나고 "등록된 계정이 없습니다"
+   가 떠서, 멀쩡한 계정인데 없는 것처럼 보인다. 본인 확인과 접수는 서버가 한다.
+   계정 유무를 화면에 알려주지 않는 것도 서버 쪽 판단이다(번호를 넣어보며 명단을 캘 수 있다). */
+function submitPwReset(){
+  var name=$('pr-name').value.trim(), ph=$('pr-ph').value.trim(), bday=$('pr-bday').value;
+  if(!name||!ph||!bday)return alert('모든 항목을 입력해주세요');
+  fetch(CONTRACT_API+'/auth/resetrequest',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({phone:ph,name:name,birthDate:bday})})
+    .then(function(r){return r.json()})
+    .then(function(j){
+      if(!j||!j.ok)return alert((j&&j.error)||'요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      alert('재설정 요청이 접수되었습니다.\n입력하신 정보가 등록된 내용과 맞으면 본사 관리자가 확인 후 새 비밀번호를 발급해드립니다.\n\n※ 관리자에게 직접 연락하시면 더 빠르게 처리됩니다.');
+      $('pr-name').value='';$('pr-ph').value='';$('pr-bday').value='';go('p-login');
+    })
+    .catch(function(){alert('서버에 연결할 수 없습니다.\n잠시 후 다시 시도해주세요.')});
+}
 function restoreLoginInfo(){if(!$('li-ph')||!$('li-pw')||!$('li-remember'))return;var on=safeLS(function(){return localStorage.getItem('dm_remember_on')});if(!on)return;var ph=safeLS(function(){return localStorage.getItem('dm_remember_ph')});if(ph)$('li-ph').value=ph;safeLS(function(){localStorage.removeItem('dm_remember_pw')});$('li-remember').checked=true}
 function initPreviewIfNeeded(){if(typeof setupPreviewMode==='function')setupPreviewMode()}
 function checkBreakAutoEndNotice(){if(!ME||!ME.phone)return;fbG('/breakAutoEnded/'+ME.phone+'.json').then(function(d){if(!d)return;var dt=d.date||'';var tm=d.time||'';fbD('/breakAutoEnded/'+ME.phone+'.json');_showPopup({type:'alert',title:'⚠️ 휴게시간 자동 종료',msg:dt+' '+tm+'에 휴게가 자동 종료되었습니다.\n(60분 사용으로 기록됨)\n\n다음부턴 종료 버튼을 꼭 눌러주세요!'})}).catch(function(){})}

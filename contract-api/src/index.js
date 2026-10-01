@@ -469,6 +469,28 @@ export default {
         return json({ ok: true }, 200, origin);
       }
 
+      /* 비밀번호 재설정 요청 — 로그인 전 화면이라 무인증.
+         예전에는 앱이 /users 를 직접 읽어 본인 확인을 했는데, DB를 잠근 뒤로는 토큰이 없어
+         401 이 나고 "등록된 계정이 없습니다" 가 떴다. 서버가 확인하고 요청까지 남긴다.
+         계정 존재 여부를 알려주지 않는다 — 번호만 넣어보며 직원 명단을 캐낼 수 있다. */
+      if (path === '/auth/resetrequest' && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        const phone = String(b.phone || '').trim();
+        const name = String(b.name || '').trim();
+        const birthDate = String(b.birthDate || '').trim();
+        if (!/^[0-9]{8,12}$/.test(phone) || !name) return json({ ok: false, error: '입력을 확인해주세요' }, 400, origin);
+        const u = await dbGet(env, '/users/' + encodeURIComponent(phone)).catch(() => null);
+        const matched = !!u && u.name === name && (!u.birthDate || u.birthDate === birthDate) && u.status !== '퇴사';
+        if (matched) {
+          await dbPush(env, '/pwResetRequests', {
+            userId: phone, userName: name, brand: u.brand || '', branch: u.branch || '',
+            requestedAt: Date.now(), date: new Date().toISOString().slice(0, 10), status: 'pending',
+          }).catch(() => {});
+        }
+        /* 맞든 틀리든 같은 답을 준다 */
+        return json({ ok: true }, 200, origin);
+      }
+
       /* 이하 인증 필요 */
       const bearer = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
       const me = await verifyToken(env, bearer);
