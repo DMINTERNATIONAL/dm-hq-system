@@ -194,6 +194,36 @@ async function canManageStaff(env, me) {
   return u.branch === '본사' && PW_ADMIN_GRADES.indexOf(u.role) >= 0;
 }
 
+/* ═══ DB 접근용 Firebase 토큰 ═══
+   RTDB 보안 규칙이 이해하는 신분증은 Firebase ID 토큰뿐이다. 앱이 DB에 직접 붙으면서도
+   규칙의 통제를 받게 하려면 이게 필요하다.
+   서비스 계정으로 커스텀 토큰을 만들고(staff 클레임을 박아서) ID 토큰으로 바꿔 앱에 준다.
+   익명 로그인은 켜지 않았으므로 이 경로 말고는 staff 토큰을 얻을 길이 없다.
+   앱 전체를 Worker로 중계하지 않는 이유는 비용이다 — 폴링만으로 하루 30만 요청이 넘는다. */
+const IDTK = 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit';
+async function mintCustomToken(env, uid, claims) {
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const now = Math.floor(Date.now() / 1000);
+  const head = b64urlStr(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const body = b64urlStr(JSON.stringify({
+    iss: sa.client_email, sub: sa.client_email, aud: IDTK,
+    iat: now, exp: now + 3600, uid: String(uid), claims: claims || {},
+  }));
+  const key = await importKey(sa.private_key);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(`${head}.${body}`));
+  return `${head}.${body}.${b64url(sig)}`;
+}
+async function firebaseIdToken(env, uid, claims) {
+  const custom = await mintCustomToken(env, uid, claims);
+  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.FIREBASE_WEB_KEY}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: custom, returnSecureToken: true }),
+  });
+  const j = await r.json();
+  if (!r.ok || !j.idToken) throw new Error('Firebase 토큰 교환 실패: ' + ((j.error && j.error.message) || r.status));
+  return { idToken: j.idToken, expiresIn: parseInt(j.expiresIn, 10) || 3600 };
+}
+
 /* ═══ 세션 토큰 (HMAC 서명) ═══ */
 async function hmacKey(env) {
   return crypto.subtle.importKey('raw', enc.encode(env.SESSION_SECRET),
@@ -364,6 +394,17 @@ export default {
         return json({ ok: true, designers: list }, 200, origin);
       }
 
+      /* 매장 정보 — 손님에게 보여줄 것만 골라 준다.
+         salonInfo 안에는 designerOrder(직원 전화번호 목록)가 섞여 있어 통째로 줄 수 없다. */
+      if (path === '/public/salon' && request.method === 'GET') {
+        const sal = (await dbGet(env, '/salonInfo').catch(() => null)) || {};
+        const out = {};
+        for (const k of ['store','priceTable','setMenus','retailCats','membership','heroes','lookbook']) {
+          if (sal[k] !== undefined) out[k] = sal[k];
+        }
+        return json({ ok: true, salon: out }, 200, origin);
+      }
+
       /* 상담 접수 — 손님이 직접 쓰던 경로를 서버가 받는다. 받을 항목을 정해 두고 그 외는 버린다. */
       if (path === '/public/consult' && request.method === 'POST') {
         const b = await request.json().catch(() => ({}));
@@ -415,6 +456,17 @@ export default {
       me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
+
+      /* 앱이 DB에 직접 붙을 때 쓰는 토큰. 1시간짜리라 앱이 주기적으로 다시 받아간다. */
+      if (path === '/auth/dbtoken' && request.method === 'POST') {
+        if (!env.FIREBASE_WEB_KEY) return json({ ok: false, error: 'FIREBASE_WEB_KEY 미설정' }, 500, origin);
+        const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
+        if (!u || u.status === '퇴사') return json({ ok: false, error: '사용할 수 없는 계정입니다' }, 403, origin);
+        try {
+          const t = await firebaseIdToken(env, String(me.ph), { staff: true });
+          return json({ ok: true, ...t }, 200, origin);
+        } catch (e) { return json({ ok: false, error: e.message }, 502, origin); }
+      }
 
       /* 비밀번호 설정 — 본인이거나 직원 관리 권한자. 관리자 재발급·직원 직접 추가가 여기로 온다. */
       if (path === '/auth/setpw' && request.method === 'POST') {
