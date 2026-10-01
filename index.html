@@ -103,10 +103,22 @@ body.no-sidebar #MENU-BTN{display:none !important}
 .s-logo-text{font-size:17px;font-weight:800;letter-spacing:-.02em}
 /* 사이드바(≥900px)에서는 .topbar 가 숨겨져 연결 배지가 안 보인다. 로고 줄 끝에 점으로 표시한다.
    정상일 땐 점만, 끊겼을 땐 글자까지 띄워 눈에 걸리게 한다. */
-.s-conn{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--orange);white-space:nowrap}
+.s-conn{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap}
+.s-conn.wait{color:var(--text-3)}
+.s-conn.off{color:var(--orange)}
 .s-conn i{width:7px;height:7px;border-radius:50%;background:var(--green);display:block;flex:none}
 .s-conn.wait i{background:var(--text-3)}
 .s-conn.off{cursor:pointer}.s-conn.off i{background:var(--orange)}
+/* 서버에 못 붙으면 아예 못 쓰게 덮는다. 서비스워커가 오프라인일 때 캐시된 화면을
+   띄워주기 때문에, 막지 않으면 직원은 입력이 저장된 줄 알고 나간다. */
+#offov{position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px}
+#offbox{background:var(--card);border-radius:20px;padding:32px 26px;max-width:380px;width:100%;text-align:center;box-shadow:var(--shadow-md)}
+#offbox .off-ic{width:56px;height:56px;margin:0 auto 14px;border-radius:50%;background:var(--orange-bg);color:var(--orange);display:flex;align-items:center;justify-content:center;font-size:26px}
+#offbox h2{font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;color:var(--text)}
+#offbox p{font-size:13px;color:var(--text-2);line-height:1.75;margin-bottom:14px}
+#off-detail{font-size:11px;color:var(--text-3);margin-bottom:18px;min-height:15px}
+#off-btn{width:100%;padding:13px;border:0;border-radius:12px;background:var(--text);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#off-sub{margin-top:16px;font-size:12px;color:var(--text-3);cursor:pointer;text-decoration:underline}
 .s-section{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;padding:0 12px;margin:18px 0 6px}
 .s-nav{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:500;color:var(--text-2);margin-bottom:2px;transition:all .15s ease;font-size:14px}
 .s-nav:hover{background:var(--bg-page);color:var(--text)}
@@ -434,6 +446,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <body>
 <aside class="sidebar" id="SIDEBAR"></aside>
 <div id="ov" style="display:none"><div id="ob"><h2>🔥 실시간 연동 설정</h2><p>Firebase를 연결해야 시스템을 사용할 수 있습니다</p><div class="step"><b>1.</b><span><a href="https://console.firebase.google.com" target="_blank" style="color:#1a4e8a">console.firebase.google.com</a> → 프로젝트 추가</span></div><div class="step"><b>2.</b><span>Realtime Database → 만들기 → <code>테스트 모드</code></span></div><div class="step"><b>3.</b><span>URL 복사 후 아래에 입력</span></div><input type="text" id="fbi" placeholder="https://your-project-default-rtdb.firebaseio.com"><button class="gbtn pri" style="margin-top:10px" onclick="doConnect()">연결하기</button></div></div>
+<div id="offov"><div id="offbox"><div class="off-ic">!</div><h2>온라인 접속이 안 됩니다</h2><p>서버에 연결할 수 없어 시스템을 사용할 수 없습니다.<br>인터넷 연결을 확인해주시고, 이 화면이 계속 보이면 <b>관리자에게 문의</b>해주세요.</p><div id="off-detail"></div><button id="off-btn" onclick="connCheck(true)">다시 시도</button><div id="off-sub" onclick="openFbSetup()">연결 설정</div></div></div>
 <div class="topbar"><div style="display:flex;align-items:center;gap:10px"><button id="MENU-BTN" class="tb-menu-btn" onclick="toggleSidebar()" style="display:none" title="메뉴"><i data-lucide="menu"></i></button><div><div class="logo">DM INTERNATIONAL</div><div class="logosub">통합 본사 시스템</div></div></div><div style="display:flex;align-items:center;gap:8px"><span id="cbdg" class="coff">오프라인</span><button id="TB-QR" onclick="openConsultQR()" style="display:none;align-items:center;justify-content:center;border:none;background:#eef2ff;color:#3b5bdb;width:38px;height:38px;border-radius:11px;cursor:pointer" title="고객 상담 QR"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor" stroke="none"/></svg></button></div></div>
 <div class="sidebar-overlay" id="SIDEBAR-OVERLAY" onclick="closeSidebar()"></div>
 
@@ -651,14 +664,35 @@ function dbgReset(){safeLS(function(){localStorage.removeItem('dm_fb');localStor
 /* 연결 확인은 루트가 아니라 brands 를 읽는다. 보안 규칙상 루트에는 .read 가 없고
    ($other 는 루트의 자식에만 걸린다) 루트에 .read:true 를 주면 전파되어 contracts·statements
    잠금까지 풀린다. brands 는 명시적으로 읽기 공개라 규칙을 더 조여도 계속 쓸 수 있다. */
-var DM_CONN={ok:null,txt:'연결 중...'};
-function openFbSetup(){$('ov').style.display='flex'}
+var DM_CONN={ok:null,txt:'연결 중...',fails:0},DM_CONN_T=null;
+function openFbSetup(){var o=$('offov');if(o)o.style.display='none';$('ov').style.display='flex'}
 function paintConn(){var bad=DM_CONN.ok===false;
  var b=$('cbdg');if(b){b.textContent=DM_CONN.txt;b.className=DM_CONN.ok?'con':'coff';b.style.cursor=bad?'pointer':'';b.onclick=bad?openFbSetup:null}
  var s=$('sbconn');if(s){s.className='s-conn'+(bad?' off':(DM_CONN.ok===null?' wait':''));s.title=DM_CONN.txt;
-  var sp=s.querySelector('span');if(sp)sp.textContent=bad?DM_CONN.txt:'';s.onclick=bad?openFbSetup:null}}
+  var sp=s.querySelector('span');if(sp)sp.textContent=DM_CONN.txt;s.onclick=bad?openFbSetup:null}}
 function setConn(ok,txt){DM_CONN.ok=ok;DM_CONN.txt=txt;paintConn()}
-function initFB(){if(!FB){openFbSetup();return}$('fbi').value=FB;$('ov').style.display='none';setConn(null,'연결 중...');fetch(FB+'/brands.json?shallow=true',{mode:'cors'}).then(function(r){setConn(!!r.ok,r.ok?'온라인':'ERR '+r.status)}).catch(function(e){setConn(false,'연결 실패');console.log('FB연결에러',FB,e)})}
+function connBlock(on){var el=$('offov');if(!el)return;el.style.display=on?'flex':'none';
+ if(on){var d=$('off-detail');if(d)d.textContent=DM_CONN.txt+' · '+new Date().toLocaleTimeString('ko-KR')}}
+function connSchedule(){if(DM_CONN_T)clearTimeout(DM_CONN_T);
+ /* 끊겼을 땐 자주, 정상일 땐 느긋하게 */
+ DM_CONN_T=setTimeout(function(){connCheck()},DM_CONN.ok?60000:5000)}
+function connCheck(manual){
+ if(!FB){openFbSetup();return Promise.resolve()}
+ if(manual){setConn(null,'연결 중...');var d=$('off-detail');if(d)d.textContent='다시 시도하는 중...'}
+ if(navigator.onLine===false){DM_CONN.fails=9;setConn(false,'인터넷 끊김');connBlock(true);connSchedule();return Promise.resolve()}
+ return fetch(FB+'/brands.json?shallow=true',{mode:'cors',cache:'no-store'}).then(function(r){
+   if(!r.ok)throw new Error('ERR '+r.status);
+   DM_CONN.fails=0;setConn(true,'온라인');connBlock(false)
+ }).catch(function(e){
+   DM_CONN.fails++;setConn(false,String((e&&e.message)||'연결 실패').slice(0,24));
+   /* 한 번 튄 것으론 막지 않는다. 연속 2회 실패해야 차단한다. */
+   if(DM_CONN.fails>=2||manual)connBlock(true);
+   console.log('FB연결에러',FB,e)
+ }).then(function(){connSchedule()})}
+function initFB(){if(!FB){openFbSetup();return}$('fbi').value=FB;$('ov').style.display='none';setConn(null,'연결 중...');connCheck()}
+window.addEventListener('online',function(){DM_CONN.fails=0;connCheck()});
+window.addEventListener('offline',function(){DM_CONN.fails=9;setConn(false,'인터넷 끊김');connBlock(true)});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')connCheck()});
 function toast(m){var e=$('TOAST');e.textContent=m;e.classList.add('show');setTimeout(function(){e.classList.remove('show')},2500)}
 /* ═══ CUSTOM POPUP (시안 디자인 모달) ═══ */
 var _popupQueue=[];var _popupActive=false;
