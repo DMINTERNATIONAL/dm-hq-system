@@ -380,14 +380,27 @@ export default {
         const brand = url.searchParams.get('brand') || 'DAY:MEAN';
         const users = (await dbGet(env, '/users').catch(() => null)) || {};
         const order = (await dbGet(env, '/salonInfo/designerOrder').catch(() => null)) || [];
+        const infos = (await dbGet(env, '/salonInfo/designers').catch(() => null)) || {};
         const list = [];
         for (const ph of Object.keys(users)) {
           const x = users[ph] || {};
           if (x.brand !== brand || x.status === '퇴사') continue;
           const isDesigner = x.role === '디자이너' || (Array.isArray(x.roles) && x.roles.indexOf('디자이너') >= 0);
           if (!isDesigner) continue;
-          /* 내보내는 것은 이 네 가지뿐이다. 늘리기 전에 손님에게 보여도 되는지 따져볼 것. */
-          list.push({ ph, name: x.nick || x.name || '', branch: x.branch || '', enName: x.enName || '' });
+          /* /users 에서 내보내는 것은 이 네 가지뿐이다. 늘리기 전에 손님에게 보여도 되는지 따져볼 것. */
+          const d = { ph, name: x.nick || x.name || '', branch: x.branch || '', enName: x.enName || '' };
+          /* profile 은 디자이너가 관리화면 '디자이너 소개'에 손님 보라고 직접 올린 칸만 담는다.
+             공식 사이트(daymean-site) 디자이너·About 페이지가 쓴다. title(직급)은 가격표 조회 키다.
+             재직 중인 디자이너 것만 나간다 — 퇴사자 프로필이 salonInfo 에 남아 있어도 안 나간다. */
+          const pi = infos[ph];
+          if (pi && typeof pi === 'object') {
+            const pf = {};
+            for (const k of ['title', 'enName', 'bio', 'naver', 'insta', 'photo']) {
+              if (typeof pi[k] === 'string' && pi[k]) pf[k] = pi[k];
+            }
+            d.profile = pf;
+          }
+          list.push(d);
         }
         list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
         if (Array.isArray(order) && order.length) {
@@ -395,6 +408,21 @@ export default {
           list.sort((a, b) => rank(a) - rank(b));
         }
         return json({ ok: true, designers: list }, 200, origin);
+      }
+
+      /* 공식 사이트 채용 페이지 인원 집계 — 숫자만 내보낸다. 이름·연락처는 어떤 경우에도 안 나간다. */
+      if (path === '/public/team' && request.method === 'GET') {
+        const brand = url.searchParams.get('brand') || 'DAY:MEAN';
+        const users = (await dbGet(env, '/users').catch(() => null)) || {};
+        let designers = 0, interns = 0, mentored = 0;
+        for (const ph of Object.keys(users)) {
+          const x = users[ph] || {};
+          if (x.brand !== brand || x.status === '퇴사') continue;
+          const roles = Array.isArray(x.roles) ? x.roles : [];
+          if (x.role === '디자이너' || roles.indexOf('디자이너') >= 0) designers++;
+          if (x.role === '인턴' || roles.indexOf('인턴') >= 0) { interns++; if (x.mentorId) mentored++; }
+        }
+        return json({ ok: true, designers, interns, mentored }, 200, origin);
       }
 
       /* 매장 정보 — 손님에게 보여줄 것만 골라 준다.
@@ -411,9 +439,21 @@ export default {
       /* 상담 접수 — 손님이 직접 쓰던 경로를 서버가 받는다. 받을 항목을 정해 두고 그 외는 버린다. */
       if (path === '/public/consult' && request.method === 'POST') {
         const b = await request.json().catch(() => ({}));
-        const pick = ['date','lang','visitType','branch','name','designer','designerPh','scalp','shampoo','memo','source','phone','gender','age','concerns','styles','budget','products'];
+        /* consult.html 첫 방문 submit() 과 공식 사이트 /api/consult 가 보내고, 상담함(index.html)이 읽는 필드.
+           처음 만들 때 snsType~history 가 빠져 있어서 10/1 부터 첫 방문 상담의 시술·시간·분위기·
+           유입경로·SNS·국가·시술이력이 버려졌다. 필드를 늘리고 줄일 때는 세 곳을 같이 볼 것. */
+        const pick = ['date','hhmm','lang','visitType','branch','name','designer','designerEn','designerPh','scalp','shampoo','memo','source',
+          'snsType','sns','route','routeEtc','country','services','time','mood','history',
+          'phone','gender','age','concerns','styles','budget','products'];
         const rec = { ts: Date.now(), status: 'new' };
-        for (const k of pick) if (b[k] !== undefined) rec[k] = typeof b[k] === 'string' ? String(b[k]).slice(0, 2000) : b[k];
+        for (const k of pick) {
+          const v = b[k];
+          if (v === undefined || v === null) continue;
+          if (typeof v === 'string') rec[k] = v.slice(0, 2000);
+          else if (typeof v === 'number' || typeof v === 'boolean') rec[k] = v;
+          /* 배열·객체(services, mood, history)는 받되 크기를 묶는다 — 공개 창구라 누구나 부를 수 있다. */
+          else if (typeof v === 'object' && JSON.stringify(v).length <= 4000) rec[k] = v;
+        }
         if (!rec.date) rec.date = new Date().toISOString().slice(0, 10);
         await dbPush(env, '/consults', rec);
         return json({ ok: true }, 200, origin);
