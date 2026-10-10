@@ -274,6 +274,10 @@ async function main() {
     try { console.log('[official]', JSON.stringify(await collectOfficialSns(kstDateString(0), dry))); }
     catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
   }
+  if (mode === 'pdb' || mode === 'both') {
+    try { console.log('[pdb]', JSON.stringify(await backupProductDB(dry))); }
+    catch (e) { errors.push('pdb: ' + e.message); await notify('[Hermes] 제품목록 백업 실패: ' + e.message); }
+  }
   if (errors.length) {
     console.error('FAILED:', errors.join(' | '));
     // 하루 3회 크론 중 앞 2회는 뒤에 백업이 남아 있으므로 실패로 처리하지 않는다.
@@ -1129,6 +1133,37 @@ async function fbGET(path) {
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}`), { cache: 'no-store' });
   if (!resp.ok) return null;
   return await resp.json();
+}
+
+/* ═══ 제품목록 하루 사본 ═══ */
+// 2026-10-10 제품목록이 옛 기본값으로 통째 덮어써졌는데 사본이 없어 발주 기록에서 역으로 긁어 살렸다.
+// 하루 한 번 /productDB_daily/{날짜} 에 통째로 남긴다. 그날 첫 실행만 쓴다 — 낮에 망가진 뒤 도는
+// 실행이 아침의 멀쩡한 사본을 덮어쓰면 안 되므로. 품목 수가 전날보다 크게 줄면 웍스로 알린다.
+const PDB_KEEP_DAYS = 90;
+function pdbCount(db) {
+  let n = 0;
+  for (const t of ['prod', 'bipm']) for (const s of Object.values((db || {})[t] || {})) for (const arr of Object.values(s || {})) n += (Array.isArray(arr) ? arr : Object.values(arr || {})).filter(Boolean).length;
+  return n;
+}
+async function backupProductDB(dry) {
+  const today = kstDateString(0);
+  const keys = Object.keys((await fbGET('/productDB_daily.json?shallow=true')) || {}).sort();
+  if (keys.includes(today)) return { skip: today + ' 이미 있음' };
+  const db = await fbGET('/productDB.json');
+  if (!db || !db.prod) throw new Error('제품목록을 읽지 못함 (권한 또는 비어 있음)');
+  const n = pdbCount(db);
+  const prevKey = keys[keys.length - 1];
+  let prevN = null;
+  if (prevKey) prevN = pdbCount(await fbGET(`/productDB_daily/${prevKey}.json`));
+  if (prevN && n < prevN && (prevN - n >= 20 || (prevN - n) / prevN >= 0.15)) {
+    await notify(`[DM 제품목록 경고] 등록 품목이 ${prevKey} ${prevN}개 → 오늘 ${n}개로 ${prevN - n}개 줄었습니다. 실수로 지워진 건 아닌지 제품 관리 > 변경 기록을 확인해주세요.`);
+  }
+  if (dry) return { date: today, items: n, prev: prevKey ? { date: prevKey, items: prevN } : null, dry: true };
+  await rtdbPut(`/productDB_daily/${today}`, { at: nowIso(), items: n, prod: db.prod, bipm: db.bipm || null });
+  const cut = kstDateString(-PDB_KEEP_DAYS);
+  const old = keys.filter(k => k < cut);
+  for (const k of old) await fetch(await fbAuthed(`${fbUrl()}/productDB_daily/${k}.json`), { method: 'DELETE' });
+  return { date: today, items: n, prev: prevKey ? { date: prevKey, items: prevN } : null, pruned: old.length };
 }
 
 /* ═══ 헬퍼 ═══ */
