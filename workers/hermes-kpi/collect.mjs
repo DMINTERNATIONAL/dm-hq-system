@@ -1135,15 +1135,23 @@ async function fbGET(path) {
   return await resp.json();
 }
 
-/* ═══ 제품목록 하루 사본 ═══ */
+/* ═══ 제품목록 사본 ═══ */
 // 2026-10-10 제품목록이 옛 기본값으로 통째 덮어써졌는데 사본이 없어 발주 기록에서 역으로 긁어 살렸다.
-// 하루 한 번 /productDB_daily/{날짜} 에 통째로 남긴다. 그날 첫 실행만 쓴다 — 낮에 망가진 뒤 도는
-// 실행이 아침의 멀쩡한 사본을 덮어쓰면 안 되므로. 품목 수가 전날보다 크게 줄면 웍스로 알린다.
+// 매일 새벽 제품·비품 목록을 마지막 사본과 비교해 **달라졌을 때만** /productDB_daily/{날짜} 에 통째로 남긴다.
+// 하루 한 장까지 — 그날 사본이 이미 있으면 덮어쓰지 않는다(낮에 망가진 뒤 도는 실행이 멀쩡한 사본을
+// 덮어쓰면 안 되므로). 품목 수가 마지막 사본보다 크게 줄면 웍스로 알린다.
+// 보관 90일. 단 변동이 없으면 사본이 안 생기므로 **가장 최근 사본은 날짜와 상관없이 지우지 않는다.**
 const PDB_KEEP_DAYS = 90;
 function pdbCount(db) {
   let n = 0;
   for (const t of ['prod', 'bipm']) for (const s of Object.values((db || {})[t] || {})) for (const arr of Object.values(s || {})) n += (Array.isArray(arr) ? arr : Object.values(arr || {})).filter(Boolean).length;
   return n;
+}
+// 키 순서와 상관없이 같은 내용이면 같은 문자열
+function stableJson(v) {
+  if (Array.isArray(v)) return '[' + v.map(stableJson).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stableJson(v[k])).join(',') + '}';
+  return JSON.stringify(v ?? null);
 }
 async function backupProductDB(dry) {
   const today = kstDateString(0);
@@ -1153,8 +1161,12 @@ async function backupProductDB(dry) {
   if (!db || !db.prod) throw new Error('제품목록을 읽지 못함 (권한 또는 비어 있음)');
   const n = pdbCount(db);
   const prevKey = keys[keys.length - 1];
-  let prevN = null;
-  if (prevKey) prevN = pdbCount(await fbGET(`/productDB_daily/${prevKey}.json`));
+  const prev = prevKey ? await fbGET(`/productDB_daily/${prevKey}.json`) : null;
+  if (prevKey && !prev) throw new Error(`마지막 사본 ${prevKey} 을 읽지 못함`);
+  const prevN = prev ? pdbCount(prev) : null;
+  if (prev && stableJson({ p: prev.prod, b: prev.bipm || null }) === stableJson({ p: db.prod, b: db.bipm || null })) {
+    return { skip: `변동 없음 (마지막 사본 ${prevKey}, ${n}개)` };
+  }
   if (prevN && n < prevN && (prevN - n >= 20 || (prevN - n) / prevN >= 0.15)) {
     await notify(`[DM 제품목록 경고] 등록 품목이 ${prevKey} ${prevN}개 → 오늘 ${n}개로 ${prevN - n}개 줄었습니다. 실수로 지워진 건 아닌지 제품 관리 > 변경 기록을 확인해주세요.`);
   }
