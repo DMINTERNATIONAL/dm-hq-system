@@ -590,6 +590,13 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-toptabs button{flex:1;border:none;background:transparent;border-radius:9px;padding:8px 0;font-size:13.5px;font-weight:700;color:var(--cm-ink2);cursor:pointer;font-family:inherit;position:relative}
 .cm-toptabs button.on{background:#fff;color:var(--cm-ink);box-shadow:0 1px 3px rgba(15,23,42,.08)}
 .cm-toptabs em{font-style:normal;background:#EF4444;color:#fff;border-radius:99px;font-size:10px;padding:0 5px;margin-left:4px;line-height:15px;display:inline-block;vertical-align:1px}
+/* 메신저처럼: 키보드가 올라오면 화면이 따라 부드럽게 줄고, 새 말풍선은 아래에서 떠오른다 */
+#p-comm-room.on,#p-comm-thread.on{transition:height .28s cubic-bezier(.2,.8,.2,1),top .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes cmIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.cm-m.cm-new,.cm-sys.cm-new{animation:cmIn .26s cubic-bezier(.2,.8,.2,1) both}
+.cm-m.me.cm-new{transform-origin:right bottom}
+.cm-m.cm-new:not(.me){transform-origin:left bottom}
+@media (prefers-reduced-motion:reduce){#p-comm-room.on,#p-comm-thread.on{transition:none}.cm-m.cm-new,.cm-sys.cm-new{animation:none}}
 /* 말풍선 옆 메뉴 */
 .cm-pop{position:fixed;z-index:400;display:flex;flex-direction:column;gap:6px}
 .cm-pop .rx{display:flex;gap:6px}
@@ -6563,14 +6570,16 @@ function cmBody(m,isMe){
   var fw=m.fw?'<div class="cm-fw">전달됨 · '+cmEsc(m.fw)+'</div>':'';
   return '<div class="cm-b'+(md&&!x?' media':'')+'">'+fw+rp+md+x+(m.ed?' <span style="font-size:11px;opacity:.7">(수정됨)</span>':'')+th+'</div>'}
 function cmRx(m,key,root){if(!m.rx)return '';var h='';['확인','좋아요','감사'].forEach(function(r){var who=m.rx[r];if(!who)return;var n=Object.keys(who).length;if(!n)return;h+='<span class="'+(who[ME.phone]?'mine':'')+'" onclick="cmReact(\''+key+'\',\''+r+'\','+(root?'\''+root+'\'':'null')+')">'+r+' '+n+'</span>'});return h?'<div class="cm-rx">'+h+'</div>':''}
+var CM_SEEN={};
 function cmMsgHtml(list,opts){
   opts=opts||{};var h='',prev=null,lastDay=opts.day||'';
   list.forEach(function(it){var key=it.k,m=it.m;if(!m)return;
     var day=new Date(m.at).toDateString();if(day!==lastDay){h+='<div class="cm-day">'+cmDay(m.at)+'</div>';lastDay=day;prev=null}
-    if(m.k==='sys'){h+='<div class="cm-sys">'+cmEsc(m.x)+'</div>';prev=null;return}
+    var nw=opts.anim&&!CM_SEEN[opts.anim+'|'+key];if(opts.anim)CM_SEEN[opts.anim+'|'+key]=1;
+    if(m.k==='sys'){h+='<div class="cm-sys'+(nw?' cm-new':'')+'">'+cmEsc(m.x)+'</div>';prev=null;return}
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     var un=opts.thread?0:cmUnread(m);
-    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b>'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
+    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending':'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b>'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
 var CM_PENDING={};
@@ -6582,7 +6591,9 @@ function cmRenderMsgs(){var box=$('CM-MSGS');if(!box||!CM.room)return;
   var more=(keys.length>=60&&!CM.older)||CM.older==='more'?'<button class="cm-more" onclick="cmLoadOlder()">이전 대화 더 보기</button>':'';
   var prevH=box.scrollHeight,prevT=box.scrollTop;
   if(CM.find.on){box.innerHTML=cmFindHtml();box.removeAttribute('data-first');return}
-  box.innerHTML=list.length?more+cmMsgHtml(list):'<div class="cm-empty">첫 메시지를 보내 보세요</div>';
+  var first=box.getAttribute('data-drawn')!==CM.rid;if(first){list.forEach(function(it){CM_SEEN['r:'+CM.rid+'|'+it.k]=1});box.setAttribute('data-drawn',CM.rid)}
+  list.forEach(function(it){if(!it.pending&&it.m&&it.m.by===String(ME.phone)&&CM._sentAt&&Date.now()-CM._sentAt<8000)CM_SEEN['r:'+CM.rid+'|'+it.k]=1});
+  box.innerHTML=list.length?more+cmMsgHtml(list,{anim:'r:'+CM.rid}):'<div class="cm-empty">첫 메시지를 보내 보세요</div>';
   cmBindPress(box);cmFillMedia(box);
   if(near){box.scrollTop=box.scrollHeight;box.setAttribute('data-first','1')}else if(CM._keepTop){box.scrollTop=box.scrollHeight-prevH+prevT;CM._keepTop=false}
   cmMarkRead()}
@@ -6620,7 +6631,7 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   var tg=CM_TAGS.filter(function(t){return x.indexOf('#'+t)>=0});
   if(CM.edit){var ed=CM.edit;CM.edit=null;ta.value='';cmReplyBar(boxId);cmApi('edit',{rid:CM.rid,key:ed.key,root:ed.root||null,x:x}).catch(function(e){alert(e.message)});return}
   var body={rid:CM.rid,k:'t',x:x,mn:mn,tg:tg};if(CM.reply&&!thread)body.rp=CM.reply;if(thread)body.root=CM.thRoot;
-  var tmp='zz'+Date.now();var me=String(ME.phone);
+  var tmp='zz'+Date.now();var me=String(ME.phone);CM._sentAt=Date.now();
   CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
   ta.value='';ta.style.height='auto';CM.reply=null;CM.mn=[];cmReplyBar(boxId);
   if(thread)cmRenderThread();else cmRenderMsgs();
@@ -7034,7 +7045,7 @@ function cmVV(){var vv=window.visualViewport;var open=false;
   /* 대화방이 열려 있는 동안 뒤 페이지가 같이 밀려 올라가지 않게 잠근다 (카톡처럼 제목은 위에, 대화는 키보드 위에) */
   var lock=open&&window.innerWidth<1024;document.documentElement.style.overflow=lock?'hidden':'';document.body.style.overflow=lock?'hidden':'';
   if(lock&&window.scrollY)window.scrollTo(0,0);
-  var ae=document.activeElement;if(ae&&ae.tagName==='TEXTAREA'){var m=$(ae.id==='CM-TCOMP-TA'?'CM-TMSGS':'CM-MSGS');if(m)m.scrollTop=m.scrollHeight}}
+  var ae=document.activeElement;if(ae&&ae.tagName==='TEXTAREA'){var m=$(ae.id==='CM-TCOMP-TA'?'CM-TMSGS':'CM-MSGS');if(m){try{m.scrollTo({top:m.scrollHeight,behavior:'smooth'})}catch(e){m.scrollTop=m.scrollHeight}}}}
 document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){setTimeout(cmVV,50);setTimeout(cmVV,350)}});
 document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||''))setTimeout(cmVV,100)});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
