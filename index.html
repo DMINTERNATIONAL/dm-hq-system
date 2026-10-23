@@ -1296,7 +1296,7 @@ var dashBrkData=null,dashBrkLastFetch=0;
 function renderDashBreak(){var el=$('DASH-BRK');if(!el)return;var now=Date.now();if(!dashBrkData||now-dashBrkLastFetch>10000){dashBrkLastFetch=now;if(!ME||!ME.phone)return;fbG('/breakActive/'+ME.phone+'.json').then(function(b){dashBrkData=b||null;drawDashBreak()})}else{drawDashBreak()}}
 function drawDashBreak(){var el=$('DASH-BRK');if(!el)return;var b=dashBrkData;if(!b){el.innerHTML='';return}var remain=b.endsAt-Date.now(),over=remain<0;if(remain<-60000&&!window._autoEndingBreak){window._autoEndingBreak=true;autoEndBreak();return}var abs=Math.abs(remain),m=Math.floor(abs/60000),s=Math.floor((abs%60000)/1000);var timeStr=over?'초과 '+m+'분 '+s+'초':(m<10?'0':'')+m+':'+(s<10?'0':'')+s+' 남음';el.innerHTML='<div class="brk-banner'+(over?' over':'')+'" onclick="openBreak()"><div class="brk-banner-icon">☕</div><div class="brk-banner-info"><div class="brk-banner-title">'+(over?'⚠️ 휴게 시간 초과':'휴게시간 진행 중')+'</div><div class="brk-banner-timer">'+timeStr+'</div></div></div>'}
 function backToDash(){try{if(history.length>1){history.back();return}}catch(_){}if(ME)openDash();else go('p-admin')}
-function logout(){stopNotifPoll();ME=null;cart={};CART_NAMES={};dbClearToken();localStorage.removeItem('dm_me');if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
+function logout(){if(typeof cmSdkSignOut==='function')cmSdkSignOut();if(typeof CM!=='undefined'){Object.keys(CM.es||{}).forEach(function(k){if(CM.es[k])CM.es[k].close()});CM.es={};CM.booted=false;CM.inbox=null;CM.act=null}stopNotifPoll();ME=null;cart={};CART_NAMES={};dbClearToken();localStorage.removeItem('dm_me');if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
 function showLogoutBtn(){if($('TB-LOGOUT')&&ME)$('TB-LOGOUT').style.display='flex';showQRBtn();renderIcons()}
 function showQRBtn(){var b=$('TB-QR');if(!b)return;var ok=ME&&(ME.brand==='DAY:MEAN'||ME.brand==='DM INTERNATIONAL'||ME.role==='경영팀'||ME.role==='본사경영팀');b.style.display=ok?'inline-flex':'none'}
 var _qrLibLoaded=false;function loadQRLib(cb){if(_qrLibLoaded&&window.QRCode){cb();return}var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js';s.onload=function(){_qrLibLoaded=true;cb()};s.onerror=function(){toast('QR 라이브러리 로드 실패 — 인터넷 확인')};document.head.appendChild(s)}
@@ -6454,26 +6454,32 @@ function cmHM(at){var d=new Date(at);return (d.getHours()<12?'오전 ':'오후 '
 function cmAgo(at){var s=(Date.now()-at)/1000;if(s<60)return '방금';if(s<3600)return Math.floor(s/60)+'분 전';if(s<86400)return Math.floor(s/3600)+'시간 전';var d=new Date(at),y=new Date();y.setDate(y.getDate()-1);if(d.toDateString()===y.toDateString())return '어제 '+cmHM(at);return (d.getMonth()+1)+'/'+d.getDate()+' '+cmHM(at)}
 function cmDay(at){var d=new Date(at);return d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 '+'일월화수목금토'[d.getDay()]+'요일'}
 
-/* 실시간 구독 — Firebase REST 스트리밍. 토큰이 만료되면 서버가 auth_revoked 를 보내므로 새 토큰으로 다시 붙는다 */
-function cmSet(o,segs,v){for(var i=0;i<segs.length-1;i++){if(!o[segs[i]]||typeof o[segs[i]]!=='object')o[segs[i]]={};o=o[segs[i]]}var k=segs[segs.length-1];if(v===null)delete o[k];else o[k]=v}
-function cmApply(root,path,val,patch,keepNull){var segs=path.split('/').filter(Boolean);
-  if(!segs.length&&!patch){if(val===null&&keepNull)return root||{};return val&&typeof val==='object'?val:(val===null?{}:val)}
-  root=root&&typeof root==='object'?root:{};
-  if(patch){Object.keys(val||{}).forEach(function(k){var v=val[k];if(v===null&&keepNull&&segs.length===0&&k.indexOf('/')<0)return;cmSet(root,segs.concat(k.split('/').filter(Boolean)),v)})}
-  else{if(val===null&&keepNull&&segs.length===1)return root;cmSet(root,segs,val)}
-  return root}
-function cmStream(name,path,query,onChange,keepNull){
+/* 실시간 구독 — Firebase SDK 하나의 연결(WebSocket)로 모든 대화를 받는다.
+   예전에는 목록 · 방 · 읽음마다 따로 연결(EventSource)을 열었는데, 브라우저가 같은 서버로 동시에 여는 연결 수가
+   정해져 있어서 그걸 채팅이 다 차지했고, 앱의 다른 화면 조회가 줄을 서느라 3배 이상 느려졌다(10/23 측정).
+   SDK 로그인은 Worker /auth/sdktoken 의 커스텀 토큰으로 — 규칙이 보는 auth.uid(전화번호) · staff 는 그대로다. */
+var CM_SDK=null,CM_FB_VER='10.12.2';
+function cmLoadJs(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('채팅 연결 부품을 불러오지 못했습니다'))};document.head.appendChild(s)})}
+function cmSdk(){if(CM_SDK)return CM_SDK;var base='https://www.gstatic.com/firebasejs/'+CM_FB_VER+'/firebase-';
+  CM_SDK=(window.firebase&&firebase.database?Promise.resolve():cmLoadJs(base+'app-compat.js').then(function(){return Promise.all([cmLoadJs(base+'auth-compat.js'),cmLoadJs(base+'database-compat.js')])})).then(function(){
+    if(!firebase.apps.length)firebase.initializeApp({apiKey:'AIzaSyB1kisg-779cQZMkcT_s3PsRLmHHBlOwOM',authDomain:'dm-orders-4792a.firebaseapp.com',databaseURL:FIXED_URL,projectId:'dm-orders-4792a'});
+    var auth=firebase.auth();
+    return new Promise(function(res){var un=auth.onAuthStateChanged(function(u){un();res(u)})}).then(function(u){
+      if(u&&u.uid===String(ME.phone))return;
+      return (u?auth.signOut():Promise.resolve()).then(function(){return ctFetch('/auth/sdktoken',{method:'POST',body:'{}'})}).then(function(j){if(!j||!j.ok)throw new Error((j&&j.error)||'채팅 로그인 실패');return auth.signInWithCustomToken(j.customToken)})})
+  }).then(function(){return firebase.database()}).catch(function(e){CM_SDK=null;throw e});
+  return CM_SDK}
+function cmSdkSignOut(){try{if(window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().goOffline();firebase.auth().signOut()}}catch(e){}CM_SDK=null}
+function cmStream(name,path,query,onChange){
   if(CM.es[name])CM.es[name].close();
-  var h={es:null,closed:false,data:null,close:function(){this.closed=true;if(this.es)this.es.close()}};
-  function open(){dbToken().then(function(t){if(h.closed||!t)return;
-    var es=new EventSource(fbUrl(cmSeg(path)+'.json'+(query?'?'+query:''),t));h.es=es;
-    function on(patch){return function(e){var d;try{d=JSON.parse(e.data)}catch(_){return}if(!d)return;h.data=cmApply(h.data,d.path,d.data,patch,keepNull);onChange(h.data)}}
-    es.addEventListener('put',on(false));es.addEventListener('patch',on(true));
-    es.addEventListener('auth_revoked',function(){es.close();dbClearToken();setTimeout(function(){if(!h.closed)open()},300)});
-    es.addEventListener('cancel',function(){es.close();console.log('채팅 구독 거부',path)});
-    es.onerror=function(){if(es.readyState===2&&!h.closed){setTimeout(function(){if(!h.closed)open()},4000)}};
-  })}
-  open();CM.es[name]=h;return h}
+  var h={closed:false,ref:null,cb:null,close:function(){this.closed=true;if(this.ref&&this.cb)this.ref.off('value',this.cb)}};
+  cmSdk().then(function(db){if(h.closed)return;var ref=db.ref(path.replace(/^\//,''));if(/orderBy=/.test(query||''))ref=ref.orderByKey();var m=/limitToLast=(\d+)/.exec(query||'');if(m)ref=ref.limitToLast(+m[1]);
+    h.ref=ref;h.cb=function(snap){if(!h.closed)onChange(snap.val()||{})};ref.on('value',h.cb,function(err){console.log('채팅 구독 거부',path,err&&err.code)})}).catch(function(e){console.log('채팅 연결',e&&e.message)});
+  CM.es[name]=h;return h}
+/* 바로 보이게: 대화 목록 · 방마다 최근 대화를 이 기기에 저장해 두고, 열 때 먼저 그린 뒤 새 값으로 바꾼다 */
+var CM_SAVE_T={};
+function cmCacheGet(k){try{return JSON.parse(localStorage.getItem('cm_c_'+ME.phone+'_'+k)||'null')}catch(e){return null}}
+function cmCacheSet(k,v){clearTimeout(CM_SAVE_T[k]);CM_SAVE_T[k]=setTimeout(function(){try{localStorage.setItem('cm_c_'+ME.phone+'_'+k,JSON.stringify(v))}catch(e){}},600)}
 
 /* 처음 한 번: 자동방 맞추기 · 직원 목록 · 내 대화 목록 · 내 활동 구독 */
 function cmBoot(){
@@ -6482,7 +6488,8 @@ function cmBoot(){
   cmApi('bootstrap',{}).catch(function(e){console.log('chat bootstrap',e)});
   var p=fbG('/users.json').then(function(u){CM.users=u||{}});
   (function brk(){fbG('/breakActive.json').then(function(b){CM.brk=b||{};if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});setTimeout(brk,120000)})();
-  cmStream('inbox','/chat/inbox/'+ME.phone,'',function(d){CM.inbox=d||{};cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});
+  if(CM.inbox===null){var ci=cmCacheGet('inbox');if(ci)CM.inbox=ci}
+  cmStream('inbox','/chat/inbox/'+ME.phone,'',function(d){CM.inbox=d||{};cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});
   cmStream('act','/chat/act/'+ME.phone,'orderBy=%22%24key%22&limitToLast=200',function(d){CM.act=d||{};cmBadges();cmDeskCheck();if(cmOn('p-comm')&&CM.tab==='act')cmRenderAct()});
   return p}
 function cmBrkOf(rid){var o=rid.replace('dm_','').split('_').filter(function(p){return p!==String(ME.phone)})[0];return !!(CM.brk&&CM.brk[o]&&CM.brk[o].startedAt)}
@@ -6539,9 +6546,10 @@ function cmOpenRoom(rid,thRoot){
   CM.find={on:false,q:'',k:''};
   if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[]}
   go('p-comm-room');cmRoomShell();cmVV();
-  cmStream('room','/chat/rooms/'+rid,'',function(d){CM.room=d;cmRoomHead();cmRenderMsgs()});
-  cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});cmRenderMsgs()},true);
-  cmStream('reads','/chat/reads/'+rid,'',function(d){CM.reads=d||{};cmRenderMsgs()});
+  if(!CM.room){var cr=cmCacheGet('r_'+rid),cm=cmCacheGet('m_'+rid),cd=cmCacheGet('d_'+rid);if(cr&&cm){CM.room=cr;CM.msgs=cm;CM.reads=cd||{};cmRoomHead();cmRenderMsgs()}}
+  cmStream('room','/chat/rooms/'+rid,'',function(d){CM.room=d;cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
+  cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});var ks=Object.keys(CM.msgs).sort().slice(-40),keep={};ks.forEach(function(k){keep[k]=CM.msgs[k]});cmCacheSet('m_'+rid,keep);cmRenderMsgs()});
+  cmStream('reads','/chat/reads/'+rid,'',function(d){CM.reads=d||{};cmCacheSet('d_'+rid,CM.reads);cmRenderMsgs()});
   if(thRoot)setTimeout(function(){cmOpenThread(thRoot)},300)}
 function cmWide(){return window.innerWidth>=1100}
 function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter;var v=$('CM-VIEW');var tmp=document.createElement('div');tmp.id='CM-VIEW';if(v)v.id='CM-VIEW-OFF';sd.innerHTML='';sd.appendChild(tmp);try{cmRenderList()}finally{tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.querySelectorAll('.cm-row').forEach(function(r){if(r.getAttribute('onclick')&&r.getAttribute('onclick').indexOf("'"+CM.rid+"'")>=0)r.classList.add('on')})}

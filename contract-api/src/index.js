@@ -232,6 +232,33 @@ async function firebaseIdToken(env, uid, claims) {
   return { idToken: j.idToken, expiresIn: parseInt(j.expiresIn, 10) || 3600 };
 }
 
+/* 원격 로그아웃 때 Firebase 로그인(채팅 실시간 연결)도 끊는다 — 이 시각 전에 받은 토큰은 갱신이 거부된다 */
+let _gtok = null;
+async function googleToken(env) {
+  if (_gtok && _gtok.exp > Date.now() + 60000) return _gtok.v;
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const now = Math.floor(Date.now() / 1000);
+  const input = b64urlStr(JSON.stringify({ alg: 'RS256', typ: 'JWT' })) + '.' + b64urlStr(JSON.stringify({
+    iss: sa.client_email, scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
+  }));
+  const sig = await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, await importKey(sa.private_key), enc.encode(input));
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + encodeURIComponent(input + '.' + b64url(sig)) });
+  if (!r.ok) throw new Error('구글 인증 실패 ' + r.status);
+  const j = await r.json();
+  _gtok = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  return _gtok.v;
+}
+async function revokeFirebaseSessions(env, uid) {
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${sa.project_id}/accounts:update`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await googleToken(env) },
+    body: JSON.stringify({ localId: String(uid), validSince: String(Math.floor(Date.now() / 1000)) }),
+  });
+  return r.ok || r.status === 400;   // 400 = 아직 한 번도 채팅에 접속 안 한 계정(Firebase 사용자 없음)
+}
+
 /* ═══ 세션 토큰 (HMAC 서명) ═══ */
 async function hmacKey(env) {
   return crypto.subtle.importKey('raw', enc.encode(env.SESSION_SECRET),
@@ -641,6 +668,7 @@ export default {
         if (!/^[0-9]{8,12}$/.test(target)) return json({ ok: false, error: '전화번호 형식이 올바르지 않습니다' }, 400, origin);
         await dbPut(env, '/authSecrets/__revoke/' + target, Date.now());
         await dbDelete(env, '/pushSubs/' + target).catch(() => {});
+        await revokeFirebaseSessions(env, target).catch(() => {});
         revokeCache.at = 0;
         await dbPush(env, '/auditLogs', { at: Date.now(), by: String(me.ph || 'admin'), byName: me.name || '', action: 'session.revoke', target }).catch(() => {});
         return json({ ok: true }, 200, origin);
@@ -725,6 +753,15 @@ export default {
           const t = await firebaseIdToken(env, String(me.ph), { staff: true });
           return json({ ok: true, ...t }, 200, origin);
         } catch (e) { return json({ ok: false, error: e.message }, 502, origin); }
+      }
+
+      /* 채팅 실시간 연결용 — 앱이 Firebase SDK 로 한 번 로그인하면 연결 하나로 모든 대화를 받는다.
+         (방마다 따로 연결하면 브라우저 연결 수가 모자라 앱 전체가 느려졌다) */
+      if (path === '/auth/sdktoken' && request.method === 'POST') {
+        if (me.admin) return json({ ok: false, error: '본사 관리자 입구는 채팅을 쓸 수 없습니다' }, 403, origin);
+        const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
+        if (!u || u.status === '퇴사') return json({ ok: false, error: '사용할 수 없는 계정입니다' }, 403, origin);
+        return json({ ok: true, customToken: await mintCustomToken(env, String(me.ph), { staff: true }) }, 200, origin);
       }
 
       /* 비밀번호 설정 — 본인이거나 직원 관리 권한자. 관리자 재발급·직원 직접 추가가 여기로 온다. */

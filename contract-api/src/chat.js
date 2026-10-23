@@ -159,10 +159,10 @@ export function makeChat(deps) {
 
   /* 메시지 보내기 — 번호 매기기 → 메시지 · 방 최신 · 참여자 목록을 한 번에 쓰기 → 알림 */
   async function send(env, ctx, me, body) {
-    const u = await meUser(env, me);
     const ph = String(me.ph);
     const rid = String(body.rid || '');
-    const room = await getRoom(env, rid);
+    /* 계정 · 방 조회를 동시에 (DB 왕복 하나 줄이기) */
+    const [u, room] = await Promise.all([meUser(env, me), getRoom(env, rid)]);
     if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
     if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
     const k = ['t', 'p', 'v', 'f', 'ack', 'poll'].includes(body.k) ? body.k : 't';
@@ -248,6 +248,8 @@ export function makeChat(deps) {
 
     /* 알림 — 보낸 사람에게는 안 보낸다. 방 알림을 끈 사람에게는 @부른 경우 · 스레드 답에만 보낸다. */
     const muted = room.mute || {};
+    /* 알림은 응답을 돌려준 뒤에 계산 · 발송한다 — 보내는 사람이 기다리지 않게 */
+    const pushJob = (async () => {
     const quietSet = await quietPhones(env);
     const targets = Object.keys(room.m).filter((p) => p !== ph && (root ? actFor.has(p) : (actFor.has(p) || (!muted[p] && !quietSet.has(p)))));
     if (targets.length) {
@@ -255,9 +257,10 @@ export function makeChat(deps) {
       const text = x ? clip(x, 120) : (k === 'p' ? '사진을 보냈습니다' : k === 'v' ? '동영상을 보냈습니다' : '파일을 보냈습니다');
       const head = k === 'ack' ? '[확인 요청] ' : k === 'poll' ? '[투표] ' : root ? '(답장) ' : '';
       const payload = { title, body: (room.t === 'dm' ? '' : bn + ': ') + head + text, url: './#comm/' + rid, tag: 'chat-' + rid };
-      const job = pushToPhones(env, targets, payload, { urgency: actFor.size ? 'high' : 'normal', topic: 'c' + rid.slice(0, 30) }).catch(() => {});
-      if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
+      await pushToPhones(env, targets, payload, { urgency: actFor.size ? 'high' : 'normal', topic: 'c' + rid.slice(0, 30) }).catch(() => {});
     }
+    })().catch(() => {});
+    if (ctx && ctx.waitUntil) ctx.waitUntil(pushJob); else await pushJob;
     return { key, seq, at };
   }
 

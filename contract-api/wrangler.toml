@@ -9,6 +9,10 @@ name = "dm-contract-api"
 main = "src/index.js"
 compatibility_date = "2026-09-30"
 
+# DB(Firebase)가 미국(us-central1)에 있어, 요청 하나에 DB 를 여러 번 오가는 이 Worker 는 DB 가까이서 도는 게 빠르다
+[placement]
+mode = "smart"
+
 [vars]
 FIREBASE_URL = "https://dm-orders-4792a-default-rtdb.firebaseio.com"
 # Firebase 웹 API 키 — 공개값이다(비밀 아님). 커스텀 토큰을 ID 토큰으로 바꿀 때만 쓴다.
