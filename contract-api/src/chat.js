@@ -624,5 +624,6 @@ export function makeChat(deps) {
     }
   };
   route.runReminders = runReminders;
+  route.eligible = eligible;
   return route;
 }

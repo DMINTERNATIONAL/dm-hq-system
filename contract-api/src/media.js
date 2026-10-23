@@ -72,8 +72,10 @@ export async function serveMedia(request, env, path) {
 
 export function makeMedia(deps) {
   const { dbGet } = deps;
+  /* 채팅방이면 방 참여자, 'board:{게시판}' · 'survey:{설문}' 이면 그걸 볼 수 있는 사람 (board.js) */
   async function mustMember(env, me, rid) {
-    if (me.admin) throw new Error('본사 관리자 입구는 채팅을 쓸 수 없습니다');
+    if (me.admin) throw new Error('본사 관리자 입구는 쓸 수 없습니다');
+    if (/^(board|survey):/.test(rid)) { if (!(await deps.canSeeScope(env, me, rid))) throw new Error('볼 수 없는 자료입니다'); return; }
     const m = await dbGet(env, `/chat/rooms/${rid}/m/${me.ph}`).catch(() => null);
     if (!m) throw new Error('이 방에 참여하고 있지 않습니다');
   }
