@@ -7239,10 +7239,20 @@ function cmVV(){var vv=window.visualViewport;var open=false;
 document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){setTimeout(cmVV,50);setTimeout(cmVV,350)}});
 document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||''))setTimeout(cmVV,100)});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
+/* 카톡처럼 대화 내용을 톡 누르거나 아래로 끌어 지난 대화를 올려 보면 키보드를 내린다.
+   아이폰은 글자 칸이 아닌 곳을 눌러도 키보드가 안 내려간다. 손가락 터치에만 — PC 마우스 클릭은 그대로 */
+(function(){var y0=null,x0=0,moved=false;
+  function kbTa(){var ae=document.activeElement;return ae&&ae.tagName==='TEXTAREA'&&/^CM-/.test(ae.id||'')?ae:null}
+  function inMsgs(t){return t&&t.closest&&t.closest('#CM-MSGS,#CM-TMSGS')}
+  document.addEventListener('touchstart',function(e){if(!inMsgs(e.target)||!kbTa()){y0=null;return}var t=e.touches[0];y0=t.clientY;x0=t.clientX;moved=false},{passive:true});
+  document.addEventListener('touchmove',function(e){if(y0==null)return;var t=e.touches[0],dy=t.clientY-y0;if(Math.abs(dy)>10||Math.abs(t.clientX-x0)>10)moved=true;
+    if(dy>24){var ta=kbTa();if(ta)ta.blur();y0=null}},{passive:true});
+  document.addEventListener('touchend',function(){if(y0==null)return;y0=null;if(!moved){var ta=kbTa();if(ta)ta.blur()}},{passive:true});
+})();
 /* 폰 뒤로 가기로 화면이 바뀔 때 — 대화방을 떠났으면 연결 · 화면 고정을 정리하고, 소통 화면이면 현재 탭으로 다시 그린다 */
 function cmPopHook(page){if(page!=='p-comm-room'&&page!=='p-comm-thread'&&CM.rid)cmLeaveRoom();if(page==='p-comm-room'&&CM.thRoot){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;cmRenderMsgs()}setTimeout(cmVV,0);if(page==='p-comm'){cmRender()}}
 /* 아이폰 홈 화면 앱(전체 화면): 화면 아래 홈 막대 · 둥근 모서리 자리를 앱이 '안전 영역'으로 못 받는다
-   (viewport-fit=cover 를 안 써서 var(--sab) 이 0). 입력창이 그 밑으로 잘리지 않게
+   (viewport-fit=cover 를 안 써서 env(safe-area-inset-bottom) 이 0). 입력창이 그 밑으로 잘리지 않게
    홈 막대가 있는 기종(세로 812px 이상)이면 아래 여백을 직접 준다. */
 (function(){try{var ios=/iPhone|iPad|iPod/.test(navigator.userAgent);var sa=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
   if(ios&&sa&&Math.max(screen.width,screen.height)>=812)document.documentElement.classList.add('ios-home-bar')}catch(e){}})();
