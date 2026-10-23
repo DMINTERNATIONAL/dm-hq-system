@@ -454,7 +454,16 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-chips::-webkit-scrollbar{display:none}
 .cm-chip{flex:0 0 auto;border:1px solid var(--cm-line);background:#fff;color:var(--cm-ink2);border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
 .cm-chip.on{background:var(--cm-ink);border-color:var(--cm-ink);color:#fff}
-.cm-pinbar{display:flex;gap:8px;align-items:center;background:#FEF3C7;color:#92400E;border-radius:12px;padding:10px 12px;margin-bottom:10px;cursor:pointer;font-size:13px}
+.cm-pinbar{display:flex;gap:8px;align-items:center;background:#FEF3C7;color:#92400E;border-radius:10px;padding:7px 11px;margin-bottom:8px;cursor:pointer;font-size:12.5px}
+.cm-tools{display:flex;align-items:center;gap:6px;margin:0 0 10px}
+.cm-tool{border:1px solid var(--cm-line);background:#fff;color:var(--cm-ink2);border-radius:99px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
+.cm-tool.on{background:var(--cm-ink);color:#fff;border-color:var(--cm-ink)}
+.cm-fl{font-size:12px;color:var(--cm-ink3);margin:-2px 2px 8px}
+.cm-fl a{color:var(--cm-blue);font-weight:700;cursor:pointer;margin-left:6px}
+.cm-toptabs{margin-bottom:10px}
+.ios-home-bar .cm-comp{padding-bottom:30px;padding-left:14px;padding-right:14px}
+.ios-home-bar .cm-ro{padding-bottom:30px}
+.ios-home-bar .cm-sheet{padding-bottom:30px}
 .cm-pinbar b{flex:0 0 auto}
 .cm-pinbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm-pinbar em{font-style:normal;font-size:11px;font-weight:800;color:#DC2626;white-space:nowrap}
@@ -6494,6 +6503,8 @@ function cmBoot(){
   cmStream('inbox','/chat/inbox/'+ME.phone,'',function(d){CM.inbox=d||{};cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});
   cmStream('act','/chat/act/'+ME.phone,'orderBy=%22%24key%22&limitToLast=200',function(d){CM.act=d||{};cmBadges();cmDeskCheck();if(cmOn('p-comm')&&CM.tab==='act')cmRenderAct()});
   return p}
+function cmFilterSheet(){var f=CM.filter;var row=function(items,cur,key){return '<div class="cm-chips" style="flex-wrap:wrap;padding:4px 16px 12px">'+items.map(function(it){return '<button class="cm-chip'+(cur===it[0]?' on':'')+'" onclick="CM.filter.'+key+'=\''+cmEsc(it[0])+'\';this.closest(\'.cm-sheet-bg\').remove();cmRenderList()">'+cmEsc(it[1])+'</button>'}).join('')+'</div>'};
+  cmSheet('<div class="ttl">종류</div>'+row([['','전체'],['un','안 읽음'+(CM._unN?' '+CM._unN:'')],['at','@나'+(CM._atN?' '+CM._atN:'')],['notice','공지'],['dm','1:1']],f.k,'k')+'<div class="ttl">지점</div>'+row([['','전체 지점']].concat((CM._brs||[]).map(function(b){return [b,b]})),f.br,'br')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>')}
 function cmBrkOf(rid){var o=rid.replace('dm_','').split('_').filter(function(p){return p!==String(ME.phone)})[0];return !!(CM.brk&&CM.brk[o]&&CM.brk[o].startedAt)}
 function cmOn(id){var e=$(id);return !!(e&&e.classList.contains('on'))}
 function cmUnreadTotal(){var n=0;Object.keys(CM.inbox||{}).forEach(function(k){var r=CM.inbox[k];if(r&&!r.mute)n+=Math.max(0,(r.s||0)-(r.r||0))});return n}
@@ -6530,13 +6541,15 @@ function cmRenderList(){
     if(CM.filter.k==='notice'&&r.t!=='notice')return false;if(CM.filter.k==='dm'&&r.t!=='dm'&&r.t!=='me')return false;
     if(q&&String(cmRoomName(k,r)).toLowerCase().indexOf(q)<0&&String(r.x||'').toLowerCase().indexOf(q)<0)return false;return true})
     .sort(function(a,b){var A=CM.inbox[a],B=CM.inbox[b];if(a==='notice')return -1;if(b==='notice')return 1;return (B.at||0)-(A.at||0)});
-  var h='<div class="cm-head"><span class="t">채팅</span><button class="cm-tb gray" onclick="cmOpenSettings()">설정</button><button class="cm-tb" onclick="cmOpenNew(\'new\')">새 대화</button></div>';
-  h+='<input class="cm-search" id="CM-Q" placeholder="이름 · 방 이름 · 내용 검색" value="'+cmEsc(CM.q)+'" oninput="CM.q=this.value;cmRenderList();var e=$(\'CM-Q\');e.focus();e.setSelectionRange(e.value.length,e.value.length)">';
+  /* 위쪽을 한 줄로: 검색(누르면 펼침) · 필터(지점 + 종류를 한 창에) · 새 대화 · 설정 — 목록이 화면 위에서 바로 시작하게 */
+  var fl=[];if(CM.filter.br)fl.push(CM.filter.br);var KL={un:'안 읽음',at:'@나',notice:'공지',dm:'1:1'};if(CM.filter.k)fl.push(KL[CM.filter.k]);
+  var h='<div class="cm-tools"><button class="cm-tool'+(CM.qOpen||CM.q?' on':'')+'" onclick="CM.qOpen=!CM.qOpen;if(!CM.qOpen)CM.q=\'\';cmRenderList();if(CM.qOpen){var e=$(\'CM-Q\');if(e)e.focus()}">검색</button><button class="cm-tool'+(fl.length?' on':'')+'" onclick="cmFilterSheet()">필터'+(fl.length?' · '+cmEsc(fl.join(' · ')):'')+' ▾</button><span style="flex:1"></span><button class="cm-tb gray" onclick="cmOpenSettings()">설정</button><button class="cm-tb" onclick="cmOpenNew(\'new\')">새 대화</button></div>';
+  if(CM.qOpen||CM.q)h+='<input class="cm-search" id="CM-Q" placeholder="이름 · 방 이름 · 내용 검색" value="'+cmEsc(CM.q)+'" oninput="CM.q=this.value;cmRenderList();var e=$(\'CM-Q\');e.focus();e.setSelectionRange(e.value.length,e.value.length)">';
   h+=pin;
   var sumN=cmSumRooms().reduce(function(n,k){return n+(CM.inbox[k].s||0)-(CM.inbox[k].r||0)},0);if(sumN>=10)h+='<button class="cm-sumbtn" onclick="cmOpenSummary()">안 읽은 것 '+sumN+'개 · AI 요약 보기</button>';
-  h+='<div class="cm-chips">'+['',].concat(Object.keys(brs).sort()).map(function(b){return '<button class="cm-chip'+(CM.filter.br===b?' on':'')+'" onclick="CM.filter.br=\''+cmEsc(b)+'\';cmRenderList()">'+(b?cmEsc(b):'전체 지점')+'</button>'}).join('')+'</div>';
+  CM._brs=Object.keys(brs).sort();
   var unN=ids.filter(function(k){var r=CM.inbox[k];return (r.s||0)>(r.r||0)}).length,atN=ids.filter(function(k){var r=CM.inbox[k];return (r.mn||0)>(r.r||0)}).length;
-  h+='<div class="cm-chips">'+[['','전체'],['un','안 읽음'+(unN?' '+unN:'')],['at','@나'+(atN?' '+atN:'')],['notice','공지'],['dm','1:1']].map(function(c){return '<button class="cm-chip'+(CM.filter.k===c[0]?' on':'')+'" onclick="CM.filter.k=\''+c[0]+'\';cmRenderList()">'+c[1]+'</button>'}).join('')+'</div>';
+  CM._unN=unN;CM._atN=atN;if(fl.length)h+='<div class="cm-fl">'+cmEsc(fl.join(' · '))+'만 보는 중 <a onclick="CM.filter={br:\'\',k:\'\'};cmRenderList()">전체 보기</a></div>';
   if(!rows.length)h+='<div class="cm-empty">'+(ids.length?'조건에 맞는 대화가 없어요':'아직 대화가 없어요.<br>오른쪽 위 \'새 대화\'로 시작하세요.')+'</div>';
   else{h+='<div class="cm-list">';rows.forEach(function(k){var r=CM.inbox[k];var un=Math.max(0,(r.s||0)-(r.r||0));var at=(r.mn||0)>(r.r||0);
     h+='<div class="cm-row" onclick="cmOpenRoom(\''+cmEsc(k)+'\')">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm"><span>'+cmEsc(cmRoomName(k,r))+'</span>'+(r.t==='notice'?'<span class="cm-tag">고정</span>':'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'});h+='</div>'}
@@ -7078,6 +7091,11 @@ document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
 /* 폰 뒤로 가기로 화면이 바뀔 때 — 대화방을 떠났으면 연결 · 화면 고정을 정리하고, 소통 화면이면 현재 탭으로 다시 그린다 */
 function cmPopHook(page){if(page!=='p-comm-room'&&page!=='p-comm-thread'&&CM.rid)cmLeaveRoom();if(page==='p-comm-room'&&CM.thRoot){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;cmRenderMsgs()}setTimeout(cmVV,0);if(page==='p-comm'){cmRender()}}
+/* 아이폰 홈 화면 앱(전체 화면): 화면 아래 홈 막대 · 둥근 모서리 자리를 앱이 '안전 영역'으로 못 받는다
+   (viewport-fit=cover 를 안 써서 env(safe-area-inset-bottom) 이 0). 입력창이 그 밑으로 잘리지 않게
+   홈 막대가 있는 기종(세로 812px 이상)이면 아래 여백을 직접 준다. */
+(function(){try{var ios=/iPhone|iPad|iPod/.test(navigator.userAgent);var sa=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+  if(ios&&sa&&Math.max(screen.width,screen.height)>=812)document.documentElement.classList.add('ios-home-bar')}catch(e){}})();
 /* 알림을 눌러 들어온 경우: #comm/{방} */
 function cmRoute(){var h=location.hash||'';if(!ME)return;var m=h.match(/^#comm\/(.+)$/),bm=h.match(/^#board\/([^/]+)\/(.+)$/),sm=h.match(/^#survey\/(.+)$/);if(!m&&!bm&&!sm)return;commBetaLoad().then(function(b){if(!b)return;cmBoot();if(m)cmOpenRoom(decodeURIComponent(m[1]));else if(bm)bdOpen(decodeURIComponent(bm[1]),bm[2]);else svAnswer(sm[1])})}
 window.addEventListener('hashchange',cmRoute);
