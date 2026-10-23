@@ -275,10 +275,12 @@ async function main() {
     catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
   }
   if (mode === 'lite' || mode === 'both') {
-    try { console.log('[lite]', JSON.stringify(await buildStoresLite(dry))); }
-    catch (e) { errors.push('lite: ' + e.message); }
-    try { console.log('[kpi]', JSON.stringify(await buildStoresKpi(dry))); }
-    catch (e) { errors.push('kpi: ' + e.message); }
+    // 백업 실행(05·07시)처럼 이번 실행이 /stores 를 하나도 안 바꿨으면 사본도 그대로 둔다(매번 4.8MB 읽기 절약). lite 모드는 항상.
+    if (mode === 'both' && !STORES_TOUCHED) console.log('[copies] skip — 이번 실행에서 /stores 변경 없음');
+    else {
+      try { console.log('[copies]', JSON.stringify(await buildStoreCopies(dry))); }
+      catch (e) { errors.push('copies: ' + e.message); }
+    }
   }
   if (mode === 'pdb' || mode === 'both') {
     try { console.log('[pdb]', JSON.stringify(await backupProductDB(dry))); }
@@ -1131,7 +1133,9 @@ async function fbAuthed(url) {
   if (!t) return url;
   return url + (url.includes('?') ? '&' : '?') + 'access_token=' + t;
 }
+let STORES_TOUCHED = false;
 async function rtdbPut(path, value) {
+  if (String(path).startsWith('/stores/')) STORES_TOUCHED = true;
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
   if (!resp.ok) throw new Error(`RTDB PUT ${path} → ${resp.status}`);
 }
@@ -1151,25 +1155,6 @@ function liteSns(s) {
   if (Array.isArray(s && s.recent_posts) && s.recent_posts[0]) o.recent_posts = [{ ts: s.recent_posts[0].ts }];
   return o;
 }
-async function buildStoresLite(dry) {
-  const from = kstDateString(-62);
-  const out = {};
-  for (const shop of ['flagship', 'moment', 'eto']) {
-    const days = await fbGET(`/stores/${shop}/daily.json?orderBy=%22$key%22&startAt=%22${from}%22`);
-    if (!days) { out[shop] = 'skip(읽기 실패 — 이전 사본 유지)'; continue; }
-    const lite = {};
-    for (const [ymd, d] of Object.entries(days)) {
-      if (!d) continue;
-      const sns = {};
-      for (const [nm, v] of Object.entries(d.sns || {})) sns[nm] = liteSns(v);
-      lite[ymd] = { store: d.store || null, designers: d.designers || null, visits: d.visits || null, dvisits: d.dvisits || null, meta: d.meta || null, sns };
-    }
-    out[shop] = { days: Object.keys(lite).length, kb: Math.round(JSON.stringify(lite).length / 1024) };
-    if (!dry) await rtdbPut(`/storesLite/${shop}/daily`, lite);
-  }
-  return out;
-}
-
 /* ═══ 앱 KPI 화면용 사본 ═══
    KPI 화면은 /stores 전체(4.8MB, 매일 늘어남)를 받았다. 화면이 실제로 쓰는 건
    ① 고른 기간(과 비교 기간)의 날별 숫자 ② 월별 추이 그래프용 월 합계 ③ 가장 최근 날의 인스타 게시물 목록.
@@ -1182,11 +1167,21 @@ function kpiSns(s) {
   if (Array.isArray(s && s.recent_posts) && s.recent_posts[0]) o.recent_posts = [{ ts: s.recent_posts[0].ts }];
   return o;
 }
-async function buildStoresKpi(dry) {
+/* 대시보드용(/storesLite, 최근 62일 · 인스타 숫자 일부)과 KPI용(/storesKpi, 전 기간)을 /stores 한 번 읽어 함께 만든다 */
+async function buildStoreCopies(dry) {
   const out = {};
+  const liteFrom = kstDateString(-62);
   for (const shop of ['flagship', 'moment', 'eto']) {
     const days = await fbGET(`/stores/${shop}/daily.json`);
     if (!days) { out[shop] = 'skip(읽기 실패 — 이전 사본 유지)'; continue; }
+    const lite = {};
+    for (const [ymd, d] of Object.entries(days)) {
+      if (!d || ymd < liteFrom) continue;
+      const sns = {};
+      for (const [nm, v] of Object.entries(d.sns || {})) sns[nm] = liteSns(v);
+      lite[ymd] = { store: d.store || null, designers: d.designers || null, visits: d.visits || null, dvisits: d.dvisits || null, meta: d.meta || null, sns };
+    }
+    if (!dry) await rtdbPut(`/storesLite/${shop}/daily`, lite);
     const daily = {}, months = {};
     for (const [ymd, d] of Object.entries(days)) {
       if (!d) continue;
@@ -1197,7 +1192,7 @@ async function buildStoresKpi(dry) {
       const e = months[ym] || (months[ym] = { net_sales: 0, guests: 0, 신규: 0, 재방: 0, total: 0 });
       e.net_sales += +st.net_sales || 0; e.guests += +st.guests || 0; e.신규 += +vi.신규 || 0; e.재방 += +vi.재방 || 0; e.total += +vi.total || 0;
     }
-    out[shop] = { days: Object.keys(daily).length, kb: Math.round(JSON.stringify(daily).length / 1024), months: Object.keys(months).length };
+    out[shop] = { liteDays: Object.keys(lite).length, liteKb: Math.round(JSON.stringify(lite).length / 1024), days: Object.keys(daily).length, kb: Math.round(JSON.stringify(daily).length / 1024), months: Object.keys(months).length };
     if (!dry) await rtdbPut(`/storesKpi/${shop}`, { daily, months });
   }
   return out;
