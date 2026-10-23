@@ -914,9 +914,18 @@ function $(id){return document.getElementById(id)}
    볼 수 없던 것이라 호출부의 기존 catch 가 받아낸다. */
 var DB_TOKEN=null,DB_TOKEN_EXP=0,DB_TOKEN_WAIT=null;
 function dbTokenFresh(){return DB_TOKEN&&DB_TOKEN_EXP>Date.now()+120000}
+/* 앱을 열 때마다 토큰을 새로 받느라 모든 조회가 약 1초씩 기다렸다. 받은 토큰을 기기에 남겨 두고 만료 전까지 다시 쓴다.
+   같은 기기의 로그인 토큰(dm_ct)으로 언제든 다시 받을 수 있는 것이라 더 열리는 건 없다.
+   로그인 토큰이 바뀌면(다시 로그인 · 다른 사람) 버리고, 거부(401)되면 fbReq 가 지우고 새로 받는다. */
+function dbTokenTag(){return CT_TOKEN?String(CT_TOKEN).slice(-24):''}
+function dbTokenRestore(){
+  var raw=safeLS(function(){return localStorage.getItem('dm_dbt')});if(!raw)return false;
+  try{var d=JSON.parse(raw);if(!d||!d.t||d.k!==dbTokenTag()||!(d.e>Date.now()+120000))return false;DB_TOKEN=d.t;DB_TOKEN_EXP=d.e;return true}catch(e){return false}
+}
 function dbToken(){
   if(dbTokenFresh())return Promise.resolve(DB_TOKEN);
   if(DB_TOKEN_WAIT)return DB_TOKEN_WAIT;      /* 동시에 여러 호출이 몰려도 발급은 한 번만 */
+  if((CT_TOKEN||ctRestore())&&dbTokenRestore())return Promise.resolve(DB_TOKEN);
   if(!CT_TOKEN&&!ctRestore()){
     /* 쓰는 도중에 유효기간이 지났다. 그냥 null 을 돌려주면 모든 조회가 빈값이 되어
        '직원이 0명' 같은 화면이 나온다. 한 번만 알리고 로그인으로 보낸다. */
@@ -925,14 +934,14 @@ function dbToken(){
   }
   DB_TOKEN_WAIT=ctFetch('/auth/dbtoken',{method:'POST',body:'{}'})
     .then(function(j){
-      if(j&&j.ok&&j.idToken){DB_TOKEN=j.idToken;DB_TOKEN_EXP=Date.now()+(j.expiresIn||3600)*1000;return DB_TOKEN}
+      if(j&&j.ok&&j.idToken){DB_TOKEN=j.idToken;DB_TOKEN_EXP=Date.now()+(j.expiresIn||3600)*1000;var k=dbTokenTag();safeLS(function(){localStorage.setItem('dm_dbt',JSON.stringify({t:DB_TOKEN,e:DB_TOKEN_EXP,k:k}))});return DB_TOKEN}
       DB_TOKEN=null;DB_TOKEN_EXP=0;return null;
     })
     .catch(function(){DB_TOKEN=null;DB_TOKEN_EXP=0;return null})
     .then(function(t){DB_TOKEN_WAIT=null;return t});
   return DB_TOKEN_WAIT;
 }
-function dbClearToken(){DB_TOKEN=null;DB_TOKEN_EXP=0;DB_TOKEN_WAIT=null}
+function dbClearToken(){DB_TOKEN=null;DB_TOKEN_EXP=0;DB_TOKEN_WAIT=null;safeLS(function(){localStorage.removeItem('dm_dbt')})}
 var _sessExpired=false;
 function sessionExpired(){
   if(_sessExpired)return; _sessExpired=true;
@@ -943,17 +952,27 @@ function sessionExpired(){
 }
 function fbUrl(p,t){return FB+p+(t?((p.indexOf('?')>=0?'&':'?')+'auth='+t):'')}
 function fbReq(p,opts){
-  return dbToken().then(function(t){return fetch(fbUrl(p,t),opts)}).then(function(r){
-    /* 토큰이 중간에 만료되면 한 번만 새로 받아 다시 시도한다 */
-    if(r.status===401&&DB_TOKEN){dbClearToken();return dbToken().then(function(t2){return t2?fetch(fbUrl(p,t2),opts):r})}
+  /* 쓰기가 있으면 나눠 쓰던 조회 결과를 버린다 (방금 쓴 값을 옛 값으로 보여주지 않게) */
+  if(opts&&opts.method&&opts.method!=='GET'&&typeof fbShareClear==='function')fbShareClear();
+  return dbToken().then(function(t){return fetch(fbUrl(p,t),opts).then(function(r){
+    /* 토큰이 거부되면 한 번만 새로 받아 다시 시도한다. 동시에 여러 조회가 거부돼도 버리고 새로 받는 건
+       그 토큰을 처음 거부당한 조회 하나뿐 — 나머지는 이미 새로 받는 중이거나 받은 토큰으로 다시 시도한다 */
+    if(r.status===401&&t){if(t===DB_TOKEN)dbClearToken();return dbToken().then(function(t2){return t2&&t2!==t?fetch(fbUrl(p,t2),opts):r})}
     return r;
-  });
+  })});
 }
 /* 실패 응답을 데이터로 넘기면 안 된다. 보안 규칙에 막히면 Firebase 는 HTTP 401 과 함께
    {"error":"Permission denied"} 를 JSON 으로 돌려주는데, 호출부들이 그걸 레코드로 보고
    '키 1개 = 1명' 으로 센다(실제로 휴게 중이 아닌데 "휴게 중 1명" 으로 떴다).
    없는 것과 못 읽은 것을 똑같이 null 로 돌려준다 — 호출부가 전부 그렇게 다루고 있다. */
-function fbG(p){return fbReq(p,{cache:'no-store'}).then(function(r){
+var FBG_SHARE={};
+function fbShareClear(){FBG_SHARE={}}
+/* 같은 경로를 짧은 사이에 여러 화면이 부르면(대시보드 알림 · 하단 배지 등) 한 번만 받아 나눠 쓴다.
+   받은 글을 각자 새로 해석해서 주므로 한쪽이 값을 고쳐도 다른 쪽에 번지지 않는다. */
+function fbG(p){var c=FBG_SHARE[p];if(c&&Date.now()-c.t<10000)return c.pr.then(function(txt){return txt==null?null:JSON.parse(txt)});
+  var pr=fbGRaw(p).then(function(v){return v==null?null:JSON.stringify(v)},function(e){delete FBG_SHARE[p];throw e});FBG_SHARE[p]={t:Date.now(),pr:pr};
+  return pr.then(function(txt){return txt==null?null:JSON.parse(txt)})}
+function fbGRaw(p){return fbReq(p,{cache:'no-store'}).then(function(r){
   if(!r.ok)return null;
   return r.json().then(function(j){
     if(j&&typeof j==='object'&&!Array.isArray(j)&&j.error!==undefined&&Object.keys(j).length===1)return null;
@@ -1265,7 +1284,20 @@ function dashStat(label,value,sub){return '<div style="min-width:0"><div style="
 function dashDelta(cur,prev){if(prev==null)return '<div style="font-size:9.5px;color:#c7c7cc;font-weight:600">전달 –</div>';var d=cur-prev;if(!d)return '<div style="font-size:9.5px;color:#c7c7cc;font-weight:600">– 전달</div>';var up=d>0;return '<div style="font-size:9.5px;font-weight:700;color:'+(up?'#34c759':'#ff3b30')+'">'+(up?'▲':'▼')+kpiW(Math.abs(d))+'</div>';}
 function dashSub(txt,color){return '<div style="font-size:10px;color:'+(color||'#8e8e93')+';font-weight:600;margin-top:1px">'+txt+'</div>';}
 function dashKpiCard(title,rows,onc){return '<div style="background:#f5f5f7;border-radius:14px;padding:14px 16px;margin-top:10px;cursor:pointer" onclick="'+(onc||'openKPI()')+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:13px;color:#1d1d1f">'+title+'</b><span style="font-size:11px;color:#86868b;font-weight:600">자세히 ›</span></div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px 14px">'+rows+'</div></div>';}
-function loadDashKpi(){var el=document.getElementById('DASH-KPI');if(!el)return;var g=permGrade(ME);if(!can('menu.kpi')){el.innerHTML='';return;}var isIntern=kpiIsIntern(ME);Promise.all([fbG('/stores.json'),fbG('/official.json')]).then(function(a){KPI_STORES=a[0]||{};KPI_OFFICIAL=a[1]||{};var opd=kpiPeriod,osh=kpiShop;kpiPeriod='month';kpiShop='all';try{var days=kpiDays(['flagship','moment','eto']);var win=kpiWin(days,0),prevw=kpiWin(days,1);if(!win.length){el.innerHTML='';return;}var des=kpiDesList(win),desP=kpiDesList(prevw);var gm=kpiGrowthMap();var canHQ=['경영팀','관리자','스탭장'].indexOf(g)>=0&&!kpiIsDesigner(ME)&&!kpiIsIntern(ME);var byNm=function(list){return list.filter(function(d){return d.name===ME.nick||d.name===ME.name;})[0];};var me=byNm(des),meP=byNm(desP);var h='';if(isIntern){var _ig=me&&((+me.followers||0)>0||(+me.uploads_month||0)>0);if(_ig){var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiTab='insta';openKPI()");}else{h='<div style="background:#f5f5f7;border-radius:14px;padding:14px 16px;margin-top:10px;font-size:12px;color:#86868b">📷 인스타 계정을 연결하면 팔로워·게시 KPI가 여기에 표시됩니다.</div>';}}else if(me&&((+me.payroll_base||0)>0||(+me.followers||0)>0||(+me.guests||0)>0)){var nk=ME.nick||'';var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 매출',dashStat('매출',kpiW(me.payroll_base||0)+'원',dashDelta(me.payroll_base||0,meP?meP.payroll_base:null))+dashStat('접객',kpiW(me.guests||0)+'명',dashDelta(me.guests||0,meP?meP.guests:null)+dashSub('신규 '+kpiW(me.신규||0)+' · 재방 '+kpiW(me.재방||0)))+dashStat('객단가',kpiW(me.avg_ticket||0)+'원',dashDelta(me.avg_ticket||0,meP?meP.avg_ticket:null))+dashStat('점판',kpiW(me.retail_amount||0)+'원',dashDelta(me.retail_amount||0,meP?meP.retail_amount:null)),"kpiView='des';kpiDesId='"+nk+"';kpiTab='sales';openKPI()");h+=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiView='des';kpiDesId='"+nk+"';kpiTab='insta';openKPI()");}else if(canHQ){var c=kpiStoreAgg(win),cP=kpiStoreAgg(prevw),v=kpiVisitsAgg(win),totF=0,totUp=0,acc=0;des.forEach(function(d){if(d.sns){totF+=d.followers;totUp+=(d.uploads_month||0);acc++;}});var avgC=c.guests?c.net/c.guests:0,avgP=cP.guests?cP.net/cP.guests:0,totUpP=0;desP.forEach(function(d){if(d.sns)totUpP+=(d.uploads_month||0);});h=dashKpiCard('전체 매출',dashStat('실매출',kpiW(c.net)+'원',dashDelta(c.net,cP.net||null))+dashStat('접객',kpiW(c.guests)+'명',dashDelta(c.guests,cP.guests?cP.guests:null)+dashSub('신규 '+kpiW(v.신규||0)+' · 재방 '+kpiW(v.재방||0)))+dashStat('객단가',kpiW(avgC)+'원',dashDelta(avgC,cP.guests?avgP:null))+dashStat('재방률',v.total?(v.재방/v.total*100).toFixed(0)+'%':'–'),"kpiView='hq';kpiTab='sales';openKPI()")+dashKpiCard('전체 인스타그램',dashStat('총 팔로워',kpiW(totF))+dashStat('이번달 게시',kpiW(totUp)+'개',dashDelta(totUp,totUpP||null))+dashStat('계정 수',acc+'개')+dashStat('공식 계정',(KPI_OFFICIAL?Object.keys(KPI_OFFICIAL).length:0)+'개'),"kpiView='hq';kpiTab='insta';openKPI()");}else{el.innerHTML='';return;}el.innerHTML=h;}catch(e){el.innerHTML='';}finally{kpiPeriod=opd;kpiShop=osh;}});}
+/* 대시보드 매출 카드는 이번 달 · 지난달 일별 매출만 쓴다. /stores 전체는 수집 시작일부터의 모든 날 + 월 확정 + 검증 기록이라
+   4.8MB(2026-10 기준, 매일 늘어남)였고 앱을 열 때마다 통째로 받았다. 지점별로 지난달 1일부터만 받는다.
+   그래도 두 달치가 3MB(대부분 인스타 게시물 목록)라, 수집기가 숫자만 남겨 둔 /storesLite 를 먼저 읽고 없으면 /stores 로. */
+function dashKpiStores(){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);var from=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-01';var out={};
+  var q='/daily.json?orderBy=%22$key%22&startAt=%22'+from+'%22';
+  return Promise.all(['flagship','moment','eto'].map(function(sk){return fbG('/storesLite/'+sk+q).catch(function(){return null}).then(function(dd){return dd&&Object.keys(dd).length?dd:fbG('/stores/'+sk+q)}).then(function(dd){out[sk]={daily:dd||{}}})})).then(function(){return out})}
+/* 매출 · 인스타 숫자는 하루 한 번(새벽 4시 수집) 바뀐다. 만든 카드를 기기에 저장해 두고 앱을 열면 바로 보여준 뒤,
+   3시간이 지났을 때만 다시 받아 바꾼다 — 열 때마다 수 MB 를 받던 것을 하루 몇 번으로 줄인다. */
+function dashKpiCacheKey(){return 'dash_kpi_'+(ME&&ME.phone)}
+function loadDashKpi(){var el=document.getElementById('DASH-KPI');if(!el)return;var g=permGrade(ME);if(!can('menu.kpi')){el.innerHTML='';return;}
+  var cached=null;try{cached=JSON.parse(localStorage.getItem(dashKpiCacheKey())||'null')}catch(e){}
+  if(cached&&cached.h!=null){el.innerHTML=cached.h;if(Date.now()-cached.t<3*3600*1000&&cached.d===todayStrKR())return}
+  loadDashKpiFresh(el,g)}
+function loadDashKpiFresh(el,g){var isIntern=kpiIsIntern(ME);dashKpiStores().then(function(st){return Promise.all([st,fbG('/official.json')])}).then(function(a){KPI_STORES=a[0]||{};KPI_OFFICIAL=a[1]||{};var opd=kpiPeriod,osh=kpiShop;kpiPeriod='month';kpiShop='all';try{var days=kpiDays(['flagship','moment','eto']);var win=kpiWin(days,0),prevw=kpiWin(days,1);if(!win.length){el.innerHTML='';return;}var des=kpiDesList(win),desP=kpiDesList(prevw);var gm=kpiGrowthMap();var canHQ=['경영팀','관리자','스탭장'].indexOf(g)>=0&&!kpiIsDesigner(ME)&&!kpiIsIntern(ME);var byNm=function(list){return list.filter(function(d){return d.name===ME.nick||d.name===ME.name;})[0];};var me=byNm(des),meP=byNm(desP);var h='';if(isIntern){var _ig=me&&((+me.followers||0)>0||(+me.uploads_month||0)>0);if(_ig){var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiTab='insta';openKPI()");}else{h='<div style="background:#f5f5f7;border-radius:14px;padding:14px 16px;margin-top:10px;font-size:12px;color:#86868b">📷 인스타 계정을 연결하면 팔로워·게시 KPI가 여기에 표시됩니다.</div>';}}else if(me&&((+me.payroll_base||0)>0||(+me.followers||0)>0||(+me.guests||0)>0)){var nk=ME.nick||'';var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 매출',dashStat('매출',kpiW(me.payroll_base||0)+'원',dashDelta(me.payroll_base||0,meP?meP.payroll_base:null))+dashStat('접객',kpiW(me.guests||0)+'명',dashDelta(me.guests||0,meP?meP.guests:null)+dashSub('신규 '+kpiW(me.신규||0)+' · 재방 '+kpiW(me.재방||0)))+dashStat('객단가',kpiW(me.avg_ticket||0)+'원',dashDelta(me.avg_ticket||0,meP?meP.avg_ticket:null))+dashStat('점판',kpiW(me.retail_amount||0)+'원',dashDelta(me.retail_amount||0,meP?meP.retail_amount:null)),"kpiView='des';kpiDesId='"+nk+"';kpiTab='sales';openKPI()");h+=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiView='des';kpiDesId='"+nk+"';kpiTab='insta';openKPI()");}else if(canHQ){var c=kpiStoreAgg(win),cP=kpiStoreAgg(prevw),v=kpiVisitsAgg(win),totF=0,totUp=0,acc=0;des.forEach(function(d){if(d.sns){totF+=d.followers;totUp+=(d.uploads_month||0);acc++;}});var avgC=c.guests?c.net/c.guests:0,avgP=cP.guests?cP.net/cP.guests:0,totUpP=0;desP.forEach(function(d){if(d.sns)totUpP+=(d.uploads_month||0);});h=dashKpiCard('전체 매출',dashStat('실매출',kpiW(c.net)+'원',dashDelta(c.net,cP.net||null))+dashStat('접객',kpiW(c.guests)+'명',dashDelta(c.guests,cP.guests?cP.guests:null)+dashSub('신규 '+kpiW(v.신규||0)+' · 재방 '+kpiW(v.재방||0)))+dashStat('객단가',kpiW(avgC)+'원',dashDelta(avgC,cP.guests?avgP:null))+dashStat('재방률',v.total?(v.재방/v.total*100).toFixed(0)+'%':'–'),"kpiView='hq';kpiTab='sales';openKPI()")+dashKpiCard('전체 인스타그램',dashStat('총 팔로워',kpiW(totF))+dashStat('이번달 게시',kpiW(totUp)+'개',dashDelta(totUp,totUpP||null))+dashStat('계정 수',acc+'개')+dashStat('공식 계정',(KPI_OFFICIAL?Object.keys(KPI_OFFICIAL).length:0)+'개'),"kpiView='hq';kpiTab='insta';openKPI()");}else{el.innerHTML='';return;}el.innerHTML=h;try{localStorage.setItem(dashKpiCacheKey(),JSON.stringify({t:Date.now(),d:todayStrKR(),h:h}))}catch(_){}}catch(e){if(!el.innerHTML)el.innerHTML='';}finally{kpiPeriod=opd;kpiShop=osh;}});}
 function openDash(){
 commBetaLoad().then(function(b){if(!b)return;var cur=document.querySelector('.pg.on');renderBotTab(cur?cur.id:'p-dash');if(typeof renderSidebar==='function')renderSidebar();cmBoot();cmRoute()}).catch(function(){});
 loadGradePerms(function(){if(ME&&typeof renderSidebar==='function')renderSidebar()});
@@ -1330,7 +1362,7 @@ var dashBrkData=null,dashBrkLastFetch=0;
 function renderDashBreak(){var el=$('DASH-BRK');if(!el)return;var now=Date.now();if(!dashBrkData||now-dashBrkLastFetch>10000){dashBrkLastFetch=now;if(!ME||!ME.phone)return;fbG('/breakActive/'+ME.phone+'.json').then(function(b){dashBrkData=b||null;drawDashBreak()})}else{drawDashBreak()}}
 function drawDashBreak(){var el=$('DASH-BRK');if(!el)return;var b=dashBrkData;if(!b){el.innerHTML='';return}var remain=b.endsAt-Date.now(),over=remain<0;if(remain<-60000&&!window._autoEndingBreak){window._autoEndingBreak=true;autoEndBreak();return}var abs=Math.abs(remain),m=Math.floor(abs/60000),s=Math.floor((abs%60000)/1000);var timeStr=over?'초과 '+m+'분 '+s+'초':(m<10?'0':'')+m+':'+(s<10?'0':'')+s+' 남음';el.innerHTML='<div class="brk-banner'+(over?' over':'')+'" onclick="openBreak()"><div class="brk-banner-icon">☕</div><div class="brk-banner-info"><div class="brk-banner-title">'+(over?'⚠️ 휴게 시간 초과':'휴게시간 진행 중')+'</div><div class="brk-banner-timer">'+timeStr+'</div></div></div>'}
 function backToDash(){try{if(history.length>1){history.back();return}}catch(_){}if(ME)openDash();else go('p-admin')}
-function logout(){if(typeof cmSdkSignOut==='function')cmSdkSignOut();if(typeof CM!=='undefined'){Object.keys(CM.es||{}).forEach(function(k){if(CM.es[k])CM.es[k].close()});CM.es={};CM.booted=false;CM.inbox=null;CM.act=null}stopNotifPoll();ME=null;cart={};CART_NAMES={};dbClearToken();localStorage.removeItem('dm_me');if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
+function logout(){if(typeof cmSdkSignOut==='function')cmSdkSignOut();if(typeof CM!=='undefined'){Object.keys(CM.es||{}).forEach(function(k){if(CM.es[k])CM.es[k].close()});CM.es={};CM.booted=false;CM.inbox=null;CM.act=null}stopNotifPoll();ME=null;cart={};CART_NAMES={};dbClearToken();localStorage.removeItem('dm_me');safeLS(function(){Object.keys(localStorage).forEach(function(k){if(k.indexOf('dash_kpi_')===0)localStorage.removeItem(k)})});if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
 function showLogoutBtn(){if($('TB-LOGOUT')&&ME)$('TB-LOGOUT').style.display='flex';showQRBtn();renderIcons()}
 function showQRBtn(){var b=$('TB-QR');if(!b)return;var ok=ME&&(ME.brand==='DAY:MEAN'||ME.brand==='DM INTERNATIONAL'||ME.role==='경영팀'||ME.role==='본사경영팀');b.style.display=ok?'inline-flex':'none'}
 var _qrLibLoaded=false;function loadQRLib(cb){if(_qrLibLoaded&&window.QRCode){cb();return}var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js';s.onload=function(){_qrLibLoaded=true;cb()};s.onerror=function(){toast('QR 라이브러리 로드 실패 — 인터넷 확인')};document.head.appendChild(s)}

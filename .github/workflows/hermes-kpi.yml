@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'both | sales | sns | month(월확정재수집) | retail(점판수익) | shops | ig(연결테스트)'
+        description: 'both | sales | sns | lite(대시보드 사본) | month(월확정재수집) | retail(점판수익) | shops | ig(연결테스트)'
         required: false
         default: 'both'
       date:

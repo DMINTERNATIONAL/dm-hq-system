@@ -274,6 +274,10 @@ async function main() {
     try { console.log('[official]', JSON.stringify(await collectOfficialSns(kstDateString(0), dry))); }
     catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
   }
+  if (mode === 'lite' || mode === 'both') {
+    try { console.log('[lite]', JSON.stringify(await buildStoresLite(dry))); }
+    catch (e) { errors.push('lite: ' + e.message); }
+  }
   if (mode === 'pdb' || mode === 'both') {
     try { console.log('[pdb]', JSON.stringify(await backupProductDB(dry))); }
     catch (e) { errors.push('pdb: ' + e.message); await notify('[Hermes] 제품목록 백업 실패: ' + e.message); }
@@ -1133,6 +1137,35 @@ async function fbGET(path) {
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}`), { cache: 'no-store' });
   if (!resp.ok) return null;
   return await resp.json();
+}
+
+/* ═══ 앱 대시보드용 가벼운 사본 ═══
+   /stores/{지점}/daily/{날짜} 는 인스타 게시물 목록(recent_posts · top_posts 등) 때문에 지점 · 하루에 약 28KB 라,
+   앱 대시보드가 두 달치(약 3MB)를 열 때마다 받았다. 숫자만 남긴 사본을 /storesLite 에 둔다(최근 62일, 매 실행 다시 만듦 — 앱은 없으면 /stores 를 읽는다). */
+const LITE_SNS = ['followers', 'following', 'follows_count', 'media_count', 'avg_likes', 'avg_comments', 'engagement_rate', 'sample_size', 'ig_username', 'academyRole', 'role'];
+function liteSns(s) {
+  const o = {};
+  for (const [k, v] of Object.entries(s || {})) if ((LITE_SNS.includes(k) || k.startsWith('uploads_')) && (v === null || typeof v !== 'object')) o[k] = v;
+  if (Array.isArray(s && s.recent_posts) && s.recent_posts[0]) o.recent_posts = [{ ts: s.recent_posts[0].ts }];
+  return o;
+}
+async function buildStoresLite(dry) {
+  const from = kstDateString(-62);
+  const out = {};
+  for (const shop of ['flagship', 'moment', 'eto']) {
+    const days = await fbGET(`/stores/${shop}/daily.json?orderBy=%22$key%22&startAt=%22${from}%22`);
+    if (!days) { out[shop] = 'skip(읽기 실패 — 이전 사본 유지)'; continue; }
+    const lite = {};
+    for (const [ymd, d] of Object.entries(days)) {
+      if (!d) continue;
+      const sns = {};
+      for (const [nm, v] of Object.entries(d.sns || {})) sns[nm] = liteSns(v);
+      lite[ymd] = { store: d.store || null, designers: d.designers || null, visits: d.visits || null, dvisits: d.dvisits || null, meta: d.meta || null, sns };
+    }
+    out[shop] = { days: Object.keys(lite).length, kb: Math.round(JSON.stringify(lite).length / 1024) };
+    if (!dry) await rtdbPut(`/storesLite/${shop}/daily`, lite);
+  }
+  return out;
 }
 
 /* ═══ 제품목록 사본 ═══ */
