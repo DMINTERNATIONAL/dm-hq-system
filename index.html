@@ -3109,7 +3109,7 @@ function ctSetPw(phone,newPw){
 /* ═══ 폰·PC 알림 (웹 푸시) ═══
    폰이 알림을 허락하면 구독 정보를 서버(dm-contract-api)에 맡기고, 서버가 채팅·공지 알림을 보낸다.
    아이폰은 홈 화면에 추가한 앱으로 열었을 때만 된다(사파리 탭에서는 PushManager 가 아예 없다).
-   지금은 시험 단계라 대표(BRK_OWNER_PHONES)와 /config/commBeta/{전화번호}=true 인 사람에게만 메뉴가 보인다. */
+   지금은 시험 단계라 대표(BRK_OWNER_PHONES)와 /config/comm/users/{전화번호}=true 인 사람에게만 메뉴가 보인다. */
 var COMM_BETA=false;
 function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
 function pushIsIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
@@ -3153,7 +3153,8 @@ function pushDisable(){
 }
 /* 앱을 열 때마다 조용히 다시 맡긴다 — 폰이 구독을 갱신했거나 서버에서 지워졌어도 다시 살아난다 */
 function pushSync(){if(!COMM_BETA||!pushSupported()||Notification.permission!=='granted')return;pushSubscribe().catch(function(e){console.log('pushSync',e)})}
-function commBetaLoad(){if(!ME||!ME.phone||ME._adminLogin)return Promise.resolve(false);return fbG('/config/commBeta/'+ME.phone+'.json').then(function(v){COMM_BETA=v===true||BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0;if(COMM_BETA)pushSync();return COMM_BETA})}
+/* 서버(chat.js eligible)와 같은 명단: /config/comm { open: 전 직원 오픈, users: {폰:true} 시험 명단 } + 대표 */
+function commBetaLoad(){if(!ME||!ME.phone||ME._adminLogin)return Promise.resolve(false);return fbG('/config/comm.json').then(function(c){c=c||{};COMM_BETA=c.open===true||!!(c.users&&c.users[ME.phone])||BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0;if(COMM_BETA)pushSync();return COMM_BETA})}
 function pushPanel(){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmDeskNotify('DM 알림 시험','이 알림이 보이면 PC 알림이 켜진 거예요');alert('PC · 맥 설치판은 앱이 켜져 있는 동안(창을 닫아도 작업 표시줄에 남아요) 알림이 와요.\n\n방금 시험 알림을 보냈어요. 안 보이면 컴퓨터 설정에서 DM 알림을 허용해 주세요.');return}
   var bg=document.createElement('div');bg.className='modal-bg';bg.style.display='flex';bg.onclick=function(e){if(e.target===bg)bg.remove()};
   bg.innerHTML='<div class="modal-box" style="max-width:420px"><h4>폰 · PC 알림</h4><p id="PUSH-ST" style="font-size:13px;color:#475569;margin:6px 0 14px">확인 중…</p><div style="display:flex;flex-direction:column;gap:8px"><button class="gbtn pri" id="PUSH-ON">알림 켜기</button><button class="gbtn sec" id="PUSH-TEST">시험 알림 보내기</button><button class="gbtn sec" id="PUSH-OFF" style="color:#c0392b">이 기기 알림 끄기</button><button class="gbtn sec" onclick="this.closest(\'.modal-bg\').remove()">닫기</button></div><p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.6">기기마다 따로 켭니다 (폰 · PC 각각).<br>아이폰은 홈 화면에 추가한 DM 앱에서만 됩니다.</p></div>';
