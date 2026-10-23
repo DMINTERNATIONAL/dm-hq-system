@@ -573,14 +573,7 @@ export function makeChat(deps) {
     const list = Object.keys(msgs).sort().map((k) => msgs[k]).filter((m) => m && m.k !== 'sys' && !m.del && !m.hid)
       .map((m) => ({ bn: m.bn, x: (m.k === 'ack' ? '[확인 요청] ' : m.k === 'poll' ? '[투표] ' : '') + (m.x || (m.md ? `(사진·동영상 ${m.md.length}개)` : '')), me: !!(m.mn && (m.mn['*'] || m.mn[me.ph])) }));
     if (!list.length) return { lines: [], asks: [], count: 0 };
-    const cfg = await dbGet(env, '/config/naverWorks').catch(() => null);
-    if (!cfg || !cfg.url || !cfg.secret) throw new Error('AI 설정이 없어요');
-    const relayReq = new Request(String(cfg.url).replace(/\/+$/, '') + '/ai/chat-summary', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret: cfg.secret, room: room.n || '', me: nameOf(u), messages: list }),
-    });
-    const ar = env.AI_RELAY ? await env.AI_RELAY.fetch(relayReq) : await fetch(relayReq);
-    const d = await ar.json().catch(() => null);
+    const d = (await deps.relayCall(env, '/ai/chat-summary', { room: room.n || '', me: nameOf(u), messages: list })).body;
     if (!d || !d.ok) throw new Error((d && d.error) || '요약하지 못했습니다');
     return { lines: d.lines || [], asks: d.asks || [], count: list.length };
   }

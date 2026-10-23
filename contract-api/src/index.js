@@ -257,6 +257,26 @@ async function verifyToken(env, token) {
   return p;
 }
 
+/* ═══ 웍스 릴레이 설정 ═══
+   비밀키는 잠긴 /authSecrets/__nw { url, secret } 에만 둔다. 예전에는 /config/naverWorks 에 있어
+   로그인한 직원 누구나 읽을 수 있었고(앱이 직접 릴레이를 불렀으므로), 그 키로 웍스 메시지 · AI 를 쓸 수 있었다.
+   이제 앱은 /relay/* 로 이 Worker 에 부탁하고, 키는 서버 안에서만 쓴다. 켜짐 여부(enabled)만 공개 설정에 남긴다. */
+async function nwCfg(env) {
+  let sec = await dbGet(env, '/authSecrets/__nw').catch(() => null);
+  const pub = (await dbGet(env, '/config/naverWorks').catch(() => null)) || {};
+  if (!sec && pub.secret && pub.url) { sec = { url: pub.url, secret: pub.secret }; await dbPut(env, '/authSecrets/__nw', sec).catch(() => {}); }
+  if (!sec || !sec.url || !sec.secret) return null;
+  return { url: String(sec.url).replace(/\/+$/, ''), secret: sec.secret, enabled: pub.enabled !== false };
+}
+async function relayCall(env, path, payload) {
+  const cfg = await nwCfg(env);
+  if (!cfg) throw new Error('웍스 · AI 설정이 없어요');
+  const req = new Request(cfg.url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, secret: cfg.secret }) });
+  const r = env.AI_RELAY ? await env.AI_RELAY.fetch(req) : await fetch(req);
+  const t = await r.text();
+  try { return { status: r.status, body: JSON.parse(t) }; } catch (_) { return { status: r.status, body: { ok: false, error: t.slice(0, 200) } }; }
+}
+
 /* ═══ 알림 보내기 ═══
    전화번호 목록의 모든 기기로 보낸다. 폰에서 구독이 사라진 것(404·410)은 지운다.
    한 번에 6개씩 — 동시에 너무 많이 열면 Worker 의 외부 요청 한도에 걸린다. */
@@ -346,7 +366,7 @@ function stripSensitive(v, hit) {
 }
 
 /* ═══ 라우팅 ═══ */
-const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag });
+const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, relayCall: (env, p, b) => relayCall(env, p, b) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
@@ -525,8 +545,8 @@ export default {
           }
         }
 
-        const cfg = await dbGet(env, '/config/naverWorks').catch(() => null);
-        if (!cfg || !cfg.url || !cfg.secret) return json({ ok: false, error: 'AI 설정이 없어요' }, 503, origin);
+        const cfg = await nwCfg(env);
+        if (!cfg) return json({ ok: false, error: 'AI 설정이 없어요' }, 503, origin);
         /* 같은 계정의 Worker 는 HTTP 로 못 부른다(error 1042). 서비스 바인딩으로 넘긴다.
            바인딩이 없는 환경에서는 예전처럼 URL 로 간다. */
         const relayReq = new Request(String(cfg.url).replace(/\/+$/, '') + '/ai/recommend', {
@@ -624,6 +644,36 @@ export default {
         revokeCache.at = 0;
         await dbPush(env, '/auditLogs', { at: Date.now(), by: String(me.ph || 'admin'), byName: me.name || '', action: 'session.revoke', target }).catch(() => {});
         return json({ ok: true }, 200, origin);
+      }
+
+      /* ── 웍스 릴레이 창구 (키는 서버 안에서만) ── */
+      if (path.startsWith('/relay/') && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        if (path === '/relay/notify') {
+          const cfg = await nwCfg(env);
+          if (!cfg || !cfg.enabled) return json({ ok: true, skipped: true }, 200, origin);
+          const r = await relayCall(env, '', { type: String(b.type || '').slice(0, 30), order: b.order || null });
+          return json(r.body, r.status, origin);
+        }
+        if (path === '/relay/polish') { const r = await relayCall(env, '/ai/polish', { raw: String(b.raw || '').slice(0, 4000), date: String(b.date || '').slice(0, 12) }); return json(r.body, r.status, origin); }
+        if (path === '/relay/naesu') {
+          const r = await relayCall(env, '/ai/naesu-verify', { imageB64: String(b.imageB64 || ''), mediaType: String(b.mediaType || 'image/jpeg').slice(0, 40), expectAmount: b.expectAmount, expectAcct: b.expectAcct });
+          return json(r.body, r.status, origin);
+        }
+        if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        if (path === '/relay/config') {
+          const url = String(b.url || '').trim(), secret = String(b.secret || '').trim();
+          if (url && !/^https:\/\//.test(url)) return json({ ok: false, error: 'URL은 https:// 로 시작해야 합니다' }, 400, origin);
+          const cur = (await dbGet(env, '/authSecrets/__nw').catch(() => null)) || {};
+          const next = { url: url || cur.url || '', secret: secret || cur.secret || '' };
+          if (b.enabled && (!next.url || !next.secret)) return json({ ok: false, error: '알림을 켜려면 URL과 Secret이 필요합니다' }, 400, origin);
+          await dbPut(env, '/authSecrets/__nw', next);
+          await dbPut(env, '/config/naverWorks', { url: next.url, enabled: !!b.enabled, hasSecret: !!next.secret, updatedAt: Date.now(), updatedBy: me.name || '' });
+          return json({ ok: true }, 200, origin);
+        }
+        if (path === '/relay/status') { const c = await nwCfg(env); return json({ ok: true, configured: !!c, enabled: !!(c && c.enabled), url: c ? c.url : '' }, 200, origin); }
+        if (path === '/relay/test') { const r = await relayCall(env, '', { type: 'test' }); return json(r.body, r.status, origin); }
+        return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
       }
 
       /* ── 채팅 (chat.js) ── */

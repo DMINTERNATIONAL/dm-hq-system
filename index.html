@@ -2583,15 +2583,9 @@ function nsResizeB64(file,cb){nsResize(file,900,0.85,function(blob){
 function nsVerify(file,expectAmount,expectAcct,cb){
   nsResizeB64(file,function(b64){
     if(!b64){cb(null);return}
-    var go=function(cfg){
-      if(!cfg||!cfg.url||!cfg.secret){cb(null);return}
-      var url=cfg.url.replace(/\/+$/,'')+'/ai/naesu-verify';
-      fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({secret:cfg.secret,imageB64:b64,mediaType:'image/jpeg',expectAmount:expectAmount,expectAcct:expectAcct})})
-        .then(function(r){return r.json()}).then(function(j){cb(j&&j.ok?j:null)}).catch(function(){cb(null)})};
-    if(typeof NW_CONFIG_LOADED!=='undefined'&&NW_CONFIG_LOADED)go(NW_CONFIG_CACHE);
-    else if(typeof loadNWConfig==='function')loadNWConfig().then(go).catch(function(){cb(null)});
-    else cb(null)})}
+    /* 릴레이 비밀키는 서버(dm-contract-api)에만 있다 — 서버에 부탁한다 */
+    ctFetch('/relay/naesu',{method:'POST',body:JSON.stringify({imageB64:b64,mediaType:'image/jpeg',expectAmount:expectAmount,expectAcct:expectAcct})})
+      .then(function(j){cb(j&&j.ok?j:null)}).catch(function(){cb(null)})})}
 function nsShotsPaid(shots){var any=false,t=0;
   (shots||[]).forEach(function(s){if(s&&s.amount!=null){any=true;t+=(+s.amount||0)}});
   return any?t:null}
@@ -4945,32 +4939,26 @@ function stPrintHtml(s){
 }
 
 function notifyNaverWorks(order,type){
+  /* 비밀키 없이 서버에 부탁한다. 꺼져 있으면 서버가 알아서 건너뛴다 */
   function send(cfg){
-    if(!cfg||!cfg.enabled||!cfg.url||!cfg.secret)return;
-    try{
-      fetch(cfg.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:cfg.secret,type:type,order:order})}).catch(function(e){console.log('NW notify failed',e)});
-    }catch(e){console.log('NW notify error',e)}
+    if(!cfg||cfg.enabled===false)return;
+    ctFetch('/relay/notify',{method:'POST',body:JSON.stringify({type:type,order:order})}).catch(function(e){console.log('NW notify failed',e)});
   }
   if(NW_CONFIG_LOADED){send(NW_CONFIG_CACHE)}
   else{loadNWConfig().then(send)}
 }
-function openNotifConfig(){go('p-notif-config');loadNWConfig().then(function(cfg){if($('NW-URL'))$('NW-URL').value=cfg.url||'';if($('NW-SECRET'))$('NW-SECRET').value=cfg.secret||'';if($('NW-ENABLED'))$('NW-ENABLED').value=cfg.enabled?'on':'off'})}
+function openNotifConfig(){go('p-notif-config');loadNWConfig().then(function(cfg){if($('NW-URL'))$('NW-URL').value=cfg.url||'';if($('NW-SECRET')){$('NW-SECRET').value='';$('NW-SECRET').placeholder=cfg.hasSecret||cfg.secret?'저장돼 있음 · 바꿀 때만 입력':'Secret 입력'}if($('NW-ENABLED'))$('NW-ENABLED').value=cfg.enabled?'on':'off'})}
 function saveNWConfig(){
   var url=($('NW-URL').value||'').trim();
   var secret=($('NW-SECRET').value||'').trim();
   var enabled=$('NW-ENABLED').value==='on';
-  if(enabled&&(!url||!secret)){alert('알림을 ON 하려면 URL과 Secret을 모두 입력해주세요');return}
   if(url&&!/^https:\/\//.test(url)){alert('URL은 https:// 로 시작해야 합니다');return}
-  var cfg={url:url,secret:secret,enabled:enabled,updatedAt:Date.now(),updatedBy:ME?ME.name:''};
-  fbP('/config/naverWorks.json',cfg).then(function(){NW_CONFIG_CACHE=cfg;toast('알림 설정 저장 완료')}).catch(function(e){alert('저장 실패: '+(e&&e.message||e))})
+  /* Secret 은 서버의 잠긴 곳에만 저장된다. 비워 두면 저장된 값을 그대로 쓴다 */
+  ctFetch('/relay/config',{method:'POST',body:JSON.stringify({url:url,secret:secret,enabled:enabled})}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||'저장 실패');NW_CONFIG_LOADED=false;$('NW-SECRET').value='';toast('알림 설정 저장 완료')}).catch(function(e){alert('저장 실패: '+(e&&e.message||e))})
 }
 function testNWWebhook(){
-  var url=($('NW-URL').value||'').trim();
-  var secret=($('NW-SECRET').value||'').trim();
-  if(!url||!secret){alert('URL과 Secret을 먼저 입력해주세요');return}
-  if(!/^https:\/\//.test(url)){alert('URL은 https:// 로 시작해야 합니다');return}
   toast('테스트 메시지 전송 중...');
-  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:secret,type:'test'})}).then(function(r){return r.json().then(function(j){return{status:r.status,body:j}}).catch(function(){return{status:r.status,body:null}})}).then(function(res){
+  ctFetch('/relay/test',{method:'POST',body:'{}'}).then(function(j){return{status:j&&j.ok?200:400,body:j}}).then(function(res){
     if(res.status===200&&res.body&&res.body.ok){alert('✅ 성공!\n\n네이버 웍스 단톡방을 확인해주세요.');return}
     var err=res.body&&res.body.error?res.body.error:'HTTP '+res.status;
     alert('❌ 실패\n\n'+err+'\n\nWorker 로그를 확인하거나 가이드를 다시 보세요.');
@@ -5693,7 +5681,7 @@ window.consultDone=function(k){_showPopup({type:'confirm',title:'입력 완료',
 window.consultDel=function(k){_showPopup({type:'confirm',title:'상담 삭제',msg:'이 상담을 삭제할까요?\n삭제하면 되돌릴 수 없어요.',cb:function(ok){if(!ok)return;fbD('/consults/'+k+'.json').then(function(){CONSULTS=CONSULTS.filter(function(x){return x._k!==k});renderConsults();loadConsultBadge();toast('삭제됨')}).catch(function(){toast('삭제 실패')})}})};
 window.consultUndone=function(k){fbP('/consults/'+k+'/status.json','new').then(function(){CONSULTS.forEach(function(x){if(x._k===k)x.status='new'});renderConsults();loadConsultBadge()}).catch(function(){})};
 window.consultToggle=function(k){var d=document.getElementById('cdet-'+k);var ch=document.getElementById('chv-'+k);if(!d)return;var open=d.style.display!=='none';d.style.display=open?'none':'block';if(ch)ch.textContent=open?'▾':'▴'};
-window.consultPolish=function(k){var rawEl=document.getElementById('sm-raw-'+k);var raw=(rawEl?rawEl.value:'').trim();if(!raw){toast('메모를 먼저 입력하세요');return}var btn=document.getElementById('sm-ai-'+k);function busy(on){if(!btn)return;btn.disabled=on;btn.style.opacity=on?'.6':'';btn.textContent=on?'✨ 다듬는 중…':'✨ AI로 다듬기'}busy(true);function go2(cfg){if(!cfg||!cfg.url||!cfg.secret){toast('알림(Worker) 설정이 없어 AI를 쓸 수 없어요');busy(false);return}var url=cfg.url.replace(/\/+$/,'')+'/ai/polish';fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:cfg.secret,raw:raw,date:ymdShort()})}).then(function(r){return r.json().catch(function(){return{ok:false,error:'응답 형식 오류'}})}).then(function(d){busy(false);if(!d||!d.ok){toast(d&&d.error?('AI 실패: '+d.error):'AI 실패');return}var txt=(d.text||'').trim();if(!txt){toast('AI 응답이 비었어요 — Worker 배포·키 설정 확인');return}var out=document.getElementById('sm-out-'+k);if(out)out.value=txt;toast('정리 완료 — 확인 후 저장하세요')}).catch(function(){busy(false);toast('AI 호출 실패 — 네트워크 확인')})}if(typeof NW_CONFIG_LOADED!=='undefined'&&NW_CONFIG_LOADED)go2(NW_CONFIG_CACHE);else loadNWConfig().then(go2)};
+window.consultPolish=function(k){var rawEl=document.getElementById('sm-raw-'+k);var raw=(rawEl?rawEl.value:'').trim();if(!raw){toast('메모를 먼저 입력하세요');return}var btn=document.getElementById('sm-ai-'+k);function busy(on){if(!btn)return;btn.disabled=on;btn.style.opacity=on?'.6':'';btn.textContent=on?'✨ 다듬는 중…':'✨ AI로 다듬기'}busy(true);function go2(){ctFetch('/relay/polish',{method:'POST',body:JSON.stringify({raw:raw,date:ymdShort()})}).then(function(d){busy(false);if(!d||!d.ok){toast(d&&d.error?('AI 실패: '+d.error):'AI 실패');return}var txt=(d.text||'').trim();if(!txt){toast('AI 응답이 비었어요 — Worker 배포·키 설정 확인');return}var out=document.getElementById('sm-out-'+k);if(out)out.value=txt;toast('정리 완료 — 확인 후 저장하세요')}).catch(function(){busy(false);toast('AI 호출 실패 — 네트워크 확인')})}go2()};
 window.consultSaveMemo=function(k){var rawEl=document.getElementById('sm-raw-'+k),outEl=document.getElementById('sm-out-'+k);var raw=(rawEl?rawEl.value:'').trim();var comp=(outEl?outEl.value:'').trim();if(!raw&&!comp){toast('저장할 메모가 없어요');return}var rec={raw:raw,composed:comp,byPhone:(ME&&ME.phone)||'',byName:(ME&&typeof dispNm==='function')?dispNm(ME):((ME&&ME.name)||''),ts:Date.now()};fbP('/consults/'+k+'/staffNote.json',rec).then(function(){CONSULTS.forEach(function(x){if(x._k===k)x.staffNote=rec});toast('메모 저장됨')}).catch(function(){toast('저장 실패 — 다시 시도')})};
 window.openWalkin=function(){var m=document.getElementById('walkin-modal');if(!m){m=document.createElement('div');m.id='walkin-modal';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;z-index:9998;padding:24px';var tOpts='<option value="">예약 시간 선택</option>';for(var _h=9;_h<=20;_h++){for(var _mi=0;_mi<60;_mi+=30){if(_h===20&&_mi>0)break;tOpts+='<option>'+('0'+_h).slice(-2)+':'+('0'+_mi).slice(-2)+'</option>'}}m.innerHTML='<div style="background:#fff;border-radius:18px;padding:22px;width:100%;max-width:340px"><div style="font-size:17px;font-weight:700;margin-bottom:4px">고객 직접 등록</div><div style="font-size:12px;color:#999;margin-bottom:16px">재방문 (사전 상담 없이)</div><div style="font-size:11px;color:#888;margin-bottom:5px">고객 이름</div><input id="wi-name" placeholder="예) 김서연" style="width:100%;border:1px solid #e3e3e3;border-radius:10px;padding:11px;font-size:14px;box-sizing:border-box;margin-bottom:12px"><div style="font-size:11px;color:#888;margin-bottom:5px">예약 시간 (09:00~20:00 · 30분 단위)</div><select id="wi-time" style="width:100%;border:1px solid #e3e3e3;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:18px">'+tOpts+'</select><div style="display:flex;gap:8px"><button onclick="closeWalkin()" style="flex:1;border:1px solid #e3e3e3;background:#fff;border-radius:12px;padding:11px;font-size:14px;font-weight:600;cursor:pointer">취소</button><button onclick="saveWalkin()" style="flex:1;border:1px solid #0a0a0a;background:#0a0a0a;color:#fff;border-radius:12px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">등록</button></div></div>';document.body.appendChild(m)}m.style.display='flex';var nmEl=document.getElementById('wi-name'),tmEl=document.getElementById('wi-time');if(nmEl)nmEl.value='';if(tmEl)tmEl.value='';setTimeout(function(){if(nmEl)nmEl.focus()},60)};
 window.closeWalkin=function(){var m=document.getElementById('walkin-modal');if(m)m.style.display='none'};
