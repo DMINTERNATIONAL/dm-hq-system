@@ -26,3 +26,8 @@ VAPID_PUBLIC = "BB2j3AH4EDiULVEoDKLWE_Ma7SBvBZQoN3D5z-nwFhthblv2Zgym6zlD4KGWnuZH
 [[services]]
 binding = "AI_RELAY"
 service = "dm-naverworks-relay"
+
+# 채팅 사진·동영상 (비공개). o/ 아래는 90일 뒤 자동 삭제 — 버킷 수명 규칙 expire-originals
+[[r2_buckets]]
+binding = "CHAT_MEDIA"
+bucket_name = "dm-chat-media"

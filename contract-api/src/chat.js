@@ -141,9 +141,16 @@ export function makeChat(deps) {
     if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
     const k = ['t', 'p', 'v', 'f'].includes(body.k) ? body.k : 't';
     const x = clip(body.x, 5000).trim();
-    const md = Array.isArray(body.md) ? body.md.slice(0, 30).map((m) => ({
-      u: String(m.u || '').slice(0, 300), w: m.w | 0, h: m.h | 0, sz: m.sz | 0, n: clip(m.n, 120), ty: clip(m.ty, 40),
-    })).filter((m) => m.u) : null;
+    /* 첨부: u 화면에 보일 사진(보통 화질 또는 동영상 첫 장면) · o 원본 사진 · v 동영상 · f 파일 — 값은 저장소 키 */
+    const keyOk = (v) => /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9.]+$/.test(String(v || ''));
+    const md = Array.isArray(body.md) ? body.md.slice(0, 30).map((m) => {
+      const o = { w: m.w | 0, h: m.h | 0, sz: m.sz | 0 };
+      for (const k of ['u', 'o', 'v', 'f']) if (keyOk(m[k])) o[k] = String(m[k]);
+      if (m.n) o.n = clip(m.n, 120);
+      if (m.d) o.d = Math.round(Number(m.d) || 0);
+      return o;
+    }).filter((m) => m.u || m.v || m.f) : null;
+    if (md && !md.length) throw new Error('첨부 파일 정보가 올바르지 않습니다');
     if (!x && !md) throw new Error('보낼 내용이 없습니다');
 
     const bn = nameOf(u);

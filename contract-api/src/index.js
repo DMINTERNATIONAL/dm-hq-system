@@ -16,6 +16,7 @@
 
 import { sendOne, subId } from './push.js';
 import { makeChat } from './chat.js';
+import { makeMedia, serveMedia } from './media.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -44,7 +45,7 @@ function cors(origin) {
   const ok = ALLOWED_ORIGINS.includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
@@ -345,6 +346,7 @@ function stripSensitive(v, hit) {
 
 /* ═══ 라우팅 ═══ */
 const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken });
+const mediaRoute = makeMedia({ dbGet });
 
 export default {
   async fetch(request, env, ctx) {
@@ -357,6 +359,9 @@ export default {
     try {
       /* 상태 확인 */
       if (path === '/' ) return json({ ok: true, service: 'dm-contract-api' }, 200, origin);
+
+      /* 채팅 사진·동영상 — 로그인 대신 파일별 서명 주소로 받는다 (media.js) */
+      if (path.startsWith('/m/') && (request.method === 'GET' || request.method === 'HEAD')) return serveMedia(request, env, path);
 
       /* 자체 점검 — 키·인증·DB 접근이 살아 있는지 (내용은 반환하지 않음) */
       if (path === '/selftest') {
@@ -591,6 +596,8 @@ export default {
       if (path === '/me') return json({ ok: true, me }, 200, origin);
 
       /* ── 채팅 (chat.js) ── */
+      const mediaRes = await mediaRoute(path, request, env, me, json, origin);
+      if (mediaRes) return mediaRes;
       const chatRes = await chatRoute(path, request, env, ctx, me, json, origin);
       if (chatRes) return chatRes;
 
