@@ -67,6 +67,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','SF Pro Display',
 .bot-tab-item.on{color:var(--blue)}
 .bot-tab-badge{position:absolute;top:2px;right:calc(50% - 22px);background:#dc2626;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;min-width:14px;text-align:center;line-height:1.25;border:1.5px solid var(--card);box-shadow:0 1px 3px rgba(220,38,38,.3)}
 body{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+/* 아이폰 홈 화면 앱은 홈 막대 자리를 env() 로 못 받는다(아래 ios-home-bar 주석) — 카톡처럼 탭 아래에 그 자리만큼 비운다 */
+.ios-home-bar .bot-tabbar{padding-bottom:30px}
+.ios-home-bar body{padding-bottom:90px}
+.ios-home-bar .toast{bottom:98px}
 @media(min-width:1024px){.bot-tabbar{display:none !important}body{padding-bottom:0}}
 @media(min-width:1024px){#HQ-STATS{grid-template-columns:repeat(4,1fr) !important}#ADM-STATS{grid-template-columns:repeat(4,1fr) !important}.hq-bottom{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}}
 
