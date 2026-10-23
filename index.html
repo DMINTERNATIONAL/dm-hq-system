@@ -6758,7 +6758,11 @@ function cmComposer(boxId,thread){var b=$(boxId);if(!b)return;
   var ta=$(boxId+'-TA');
   ta.addEventListener('input',function(){ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px';cmMentionCheck(boxId)});
   ta.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&CM.enterSend&&!('ontouchstart' in window)){e.preventDefault();cmSend(boxId,thread)}});
-  $(boxId+'-SEND').onclick=function(){cmSend(boxId,thread)};
+  /* 카톡처럼 보내기를 눌러도 키보드는 그대로 — 버튼이 입력칸의 포커스를 가져가지 않게 막고, 그래도 빠졌으면 바로 되돌린다 */
+  var sb=$(boxId+'-SEND'),kbOn=false;
+  var keep=function(e){kbOn=document.activeElement===ta;if(kbOn)e.preventDefault()};
+  sb.addEventListener('mousedown',keep);sb.addEventListener('pointerdown',keep);
+  sb.onclick=function(){var was=kbOn||document.activeElement===ta;kbOn=false;cmSend(boxId,thread);if(was&&document.activeElement!==ta)ta.focus()};
   b.insertAdjacentHTML('beforeend','<div class="cm-attach" id="'+boxId+'-AT"></div>');ta.addEventListener('focus',function(){cmAttachClose(boxId)});
   cmReplyBar(boxId)}
 function cmReplyBar(boxId){var rb=$(boxId+'-RB');if(!rb)return;var t=CM.edit?'<b>수정 중</b>':CM.reply?'<b>'+cmEsc(CM.reply.bn)+'</b>에게 답장 · '+cmEsc(CM.reply.x):'';rb.innerHTML=t?'<div class="cm-replybar"><span>'+t+'</span><button class="cm-tb gray" onclick="CM.reply=null;CM.edit=null;cmReplyBar(\''+boxId+'\');$(\''+boxId+'-TA\').value=\'\'">취소</button></div>':''}
@@ -6949,10 +6953,11 @@ function cmAttach(boxId,thread){var at=$(boxId+'-AT');if(!at)return;var open=at.
   at.innerHTML='<div class="cm-tiles">'+tiles.map(function(t){return '<button class="cm-tile" onclick="cmAttachDo(\''+boxId+'\','+(thread?'true':'false')+',\''+t[0]+'\')"><span style="background:'+t[3]+'"><i data-lucide="'+t[2]+'"></i></span>'+t[1]+'</button>'}).join('')+'</div>';
   if(window.lucide)lucide.createIcons();var m=$(thread?'CM-TMSGS':'CM-MSGS');if(m)m.scrollTop=m.scrollHeight}
 function cmAttachClose(boxId){var at=$(boxId+'-AT');if(at)at.classList.remove('open');var pl=document.querySelector('#'+boxId+' .cm-plus');if(pl)pl.classList.remove('on')}
-function cmAttachDo(boxId,thread,what){cmAttachClose(boxId);
-  if(what==='ack')return cmNewAck();if(what==='poll')return cmNewPoll();
-  if(what==='video')return cmFileInput('video/*',false,null,function(fs){cmSendFiles('v',fs,thread)});
-  cmFileInput('image/*',what!=='camera',what==='camera'?'environment':null,function(fs){cmPhotoPreview(fs,thread)})}
+/* 사진 · 동영상은 고르는 창(사진 보관함 · 사진 찍기)이 떠 있는 동안 ＋ 칸을 그대로 두고, 실제로 골랐을 때만 닫는다 (취소하면 그대로) */
+function cmAttachDo(boxId,thread,what){
+  if(what==='ack'){cmAttachClose(boxId);return cmNewAck()}if(what==='poll'){cmAttachClose(boxId);return cmNewPoll()}
+  if(what==='video')return cmFileInput('video/*',false,null,function(fs){cmAttachClose(boxId);cmSendFiles('v',fs,thread)});
+  cmFileInput('image/*',what!=='camera',what==='camera'?'environment':null,function(fs){cmAttachClose(boxId);cmPhotoPreview(fs,thread)})}
 /* 사진 화질 — 일반(기본) · 고화질 · 원본. 바꾸면 그다음부터 그게 기본이 된다 */
 var CM_PQ={normal:['일반',1600,.8],high:['고화질',2560,.9],orig:['원본',1600,.8]};
 function cmPq(){try{var v=localStorage.getItem('cm_pq');return CM_PQ[v]?v:'normal'}catch(e){return 'normal'}}
@@ -7014,7 +7019,12 @@ function cmPollHtml(m,key){var p=m.poll||{o:[]};var vt=m.vt||{};var cnt=p.o.map(
 function cmAgoFuture(t){var d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+cmHM(t)}
 function cmVote(key,i){var m=CM.msgs[key];if(!m||!m.poll)return;var mine=(m.vt&&m.vt[ME.phone])||[];var next;if(m.poll.mu){next=mine.indexOf(i)>=0?mine.filter(function(x){return x!==i}):mine.concat([i])}else next=mine.length===1&&mine[0]===i?[]:[i];cmApi('vote',{rid:CM.rid,key:key,i:next}).catch(function(e){alert(e.message)})}
 function cmPollWho(key){var m=CM.msgs[key];if(!m||!m.poll)return;var vt=m.vt||{};cmSheet(m.poll.o.map(function(o,i){var who=Object.keys(vt).filter(function(p){return (vt[p]||[]).indexOf(i)>=0}).map(cmName);return '<div class="ttl">'+cmEsc(o)+' · '+who.length+'</div>'+(who.map(function(x){return '<div class="who-row">'+cmEsc(x)+'</div>'}).join('')||'<div class="who-row">없음</div>')}).join('')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>')}
-function cmNewAck(){cmPrompt('확인 요청','예: 11월부터 발주 마감이 오전 11시로 바뀝니다','',function(x){cmApi('send',{rid:CM.rid,k:'ack',x:x}).then(function(){toast('확인 요청을 보냈어요')}).catch(function(e){alert(e.message)})})}
+/* 확인 요청 — 꼭 읽어야 하는 공지를 보내면 방 사람마다 '확인했습니다' 버튼이 생기고, 누가 확인했는지 · 안 했는지 보이며
+   안 한 사람에게만 다시 알릴 수 있다. 공지가 길 수 있어 여러 줄로 쓴다 */
+function cmNewAck(){var bg=document.createElement('div');bg.className='cm-modal-bg';
+  bg.innerHTML='<div class="cm-modal" style="text-align:left"><b>확인 요청</b><p>보내면 방 사람들에게 <b style="font-size:inherit">확인했습니다</b> 버튼이 생겨요. 누가 확인했는지 보이고, 안 한 사람에게만 다시 알릴 수 있어요.</p><textarea id="ACK-X" rows="5" maxlength="2000" placeholder="예: 11월부터 발주 마감이 오전 11시로 바뀝니다" style="width:100%;border:1px solid var(--cm-line);border-radius:10px;padding:10px 12px;font-size:15px;margin:0 0 14px;font-family:inherit;resize:none;line-height:1.5"></textarea><div class="bt"><button>취소</button><button>보내기</button></div></div>';
+  document.body.appendChild(bg);var ta=$('ACK-X');ta.focus();var bs=bg.querySelectorAll('.bt button');bs[0].onclick=function(){bg.remove()};
+  bs[1].onclick=function(){var x=ta.value.trim();if(!x){ta.focus();return}bg.remove();cmApi('send',{rid:CM.rid,k:'ack',x:x}).then(function(){toast('확인 요청을 보냈어요')}).catch(function(e){alert(e.message)})}}
 function cmNewPoll(){var bg=document.createElement('div');bg.className='cm-modal-bg';bg.innerHTML='<div class="cm-modal" style="text-align:left"><b>투표 만들기</b><p></p><input id="PL-Q" placeholder="질문 (예: 11월 회식 날짜)"><div id="PL-OPTS"><input class="pl-o" placeholder="선택지 1"><input class="pl-o" placeholder="선택지 2"><input class="pl-o" placeholder="선택지 3 (선택)"></div><label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:-6px 0 10px"><input type="checkbox" id="PL-MU" style="width:auto;margin:0">여러 개 고를 수 있게</label><label style="font-size:13px;color:#64748B">마감</label><select id="PL-END" style="width:100%;border:1px solid #EEF0F4;border-radius:10px;padding:10px;margin:4px 0 14px;font-family:inherit"><option value="0">마감 없음</option><option value="86400000">하루 뒤</option><option value="259200000">3일 뒤</option><option value="604800000">일주일 뒤</option></select><div class="bt"><button>취소</button><button>만들기</button></div></div>';document.body.appendChild(bg);
   var bs=bg.querySelectorAll('.bt button');bs[0].onclick=function(){bg.remove()};bs[1].onclick=function(){var q=$('PL-Q').value.trim();var o=[].map.call(bg.querySelectorAll('.pl-o'),function(e){return e.value.trim()}).filter(Boolean);if(!q||o.length<2){alert('질문과 선택지 두 개 이상을 넣어 주세요');return}var end=parseInt($('PL-END').value,10);bg.remove();cmApi('send',{rid:CM.rid,k:'poll',x:q,poll:{o:o,mu:$('PL-MU').checked,end:end?Date.now()+end:0}}).catch(function(e){alert(e.message)})};
   bg.querySelector('#PL-OPTS').addEventListener('input',function(){var os=bg.querySelectorAll('.pl-o');if(os[os.length-1].value&&os.length<10){var i=document.createElement('input');i.className='pl-o';i.placeholder='선택지 '+(os.length+1)+' (선택)';bg.querySelector('#PL-OPTS').appendChild(i)}})}
@@ -7239,6 +7249,15 @@ function cmVV(){var vv=window.visualViewport;var open=false;
 document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){setTimeout(cmVV,50);setTimeout(cmVV,350)}});
 document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||''))setTimeout(cmVV,100)});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
+/* 떠 있는 창(가운데 창 · 아래에서 올라온 시트)에서 글을 쓰면 아이폰 키보드가 창 아래쪽(입력칸 · 버튼)을 가린다.
+   키보드가 떠 있는 동안 창 배경을 '보이는 화면'(visualViewport) 크기로 맞춰 창이 키보드 위로 오게 한다 */
+function cmModalVV(){var vv=window.visualViewport;if(!vv)return;var kb=window.innerWidth<1024&&vv.height<window.innerHeight-80;
+  document.querySelectorAll('.cm-modal-bg,.cm-sheet-bg,.modal-bg').forEach(function(e){
+    if(kb){e.style.top=Math.round(vv.offsetTop)+'px';e.style.height=Math.round(vv.height)+'px';e.style.bottom='auto';e.style.overflowY='auto';
+      var c=e.firstElementChild;e.style.alignItems=c&&!e.classList.contains('cm-sheet-bg')&&c.offsetHeight>vv.height-24?'flex-start':''}
+    else{e.style.top='';e.style.height='';e.style.bottom='';e.style.overflowY='';e.style.alignItems=''}})}
+if(window.visualViewport){window.visualViewport.addEventListener('resize',cmModalVV);window.visualViewport.addEventListener('scroll',cmModalVV)}
+document.addEventListener('focusin',function(e){if(e.target&&/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&e.target.closest&&e.target.closest('.cm-modal-bg,.cm-sheet-bg,.modal-bg')){setTimeout(cmModalVV,60);setTimeout(cmModalVV,400)}});
 /* 카톡처럼 대화 내용을 톡 누르거나 아래로 끌어 지난 대화를 올려 보면 키보드를 내린다.
    아이폰은 글자 칸이 아닌 곳을 눌러도 키보드가 안 내려간다. 손가락 터치에만 — PC 마우스 클릭은 그대로 */
 (function(){var y0=null,x0=0,moved=false;
