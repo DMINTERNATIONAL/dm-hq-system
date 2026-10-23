@@ -581,6 +581,11 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .wc-in{display:flex;gap:6px;margin-top:6px}
 .wc-in input{flex:1;border:1px solid #E2E8F0;border-radius:10px;padding:8px 10px;font-size:13.5px;font-family:inherit}
 .wc-in button{border:none;background:#3B82F6;color:#fff;border-radius:10px;padding:0 14px;font-weight:800;font-family:inherit;cursor:pointer}
+#p-comm-room.on.wide{flex-direction:row}
+.cm-side{width:360px;flex:0 0 360px;border-right:1px solid var(--cm-line);background:var(--cm-bg);overflow-y:auto;padding:14px 12px}
+.cm-side .cm-head .t{font-size:17px}
+.cm-side .cm-row.on{background:#EFF6FF}
+.cm-main{flex:1;display:flex;flex-direction:column;min-width:0}
 /* 말풍선 옆 메뉴 */
 .cm-pop{position:fixed;z-index:400;display:flex;flex-direction:column;gap:6px}
 .cm-pop .rx{display:flex;gap:6px}
@@ -3149,7 +3154,7 @@ function pushDisable(){
 /* 앱을 열 때마다 조용히 다시 맡긴다 — 폰이 구독을 갱신했거나 서버에서 지워졌어도 다시 살아난다 */
 function pushSync(){if(!COMM_BETA||!pushSupported()||Notification.permission!=='granted')return;pushSubscribe().catch(function(e){console.log('pushSync',e)})}
 function commBetaLoad(){if(!ME||!ME.phone||ME._adminLogin)return Promise.resolve(false);return fbG('/config/commBeta/'+ME.phone+'.json').then(function(v){COMM_BETA=v===true||BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0;if(COMM_BETA)pushSync();return COMM_BETA})}
-function pushPanel(){
+function pushPanel(){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmDeskNotify('DM 알림 시험','이 알림이 보이면 PC 알림이 켜진 거예요');alert('PC · 맥 설치판은 앱이 켜져 있는 동안(창을 닫아도 작업 표시줄에 남아요) 알림이 와요.\n\n방금 시험 알림을 보냈어요. 안 보이면 컴퓨터 설정에서 DM 알림을 허용해 주세요.');return}
   var bg=document.createElement('div');bg.className='modal-bg';bg.style.display='flex';bg.onclick=function(e){if(e.target===bg)bg.remove()};
   bg.innerHTML='<div class="modal-box" style="max-width:420px"><h4>폰 · PC 알림</h4><p id="PUSH-ST" style="font-size:13px;color:#475569;margin:6px 0 14px">확인 중…</p><div style="display:flex;flex-direction:column;gap:8px"><button class="gbtn pri" id="PUSH-ON">알림 켜기</button><button class="gbtn sec" id="PUSH-TEST">시험 알림 보내기</button><button class="gbtn sec" id="PUSH-OFF" style="color:#c0392b">이 기기 알림 끄기</button><button class="gbtn sec" onclick="this.closest(\'.modal-bg\').remove()">닫기</button></div><p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.6">기기마다 따로 켭니다 (폰 · PC 각각).<br>아이폰은 홈 화면에 추가한 DM 앱에서만 됩니다.</p></div>';
   document.body.appendChild(bg);
@@ -6465,15 +6470,16 @@ function cmBoot(){
   cmApi('bootstrap',{}).catch(function(e){console.log('chat bootstrap',e)});
   var p=fbG('/users.json').then(function(u){CM.users=u||{}});
   (function brk(){fbG('/breakActive.json').then(function(b){CM.brk=b||{};if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});setTimeout(brk,120000)})();
-  cmStream('inbox','/chat/inbox/'+ME.phone,'',function(d){CM.inbox=d||{};cmBadges();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});
-  cmStream('act','/chat/act/'+ME.phone,'orderBy=%22%24key%22&limitToLast=200',function(d){CM.act=d||{};cmBadges();if(cmOn('p-comm')&&CM.tab==='act')cmRenderAct()});
+  cmStream('inbox','/chat/inbox/'+ME.phone,'',function(d){CM.inbox=d||{};cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});
+  cmStream('act','/chat/act/'+ME.phone,'orderBy=%22%24key%22&limitToLast=200',function(d){CM.act=d||{};cmBadges();cmDeskCheck();if(cmOn('p-comm')&&CM.tab==='act')cmRenderAct()});
   return p}
 function cmBrkOf(rid){var o=rid.replace('dm_','').split('_').filter(function(p){return p!==String(ME.phone)})[0];return !!(CM.brk&&CM.brk[o]&&CM.brk[o].startedAt)}
 function cmOn(id){var e=$(id);return !!(e&&e.classList.contains('on'))}
 function cmUnreadTotal(){var n=0;Object.keys(CM.inbox||{}).forEach(function(k){var r=CM.inbox[k];if(r&&!r.mute)n+=Math.max(0,(r.s||0)-(r.r||0))});return n}
 function cmActNew(){return Object.keys(CM.act||{}).filter(function(k){return CM.act[k]&&!CM.act[k].done}).length}
 function cmBadges(){var n=cmUnreadTotal()+cmActNew();['BT-BADGE-comm','BT-BADGE-cm-chat','BT-BADGE-cm-act'].forEach(function(id,i){var b=$(id);if(!b)return;var v=i===0?n:(i===1?cmUnreadTotal():cmActNew());if(v>0){b.textContent=v>99?'99+':v;b.style.display='inline-block'}else b.style.display='none'});
-  try{if(navigator.setAppBadge){if(n>0)navigator.setAppBadge(n);else navigator.clearAppBadge()}}catch(e){}}
+  try{if(navigator.setAppBadge){if(n>0)navigator.setAppBadge(n);else navigator.clearAppBadge()}}catch(e){}
+  try{if(CM_DESK&&window.__TAURI__.window)window.__TAURI__.window.getCurrentWindow().setBadgeCount(n>0?n:undefined)}catch(e){}}
 
 /* ── 소통 첫 화면 ── */
 function openComm(tab){if(!COMM_BETA){alert('소통은 아직 시험 중이에요.');return}CM.tab=tab||CM.tab||'chat';go('p-comm');cmBoot().then(cmRender);cmRender()}
@@ -6524,9 +6530,12 @@ function cmOpenRoom(rid,thRoot){
   cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});cmRenderMsgs()},true);
   cmStream('reads','/chat/reads/'+rid,'',function(d){CM.reads=d||{};cmRenderMsgs()});
   if(thRoot)setTimeout(function(){cmOpenThread(thRoot)},300)}
-function cmRoomShell(){var p=$('p-comm-room');p.style.setProperty('--cm-fs',CM.fs+'px');
-  p.innerHTML='<div class="cm-rhead"><button class="cm-tb" onclick="cmBack()">‹ 채팅</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" onclick="cmFindToggle()">찾기</button><button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-FIND"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>';
-  cmComposer('CM-COMP',false)}
+function cmWide(){return window.innerWidth>=1100}
+function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter;var v=$('CM-VIEW');var tmp=document.createElement('div');tmp.id='CM-VIEW';if(v)v.id='CM-VIEW-OFF';sd.innerHTML='';sd.appendChild(tmp);try{cmRenderList()}finally{tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.querySelectorAll('.cm-row').forEach(function(r){if(r.getAttribute('onclick')&&r.getAttribute('onclick').indexOf("'"+CM.rid+"'")>=0)r.classList.add('on')})}
+window.addEventListener('resize',function(){if(cmOn('p-comm-room')&&(!!$('CM-SIDE'))!==cmWide()&&CM.rid){var rid=CM.rid;CM.rid=null;cmOpenRoom(rid)}});
+function cmRoomShell(){var p=$('p-comm-room');p.style.setProperty('--cm-fs',CM.fs+'px');var wide=cmWide();
+  p.innerHTML=(wide?'<div class="cm-side" id="CM-SIDE"></div><div class="cm-main">':'')+'<div class="cm-rhead"><button class="cm-tb" onclick="cmBack()">‹ 채팅</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" onclick="cmFindToggle()">찾기</button><button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-FIND"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>'+(wide?'</div>':'');p.classList.toggle('wide',wide);
+  cmComposer('CM-COMP',false);if(wide)cmSideRender()}
 function cmBack(){if(CM.es.room)CM.es.room.close();if(CM.es.msgs)CM.es.msgs.close();if(CM.es.reads)CM.es.reads.close();CM.rid=null;openComm('chat')}
 function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var nm=r.t==='dm'?(CM.inbox&&CM.inbox[CM.rid]&&CM.inbox[CM.rid].n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
@@ -6990,6 +6999,26 @@ function wcMount(boxId,o){var box=$(boxId);if(!box||!COMM_BETA)return;var sk=Str
     var inp=box.querySelector('.wc-in input'),btn=box.querySelector('.wc-in button');
     var send=function(){var x=inp.value.trim();if(!x)return;btn.disabled=true;(CM.users?Promise.resolve():fbG('/users.json').then(function(u){CM.users=u||{}})).then(function(){return bdApi('/work/comment',{kind:o.kind,wid:o.wid,label:o.label,owner:o.owner,url:o.url,x:x,mn:bdMentions(x)})}).then(function(){wcMount(boxId,o)}).catch(function(e){btn.disabled=false;alert(e.message)})};
     btn.onclick=send;inp.onkeydown=function(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}}})}
+
+
+/* ═══ PC · 맥 설치판 (Tauri) ═══
+   설치판에서는 window.__TAURI__ 가 있다. 웹 푸시 대신 앱이 켜져 있는 동안(창을 닫아도 작업 표시줄에 남는다)
+   대화 목록 · 내 활동이 바뀌면 직접 PC 알림을 띄우고, 아이콘 숫자를 붙인다. */
+var CM_DESK=!!(window.__TAURI__&&window.__TAURI__.notification);
+var CM_DESK_SEEN={s:{},a:{},ready:false};
+function cmDeskNotify(title,body){if(!CM_DESK)return;var n=window.__TAURI__.notification;Promise.resolve(n.isPermissionGranted()).then(function(ok){return ok?true:n.requestPermission().then(function(p){return p==='granted'})}).then(function(ok){if(ok)n.sendNotification({title:title,body:body})}).catch(function(){})}
+function cmDeskCheck(){if(!CM_DESK||!CM.inbox)return;var first=!CM_DESK_SEEN.ready;var me=ME&&(ME.nick||ME.name);
+  Object.keys(CM.inbox).forEach(function(k){var r=CM.inbox[k];if(!r)return;var prev=CM_DESK_SEEN.s[k];CM_DESK_SEEN.s[k]=r.s||0;if(first||prev==null||(r.s||0)<=prev)return;if((r.r||0)>=(r.s||0))return;if(r.bn===me)return;
+    var viewing=CM.rid===k&&cmOn('p-comm-room')&&document.hasFocus();if(viewing)return;var mention=(r.mn||0)>prev;if(r.mute&&!mention)return;
+    cmDeskNotify(r.t==='dm'?(r.n||'1:1'):cmRoomName(k,r),(r.t==='dm'?'':(r.bn?r.bn+': ':''))+(r.x||''))});
+  Object.keys(CM.act||{}).forEach(function(id){var a=CM.act[id];var seen=CM_DESK_SEEN.a[id];CM_DESK_SEEN.a[id]=1;if(first||seen||!a||a.done)return;var rr=String(a.rid||'');if(!(rr.indexOf('board:')===0||rr==='survey'||rr.indexOf('work:')===0||a.k==='remind'))return;
+    cmDeskNotify(({must:'[필독] ',survey:'[설문] ',remind:'다시 알림 · '}[a.k]||'')+(a.rn||'DM'),(a.bn?a.bn+': ':'')+(a.x||''))});
+  CM_DESK_SEEN.ready=true}
+if(CM_DESK){
+  /* 바깥 링크는 앱 창이 아니라 기본 브라우저로 */
+  window.open=function(u){try{window.__TAURI__.opener.openUrl(String(u))}catch(e){}return null};
+  document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href')||'';if(/^https?:\/\//.test(h)&&h.indexOf(location.origin)!==0){e.preventDefault();try{window.__TAURI__.opener.openUrl(h)}catch(_){}}},true);
+}
 
 /* 알림을 눌러 들어온 경우: #comm/{방} */
 function cmRoute(){var h=location.hash||'';if(!ME)return;var m=h.match(/^#comm\/(.+)$/),bm=h.match(/^#board\/([^/]+)\/(.+)$/),sm=h.match(/^#survey\/(.+)$/);if(!m&&!bm&&!sm)return;commBetaLoad().then(function(b){if(!b)return;cmBoot();if(m)cmOpenRoom(decodeURIComponent(m[1]));else if(bm)bdOpen(decodeURIComponent(bm[1]),bm[2]);else svAnswer(sm[1])})}

@@ -1,0 +1,53 @@
+# DM 데스크톱 앱(PC · 맥) 빌드 — GitHub 의 맥 · 윈도우 컴퓨터에서 설치 파일을 만들어 릴리스에 올린다.
+# 실행: Actions > 'DM 데스크톱 앱 빌드' > Run workflow. 버전은 desktop/src-tauri/tauri.conf.json 의 version.
+# 버전을 올려 다시 돌리면 설치된 앱이 켤 때 스스로 업데이트한다(latest.json).
+# 애플 개발자 등록은 하지 않음(사용자 결정) → 맥은 처음 한 번 '그래도 열기', 윈도우는 '추가 정보 → 실행'.
+name: DM 데스크톱 앱 빌드
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: windows-latest
+            args: ''
+            rust_targets: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+      - name: npm install
+        working-directory: desktop
+        run: npm install
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        with:
+          projectPath: desktop
+          tagName: desktop-v__VERSION__
+          releaseName: 'DM 데스크톱 v__VERSION__'
+          releaseBody: |
+            맥: DM_..._universal.dmg — 처음 한 번 시스템 설정 > 개인정보 보호 및 보안 > '그래도 열기'
+            윈도우: DM_..._x64-setup.exe — 설치할 때 '추가 정보 → 실행'
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          args: ${{ matrix.args }}
