@@ -7038,13 +7038,30 @@ function cmFillMedia(root,rid){var need=[];root.querySelectorAll('img[data-mk]')
   if(!need.length)return Promise.resolve();
   return cmApi('media-urls',{rid:rid||CM.rid,keys:need}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});root.querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.src)im.src=c.u})}).catch(function(){})}
 function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};return u})}
-function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove()">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
+function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove();CM_FILES={}">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
+/* 사진 · 동영상 보기 화면의 저장 · 공유.
+   파일은 방 사람만 여는 서명 주소라 주소를 공유하지 않고 파일 자체를 받아 넘긴다.
+   아이폰은 앱이 직접 사진첩에 넣을 수 없어 '저장'도 공유 창을 연다(맨 위 '이미지 저장' · '비디오 저장').
+   공유 창은 누른 그 순간에만 열 수 있어서, 사진은 보기 화면이 열릴 때 미리 받아 두고,
+   동영상처럼 아직 못 받은 건 받는 동안 '준비 중…' → 다 받으면 한 번 더 누르게 한다. PC · 맥 설치판은 브라우저로 연다 */
+var CM_FILES={};
+function cmMediaName(k){var ext=(String(k).match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'jpg';var d=new Date(),p=function(n){return ('0'+n).slice(-2)};return 'DM_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.'+ext.toLowerCase()}
+function cmMediaFile(k){var c=CM_FILES[k];if(c)return c.p;var o={};o.p=cmUrl(k).then(function(u){return fetch(u)}).then(function(r){if(!r.ok)throw new Error('파일을 받지 못했어요');return r.blob()}).then(function(b){o.f=new File([b],cmMediaName(k),{type:b.type||(/\.(mp4|mov)$/i.test(k)?'video/mp4':'image/jpeg')});return o.f});o.p.catch(function(){delete CM_FILES[k]});CM_FILES[k]=o;return o.p}
+function cmCanShareFile(f){try{return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]}))}catch(e){return false}}
+function cmSaveBlob(f){var u=URL.createObjectURL(f);var a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u)},4000);toast('저장했어요')}
+function cmMediaAct(btn,k,act){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmOpenOrig(k);return}
+  var c=CM_FILES[k];var wantShare=act==='share'||(act==='save'&&pushIsIOS());
+  if(c&&c.f){if(wantShare&&cmCanShareFile(c.f)){navigator.share({files:[c.f]}).catch(function(){})}else cmSaveBlob(c.f);btn.textContent=act==='share'?'공유':'저장';return}
+  var label=btn.textContent;btn.textContent='준비 중…';btn.disabled=true;
+  cmMediaFile(k).then(function(f){btn.disabled=false;if(wantShare){btn.textContent=(act==='share'?'공유':'저장')+' ›';toast('준비됐어요. 한 번 더 눌러 주세요')}else{btn.textContent=label;cmSaveBlob(f)}})
+    .catch(function(){btn.disabled=false;btn.textContent=label;alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
+function cmMediaBtns(k){var e=String(k).replace(/'/g,'');return '<button onclick="cmMediaAct(this,\''+e+'\',\'save\')">저장</button><button onclick="cmMediaAct(this,\''+e+'\',\'share\')">공유</button>'}
 function cmView(enc,i){var pics=JSON.parse(decodeURIComponent(enc));var bg=cmOverlay('<img alt="">');var img=bg.querySelector('.vbody img');
   function show(){var x=pics[i];bg.querySelector('.vt').textContent=(i+1)+' / '+pics.length;img.removeAttribute('src');cmUrl(x.u).then(function(u){img.src=u});
-    bg.querySelector('.va').innerHTML=(x.o?'<button onclick="cmOpenOrig(\''+x.o+'\')">원본</button>':'')+(pics.length>1?'<button onclick="this.closest(\'.cm-viewer\')._go(-1)">이전</button><button onclick="this.closest(\'.cm-viewer\')._go(1)">다음</button>':'')}
+    var sk=x.o||x.u;cmMediaFile(sk).catch(function(){});bg.querySelector('.va').innerHTML=cmMediaBtns(sk)+(pics.length>1?'<button onclick="this.closest(\'.cm-viewer\')._go(-1)">이전</button><button onclick="this.closest(\'.cm-viewer\')._go(1)">다음</button>':'')}
   bg._go=function(d){i=(i+d+pics.length)%pics.length;show()};show()}
 function cmOpenOrig(k){cmUrl(k).then(function(u){window.open(u,'_blank')}).catch(function(e){alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
-function cmPlay(k){var bg=cmOverlay('<video controls playsinline autoplay></video>');bg.querySelector('.vt').textContent='동영상';var v=bg.querySelector('video');cmUrl(k).then(function(u){v.src=u}).catch(function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'});v.onerror=function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff;text-align:center;padding:20px">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'}}
+function cmPlay(k){var bg=cmOverlay('<video controls playsinline autoplay></video>');bg.querySelector('.vt').textContent='동영상';bg.querySelector('.va').innerHTML=cmMediaBtns(k);var v=bg.querySelector('video');cmUrl(k).then(function(u){v.src=u}).catch(function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'});v.onerror=function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff;text-align:center;padding:20px">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'}}
 
 
 /* ═══ 소통 2차: 확인 요청 · 투표 · 나중에 · 다시 알림 · 전달 · 방 안 찾기 · #주제 · 그룹 부르기 · 요약 · 서랍 · 내보내기 · 원격 로그아웃 ═══ */
