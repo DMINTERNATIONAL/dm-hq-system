@@ -25,3 +25,6 @@ recruit-deck/
 # Firebase 서비스 계정 키 (절대 커밋 금지)
 *firebase-adminsdk*.json
 *serviceAccountKey*.json
+
+# 매장 음악 도구 — 자체 git 저장소 · 로그인 정보(secrets/)가 있어 이 저장소에 절대 커밋 금지
+store-music/
