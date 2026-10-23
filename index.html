@@ -1305,6 +1305,7 @@ function loadDashKpi(){var el=document.getElementById('DASH-KPI');if(!el)return;
   loadDashKpiFresh(el,g)}
 function loadDashKpiFresh(el,g){var isIntern=kpiIsIntern(ME);dashKpiStores().then(function(st){return Promise.all([st,fbG('/official.json')])}).then(function(a){KPI_STORES=a[0]||{};KPI_OFFICIAL=a[1]||{};var opd=kpiPeriod,osh=kpiShop;kpiPeriod='month';kpiShop='all';try{var days=kpiDays(['flagship','moment','eto']);var win=kpiWin(days,0),prevw=kpiWin(days,1);if(!win.length){el.innerHTML='';return;}var des=kpiDesList(win),desP=kpiDesList(prevw);var gm=kpiGrowthMap();var canHQ=['경영팀','관리자','스탭장'].indexOf(g)>=0&&!kpiIsDesigner(ME)&&!kpiIsIntern(ME);var byNm=function(list){return list.filter(function(d){return d.name===ME.nick||d.name===ME.name;})[0];};var me=byNm(des),meP=byNm(desP);var h='';if(isIntern){var _ig=me&&((+me.followers||0)>0||(+me.uploads_month||0)>0);if(_ig){var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiTab='insta';openKPI()");}else{h='<div style="background:#f5f5f7;border-radius:14px;padding:14px 16px;margin-top:10px;font-size:12px;color:#86868b">📷 인스타 계정을 연결하면 팔로워·게시 KPI가 여기에 표시됩니다.</div>';}}else if(me&&((+me.payroll_base||0)>0||(+me.followers||0)>0||(+me.guests||0)>0)){var nk=ME.nick||'';var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 매출',dashStat('매출',kpiW(me.payroll_base||0)+'원',dashDelta(me.payroll_base||0,meP?meP.payroll_base:null))+dashStat('접객',kpiW(me.guests||0)+'명',dashDelta(me.guests||0,meP?meP.guests:null)+dashSub('신규 '+kpiW(me.신규||0)+' · 재방 '+kpiW(me.재방||0)))+dashStat('객단가',kpiW(me.avg_ticket||0)+'원',dashDelta(me.avg_ticket||0,meP?meP.avg_ticket:null))+dashStat('점판',kpiW(me.retail_amount||0)+'원',dashDelta(me.retail_amount||0,meP?meP.retail_amount:null)),"kpiView='des';kpiDesId='"+nk+"';kpiTab='sales';openKPI()");h+=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiView='des';kpiDesId='"+nk+"';kpiTab='insta';openKPI()");}else if(canHQ){var c=kpiStoreAgg(win),cP=kpiStoreAgg(prevw),v=kpiVisitsAgg(win),totF=0,totUp=0,acc=0;des.forEach(function(d){if(d.sns){totF+=d.followers;totUp+=(d.uploads_month||0);acc++;}});var avgC=c.guests?c.net/c.guests:0,avgP=cP.guests?cP.net/cP.guests:0,totUpP=0;desP.forEach(function(d){if(d.sns)totUpP+=(d.uploads_month||0);});h=dashKpiCard('전체 매출',dashStat('실매출',kpiW(c.net)+'원',dashDelta(c.net,cP.net||null))+dashStat('접객',kpiW(c.guests)+'명',dashDelta(c.guests,cP.guests?cP.guests:null)+dashSub('신규 '+kpiW(v.신규||0)+' · 재방 '+kpiW(v.재방||0)))+dashStat('객단가',kpiW(avgC)+'원',dashDelta(avgC,cP.guests?avgP:null))+dashStat('재방률',v.total?(v.재방/v.total*100).toFixed(0)+'%':'–'),"kpiView='hq';kpiTab='sales';openKPI()")+dashKpiCard('전체 인스타그램',dashStat('총 팔로워',kpiW(totF))+dashStat('이번달 게시',kpiW(totUp)+'개',dashDelta(totUp,totUpP||null))+dashStat('계정 수',acc+'개')+dashStat('공식 계정',(KPI_OFFICIAL?Object.keys(KPI_OFFICIAL).length:0)+'개'),"kpiView='hq';kpiTab='insta';openKPI()");}else{el.innerHTML='';return;}el.innerHTML=h;try{localStorage.setItem(dashKpiCacheKey(),JSON.stringify({t:Date.now(),d:todayStrKR(),h:h}))}catch(_){}}catch(e){if(!el.innerHTML)el.innerHTML='';}finally{kpiPeriod=opd;kpiShop=osh;}});}
 function openDash(){
+pushGate();
 commBetaLoad().then(function(b){if(!b)return;var cur=document.querySelector('.pg.on');renderBotTab(cur?cur.id:'p-dash');if(typeof renderSidebar==='function')renderSidebar();cmBoot();cmRoute()}).catch(function(){});
 loadGradePerms(function(){if(ME&&typeof renderSidebar==='function')renderSidebar()});
 loadGradeFavs(function(){if(ME&&typeof renderSidebar==='function')renderSidebar()});
@@ -3235,7 +3236,7 @@ function pushDisable(){
   });
 }
 /* 앱을 열 때마다 조용히 다시 맡긴다 — 폰이 구독을 갱신했거나 서버에서 지워졌어도 다시 살아난다 */
-function pushSync(){if(!COMM_BETA||!pushSupported()||Notification.permission!=='granted')return;pushSubscribe().catch(function(e){console.log('pushSync',e)})}
+function pushSync(){if(!pushSupported()||Notification.permission!=='granted')return;pushSubscribe().catch(function(e){console.log('pushSync',e)})}
 /* 서버(chat.js eligible)와 같은 명단: /config/comm { open: 전 직원 오픈, users: {폰:true} 시험 명단 } + 대표 */
 function commBetaLoad(){if(!ME||!ME.phone||ME._adminLogin)return Promise.resolve(false);return fbG('/config/comm.json').then(function(c){c=c||{};COMM_BETA=c.open===true||!!(c.users&&c.users[ME.phone])||BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0;if(COMM_BETA)pushSync();return COMM_BETA})}
 function pushPanel(){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmDeskNotify('DM 알림 시험','이 알림이 보이면 PC 알림이 켜진 거예요');alert('PC · 맥 설치판은 앱이 켜져 있는 동안(창을 닫아도 작업 표시줄에 남아요) 알림이 와요.\n\n방금 시험 알림을 보냈어요. 안 보이면 컴퓨터 설정에서 DM 알림을 허용해 주세요.');return}
@@ -3249,6 +3250,56 @@ function pushPanel(){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmDeskNotify('DM 
   $('PUSH-OFF').onclick=function(){var b=this;busy(b,true);pushDisable().then(function(){toast('이 기기 알림을 껐어요');paint()}).catch(function(e){alert(e.message||e)}).then(function(){busy(b,false)})};
   paint();
 }
+/* ═══ 알림 필수 ═══ (2026-10-23 결정: 전 직원 · 알림을 켜야만 앱 사용)
+   알림 허용은 본인이 눌러야만 켜지므로 대신 켜 줄 수는 없다. 켜기 전에는 이 화면이 앱을 덮는다.
+   빼는 경우: 본사 관리자 입구 · 미리보기 · PC/맥 설치판(자체 알림) · 알림 자체가 없는 브라우저(막으면 영영 못 씀).
+   허용만 돼 있으면 통과 — 서버 등록이 잠깐 실패해도 다음에 열 때 pushSync 가 다시 맡긴다. */
+function pushGateExempt(){return !ME||!ME.phone||ME._adminLogin||ME._preview||(typeof CM_DESK!=='undefined'&&CM_DESK)}
+function pushGateClose(){var g=$('push-gate');if(g)g.remove()}
+function pushGate(){
+  if(pushGateExempt()){pushGateClose();return}
+  if(pushSupported()&&Notification.permission==='granted'){pushGateClose();pushSync();return}
+  pushState().then(function(st){
+    if(pushGateExempt()||st==='on'||st==='unsupported'){pushGateClose();return}
+    pushGateShow(st);
+  });
+}
+function pushGateShow(st){
+  var g=$('push-gate');
+  if(!g){g=document.createElement('div');g.id='push-gate';g.style.cssText='position:fixed;inset:0;z-index:99990;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 24px calc(24px + var(--sab));overflow:auto;font-family:inherit';document.body.appendChild(g)}
+  var ios=pushIsIOS();
+  var step=function(n,t){return '<div style="display:flex;gap:10px;align-items:flex-start;text-align:left;margin-top:10px"><span style="flex:0 0 22px;height:22px;border-radius:11px;background:#EFF4FF;color:#2563EB;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center">'+n+'</span><span style="font-size:14px;color:#334155;line-height:1.5">'+t+'</span></div>'};
+  var body='',btn='';
+  if(st==='needInstall'){
+    body='<p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 6px">아이폰은 <b>홈 화면에 추가한 DM 앱</b>에서만 알림을 켤 수 있어요.</p>'
+      +'<div style="background:#F8FAFC;border-radius:14px;padding:6px 16px 16px;margin-top:8px">'+step(1,'사파리 아래쪽 <b>공유 버튼</b>(네모에 위쪽 화살표)을 눌러요')+step(2,'<b>홈 화면에 추가</b>를 눌러요')+step(3,'홈 화면에 생긴 <b>DM 아이콘</b>으로 다시 열어요')+step(4,'열리면 <b>알림 켜기</b>를 눌러요')+'</div>';
+  }else if(st==='denied'){
+    body='<p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 6px">이 기기에서 DM 알림이 <b>차단</b>돼 있어요. 설정에서 직접 켜 주세요.</p>'
+      +'<div style="background:#F8FAFC;border-radius:14px;padding:6px 16px 16px;margin-top:8px">'
+      +(ios?step(1,'아이폰 <b>설정</b> 앱을 열어요')+step(2,'<b>알림</b> → <b>DM</b>을 눌러요')+step(3,'<b>알림 허용</b>을 켜요')+step(4,'DM 앱을 완전히 닫았다가 다시 열어요')
+           :step(1,'주소창 왼쪽 <b>자물쇠(사이트 설정)</b>를 눌러요')+step(2,'<b>알림</b>을 <b>허용</b>으로 바꿔요')+step(3,'아래 <b>다시 확인</b>을 눌러요'))
+      +'</div>';
+    btn='<button class="gbtn pri" id="PG-RECHECK" style="width:100%;margin-top:18px">다시 확인</button>';
+  }else{
+    body='<p style="font-size:14px;color:#475569;line-height:1.6;margin:0">채팅 · 공지 · 발주 소식을 놓치지 않도록<br>DM 앱은 <b>알림을 켜야</b> 쓸 수 있어요.</p>'
+      +'<p style="font-size:12.5px;color:#94A3B8;margin:10px 0 0">다음 창에서 <b>허용</b>을 눌러 주세요.</p>';
+    btn='<button class="gbtn pri" id="PG-ON" style="width:100%;margin-top:22px">알림 켜기</button>';
+  }
+  g.innerHTML='<div style="width:100%;max-width:360px;text-align:center;word-break:keep-all"><div style="width:64px;height:64px;border-radius:20px;background:#EFF4FF;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 16px">🔔</div>'
+    +'<div style="font-size:20px;font-weight:800;color:#0F172A;letter-spacing:-.02em;margin-bottom:10px">알림을 켜 주세요</div>'+body+btn
+    +'<button id="PG-OUT" style="margin-top:22px;background:none;border:0;color:#94A3B8;font-size:13px;text-decoration:underline;cursor:pointer">로그아웃</button></div>';
+  $('PG-OUT').onclick=function(){pushGateClose();logout()};
+  if($('PG-RECHECK'))$('PG-RECHECK').onclick=function(){location.reload()};
+  if($('PG-ON'))$('PG-ON').onclick=function(){
+    var b=this;b.disabled=true;b.textContent='켜는 중…';
+    Notification.requestPermission().then(function(p){
+      if(p==='granted'){pushGateClose();toast('알림을 켰어요');return pushSubscribe().catch(function(e){console.log('push subscribe',e)})}
+      if(p==='denied'){pushGateShow('denied');return}
+      b.disabled=false;b.textContent='알림 켜기';
+    }).catch(function(){b.disabled=false;b.textContent='알림 켜기'});
+  };
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&ME)pushGate()});
 function ctFetch(path,opts){
   opts=opts||{};
   if(!CT_TOKEN&&!ctRestore())return Promise.reject(new Error('계약 모듈 인증이 없습니다. 다시 로그인해주세요.'));
