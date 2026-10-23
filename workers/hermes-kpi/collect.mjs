@@ -277,6 +277,8 @@ async function main() {
   if (mode === 'lite' || mode === 'both') {
     try { console.log('[lite]', JSON.stringify(await buildStoresLite(dry))); }
     catch (e) { errors.push('lite: ' + e.message); }
+    try { console.log('[kpi]', JSON.stringify(await buildStoresKpi(dry))); }
+    catch (e) { errors.push('kpi: ' + e.message); }
   }
   if (mode === 'pdb' || mode === 'both') {
     try { console.log('[pdb]', JSON.stringify(await backupProductDB(dry))); }
@@ -1164,6 +1166,39 @@ async function buildStoresLite(dry) {
     }
     out[shop] = { days: Object.keys(lite).length, kb: Math.round(JSON.stringify(lite).length / 1024) };
     if (!dry) await rtdbPut(`/storesLite/${shop}/daily`, lite);
+  }
+  return out;
+}
+
+/* ═══ 앱 KPI 화면용 사본 ═══
+   KPI 화면은 /stores 전체(4.8MB, 매일 늘어남)를 받았다. 화면이 실제로 쓰는 건
+   ① 고른 기간(과 비교 기간)의 날별 숫자 ② 월별 추이 그래프용 월 합계 ③ 가장 최근 날의 인스타 게시물 목록.
+   /storesKpi/{지점}/daily  — 모든 날, 인스타는 숫자만(게시물 목록 빼고, 최근 게시 시각만). 앱이 기간만큼 잘라 받는다.
+   /storesKpi/{지점}/months — 월별 합계 {net_sales, guests, 신규, 재방, total} (앱 kpiMonthlyAgg 와 같은 합).
+   ③은 앱이 /stores 에서 그날 sns 만 따로 받는다. */
+function kpiSns(s) {
+  const o = {};
+  for (const [k, v] of Object.entries(s || {})) if (v === null || typeof v !== 'object') o[k] = v;
+  if (Array.isArray(s && s.recent_posts) && s.recent_posts[0]) o.recent_posts = [{ ts: s.recent_posts[0].ts }];
+  return o;
+}
+async function buildStoresKpi(dry) {
+  const out = {};
+  for (const shop of ['flagship', 'moment', 'eto']) {
+    const days = await fbGET(`/stores/${shop}/daily.json`);
+    if (!days) { out[shop] = 'skip(읽기 실패 — 이전 사본 유지)'; continue; }
+    const daily = {}, months = {};
+    for (const [ymd, d] of Object.entries(days)) {
+      if (!d) continue;
+      const sns = {};
+      for (const [nm, v] of Object.entries(d.sns || {})) sns[nm] = kpiSns(v);
+      daily[ymd] = { store: d.store || null, designers: d.designers || null, visits: d.visits || null, dvisits: d.dvisits || null, meta: d.meta || null, sns };
+      const st = d.store || {}, vi = d.visits || {}, ym = ymd.slice(0, 7);
+      const e = months[ym] || (months[ym] = { net_sales: 0, guests: 0, 신규: 0, 재방: 0, total: 0 });
+      e.net_sales += +st.net_sales || 0; e.guests += +st.guests || 0; e.신규 += +vi.신규 || 0; e.재방 += +vi.재방 || 0; e.total += +vi.total || 0;
+    }
+    out[shop] = { days: Object.keys(daily).length, kb: Math.round(JSON.stringify(daily).length / 1024), months: Object.keys(months).length };
+    if (!dry) await rtdbPut(`/storesKpi/${shop}`, { daily, months });
   }
   return out;
 }
