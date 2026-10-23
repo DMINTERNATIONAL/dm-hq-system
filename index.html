@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,interactive-widget=resizes-content">
 <title>DM INTERNATIONAL</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -987,7 +987,7 @@ function customAlert(msg,cb){_showPopup({type:'alert',msg:msg,cb:cb})}
 function customConfirm(msg,cb){_showPopup({type:'confirm',msg:msg,cb:cb})}
 function customPrompt(msg,defaultValue,cb){_showPopup({type:'prompt',msg:msg,defaultValue:defaultValue||'',cb:cb})}
 window.alert=function(msg){customAlert(msg)};
-function go(id){if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);try{if(history.state&&history.state.page!==id)history.pushState({page:id},'',location.pathname+'#'+id);else if(!history.state)history.pushState({page:id},'',location.pathname+'#'+id)}catch(e){};$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if($('nsbar'))$('nsbar').style.display=(id==='p-naesu'&&typeof NS_CART!=='undefined'&&Object.keys(NS_CART).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo();if(typeof renderBotTab==='function')renderBotTab(id);}
+function go(id){if(typeof cmVV==='function'&&!/^p-comm-(room|thread)$/.test(id))setTimeout(cmVV,0);if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);try{if(history.state&&history.state.page!==id)history.pushState({page:id},'',location.pathname+'#'+id);else if(!history.state)history.pushState({page:id},'',location.pathname+'#'+id)}catch(e){};$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if($('nsbar'))$('nsbar').style.display=(id==='p-naesu'&&typeof NS_CART!=='undefined'&&Object.keys(NS_CART).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo();if(typeof renderBotTab==='function')renderBotTab(id);}
 function toggleSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(!sb)return;if(sb.classList.contains('open')){closeSidebar()}else{sb.classList.add('open');if(ov)ov.classList.add('show')}}
 function closeSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(sb)sb.classList.remove('open');if(ov)ov.classList.remove('show')}
 function renderIcons(){if(typeof lucide!=='undefined'){try{lucide.createIcons()}catch(e){}}}
@@ -6542,7 +6542,7 @@ window.addEventListener('resize',function(){if(cmOn('p-comm-room')&&(!!$('CM-SID
 function cmRoomShell(){var p=$('p-comm-room');p.style.setProperty('--cm-fs',CM.fs+'px');var wide=cmWide();
   p.innerHTML=(wide?'<div class="cm-side" id="CM-SIDE"></div><div class="cm-main">':'')+'<div class="cm-rhead"><button class="cm-tb" onclick="cmBack()">‹ 채팅</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" onclick="cmFindToggle()">찾기</button><button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-FIND"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>'+(wide?'</div>':'');p.classList.toggle('wide',wide);
   cmComposer('CM-COMP',false);if(wide)cmSideRender()}
-function cmBack(){if(CM.es.room)CM.es.room.close();if(CM.es.msgs)CM.es.msgs.close();if(CM.es.reads)CM.es.reads.close();CM.rid=null;openComm('chat')}
+function cmBack(){setTimeout(cmVV,0);if(CM.es.room)CM.es.room.close();if(CM.es.msgs)CM.es.msgs.close();if(CM.es.reads)CM.es.reads.close();CM.rid=null;openComm('chat')}
 function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var nm=r.t==='dm'?(CM.inbox&&CM.inbox[CM.rid]&&CM.inbox[CM.rid].n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
   var nb=$('CM-NOTICE');if(nb)nb.innerHTML=r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'';
@@ -6667,7 +6667,7 @@ function cmOpenThread(root){CM.thRoot=root;CM.thMsgs={};go('p-comm-thread');setT
   p.innerHTML='<div class="cm-rhead"><button class="cm-tb" onclick="cmCloseThread()">‹ 대화</button><div class="t">답장</div><span style="width:44px"></span></div><div class="cm-msgs" id="CM-TMSGS"><div class="sk"></div></div><div id="CM-TCOMP"></div>';
   cmComposer('CM-TCOMP',true);
   cmStream('thr','/chat/thr/'+CM.rid+'/'+root,'',function(d){CM.thMsgs=d||{};cmRenderThread()})}
-function cmCloseThread(){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;go('p-comm-room');cmRenderMsgs()}
+function cmCloseThread(){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;go('p-comm-room');cmRenderMsgs();cmVV()}
 function cmRenderThread(){var box=$('CM-TMSGS');if(!box||!CM.thRoot)return;var rootM=CM.msgs[CM.thRoot];
   var list=Object.keys(CM.thMsgs).sort().map(function(k){return {k:k,m:CM.thMsgs[k]}});
   Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid===CM.rid&&p.root===CM.thRoot)list.push({k:k,m:p.m,pending:true})});
@@ -7028,7 +7028,15 @@ if(CM_DESK){
 
 /* 아이폰: 키보드가 올라오면 화면(visualViewport)이 줄어드는데 fixed 화면은 그대로라 입력창이 가려진다.
    대화방 · 스레드 화면 높이를 보이는 영역에 맞춘다. */
-function cmVV(){var vv=window.visualViewport;['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e)return;if(vv&&e.classList.contains('on')&&window.innerWidth<1024){e.style.height=vv.height+'px';e.style.top=vv.offsetTop+'px';e.style.bottom='auto'}else{e.style.height='';e.style.top='';e.style.bottom=''}});var m=$('CM-MSGS');if(m&&document.activeElement&&document.activeElement.tagName==='TEXTAREA')m.scrollTop=m.scrollHeight}
+function cmVV(){var vv=window.visualViewport;var open=false;
+  ['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e)return;var on=e.classList.contains('on');if(on)open=true;
+    if(vv&&on&&window.innerWidth<1024){e.style.height=Math.round(vv.height)+'px';e.style.top=Math.round(vv.offsetTop)+'px';e.style.bottom='auto'}else{e.style.height='';e.style.top='';e.style.bottom=''}});
+  /* 대화방이 열려 있는 동안 뒤 페이지가 같이 밀려 올라가지 않게 잠근다 (카톡처럼 제목은 위에, 대화는 키보드 위에) */
+  var lock=open&&window.innerWidth<1024;document.documentElement.style.overflow=lock?'hidden':'';document.body.style.overflow=lock?'hidden':'';
+  if(lock&&window.scrollY)window.scrollTo(0,0);
+  var ae=document.activeElement;if(ae&&ae.tagName==='TEXTAREA'){var m=$(ae.id==='CM-TCOMP-TA'?'CM-TMSGS':'CM-MSGS');if(m)m.scrollTop=m.scrollHeight}}
+document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){setTimeout(cmVV,50);setTimeout(cmVV,350)}});
+document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||''))setTimeout(cmVV,100)});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
 /* 알림을 눌러 들어온 경우: #comm/{방} */
 function cmRoute(){var h=location.hash||'';if(!ME)return;var m=h.match(/^#comm\/(.+)$/),bm=h.match(/^#board\/([^/]+)\/(.+)$/),sm=h.match(/^#survey\/(.+)$/);if(!m&&!bm&&!sm)return;commBetaLoad().then(function(b){if(!b)return;cmBoot();if(m)cmOpenRoom(decodeURIComponent(m[1]));else if(bm)bdOpen(decodeURIComponent(bm[1]),bm[2]);else svAnswer(sm[1])})}
