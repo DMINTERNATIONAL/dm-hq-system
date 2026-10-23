@@ -601,7 +601,9 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-pop{position:fixed;z-index:400;display:flex;flex-direction:column;gap:6px}
 .cm-pop .rx{display:flex;gap:6px}
 .cm-pop .rx button{background:#fff;border:1px solid var(--cm-line);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(15,23,42,.15);cursor:pointer;font-family:inherit}
-.cm-pop .mn{display:flex;background:#1E293B;border-radius:12px;overflow:hidden;box-shadow:0 8px 20px rgba(15,23,42,.3)}
+.cm-pop .mn{display:flex;flex-wrap:wrap;max-width:calc(100vw - 16px);background:#1E293B;border-radius:12px;overflow:hidden;box-shadow:0 8px 20px rgba(15,23,42,.3)}
+.cm-unread{cursor:pointer;padding:2px 3px;margin:-2px -3px;border-radius:4px}
+.cm-unread:active{background:#FEF3C7}
 .cm-pop .mn button{background:none;border:none;color:#fff;padding:9px 11px;font-size:13px;border-left:1px solid rgba(255,255,255,.12);cursor:pointer;font-family:inherit;white-space:nowrap}
 .cm-pop .mn button:first-child{border-left:0}
 .cm-sheet-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:450;display:flex;align-items:flex-end;justify-content:center}
@@ -6555,7 +6557,7 @@ function cmWide(){return window.innerWidth>=1100}
 function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter;var v=$('CM-VIEW');var tmp=document.createElement('div');tmp.id='CM-VIEW';if(v)v.id='CM-VIEW-OFF';sd.innerHTML='';sd.appendChild(tmp);try{cmRenderList()}finally{tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.querySelectorAll('.cm-row').forEach(function(r){if(r.getAttribute('onclick')&&r.getAttribute('onclick').indexOf("'"+CM.rid+"'")>=0)r.classList.add('on')})}
 window.addEventListener('resize',function(){if(cmOn('p-comm-room')&&(!!$('CM-SIDE'))!==cmWide()&&CM.rid){var rid=CM.rid;CM.rid=null;cmOpenRoom(rid)}});
 function cmRoomShell(){var p=$('p-comm-room');p.style.setProperty('--cm-fs',CM.fs+'px');var wide=cmWide();
-  p.innerHTML=(wide?'<div class="cm-side" id="CM-SIDE"></div><div class="cm-main">':'')+'<div class="cm-rhead"><button class="cm-tb" onclick="cmBack()">‹ '+(CM.from==='act'?'내 활동':'채팅')+'</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" onclick="cmFindToggle()">찾기</button><button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-FIND"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>'+(wide?'</div>':'');p.classList.toggle('wide',wide);
+  p.innerHTML=(wide?'<div class="cm-side" id="CM-SIDE"></div><div class="cm-main">':'')+'<div class="cm-rhead"><button class="cm-tb" id="CM-RBACK" onclick="cmRoomBack()">‹ '+(CM.from==='act'?'내 활동':'채팅')+'</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" id="CM-RFIND" onclick="cmFindToggle()">찾기</button><button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-FIND"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>'+(wide?'</div>':'');p.classList.toggle('wide',wide);
   cmComposer('CM-COMP',false);if(wide)cmSideRender()}
 function cmBack(){setTimeout(cmVV,0);var back=CM.from==='act'?'act':'chat';cmLeaveRoom();openComm(back)}
 function cmLeaveRoom(){['room','msgs','reads','thr'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=null;CM.thRoot=null;CM.jumpTo=null}
@@ -6588,7 +6590,7 @@ function cmMsgHtml(list,opts){
     if(m.k==='sys'){h+='<div class="cm-sys'+(nw?' cm-new':'')+'">'+cmEsc(m.x)+'</div>';prev=null;return}
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     var un=opts.thread?0:cmUnread(m);
-    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending':'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b>'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
+    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending':'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
 var CM_PENDING={};
@@ -6665,7 +6667,7 @@ function cmMenu(key,root,el){cmCloseMenu();var m=cmMsgBy(key,root);if(!m||m.del|
   var canPin=!root&&(cmIsManager()||(CM.room&&CM.room.by===String(ME.phone)));
   var pop=document.createElement('div');pop.className='cm-pop';pop.id='CM-POP';
   var r=JSON.stringify(root||null).replace(/"/g,"'");
-  pop.innerHTML='<div class="rx">'+['확인','좋아요','감사'].map(function(x){return '<button onclick="cmReact(\''+key+'\',\''+x+'\','+r+');cmCloseMenu()">'+x+'</button>'}).join('')+'</div><div class="mn"><button onclick="cmDoReply(\''+key+'\','+r+')">답장</button><button onclick="cmCopy(\''+key+'\','+r+')">복사</button>'+(root?'':'<button onclick="cmCloseMenu();cmOpenThread(\''+key+'\')">스레드</button>')+(canPin?'<button onclick="cmPin(\''+key+'\')">공지</button>':'')+'<button onclick="cmMore(\''+key+'\','+r+')">더보기</button></div>';
+  pop.innerHTML='<div class="rx">'+['확인','좋아요','감사'].map(function(x){return '<button onclick="cmReact(\''+key+'\',\''+x+'\','+r+');cmCloseMenu()">'+x+'</button>'}).join('')+'</div><div class="mn"><button onclick="cmDoReply(\''+key+'\','+r+')">답장</button><button onclick="cmCopy(\''+key+'\','+r+')">복사</button>'+(root?'':'<button onclick="cmCloseMenu();cmOpenThread(\''+key+'\')">스레드</button><button onclick="cmCloseMenu();cmReaders(\''+key+'\')">읽음</button>')+(canPin?'<button onclick="cmPin(\''+key+'\')">공지</button>':'')+'<button onclick="cmMore(\''+key+'\','+r+')">더보기</button></div>';
   document.body.appendChild(pop);
   var rc=el.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;var left=Math.max(8,Math.min(window.innerWidth-pw-8,(m.by===String(ME.phone)?rc.right-pw:rc.left)));var top=rc.top-ph-8;if(top<60)top=rc.bottom+8;pop.style.left=left+'px';pop.style.top=top+'px';
   setTimeout(function(){document.addEventListener('click',function h(e){if(!pop.contains(e.target)){cmCloseMenu();document.removeEventListener('click',h,true)}},true)},0)}
@@ -6680,7 +6682,7 @@ function cmMore(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m)return;var
   if(mine)h+='<button class="red" onclick="this.closest(\'.cm-sheet-bg\').remove();cmDelete(\''+key+'\','+r+')">삭제</button>';
   if(!mine&&cmIsManager())h+='<button class="red" onclick="this.closest(\'.cm-sheet-bg\').remove();cmHide(\''+key+'\','+r+')">가리기 (관리자)</button>';
   h+='<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>';cmSheet(h)}
-function cmReaders(key){var m=CM.msgs[key];if(!m||!CM.room)return;var rd=[],un=[];Object.keys(CM.room.m||{}).forEach(function(p){if(p===m.by)return;((CM.reads[p]||0)>=m.s?rd:un).push(cmName(p))});
+function cmReaders(key){var m=CM.msgs[key];if(!m||!CM.room)return;if(m.k==='ack')return cmAckWho(key);var rd=[],un=[];Object.keys(CM.room.m||{}).forEach(function(p){if(p===m.by)return;((CM.reads[p]||0)>=m.s?rd:un).push(cmName(p))});
   cmSheet('<div class="ttl">안 읽은 사람 '+un.length+'</div>'+(un.map(function(n){return '<div class="who-row">'+cmEsc(n)+'</div>'}).join('')||'<div class="who-row">없음</div>')+'<div class="ttl">읽은 사람 '+rd.length+'</div>'+(rd.map(function(n){return '<div class="who-row">'+cmEsc(n)+'</div>'}).join('')||'<div class="who-row">없음</div>')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>')}
 function cmStartEdit(key,root){var m=cmMsgBy(key,root);if(!m)return;CM.edit={key:key,root:root};var box=root?'CM-TCOMP':'CM-COMP';var ta=$(box+'-TA');if(ta){ta.value=m.x||'';ta.focus()}cmReplyBar(box)}
 function cmConfirm(title,msg,okLabel,red,cb){var bg=document.createElement('div');bg.className='cm-modal-bg';bg.innerHTML='<div class="cm-modal"><b>'+cmEsc(title)+'</b><p>'+cmEsc(msg)+'</p><div class="bt"><button>취소</button><button class="'+(red?'red':'')+'">'+cmEsc(okLabel)+'</button></div></div>';document.body.appendChild(bg);var bs=bg.querySelectorAll('.bt button');bs[0].onclick=function(){bg.remove()};bs[1].onclick=function(){bg.remove();cb()}}
@@ -6761,18 +6763,27 @@ function cmActAllDone(){var up={};Object.keys(CM.act||{}).forEach(function(k){if
 
 /* ── 채팅 설정 (글자 크기 · 엔터 · 알림) ── */
 var CM_FS=[[13,'작게'],[14,'보통'],[16,'크게'],[18,'아주 크게']];
-function cmOpenSettings(){go('p-comm-font');cmRenderFont()}
-function cmRenderFont(){var p=$('p-comm-font');if(!p)return;var cur=CM_FS.filter(function(f){return f[0]===CM.fs})[0]||CM_FS[1];
+/* 채팅 설정은 바로 바뀌지 않고 '저장'을 눌러야 적용된다 (바뀌었는지 헷갈리지 않게) */
+function cmOpenSettings(){var pf=cmPrefs();CM.sd={fs:CM.fs,enter:CM.enterSend,only:pf.only?1:0,quiet:pf.quiet?1:0};CM.sd0=JSON.stringify(CM.sd);go('p-comm-font');cmRenderFont()}
+function cmSdDirty(){return CM.sd&&JSON.stringify(CM.sd)!==CM.sd0}
+function cmSaveSettings(){var d=CM.sd;if(!d)return;var pf=cmPrefs();var prefChanged=(!!pf.only)!==!!d.only||(!!pf.quiet)!==!!d.quiet;
+  CM.fs=d.fs;CM.enterSend=!!d.enter;try{localStorage.setItem('cm_fs',String(d.fs));localStorage.setItem('cm_enter',d.enter?'1':'0')}catch(e){}
+  var done=function(){CM.sd0=JSON.stringify(CM.sd);toast('저장했어요');openComm('chat')};
+  if(!prefChanged)return done();
+  cmApi('prefs',{quiet:!!d.quiet,only:!!d.only}).then(function(){try{localStorage.setItem('cm_prefs',JSON.stringify({only:d.only,quiet:d.quiet}))}catch(e){}done()}).catch(function(e){alert('알림 설정을 저장하지 못했어요\n\n'+e.message)})}
+function cmSettingsBack(){if(cmSdDirty())cmConfirm('저장하지 않고 나갈까요?','바꾼 설정이 적용되지 않습니다.','나가기',false,function(){openComm('chat')});else openComm('chat')}
+function cmRenderFont(){var p=$('p-comm-font');if(!p)return;if(!CM.sd)CM.sd={fs:CM.fs,enter:CM.enterSend,only:0,quiet:0};var cur=CM_FS.filter(function(f){return f[0]===CM.sd.fs})[0]||CM_FS[1];
   var demo=[{k:'a',m:{by:'x',bn:'건아 매니저',at:Date.now()-60000,k:'t',x:'내일 발주 마감 오전 11시예요'}},{k:'b',m:{by:String(ME.phone),bn:'',at:Date.now()-30000,k:'t',x:'네 확인했어요'}},{k:'c',m:{by:'y',bn:'연서',at:Date.now(),k:'t',x:'3SI 두 개 더 넣어 주세요'}}];
-  var h='<div class="cm-head"><button class="cm-tb" onclick="openComm(\'chat\')">‹</button><span class="t">채팅 설정</span></div>';
-  h+='<div class="cm-grp"><div class="ttl">글자 크기 · '+cur[1]+'</div><div style="padding:8px 12px 14px"><div class="cm-fsprev" id="CM-FSPREV" style="--cm-fs:'+CM.fs+'px;font-size:'+CM.fs+'px">'+cmMsgHtml(demo,{thread:'demo'}).replace(/<div class="cm-day">.*?<\/div>/,'')+'</div><div style="display:flex;align-items:center;gap:12px"><span style="font-size:12px">가</span><div class="cm-track">'+CM_FS.map(function(f){return '<button aria-label="'+f[1]+'" class="'+(f[0]===CM.fs?'on':'')+'" onclick="cmSetFs('+f[0]+')"></button>'}).join('')+'</div><span style="font-size:20px">가</span></div></div></div>';
-  h+='<div class="cm-grp"><div class="ttl">입력</div><div class="cm-it">PC에서 엔터로 보내기<button class="cm-sw'+(CM.enterSend?' on':'')+'" onclick="CM.enterSend=!CM.enterSend;try{localStorage.setItem(\'cm_enter\',CM.enterSend?\'1\':\'0\')}catch(e){}cmRenderFont()"></button></div></div>';
-  var pf=cmPrefs();
+  var dirty=cmSdDirty();var h='<div class="cm-head"><button class="cm-tb" onclick="cmSettingsBack()">‹</button><span class="t">채팅 설정</span><button class="cm-tb" onclick="cmSaveSettings()" style="'+(dirty?'':'color:#CBD5E1')+'">저장</button></div>';
+  h+='<div class="cm-grp"><div class="ttl">글자 크기 · '+cur[1]+'</div><div style="padding:8px 12px 14px"><div class="cm-fsprev" id="CM-FSPREV" style="--cm-fs:'+CM.sd.fs+'px;font-size:'+CM.sd.fs+'px">'+cmMsgHtml(demo,{thread:'demo'}).replace(/<div class="cm-day">.*?<\/div>/,'')+'</div><div style="display:flex;align-items:center;gap:12px"><span style="font-size:12px">가</span><div class="cm-track">'+CM_FS.map(function(f){return '<button aria-label="'+f[1]+'" class="'+(f[0]===CM.sd.fs?'on':'')+'" onclick="cmSetFs('+f[0]+')"></button>'}).join('')+'</div><span style="font-size:20px">가</span></div></div></div>';
+  h+='<div class="cm-grp"><div class="ttl">입력</div><div class="cm-it">PC에서 엔터로 보내기<button class="cm-sw'+(CM.sd.enter?' on':'')+'" onclick="CM.sd.enter=!CM.sd.enter;cmRenderFont()"></button></div></div>';
+  var pf=CM.sd;
   h+='<div class="cm-grp"><div class="ttl">알림 받는 범위</div><div class="cm-it">@나 · 확인 요청 · 내 글 답장만 알림<button class="cm-sw'+(pf.only?' on':'')+'" onclick="cmSetPref(\'only\','+(!pf.only)+')"></button></div><div class="cm-it">밤에는 조용히 (22:00~08:00)<button class="cm-sw'+(pf.quiet?' on':'')+'" onclick="cmSetPref(\'quiet\','+(!pf.quiet)+')"></button></div><div class="cm-it" style="font-size:12.5px;color:var(--cm-ink3)">연차 · 정기 휴무인 날은 자동으로 @나 · 확인 요청만 알림</div></div>';
   if(cmIsManager())h+='<div class="cm-grp"><div class="ttl">관리</div><div class="cm-it" style="cursor:pointer" onclick="cmOpenNew(\'revoke\')">직원 기기 로그아웃 (잃어버린 폰)<span class="rl">›</span></div></div>';
   h+='<div class="cm-grp"><div class="ttl">알림</div><div class="cm-it" style="cursor:pointer" onclick="pushPanel()">폰 · PC 알림 켜기 · 시험<span class="rl">›</span></div><div class="cm-it" style="cursor:pointer" onclick="cmReadAll()">모든 방 읽음으로 표시<span class="rl">›</span></div></div>';
+  h+='<button class="cm-cbtn" style="width:100%;padding:13px;margin-top:4px'+(dirty?'':';background:#CBD5E1')+'" onclick="cmSaveSettings()">'+(dirty?'저장':'바뀐 내용 없음')+'</button>';
   p.innerHTML=h}
-function cmSetFs(v){CM.fs=v;try{localStorage.setItem('cm_fs',String(v))}catch(e){}cmRenderFont()}
+function cmSetFs(v){CM.sd.fs=v;cmRenderFont()}
 function cmReadAll(){var up={};Object.keys(CM.inbox||{}).forEach(function(k){var r=CM.inbox[k];if(r&&(r.s||0)>(r.r||0)){up[k+'/r']=r.s;r.r=r.s}});if(!Object.keys(up).length){toast('안 읽은 대화가 없어요');return}fbReq(cmSeg('/chat/inbox/'+ME.phone)+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(up)}).then(function(){toast('모두 읽음으로 표시했어요');cmBadges()})}
 
 
@@ -6856,7 +6867,9 @@ function cmMarkUnread(key){var m=CM.msgs[key];if(!m||!m.s)return;var v=Math.max(
 
 /* 방 안에서 찾기 · 골라 보기 */
 CM.find={on:false,q:'',k:''};
-function cmFindToggle(){CM.find.on=!CM.find.on;CM.find.q='';CM.find.k='';cmFindBar();cmRenderMsgs()}
+function cmFindToggle(){CM.find.on=!CM.find.on;CM.find.q='';CM.find.k='';cmFindBar();var b=$('CM-RBACK'),f=$('CM-RFIND');if(b)b.textContent='‹ '+(CM.find.on?'대화':(CM.from==='act'?'내 활동':'채팅'));if(f)f.textContent=CM.find.on?'닫기':'찾기';var box=$('CM-MSGS');if(box&&!CM.find.on)box.removeAttribute('data-first');cmRenderMsgs()}
+/* 찾기 중이면 왼쪽 위 버튼은 찾기를 닫고 대화로 돌아온다 (방 밖으로 나가지 않음) */
+function cmRoomBack(){if(CM.find&&CM.find.on){cmFindToggle();return}cmBack()}
 function cmFindBar(){var fb=$('CM-FIND');if(!fb)return;if(!CM.find.on){fb.innerHTML='';return}
   var tags={};Object.keys(CM.msgs).forEach(function(k){(CM.msgs[k].tg||[]).forEach(function(t){tags[t]=1})});
   var chips=[['','전체'],['me','@나'],['ack','공지 · 확인 요청'],['media','사진 · 동영상']].concat(Object.keys(tags).map(function(t){return ['#'+t,'#'+t]}));
@@ -6867,7 +6880,7 @@ function cmFindMatch(m){if(!m||m.k==='sys'||m.del||m.hid)return false;var f=CM.f
 function cmFindHtml(){var keys=Object.keys(CM.msgs).sort().reverse();var hits=keys.filter(function(k){var m=CM.msgs[k];if(m)m._k=k;return cmFindMatch(m)});
   if(!hits.length)return '<div class="cm-empty">찾는 대화가 없어요</div>';
   return hits.slice(0,200).map(function(k){var m=CM.msgs[k];return '<div class="cm-hit" onclick="cmFindGo(\''+k+'\')"><div class="hh"><span>'+cmEsc(m.bn)+' · '+cmAgo(m.at)+'</span><span>원래 위치 ›</span></div>'+(m.k==='ack'?'[확인 요청] ':m.k==='poll'?'[투표] ':'')+cmEsc(m.x||((m.md||[]).length?'사진·동영상 '+m.md.length+'개':''))+'</div>'}).join('')}
-function cmFindGo(k){CM.find.on=false;cmFindBar();cmRenderMsgs();setTimeout(function(){cmJump(k)},50)}
+function cmFindGo(k){CM.find.on=true;cmFindToggle();setTimeout(function(){cmJump(k)},50)}
 function cmLoadAll(){var rid=CM.rid;toast('대화를 모두 불러오는 중…');fbG(cmSeg('/chat/msgs/'+rid)+'.json').then(function(d){if(CM.rid!==rid)return;Object.keys(d||{}).forEach(function(k){if(!CM.msgs[k])CM.msgs[k]=d[k]});CM.older=true;cmFindBar();cmRenderMsgs();toast('모두 불러왔어요')})}
 
 /* 서랍: 사진 · 동영상 모아 보기 */
@@ -6887,7 +6900,7 @@ function cmOpenSummary(){go('p-comm-sum');var p=$('p-comm-sum');var rooms=cmSumR
 
 /* 알림 설정 (밤 무음 · @나만) — 서버가 기준, 화면 상태는 이 기기에 기억 */
 function cmPrefs(){try{return JSON.parse(localStorage.getItem('cm_prefs')||'{}')}catch(e){return {}}}
-function cmSetPref(k,v){var p=cmPrefs();p[k]=v?1:0;try{localStorage.setItem('cm_prefs',JSON.stringify(p))}catch(e){}cmApi('prefs',{quiet:!!p.quiet,only:!!p.only}).then(function(){toast('바꿨어요')}).catch(function(e){alert(e.message)});cmRenderFont()}
+function cmSetPref(k,v){CM.sd[k]=v?1:0;cmRenderFont()}
 
 /* 원격 로그아웃 (경영팀 · 관리자) */
 function cmRevoke(ph){cmConfirm(cmName(ph)+'님 기기를 모두 로그아웃할까요?','폰 · PC 모두 1분 안에 접속이 끊기고, 다시 로그인해야 합니다. 알림 등록도 지워집니다. 기록이 남습니다.','로그아웃',true,function(){ctFetch('/auth/revoke',{method:'POST',body:JSON.stringify({phone:ph})}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||'처리하지 못했습니다');toast('로그아웃시켰어요')}).catch(function(e){alert(e.message)})})}
