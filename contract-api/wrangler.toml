@@ -3,6 +3,7 @@
 # 시크릿:
 #   npx wrangler secret put FIREBASE_SA        (서비스 계정 JSON 전체)
 #   npx wrangler secret put SESSION_SECRET     (토큰 서명용 랜덤 문자열)
+#   npx wrangler secret put VAPID_PRIVATE_JWK  (웹 푸시 개인키 JWK — 공개키는 아래 vars)
 #   npx wrangler secret put GH_TOKEN           (GitHub PAT — 월 재수집 실행용, Actions: read/write)
 name = "dm-contract-api"
 main = "src/index.js"
@@ -16,6 +17,9 @@ FIREBASE_WEB_KEY = "AIzaSyB1kisg-779cQZMkcT_s3PsRLmHHBlOwOM"
 GH_REPO = "DMINTERNATIONAL/dm-hq-system"
 GH_WORKFLOW = "hermes-kpi.yml"
 GH_REF = "main"
+# 웹 푸시 공개키 (공개값). 짝이 되는 개인키는 secret VAPID_PRIVATE_JWK.
+#   바꾸면 모든 기기가 알림을 다시 켜야 한다 — 함부로 바꾸지 말 것.
+VAPID_PUBLIC = "BB2j3AH4EDiULVEoDKLWE_Ma7SBvBZQoN3D5z-nwFhthblv2Zgym6zlD4KGWnuZHc3661_32XEiHfupWh2oymU4"
 
 # 같은 계정의 Worker 끼리는 HTTP 로 못 부른다(Cloudflare error 1042).
 # 서비스 바인딩으로 직접 넘긴다 — 고객 화면 AI 추천이 이 경로를 쓴다.

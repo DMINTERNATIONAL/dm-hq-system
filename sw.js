@@ -57,3 +57,39 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+// ── 폰·PC 알림(웹 푸시) ──
+// 서버(dm-contract-api)가 보낸 알림을 화면에 띄운다. 아이폰은 받은 푸시를 반드시 화면에 보여줘야
+// 하므로(안 보이면 애플이 구독을 끊는다) 내용을 못 읽어도 기본 문구로라도 띄운다.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (_) { d = { body: event.data ? event.data.text() : '' }; }
+  const jobs = [self.registration.showNotification(d.title || 'DM', {
+    body: d.body || '새 알림이 있습니다',
+    tag: d.tag || undefined,
+    renotify: !!d.tag,
+    data: { url: d.url || './' },
+  })];
+  // 앱 아이콘 숫자 배지 (지원하는 기기만)
+  if (typeof d.badge === 'number' && self.navigator && 'setAppBadge' in self.navigator) {
+    jobs.push((d.badge > 0 ? self.navigator.setAppBadge(d.badge) : self.navigator.clearAppBadge()).catch(() => {}));
+  }
+  event.waitUntil(Promise.all(jobs));
+});
+
+// 알림을 누르면 열려 있는 앱 창으로 가서 해당 화면을 연다. 없으면 새로 연다.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url.indexOf(self.registration.scope) === 0 && 'focus' in c) {
+          c.postMessage({ type: 'open', url: target });
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});

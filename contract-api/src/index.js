@@ -14,7 +14,9 @@
  *   - 마스터 데이터 변경 감사 로그
  */
 
-const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets'];
+import { sendOne, subId } from './push.js';
+
+const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
   'https://dminternational.github.io',
   'http://localhost:8012',
@@ -250,6 +252,31 @@ async function verifyToken(env, token) {
   try { p = JSON.parse(b64urlDecode(body)); } catch (_) { return null; }
   if (!p.exp || p.exp < Math.floor(Date.now() / 1000)) return null;
   return p;
+}
+
+/* ═══ 알림 보내기 ═══
+   전화번호 목록의 모든 기기로 보낸다. 폰에서 구독이 사라진 것(404·410)은 지운다.
+   한 번에 6개씩 — 동시에 너무 많이 열면 Worker 의 외부 요청 한도에 걸린다. */
+async function pushToPhones(env, phones, payload, opts = {}) {
+  if (!env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC) return { sent: 0, failed: 0, error: 'VAPID 키 미설정' };
+  const subs = [];
+  for (const ph of [...new Set(phones.map(String))]) {
+    const m = (await dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null)) || {};
+    for (const [id, s] of Object.entries(m)) if (s && s.endpoint) subs.push({ ph, id, s });
+  }
+  let sent = 0, failed = 0, removed = 0;
+  const detail = [];
+  for (let i = 0; i < subs.length; i += 6) {
+    await Promise.all(subs.slice(i, i + 6).map(async ({ ph, id, s }) => {
+      try {
+        const r = await sendOne(env, s, payload, opts);
+        if (r.ok) sent++; else failed++;
+        if (r.gone) { removed++; await dbDelete(env, `/pushSubs/${encodeURIComponent(ph)}/${id}`).catch(() => {}); }
+        detail.push({ device: s.device || '', status: r.status });
+      } catch (e) { failed++; detail.push({ device: s.device || '', error: e.message }); }
+    }));
+  }
+  return { devices: subs.length, sent, failed, removed, detail };
 }
 
 /* ═══ 역할 판정 ═══
@@ -559,6 +586,36 @@ export default {
       me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
+
+      /* ── 폰·PC 알림(웹 푸시) ──
+         폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
+         본사 관리자 입구는 계정이 아니라서 알림을 받지 않는다. */
+      if (path === '/push/key') return json({ ok: true, key: env.VAPID_PUBLIC || '' }, 200, origin);
+      if (path === '/push/subscribe' && request.method === 'POST') {
+        if (me.admin) return json({ ok: false, error: '본사 관리자 입구는 알림을 받을 수 없습니다' }, 400, origin);
+        const { sub, device } = await request.json().catch(() => ({}));
+        const ep = String((sub && sub.endpoint) || '');
+        if (!/^https:\/\//.test(ep) || !sub.keys || !sub.keys.p256dh || !sub.keys.auth)
+          return json({ ok: false, error: '구독 정보가 올바르지 않습니다' }, 400, origin);
+        const id = await subId(ep);
+        await dbPut(env, `/pushSubs/${encodeURIComponent(String(me.ph))}/${id}`, {
+          endpoint: ep, keys: { p256dh: String(sub.keys.p256dh), auth: String(sub.keys.auth) },
+          device: String(device || '').slice(0, 80), at: Date.now(),
+        });
+        return json({ ok: true, id }, 200, origin);
+      }
+      if (path === '/push/unsubscribe' && request.method === 'POST') {
+        const { endpoint } = await request.json().catch(() => ({}));
+        if (endpoint) await dbDelete(env, `/pushSubs/${encodeURIComponent(String(me.ph))}/${await subId(String(endpoint))}`).catch(() => {});
+        return json({ ok: true }, 200, origin);
+      }
+      /* 내 기기 전부에 시험 알림 — 설정 화면의 '알림 시험' 버튼 */
+      if (path === '/push/test' && request.method === 'POST') {
+        const r = await pushToPhones(env, [String(me.ph)], {
+          title: 'DM 알림 시험', body: '이 알림이 보이면 설정이 끝난 거예요.', url: './#p-dash', tag: 'push-test',
+        });
+        return json({ ok: true, ...r }, 200, origin);
+      }
 
       /* 앱이 DB에 직접 붙을 때 쓰는 토큰. 1시간짜리라 앱이 주기적으로 다시 받아간다. */
       if (path === '/auth/dbtoken' && request.method === 'POST') {
