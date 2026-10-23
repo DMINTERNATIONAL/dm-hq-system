@@ -7,7 +7,1308 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<script src="https://unpkg.com/lucide@1.61.0/dist/umd/lucide.min.js"></script>
+<script>
+/* lucide v1.61.0 (ISC) — DM 앱이 쓰는 아이콘만 추린 것(index.html 안에 나오는 아이콘 이름으로 뽑음, 122개 · 37KB).
+   목록에 없는 이름이 나오면 전체판(unpkg, 1년 캐시)을 불러와 그걸로 다시 그린다 — 새 아이콘을 써도 깨지지 않는다 */
+(function (global) { 'use strict';
+  const defaultAttributes = {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": 2,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  };
+
+  const createSVGElement = ([tag, attrs, children]) => {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.keys(attrs).forEach((name) => {
+      element.setAttribute(name, String(attrs[name]));
+    });
+    if (children?.length) {
+      children.forEach((child) => {
+        const childElement = createSVGElement(child);
+        element.appendChild(childElement);
+      });
+    }
+    return element;
+  };
+  const createElement = (iconNode, customAttrs = {}) => {
+    const tag = "svg";
+    const attrs = {
+      ...defaultAttributes,
+      ...customAttrs
+    };
+    return createSVGElement([tag, attrs, iconNode]);
+  };
+
+  const mergeClasses = (...classes) => classes.filter((className, index, array) => {
+    return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index;
+  }).join(" ").trim();
+
+  const hasA11yProp = (props) => {
+    for (const prop in props) {
+      if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const toCamelCase = (string) => {
+    let out = "";
+    let upperNext = false;
+    for (const ch of string) {
+      if (ch === "-" || ch === "_" || ch <= " ") {
+        upperNext = out.length > 0;
+        continue;
+      }
+      if (out.length === 0) {
+        out += ch.toLowerCase();
+      } else {
+        out += upperNext ? ch.toUpperCase() : ch;
+      }
+      upperNext = false;
+    }
+    return out;
+  };
+
+  const toPascalCase = (string) => {
+    const camelCase = toCamelCase(string);
+    return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
+  };
+
+  const getAttrs = (element) => Array.from(element.attributes).reduce((attrs, attr) => {
+    attrs[attr.name] = attr.value;
+    return attrs;
+  }, {});
+  const getClassNames = (attrs) => {
+    if (typeof attrs === "string") return attrs;
+    if (!attrs || !attrs.class) return "";
+    if (attrs.class && typeof attrs.class === "string") {
+      return attrs.class.split(" ");
+    }
+    if (attrs.class && Array.isArray(attrs.class)) {
+      return attrs.class;
+    }
+    return "";
+  };
+  const replaceElement = (element, { nameAttr, icons, attrs }) => {
+    const iconName = element.getAttribute(nameAttr);
+    if (iconName == null) return;
+    const ComponentName = toPascalCase(iconName);
+    const iconNode = icons[ComponentName];
+    if (!iconNode) {
+      return console.warn(
+        `${element.outerHTML} icon name was not found in the provided icons object.`
+      );
+    }
+    const elementAttrs = getAttrs(element);
+    const ariaProps = hasA11yProp(elementAttrs) ? {} : { "aria-hidden": "true" };
+    const iconAttrs = {
+      ...defaultAttributes,
+      "data-lucide": iconName,
+      ...ariaProps,
+      ...attrs,
+      ...elementAttrs
+    };
+    const elementClassNames = getClassNames(elementAttrs);
+    const className = getClassNames(attrs);
+    const classNames = mergeClasses(
+      "lucide",
+      `lucide-${iconName}`,
+      ...elementClassNames,
+      ...className
+    );
+    if (classNames) {
+      Object.assign(iconAttrs, {
+        class: classNames
+      });
+    }
+    const svgElement = createElement(iconNode, iconAttrs);
+    return element.parentNode?.replaceChild(svgElement, element);
+  };
+
+  const AlarmClock = [
+    ["circle", { cx: "12", cy: "13", r: "8" }],
+    ["path", { d: "M12 9v4l2 2" }],
+    ["path", { d: "M5 3 2 6" }],
+    ["path", { d: "m22 6-3-3" }],
+    ["path", { d: "M6.38 18.7 4 21" }],
+    ["path", { d: "M17.64 18.67 20 21" }]
+  ];
+
+  const Award = [
+    [
+      "path",
+      {
+        d: "m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"
+      }
+    ],
+    ["circle", { cx: "12", cy: "8", r: "6" }]
+  ];
+
+  const Banknote = [
+    ["rect", { width: "20", height: "12", x: "2", y: "6", rx: "2" }],
+    ["circle", { cx: "12", cy: "12", r: "2" }],
+    ["path", { d: "M6 12h.01M18 12h.01" }]
+  ];
+
+  const Bell = [
+    ["path", { d: "M10.268 21a2 2 0 0 0 3.464 0" }],
+    [
+      "path",
+      {
+        d: "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"
+      }
+    ]
+  ];
+
+  const BookOpen = [
+    ["path", { d: "M12 5v16" }],
+    [
+      "path",
+      {
+        d: "M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"
+      }
+    ]
+  ];
+
+  const Boxes = [
+    [
+      "path",
+      {
+        d: "M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"
+      }
+    ],
+    ["path", { d: "m7 16.5-4.74-2.85" }],
+    ["path", { d: "m7 16.5 5-3" }],
+    ["path", { d: "M7 16.5v5.17" }],
+    [
+      "path",
+      {
+        d: "M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"
+      }
+    ],
+    ["path", { d: "m17 16.5-5-3" }],
+    ["path", { d: "m17 16.5 4.74-2.85" }],
+    ["path", { d: "M17 16.5v5.17" }],
+    [
+      "path",
+      {
+        d: "M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"
+      }
+    ],
+    ["path", { d: "M12 8 7.26 5.15" }],
+    ["path", { d: "m12 8 4.74-2.85" }],
+    ["path", { d: "M12 13.5V8" }]
+  ];
+
+  const Briefcase = [
+    ["path", { d: "M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" }],
+    ["rect", { width: "20", height: "14", x: "2", y: "6", rx: "2" }]
+  ];
+
+  const BuildingComplex = [
+    ["path", { d: "M10 12h4" }],
+    ["path", { d: "M10 8h4" }],
+    ["path", { d: "M14 21v-3a2 2 0 0 0-4 0v3" }],
+    ["path", { d: "M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" }],
+    ["path", { d: "M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" }]
+  ];
+
+  const Calendar = [
+    ["path", { d: "M8 2v3" }],
+    ["path", { d: "M16 2v3" }],
+    ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }],
+    ["path", { d: "M3 9h18" }]
+  ];
+
+  const CalendarDays = [
+    ["path", { d: "M8 2v3" }],
+    ["path", { d: "M16 2v3" }],
+    ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }],
+    ["path", { d: "M3 9h18" }],
+    ["path", { d: "M8 13h.01" }],
+    ["path", { d: "M12 13h.01" }],
+    ["path", { d: "M16 13h.01" }],
+    ["path", { d: "M8 17h.01" }],
+    ["path", { d: "M12 17h.01" }],
+    ["path", { d: "M16 17h.01" }]
+  ];
+
+  const Camera = [
+    [
+      "path",
+      {
+        d: "M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"
+      }
+    ],
+    ["circle", { cx: "12", cy: "13", r: "3" }]
+  ];
+
+  const Cat = [
+    [
+      "path",
+      {
+        d: "M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"
+      }
+    ],
+    ["path", { d: "M8 14v.5" }],
+    ["path", { d: "M16 14v.5" }],
+    ["path", { d: "M11.25 16.25h1.5L12 17l-.75-.75Z" }]
+  ];
+
+  const ChartArea = [
+    ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16" }],
+    [
+      "path",
+      {
+        d: "M7 11.207a.5.5 0 0 1 .146-.353l2-2a.5.5 0 0 1 .708 0l3.292 3.292a.5.5 0 0 0 .708 0l4.292-4.292a.5.5 0 0 1 .854.353V16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z"
+      }
+    ]
+  ];
+
+  const ChartColumn = [
+    ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16" }],
+    ["path", { d: "M18 17V9" }],
+    ["path", { d: "M13 17V5" }],
+    ["path", { d: "M8 17v-3" }]
+  ];
+
+  const Check = [["path", { d: "M20 6 9 17l-5-5" }]];
+
+  const ChevronDown = [["path", { d: "m6 9 6 6 6-6" }]];
+
+  const ChevronLeft = [["path", { d: "m15 18-6-6 6-6" }]];
+
+  const ChevronRight = [["path", { d: "m9 18 6-6-6-6" }]];
+
+  const CircleAlert = [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["line", { x1: "12", x2: "12", y1: "8", y2: "12" }],
+    ["line", { x1: "12", x2: "12.01", y1: "16", y2: "16" }]
+  ];
+
+  const CircleCheck = [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["path", { d: "m16 9-5.5 5.5L8 12" }]
+  ];
+
+  const CircleDashed = [
+    ["path", { d: "M10.1 2.182a10 10 0 0 1 3.8 0" }],
+    ["path", { d: "M13.9 21.818a10 10 0 0 1-3.8 0" }],
+    ["path", { d: "M17.609 3.721a10 10 0 0 1 2.69 2.7" }],
+    ["path", { d: "M2.182 13.9a10 10 0 0 1 0-3.8" }],
+    ["path", { d: "M20.279 17.609a10 10 0 0 1-2.7 2.69" }],
+    ["path", { d: "M21.818 10.1a10 10 0 0 1 0 3.8" }],
+    ["path", { d: "M3.721 6.391a10 10 0 0 1 2.7-2.69" }],
+    ["path", { d: "M6.391 20.279a10 10 0 0 1-2.69-2.7" }]
+  ];
+
+  const CirclePlay = [
+    [
+      "path",
+      {
+        d: "M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"
+      }
+    ],
+    ["circle", { cx: "12", cy: "12", r: "10" }]
+  ];
+
+  const CirclePlus = [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["path", { d: "M8 12h8" }],
+    ["path", { d: "M12 8v8" }]
+  ];
+
+  const ClipboardCheck = [
+    ["rect", { width: "8", height: "4", x: "8", y: "2", rx: "1", ry: "1" }],
+    ["path", { d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" }],
+    ["path", { d: "m9 14 2 2 4-4" }]
+  ];
+
+  const ClipboardList = [
+    ["rect", { width: "8", height: "4", x: "8", y: "2", rx: "1", ry: "1" }],
+    ["path", { d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" }],
+    ["path", { d: "M12 11h4" }],
+    ["path", { d: "M12 16h4" }],
+    ["path", { d: "M8 11h.01" }],
+    ["path", { d: "M8 16h.01" }]
+  ];
+
+  const Clock = [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["path", { d: "M12 6v6l4 2" }]
+  ];
+
+  const Coffee = [
+    ["path", { d: "M10 2v2" }],
+    ["path", { d: "M14 2v2" }],
+    [
+      "path",
+      {
+        d: "M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"
+      }
+    ],
+    ["path", { d: "M6 2v2" }]
+  ];
+
+  const Copy = [
+    ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2" }],
+    ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" }]
+  ];
+
+  const Delete = [
+    [
+      "path",
+      {
+        d: "M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"
+      }
+    ],
+    ["path", { d: "m12 9 6 6" }],
+    ["path", { d: "m18 9-6 6" }]
+  ];
+
+  const DollarSign = [
+    ["line", { x1: "12", x2: "12", y1: "2", y2: "22" }],
+    ["path", { d: "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" }]
+  ];
+
+  const Donut = [
+    [
+      "path",
+      {
+        d: "M20.5 10a2.5 2.5 0 0 1-2.4-3H18a2.95 2.95 0 0 1-2.6-4.4 10 10 0 1 0 6.3 7.1c-.3.2-.8.3-1.2.3"
+      }
+    ],
+    ["circle", { cx: "12", cy: "12", r: "3" }]
+  ];
+
+  const Dot = [["circle", { cx: "12", cy: "12", r: "1" }]];
+
+  const Download = [
+    ["path", { d: "M12 15V3" }],
+    ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }],
+    ["path", { d: "m7 10 5 5 5-5" }]
+  ];
+
+  const Eye = [
+    [
+      "path",
+      {
+        d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+      }
+    ],
+    ["circle", { cx: "12", cy: "12", r: "3" }]
+  ];
+
+  const EyeOff = [
+    [
+      "path",
+      {
+        d: "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
+      }
+    ],
+    ["path", { d: "M14.084 14.158a3 3 0 0 1-4.242-4.242" }],
+    [
+      "path",
+      {
+        d: "M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
+      }
+    ],
+    ["path", { d: "m2 2 20 20" }]
+  ];
+
+  const File = [
+    [
+      "path",
+      {
+        d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+      }
+    ],
+    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5" }]
+  ];
+
+  const FileCheck = [
+    [
+      "path",
+      {
+        d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+      }
+    ],
+    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5" }],
+    ["path", { d: "m9 15 2 2 4-4" }]
+  ];
+
+  const FilePenLine = [
+    [
+      "path",
+      {
+        d: "M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z"
+      }
+    ],
+    ["path", { d: "M14.487 7.858A1 1 0 0 1 14 7V2" }],
+    [
+      "path",
+      {
+        d: "M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l2.516 2.516"
+      }
+    ],
+    ["path", { d: "M8 18h1" }]
+  ];
+
+  const FileText = [
+    [
+      "path",
+      {
+        d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+      }
+    ],
+    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5" }],
+    ["path", { d: "M10 9H8" }],
+    ["path", { d: "M16 13H8" }],
+    ["path", { d: "M16 17H8" }]
+  ];
+
+  const Flame = [
+    [
+      "path",
+      {
+        d: "M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"
+      }
+    ]
+  ];
+
+  const Focus = [
+    ["circle", { cx: "12", cy: "12", r: "3" }],
+    ["path", { d: "M3 7V5a2 2 0 0 1 2-2h2" }],
+    ["path", { d: "M17 3h2a2 2 0 0 1 2 2v2" }],
+    ["path", { d: "M21 17v2a2 2 0 0 1-2 2h-2" }],
+    ["path", { d: "M7 21H5a2 2 0 0 1-2-2v-2" }]
+  ];
+
+  const Gift = [
+    ["path", { d: "M12 7v14" }],
+    ["path", { d: "M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" }],
+    ["path", { d: "M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" }],
+    ["rect", { x: "3", y: "7", width: "18", height: "4", rx: "1" }]
+  ];
+
+  const GraduationCap = [
+    [
+      "path",
+      {
+        d: "M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"
+      }
+    ],
+    ["path", { d: "M22 10v6" }],
+    ["path", { d: "M6 12.5V16a6 3 0 0 0 12 0v-3.5" }]
+  ];
+
+  const Grid3x3 = [
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2" }],
+    ["path", { d: "M3 9h18" }],
+    ["path", { d: "M3 15h18" }],
+    ["path", { d: "M9 3v18" }],
+    ["path", { d: "M15 3v18" }]
+  ];
+
+  const Group = [
+    ["path", { d: "M3 7V5c0-1.1.9-2 2-2h2" }],
+    ["path", { d: "M17 3h2c1.1 0 2 .9 2 2v2" }],
+    ["path", { d: "M21 17v2c0 1.1-.9 2-2 2h-2" }],
+    ["path", { d: "M7 21H5c-1.1 0-2-.9-2-2v-2" }],
+    ["rect", { width: "7", height: "5", x: "7", y: "7", rx: "1" }],
+    ["rect", { width: "7", height: "5", x: "10", y: "12", rx: "1" }]
+  ];
+
+  const HandGrab = [
+    ["path", { d: "M18 11.5V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1.4" }],
+    ["path", { d: "M14 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" }],
+    ["path", { d: "M10 9.9V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5" }],
+    ["path", { d: "M6 14a2 2 0 0 0-2-2a2 2 0 0 0-2 2" }],
+    ["path", { d: "M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0" }]
+  ];
+
+  const Hd = [
+    ["path", { d: "M10 12H6" }],
+    ["path", { d: "M10 15V9" }],
+    [
+      "path",
+      {
+        d: "M14 14.5a.5.5 0 0 0 .5.5h1a2.5 2.5 0 0 0 2.5-2.5v-1A2.5 2.5 0 0 0 15.5 9h-1a.5.5 0 0 0-.5.5z"
+      }
+    ],
+    ["path", { d: "M6 15V9" }],
+    ["rect", { x: "2", y: "5", width: "20", height: "14", rx: "2" }]
+  ];
+
+  const House = [
+    ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" }],
+    [
+      "path",
+      {
+        d: "M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+      }
+    ]
+  ];
+
+  const Image = [
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", ry: "2" }],
+    ["circle", { cx: "9", cy: "9", r: "2" }],
+    ["path", { d: "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" }]
+  ];
+
+  const Inbox = [
+    ["polyline", { points: "22 12 16 12 14 15 10 15 8 12 2 12" }],
+    [
+      "path",
+      {
+        d: "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+      }
+    ]
+  ];
+
+  const Info = [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["path", { d: "M12 16v-4" }],
+    ["path", { d: "M12 8h.01" }]
+  ];
+
+  const KeyRound = [
+    [
+      "path",
+      {
+        d: "M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"
+      }
+    ],
+    ["circle", { cx: "16.5", cy: "7.5", r: ".5", fill: "currentColor" }]
+  ];
+
+  const LayoutDashboard = [
+    ["rect", { width: "7", height: "9", x: "3", y: "3", rx: "1" }],
+    ["rect", { width: "7", height: "5", x: "14", y: "3", rx: "1" }],
+    ["rect", { width: "7", height: "9", x: "14", y: "12", rx: "1" }],
+    ["rect", { width: "7", height: "5", x: "3", y: "16", rx: "1" }]
+  ];
+
+  const LayoutList = [
+    ["rect", { width: "7", height: "7", x: "3", y: "3", rx: "1" }],
+    ["rect", { width: "7", height: "7", x: "3", y: "14", rx: "1" }],
+    ["path", { d: "M14 4h7" }],
+    ["path", { d: "M14 9h7" }],
+    ["path", { d: "M14 15h7" }],
+    ["path", { d: "M14 20h7" }]
+  ];
+
+  const List = [
+    ["path", { d: "M3 5h.01" }],
+    ["path", { d: "M3 12h.01" }],
+    ["path", { d: "M3 19h.01" }],
+    ["path", { d: "M8 5h13" }],
+    ["path", { d: "M8 12h13" }],
+    ["path", { d: "M8 19h13" }]
+  ];
+
+  const LogIn = [
+    ["path", { d: "m10 17 5-5-5-5" }],
+    ["path", { d: "M15 12H3" }],
+    ["path", { d: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" }]
+  ];
+
+  const LogOut = [
+    ["path", { d: "m16 17 5-5-5-5" }],
+    ["path", { d: "M21 12H9" }],
+    ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }]
+  ];
+
+  const Menu = [
+    ["path", { d: "M4 5h16" }],
+    ["path", { d: "M4 12h16" }],
+    ["path", { d: "M4 19h16" }]
+  ];
+
+  const MessageCircle = [
+    [
+      "path",
+      {
+        d: "M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"
+      }
+    ]
+  ];
+
+  const Mouse = [
+    ["rect", { x: "5", y: "2", width: "14", height: "20", rx: "7" }],
+    ["path", { d: "M12 6v4" }]
+  ];
+
+  const Option = [
+    ["path", { d: "M14 3h7" }],
+    ["path", { d: "M3 3h5.28a1 1 0 0 1 .948.684l5.544 16.632a1 1 0 0 0 .949.684H21" }]
+  ];
+
+  const Package = [
+    [
+      "path",
+      {
+        d: "M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"
+      }
+    ],
+    ["path", { d: "M12 22V12" }],
+    ["polyline", { points: "3.29 7 12 12 20.71 7" }],
+    ["path", { d: "m7.5 4.27 9 5.15" }]
+  ];
+
+  const PanelLeft = [
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2" }],
+    ["path", { d: "M9 3v18" }]
+  ];
+
+  const Paperclip = [
+    [
+      "path",
+      {
+        d: "m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"
+      }
+    ]
+  ];
+
+  const Pause = [
+    ["rect", { x: "14", y: "3", width: "5", height: "18", rx: "1" }],
+    ["rect", { x: "5", y: "3", width: "5", height: "18", rx: "1" }]
+  ];
+
+  const Pen = [
+    [
+      "path",
+      {
+        d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"
+      }
+    ]
+  ];
+
+  const PenLine = [
+    ["path", { d: "M13 21h8" }],
+    [
+      "path",
+      {
+        d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"
+      }
+    ]
+  ];
+
+  const Pi = [
+    ["line", { x1: "9", x2: "9", y1: "4", y2: "20" }],
+    ["path", { d: "M4 7c0-1.7 1.3-3 3-3h13" }],
+    ["path", { d: "M18 20c-1.7 0-3-1.3-3-3V4" }]
+  ];
+
+  const Pill = [
+    ["path", { d: "m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" }],
+    ["path", { d: "m8.5 8.5 7 7" }]
+  ];
+
+  const Pin = [
+    ["path", { d: "M12 17v5" }],
+    [
+      "path",
+      {
+        d: "M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+      }
+    ]
+  ];
+
+  const Play = [
+    [
+      "path",
+      { d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" }
+    ]
+  ];
+
+  const Plus = [
+    ["path", { d: "M5 12h14" }],
+    ["path", { d: "M12 5v14" }]
+  ];
+
+  const Pointer = [
+    ["path", { d: "M22 14a8 8 0 0 1-8 8" }],
+    ["path", { d: "M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2" }],
+    ["path", { d: "M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1" }],
+    ["path", { d: "M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10" }],
+    [
+      "path",
+      {
+        d: "M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+      }
+    ]
+  ];
+
+  const Radio = [
+    ["path", { d: "M16.247 7.761a6 6 0 0 1 0 8.478" }],
+    ["path", { d: "M19.075 4.933a10 10 0 0 1 0 14.134" }],
+    ["path", { d: "M4.925 19.067a10 10 0 0 1 0-14.134" }],
+    ["path", { d: "M7.753 16.239a6 6 0 0 1 0-8.478" }],
+    ["circle", { cx: "12", cy: "12", r: "2" }]
+  ];
+
+  const Receipt = [
+    ["path", { d: "M12 17V7" }],
+    ["path", { d: "M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8" }],
+    [
+      "path",
+      {
+        d: "M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"
+      }
+    ]
+  ];
+
+  const ReceiptText = [
+    ["path", { d: "M13 16H8" }],
+    ["path", { d: "M14 8H8" }],
+    ["path", { d: "M16 12H8" }],
+    [
+      "path",
+      {
+        d: "M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"
+      }
+    ]
+  ];
+
+  const RefreshCw = [
+    ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" }],
+    ["path", { d: "M21 3v5h-5" }],
+    ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" }],
+    ["path", { d: "M8 16H3v5" }]
+  ];
+
+  const Reply = [
+    ["path", { d: "M20 18v-2a4 4 0 0 0-4-4H4" }],
+    ["path", { d: "m9 17-5-5 5-5" }]
+  ];
+
+  const RotateCcw = [
+    ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }],
+    ["path", { d: "M3 3v5h5" }]
+  ];
+
+  const RotateCcwClock = [
+    ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }],
+    ["path", { d: "M3 3v5h5" }],
+    ["path", { d: "M12 7v5l4 2" }]
+  ];
+
+  const RotateCw = [
+    ["path", { d: "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" }],
+    ["path", { d: "M21 3v5h-5" }]
+  ];
+
+  const Save = [
+    [
+      "path",
+      {
+        d: "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+      }
+    ],
+    ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" }],
+    ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7" }]
+  ];
+
+  const Scissors = [
+    ["circle", { cx: "6", cy: "6", r: "3" }],
+    ["path", { d: "M8.12 8.12 12 12" }],
+    ["path", { d: "M20 4 8.12 15.88" }],
+    ["circle", { cx: "6", cy: "18", r: "3" }],
+    ["path", { d: "M14.8 14.8 20 20" }]
+  ];
+
+  const Scroll = [
+    ["path", { d: "M19 17V5a2 2 0 0 0-2-2H4" }],
+    [
+      "path",
+      {
+        d: "M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"
+      }
+    ]
+  ];
+
+  const Send = [
+    [
+      "path",
+      {
+        d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+      }
+    ],
+    ["path", { d: "m21.854 2.147-10.94 10.939" }]
+  ];
+
+  const Share = [
+    ["path", { d: "M12 2v13" }],
+    ["path", { d: "m16 6-4-4-4 4" }],
+    ["path", { d: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" }]
+  ];
+
+  const Sheet = [
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", ry: "2" }],
+    ["line", { x1: "3", x2: "21", y1: "9", y2: "9" }],
+    ["line", { x1: "3", x2: "21", y1: "15", y2: "15" }],
+    ["line", { x1: "9", x2: "9", y1: "9", y2: "21" }],
+    ["line", { x1: "15", x2: "15", y1: "9", y2: "21" }]
+  ];
+
+  const Shield = [
+    [
+      "path",
+      {
+        d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+      }
+    ]
+  ];
+
+  const ShoppingBag = [
+    ["path", { d: "M16 10a4 4 0 0 1-8 0" }],
+    ["path", { d: "M3.103 6.034h17.794" }],
+    [
+      "path",
+      {
+        d: "M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"
+      }
+    ]
+  ];
+
+  const ShoppingCart = [
+    ["path", { d: "m2.05 2.05 1.099-.028a1 1 0 0 1 1.008.815l2.69 14.347A1 1 0 0 0 7.83 18H18" }],
+    ["path", { d: "M4.563 5h16.435a1 1 0 0 1 .981 1.204l-1.026 6.226A2 2 0 0 1 18.962 14H6.25" }],
+    ["circle", { cx: "18", cy: "20", r: "2" }],
+    ["circle", { cx: "8", cy: "20", r: "2" }]
+  ];
+
+  const Sigma = [
+    [
+      "path",
+      {
+        d: "M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"
+      }
+    ]
+  ];
+
+  const SlidersVertical = [
+    ["path", { d: "M10 8h4" }],
+    ["path", { d: "M12 21v-9" }],
+    ["path", { d: "M12 8V3" }],
+    ["path", { d: "M17 16h4" }],
+    ["path", { d: "M19 12V3" }],
+    ["path", { d: "M19 21v-5" }],
+    ["path", { d: "M3 14h4" }],
+    ["path", { d: "M5 10V3" }],
+    ["path", { d: "M5 21v-7" }]
+  ];
+
+  const Split = [
+    ["path", { d: "M16 3h5v5" }],
+    ["path", { d: "M8 3H3v5" }],
+    ["path", { d: "M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" }],
+    ["path", { d: "m15 9 6-6" }]
+  ];
+
+  const SprayCan = [
+    ["path", { d: "M3 3h.01" }],
+    ["path", { d: "M7 5h.01" }],
+    ["path", { d: "M11 7h.01" }],
+    ["path", { d: "M3 7h.01" }],
+    ["path", { d: "M7 9h.01" }],
+    ["path", { d: "M3 11h.01" }],
+    ["rect", { width: "4", height: "4", x: "15", y: "5" }],
+    ["path", { d: "m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2" }],
+    ["path", { d: "m13 14 8-2" }],
+    ["path", { d: "m13 19 8-2" }]
+  ];
+
+  const Square = [["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2" }]];
+
+  const SquareBookmark = [
+    [
+      "path",
+      {
+        d: "M11 3v7.751a.25.25 0 00.407.195l2.28-1.834a.5.5 0 01.627 0l2.28 1.834a.25.25 0 00.406-.195V3"
+      }
+    ],
+    ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }]
+  ];
+
+  const SquareCheckBig = [
+    ["path", { d: "M21 10.656V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.344" }],
+    ["path", { d: "m9 11 3 3L22 4" }]
+  ];
+
+  const SquarePen = [
+    ["path", { d: "M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }],
+    [
+      "path",
+      {
+        d: "M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"
+      }
+    ]
+  ];
+
+  const Store = [
+    ["path", { d: "M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5" }],
+    [
+      "path",
+      {
+        d: "M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"
+      }
+    ],
+    ["path", { d: "M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05" }]
+  ];
+
+  const Summary = [
+    ["path", { d: "M15 4H7" }],
+    ["path", { d: "m18 16 3 3-3 3" }],
+    ["path", { d: "M3 4v13a2 2 0 0 0 2 2h16" }],
+    ["path", { d: "M7 14h7" }],
+    ["path", { d: "M7 9h12" }]
+  ];
+
+  const Sun = [
+    ["circle", { cx: "12", cy: "12", r: "4" }],
+    ["path", { d: "M12 2v2" }],
+    ["path", { d: "M12 20v2" }],
+    ["path", { d: "m4.93 4.93 1.41 1.41" }],
+    ["path", { d: "m17.66 17.66 1.41 1.41" }],
+    ["path", { d: "M2 12h2" }],
+    ["path", { d: "M20 12h2" }],
+    ["path", { d: "m6.34 17.66-1.41 1.41" }],
+    ["path", { d: "m19.07 4.93-1.41 1.41" }]
+  ];
+
+  const Table = [
+    ["path", { d: "M12 3v18" }],
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2" }],
+    ["path", { d: "M3 9h18" }],
+    ["path", { d: "M3 15h18" }]
+  ];
+
+  const Tag = [
+    [
+      "path",
+      {
+        d: "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"
+      }
+    ],
+    ["circle", { cx: "7.5", cy: "7.5", r: ".5", fill: "currentColor" }]
+  ];
+
+  const TextAlignStart = [
+    ["path", { d: "M21 5H3" }],
+    ["path", { d: "M15 12H3" }],
+    ["path", { d: "M17 19H3" }]
+  ];
+
+  const TreePalm = [
+    ["path", { d: "M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4" }],
+    ["path", { d: "M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3" }],
+    [
+      "path",
+      {
+        d: "M5.89 9.71c-2.15 2.15-2.3 5.47-.35 7.43l4.24-4.25.7-.7.71-.71 2.12-2.12c-1.95-1.96-5.27-1.8-7.42.35"
+      }
+    ],
+    ["path", { d: "M11 15.5c.5 2.5-.17 4.5-1 6.5h4c2-5.5-.5-12-1-14" }]
+  ];
+
+  const TrendingDown = [
+    ["path", { d: "M16 17h6v-6" }],
+    ["path", { d: "m22 17-8.5-8.5-5 5L2 7" }]
+  ];
+
+  const TrendingUp = [
+    ["path", { d: "M16 7h6v6" }],
+    ["path", { d: "m22 7-8.5 8.5-5-5L2 17" }]
+  ];
+
+  const TriangleAlert = [
+    ["path", { d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" }],
+    ["path", { d: "M12 9v4" }],
+    ["path", { d: "M12 17h.01" }]
+  ];
+
+  const Trophy = [
+    ["path", { d: "M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2" }],
+    ["path", { d: "M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2" }],
+    ["path", { d: "M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3" }],
+    ["path", { d: "M4 22h16" }],
+    ["path", { d: "M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" }],
+    ["path", { d: "M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3" }]
+  ];
+
+  const Truck = [
+    ["path", { d: "M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" }],
+    ["path", { d: "M15 18H9" }],
+    [
+      "path",
+      { d: "M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" }
+    ],
+    ["circle", { cx: "17", cy: "18", r: "2" }],
+    ["circle", { cx: "7", cy: "18", r: "2" }]
+  ];
+
+  const Type = [
+    ["path", { d: "M12 4v16" }],
+    ["path", { d: "M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" }],
+    ["path", { d: "M9 20h6" }]
+  ];
+
+  const User = [
+    ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }],
+    ["circle", { cx: "12", cy: "7", r: "4" }]
+  ];
+
+  const UserCheck = [
+    ["path", { d: "m16 11 2 2 4-4" }],
+    ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+    ["circle", { cx: "9", cy: "7", r: "4" }]
+  ];
+
+  const UserPlus = [
+    ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+    ["circle", { cx: "9", cy: "7", r: "4" }],
+    ["line", { x1: "19", x2: "19", y1: "8", y2: "14" }],
+    ["line", { x1: "22", x2: "16", y1: "11", y2: "11" }]
+  ];
+
+  const Users = [
+    ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+    ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744" }],
+    ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }],
+    ["circle", { cx: "9", cy: "7", r: "4" }]
+  ];
+
+  const Utensils = [
+    ["path", { d: "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" }],
+    ["path", { d: "M7 2v20" }],
+    ["path", { d: "M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" }]
+  ];
+
+  const Venus = [
+    ["path", { d: "M12 15v7" }],
+    ["path", { d: "M9 19h6" }],
+    ["circle", { cx: "12", cy: "9", r: "6" }]
+  ];
+
+  const Video = [
+    ["path", { d: "m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" }],
+    ["rect", { x: "2", y: "6", width: "14", height: "12", rx: "2" }]
+  ];
+
+  const View = [
+    ["path", { d: "M21 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2" }],
+    ["path", { d: "M21 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2" }],
+    ["circle", { cx: "12", cy: "12", r: "1" }],
+    [
+      "path",
+      {
+        d: "M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"
+      }
+    ]
+  ];
+
+  const Vote = [
+    ["path", { d: "m9 12 2 2 4-4" }],
+    ["path", { d: "M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z" }],
+    ["path", { d: "M22 19H2" }]
+  ];
+
+  const X = [
+    ["path", { d: "M18 6 6 18" }],
+    ["path", { d: "m6 6 12 12" }]
+  ];
+
+  const Zap = [
+    [
+      "path",
+      {
+        d: "M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"
+      }
+    ]
+  ];
+  var iconAndAliases = {
+    AlarmClock: AlarmClock,
+    Album: SquareBookmark,
+    AlertCircle: CircleAlert,
+    AlertTriangle: TriangleAlert,
+    Award: Award,
+    Banknote: Banknote,
+    BarChart3: ChartColumn,
+    Bell: Bell,
+    BookOpen: BookOpen,
+    Boxes: Boxes,
+    Briefcase: Briefcase,
+    Building2: BuildingComplex,
+    Calendar: Calendar,
+    CalendarDays: CalendarDays,
+    Camera: Camera,
+    Cat: Cat,
+    ChartArea: ChartArea,
+    Check: Check,
+    CheckCircle2: CircleCheck,
+    CheckSquare: SquareCheckBig,
+    ChevronDown: ChevronDown,
+    ChevronLeft: ChevronLeft,
+    ChevronRight: ChevronRight,
+    CircleDashed: CircleDashed,
+    ClipboardCheck: ClipboardCheck,
+    ClipboardList: ClipboardList,
+    Clock: Clock,
+    Coffee: Coffee,
+    Copy: Copy,
+    Delete: Delete,
+    DollarSign: DollarSign,
+    Donut: Donut,
+    Dot: Dot,
+    Download: Download,
+    Edit: SquarePen,
+    Edit3: PenLine,
+    Eye: Eye,
+    EyeOff: EyeOff,
+    File: File,
+    FileCheck: FileCheck,
+    FileSignature: FilePenLine,
+    FileText: FileText,
+    Flame: Flame,
+    Focus: Focus,
+    Gift: Gift,
+    Grab: HandGrab,
+    GraduationCap: GraduationCap,
+    Grid: Grid3x3,
+    Group: Group,
+    Hd: Hd,
+    History: RotateCcwClock,
+    Home: House,
+    Image: Image,
+    Inbox: Inbox,
+    Info: Info,
+    KeyRound: KeyRound,
+    LayoutDashboard: LayoutDashboard,
+    LayoutList: LayoutList,
+    List: List,
+    LogIn: LogIn,
+    LogOut: LogOut,
+    Menu: Menu,
+    MessageCircle: MessageCircle,
+    Mouse: Mouse,
+    Option: Option,
+    Package: Package,
+    Palmtree: TreePalm,
+    Paperclip: Paperclip,
+    Pause: Pause,
+    Pen: Pen,
+    Pi: Pi,
+    Pill: Pill,
+    Pin: Pin,
+    Play: Play,
+    PlayCircle: CirclePlay,
+    Plus: Plus,
+    PlusCircle: CirclePlus,
+    Pointer: Pointer,
+    Radio: Radio,
+    Receipt: Receipt,
+    ReceiptText: ReceiptText,
+    RefreshCw: RefreshCw,
+    Reply: Reply,
+    RotateCcw: RotateCcw,
+    RotateCw: RotateCw,
+    Save: Save,
+    Scissors: Scissors,
+    Scroll: Scroll,
+    Send: Send,
+    Share: Share,
+    Sheet: Sheet,
+    Shield: Shield,
+    ShoppingBag: ShoppingBag,
+    ShoppingCart: ShoppingCart,
+    Sidebar: PanelLeft,
+    Sigma: Sigma,
+    Sliders: SlidersVertical,
+    Split: Split,
+    SprayCan: SprayCan,
+    Square: Square,
+    Store: Store,
+    Summary: Summary,
+    Sun: Sun,
+    Table: Table,
+    Tag: Tag,
+    Text: TextAlignStart,
+    TrendingDown: TrendingDown,
+    TrendingUp: TrendingUp,
+    Trophy: Trophy,
+    Truck: Truck,
+    Type: Type,
+    User: User,
+    UserCheck: UserCheck,
+    UserPlus: UserPlus,
+    Users: Users,
+    Utensils: Utensils,
+    Venus: Venus,
+    Video: Video,
+    View: View,
+    Vote: Vote,
+    X: X,
+    Zap: Zap
+  };
+  const createIcons = ({
+    icons = iconAndAliases,
+    nameAttr = "data-lucide",
+    attrs = {},
+    root = document,
+    inTemplates
+  } = {}) => {
+    if (!Object.values(icons).length) {
+      throw new Error(
+        "Please provide an icons object.\nIf you want to use all the icons you can import it like:\n `import { createIcons, icons } from 'lucide';\nlucide.createIcons({icons});`"
+      );
+    }
+    if (typeof root === "undefined") {
+      throw new Error("`createIcons()` only works in a browser environment.");
+    }
+    const elementsToReplace = Array.from(root.querySelectorAll(`[${nameAttr}]`));
+    elementsToReplace.forEach((element) => replaceElement(element, { nameAttr, icons, attrs }));
+    if (inTemplates) {
+      const templates = Array.from(root.querySelectorAll("template"));
+      templates.forEach(
+        (template) => createIcons({
+          icons,
+          nameAttr,
+          attrs,
+          root: template.content,
+          inTemplates
+        })
+      );
+    }
+    if (nameAttr === "data-lucide") {
+      const deprecatedElements = root.querySelectorAll("[icon-name]");
+      if (deprecatedElements.length > 0) {
+        console.warn(
+          "[Lucide] Some icons were found with the now deprecated icon-name attribute. These will still be replaced for backwards compatibility, but will no longer be supported in v1.0 and you should switch to data-lucide"
+        );
+        Array.from(deprecatedElements).forEach(
+          (element) => replaceElement(element, { nameAttr: "icon-name", icons, attrs })
+        );
+      }
+    }
+  };
+  var FULL='https://unpkg.com/lucide@1.61.0/dist/umd/lucide.min.js',loading=null;
+  function full(){if(loading)return loading;loading=new Promise(function(res,rej){var s=document.createElement('script');s.src=FULL;s.onload=function(){res(global.lucide)};s.onerror=rej;document.head.appendChild(s)});return loading}
+  var sub={icons:iconAndAliases,createElement:createElement,createIcons:function(opts){opts=opts||{};var root=opts.root||document,na=opts.nameAttr||'data-lucide';
+    var miss=Array.prototype.some.call(root.querySelectorAll('['+na+']'),function(el){return !iconAndAliases[toPascalCase(el.getAttribute(na)||'')]});
+    if(!miss||opts.icons)return createIcons(opts);
+    createIcons(opts);full().then(function(L){if(L&&L!==sub&&L.createIcons)L.createIcons(Object.assign({},opts,{root:root}))}).catch(function(){})}};
+  global.lucide=sub;
+})(typeof globalThis!=='undefined'?globalThis:self);
+</script>
 
 <!-- PWA / iOS 앱 설정 -->
 <meta name="theme-color" content="#000000">
