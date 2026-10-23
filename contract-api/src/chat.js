@@ -32,6 +32,14 @@ const isHqUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
   (u && (u.systemGrade === '경영팀' || u.role === '경영팀' || u.role === '본사경영팀'));
 const safeKey = (s) => String(s).replace(/[.#$\[\]\/]/g, '_');
 
+const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
+const ackId = (rid, key) => 'a_' + String(rid).replace(/[^A-Za-z0-9_-]/g, '') .slice(0, 40) + '_' + key;
+/* 한국 시간 */
+const kst = () => new Date(Date.now() + 9 * 3600e3);
+const kstDate = () => kst().toISOString().slice(0, 10);
+/* 정기 휴무 — 앱의 isRegularDayOff 와 같은 규칙 */
+const regularOff = (brand) => { const d = kst().getUTCDay(); return brand === 'DAY:MEAN' ? (d === 1 || d === 2) : brand === 'ETOH' ? d === 1 : false; };
+
 export function makeChat(deps) {
   const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken } = deps;
 
@@ -51,6 +59,24 @@ export function makeChat(deps) {
   }
 
   async function users(env) { return (await dbGet(env, '/users').catch(() => null)) || {}; }
+
+  /* 지금 '급하지 않은 알림'을 받지 않을 사람: @나만 알림 · 밤 무음(22~08시) · 오늘 연차 · 정기 휴무.
+     이 사람들도 @부름 · 확인 요청 · 내 글 답장은 받는다. 메시지마다 다 읽으면 느려서 5분 묶어 둔다. */
+  let quietCache = { at: 0, set: new Set() };
+  async function quietPhones(env) {
+    if (Date.now() - quietCache.at < 5 * 60 * 1000) return quietCache.set;
+    const set = new Set();
+    const prefs = (await dbGet(env, '/chat/prefs').catch(() => null)) || {};
+    const h = kst().getUTCHours(); const night = h >= 22 || h < 8;
+    for (const [ph, p] of Object.entries(prefs)) if (p && (p.only || (p.quiet && night))) set.add(ph);
+    const today = kstDate();
+    const lv = (await dbGet(env, '/leave/requests').catch(() => null)) || {};
+    for (const r of Object.values(lv)) if (r && r.status === '승인' && r.date === today && r.type !== '반차' && r.userId) set.add(String(r.userId));
+    const us = await users(env);
+    for (const [ph, u] of Object.entries(us)) if (u && regularOff(u.brand)) set.add(ph);
+    quietCache = { at: Date.now(), set };
+    return set;
+  }
 
   /* 시험 기간에는 대표 + /config/comm/users 에 있는 사람만 채팅에 들어간다.
      자동방(전체 공지·지점·경영팀)에 전 직원이 들어가 버리면 시험 메시지가 모두에게 알림으로 간다. */
@@ -139,10 +165,12 @@ export function makeChat(deps) {
     const room = await getRoom(env, rid);
     if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
     if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
-    const k = ['t', 'p', 'v', 'f'].includes(body.k) ? body.k : 't';
+    const k = ['t', 'p', 'v', 'f', 'ack', 'poll'].includes(body.k) ? body.k : 't';
+    /* 확인 요청 · 투표는 방 만든 사람 · 경영팀 · 관리자만 (남발되면 아무도 안 누른다) */
+    if ((k === 'ack' || k === 'poll') && !(isManagerUser(ph, u) || room.by === ph)) throw new Error('확인 요청 · 투표는 방 만든 사람 · 경영팀 · 관리자만 만들 수 있습니다');
     const x = clip(body.x, 5000).trim();
     /* 첨부: u 화면에 보일 사진(보통 화질 또는 동영상 첫 장면) · o 원본 사진 · v 동영상 · f 파일 — 값은 저장소 키 */
-    const keyOk = (v) => /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9.]+$/.test(String(v || ''));
+    const keyOk = (v) => /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
     const md = Array.isArray(body.md) ? body.md.slice(0, 30).map((m) => {
       const o = { w: m.w | 0, h: m.h | 0, sz: m.sz | 0 };
       for (const k of ['u', 'o', 'v', 'f']) if (keyOk(m[k])) o[k] = String(m[k]);
@@ -151,6 +179,12 @@ export function makeChat(deps) {
       return o;
     }).filter((m) => m.u || m.v || m.f) : null;
     if (md && !md.length) throw new Error('첨부 파일 정보가 올바르지 않습니다');
+    let poll = null;
+    if (k === 'poll') {
+      const opts = (Array.isArray(body.poll && body.poll.o) ? body.poll.o : []).map((o) => clip(o, 60).trim()).filter(Boolean).slice(0, 10);
+      if (opts.length < 2) throw new Error('선택지를 두 개 이상 넣어 주세요');
+      poll = { o: opts, mu: !!body.poll.mu, end: Number(body.poll.end) || 0 };
+    }
     if (!x && !md) throw new Error('보낼 내용이 없습니다');
 
     const bn = nameOf(u);
@@ -166,6 +200,10 @@ export function makeChat(deps) {
     if (md) msg.md = md;
     if (mnAll) msg.mn = { '*': 1 }; else if (Object.keys(mn).length) msg.mn = mn;
     if (body.rp && body.rp.key) msg.rp = { key: String(body.rp.key), bn: clip(body.rp.bn, 30), x: clip(body.rp.x, 80) };
+    if (poll) msg.poll = poll;
+    if (k === 'ack') msg.ack = { n: Object.keys(room.m).length - 1 };
+    if (body.fw) msg.fw = clip(body.fw, 30);
+    if (Array.isArray(body.tg)) { const tg = body.tg.filter((t) => TAGS.includes(t)); if (tg.length) msg.tg = tg; }
 
     let rootMsg = null;
     if (root) {
@@ -180,7 +218,7 @@ export function makeChat(deps) {
       key = pad(seq);
       msg.s = seq;
       up[`chat/msgs/${rid}/${key}`] = msg;
-      const preview = x ? clip(x, 80) : (k === 'p' ? '사진' : k === 'v' ? '동영상' : '파일');
+      const preview = (k === 'ack' ? '[확인 요청] ' : k === 'poll' ? '[투표] ' : '') + (x ? clip(x, 80) : (k === 'p' ? '사진' : k === 'v' ? '동영상' : '파일'));
       up[`chat/rooms/${rid}/last`] = { x: preview, by: ph, bn, at, k };
       for (const p of Object.keys(room.m)) {
         const b = `chat/inbox/${p}/${rid}`;
@@ -198,18 +236,25 @@ export function makeChat(deps) {
       const thPeople = new Set([rootMsg.by, ...Object.keys((rootMsg.th && rootMsg.th.by) || {})]);
       for (const p of thPeople) if (p && p !== ph && room.m[p] && !actFor.has(p)) { actFor.add(p); actK[p] = 'reply'; }
     }
+    if (k === 'ack') for (const p of Object.keys(room.m)) if (p !== ph) {
+      up[`chat/act/${p}/${ackId(rid, key)}`] = { k: 'ack', rid, key, x: clip(x, 80), bn, at, rn: room.t === 'dm' ? bn : room.n, done: 0 };
+      actFor.add(p); actK[p] = actK[p] || 'ack';
+    }
     for (const p of actFor) {
+      if (k === 'ack' && actK[p] === 'ack') continue;
       up[`chat/act/${p}/${rid36()}`] = { k: actK[p], rid, key: root || key, th: root ? key : null, x: clip(x || (k === 'p' ? '사진' : '첨부'), 80), bn, at, rn: room.t === 'dm' ? bn : room.n, done: 0 };
     }
     await dbPatch(env, '/', up);
 
     /* 알림 — 보낸 사람에게는 안 보낸다. 방 알림을 끈 사람에게는 @부른 경우 · 스레드 답에만 보낸다. */
     const muted = room.mute || {};
-    const targets = Object.keys(room.m).filter((p) => p !== ph && (root ? actFor.has(p) : (!muted[p] || actFor.has(p))));
+    const quietSet = await quietPhones(env);
+    const targets = Object.keys(room.m).filter((p) => p !== ph && (root ? actFor.has(p) : (actFor.has(p) || (!muted[p] && !quietSet.has(p)))));
     if (targets.length) {
       const title = room.t === 'dm' ? bn : (room.t === 'me' ? '나와의 채팅' : room.n);
       const text = x ? clip(x, 120) : (k === 'p' ? '사진을 보냈습니다' : k === 'v' ? '동영상을 보냈습니다' : '파일을 보냈습니다');
-      const payload = { title, body: (room.t === 'dm' ? '' : bn + ': ') + (root ? '(답장) ' : '') + text, url: './#comm/' + rid, tag: 'chat-' + rid };
+      const head = k === 'ack' ? '[확인 요청] ' : k === 'poll' ? '[투표] ' : root ? '(답장) ' : '';
+      const payload = { title, body: (room.t === 'dm' ? '' : bn + ': ') + head + text, url: './#comm/' + rid, tag: 'chat-' + rid };
       const job = pushToPhones(env, targets, payload, { urgency: actFor.size ? 'high' : 'normal', topic: 'c' + rid.slice(0, 30) }).catch(() => {});
       if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
     }
@@ -380,8 +425,168 @@ export function makeChat(deps) {
     return {};
   }
 
+  async function msgOf(env, rid, key) { const m = await dbGet(env, `/chat/msgs/${rid}/${key}`); if (!m) throw new Error('메시지를 찾지 못했습니다'); return m; }
+
+  async function ack(env, me, body) {
+    await meUser(env, me);
+    const rid = String(body.rid || ''), key = String(body.key || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const m = await msgOf(env, rid, key);
+    if (m.k !== 'ack') throw new Error('확인 요청 메시지가 아닙니다');
+    await dbPatch(env, '/', { [`chat/msgs/${rid}/${key}/ack/${me.ph}`]: nowMs(), [`chat/act/${me.ph}/${ackId(rid, key)}/done`]: 1 });
+    return {};
+  }
+
+  async function vote(env, me, body) {
+    await meUser(env, me);
+    const rid = String(body.rid || ''), key = String(body.key || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const m = await msgOf(env, rid, key);
+    if (!m.poll) throw new Error('투표 메시지가 아닙니다');
+    if (m.poll.end && nowMs() > m.poll.end) throw new Error('마감된 투표입니다');
+    let pick = (Array.isArray(body.i) ? body.i : [body.i]).map((n) => n | 0).filter((n) => n >= 0 && n < m.poll.o.length);
+    if (!m.poll.mu) pick = pick.slice(0, 1);
+    await dbPut(env, `/chat/msgs/${rid}/${key}/vt/${me.ph}`, pick.length ? pick : null);
+    return {};
+  }
+
+  /* 확인 안 한 사람에게만 다시 알림 — 보낸 사람 · 경영팀 · 관리자 */
+  async function nudge(env, me, body) {
+    const u = await meUser(env, me);
+    const rid = String(body.rid || ''), key = String(body.key || '');
+    const room = await getRoom(env, rid);
+    const m = await msgOf(env, rid, key);
+    if (m.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('보낸 사람 · 경영팀 · 관리자만 다시 알릴 수 있습니다');
+    const done = m.ack || {};
+    const rest = Object.keys(room.m || {}).filter((p) => p !== m.by && !done[p]);
+    if (!rest.length) return { sent: 0 };
+    await pushToPhones(env, rest, { title: room.t === 'dm' ? nameOf(u) : room.n, body: '[확인 요청 다시 알림] ' + clip(m.x, 100), url: './#comm/' + rid, tag: 'ack-' + key }, { urgency: 'high' });
+    return { sent: rest.length };
+  }
+
+  async function prefs(env, me, body) {
+    await meUser(env, me);
+    const v = { quiet: body.quiet ? 1 : null, only: body.only ? 1 : null };
+    await dbPut(env, `/chat/prefs/${me.ph}`, (v.quiet || v.only) ? v : null);
+    quietCache.at = 0;
+    return {};
+  }
+
+  async function later(env, me, body) {
+    await meUser(env, me);
+    const rid = String(body.rid || ''), key = String(body.key || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const id = 'l_' + ackId(rid, key).slice(2);
+    if (!body.on) { await dbDelete(env, `/chat/act/${me.ph}/${id}`); return {}; }
+    const m = await msgOf(env, rid, key);
+    await dbPut(env, `/chat/act/${me.ph}/${id}`, { k: 'later', rid, key, x: clip(m.x || '사진', 80), bn: m.bn, at: nowMs(), rn: room.t === 'dm' ? m.bn : room.n, done: 0 });
+    return {};
+  }
+
+  /* 다시 알림 — 정해 둔 시각에 5분 타이머(scheduled)가 보낸다 */
+  async function remind(env, me, body) {
+    await meUser(env, me);
+    const rid = String(body.rid || ''), key = String(body.key || '');
+    const at = Number(body.at) || 0;
+    if (at < nowMs() + 60 * 1000 || at > nowMs() + 30 * 86400e3) throw new Error('알림 시각이 올바르지 않습니다');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const m = await msgOf(env, rid, key);
+    const id = at.toString(36).padStart(9, '0') + '_' + rid36();
+    await dbPut(env, `/chat/remind/${id}`, { ph: String(me.ph), rid, key, x: clip(m.x || '사진', 80), bn: m.bn, rn: room.t === 'dm' ? m.bn : room.n, at });
+    return { id };
+  }
+  async function runReminders(env) {
+    const all = (await dbGet(env, '/chat/remind').catch(() => null)) || {};
+    const due = Object.entries(all).filter(([, r]) => r && r.at <= nowMs() + 30 * 1000);
+    for (const [id, r] of due) {
+      await dbPatch(env, '/', {
+        [`chat/remind/${id}`]: null,
+        [`chat/act/${r.ph}/r_${id}`]: { k: 'remind', rid: r.rid, key: r.key, x: r.x, bn: r.bn, at: nowMs(), rn: r.rn, done: 0 },
+      });
+      await pushToPhones(env, [r.ph], { title: '다시 알림 · ' + (r.rn || ''), body: (r.bn ? r.bn + ': ' : '') + r.x, url: './#comm/' + r.rid, tag: 'remind-' + id }, { urgency: 'high' }).catch(() => {});
+    }
+    return due.length;
+  }
+
+  /* 전달 — 다른 방으로 복사. 사진·동영상은 그 방 저장 위치로 파일도 복사한다(방마다 열람 권한이 다르므로). */
+  async function forward(env, ctx, me, body) {
+    const rid = String(body.rid || ''), key = String(body.key || ''), to = String(body.to || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const m = await msgOf(env, rid, key);
+    if (m.del || m.hid) throw new Error('지워진 메시지는 전달할 수 없습니다');
+    let md = null;
+    if (m.md && m.md.length) {
+      const toRoom = await getRoom(env, to);
+      if (!member(toRoom, String(me.ph))) throw new Error('보낼 방에 참여하고 있지 않습니다');
+      const tag = await deps.roomTag(to);
+      md = [];
+      for (const it of m.md) {
+        const o = { w: it.w, h: it.h, sz: it.sz, n: it.n, d: it.d };
+        for (const f of ['u', 'o', 'v', 'f']) if (it[f]) {
+          const src = await env.CHAT_MEDIA.get(it[f]);
+          if (!src) continue;
+          const nk = it[f].replace(/^([po])\/[^/]+\//, `$1/${tag}/`).replace(/(\.[A-Za-z0-9]+)$/, '_f' + Date.now().toString(36) + '$1');
+          await env.CHAT_MEDIA.put(nk, src.body, { httpMetadata: src.httpMetadata });
+          o[f] = nk;
+        }
+        if (o.u || o.v || o.f) md.push(o);
+      }
+      if (!md.length) md = null;
+    }
+    return send(env, ctx, me, { rid: to, k: m.k === 'v' || m.k === 'p' ? m.k : 't', x: m.x || '', md, fw: m.bn });
+  }
+
+  /* 대화 내보내기 — 경영팀만, 단체방만 (1:1 은 내보낼 수 없다) */
+  async function exportRoom(env, me, body) {
+    const u = await meUser(env, me);
+    if (!isHqUser(String(me.ph), u)) throw new Error('대화 내보내기는 경영팀만 할 수 있습니다');
+    const rid = String(body.rid || '');
+    const room = await getRoom(env, rid);
+    if (room.t === 'dm' || room.t === 'me') throw new Error('1:1 대화는 내보낼 수 없습니다');
+    const msgs = (await dbGet(env, `/chat/msgs/${rid}`).catch(() => null)) || {};
+    const lines = Object.keys(msgs).sort().map((k) => {
+      const m = msgs[k]; const d = new Date(m.at + 9 * 3600e3).toISOString().replace('T', ' ').slice(0, 16);
+      const body = m.del ? '(삭제된 메시지)' : m.hid ? '(관리자가 가린 메시지)' : (m.x || '') + (m.md ? ` [첨부 ${m.md.length}개]` : '');
+      return `${d}\t${m.k === 'sys' ? '안내' : m.bn}\t${String(body).replace(/\n/g, ' / ')}`;
+    });
+    return { name: room.n || rid, text: '시각\t보낸 사람\t내용\n' + lines.join('\n') };
+  }
+
+  /* 안 읽은 것 요약 — 단체방만. 내가 마지막으로 읽은 뒤의 메시지(최대 300개)를 AI 로 몇 줄 정리 */
+  async function summary(env, me, body) {
+    const u = await meUser(env, me);
+    const rid = String(body.rid || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    if (room.t === 'dm' || room.t === 'me') throw new Error('1:1 대화는 요약하지 않습니다');
+    const r = (await dbGet(env, `/chat/reads/${rid}/${me.ph}`).catch(() => null)) || 0;
+    if ((room.seq || 0) <= r) return { lines: [], asks: [], count: 0 };
+    const t = await accessToken(env);
+    const q = `orderBy=%22%24key%22&startAt=%22${pad(Math.max(r + 1, (room.seq || 0) - 299))}%22`;
+    const res = await fetch(`${env.FIREBASE_URL}/chat/msgs/${encodeURIComponent(rid)}.json?${q}&access_token=${t}`);
+    const msgs = (await res.json()) || {};
+    const list = Object.keys(msgs).sort().map((k) => msgs[k]).filter((m) => m && m.k !== 'sys' && !m.del && !m.hid)
+      .map((m) => ({ bn: m.bn, x: (m.k === 'ack' ? '[확인 요청] ' : m.k === 'poll' ? '[투표] ' : '') + (m.x || (m.md ? `(사진·동영상 ${m.md.length}개)` : '')), me: !!(m.mn && (m.mn['*'] || m.mn[me.ph])) }));
+    if (!list.length) return { lines: [], asks: [], count: 0 };
+    const cfg = await dbGet(env, '/config/naverWorks').catch(() => null);
+    if (!cfg || !cfg.url || !cfg.secret) throw new Error('AI 설정이 없어요');
+    const relayReq = new Request(String(cfg.url).replace(/\/+$/, '') + '/ai/chat-summary', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: cfg.secret, room: room.n || '', me: nameOf(u), messages: list }),
+    });
+    const ar = env.AI_RELAY ? await env.AI_RELAY.fetch(relayReq) : await fetch(relayReq);
+    const d = await ar.json().catch(() => null);
+    if (!d || !d.ok) throw new Error((d && d.error) || '요약하지 못했습니다');
+    return { lines: d.lines || [], asks: d.asks || [], count: list.length };
+  }
+
   /* 라우터 — 처리했으면 Response 를, 아니면 null 을 돌려준다 */
-  return async function route(path, request, env, ctx, me, json, origin) {
+  const route = async function route(path, request, env, ctx, me, json, origin) {
     if (!path.startsWith('/chat/')) return null;
     if (request.method !== 'POST') return json({ ok: false, error: 'POST 만 받습니다' }, 405, origin);
     const body = await request.json().catch(() => ({}));
@@ -402,6 +607,15 @@ export function makeChat(deps) {
         case '/chat/hide': out = await editOrDelete(env, me, body, 'hide'); break;
         case '/chat/react': out = await react(env, me, body); break;
         case '/chat/pin': out = await pinNotice(env, me, body); break;
+        case '/chat/ack': out = await ack(env, me, body); break;
+        case '/chat/vote': out = await vote(env, me, body); break;
+        case '/chat/nudge': out = await nudge(env, me, body); break;
+        case '/chat/prefs': out = await prefs(env, me, body); break;
+        case '/chat/later': out = await later(env, me, body); break;
+        case '/chat/remind': out = await remind(env, me, body); break;
+        case '/chat/forward': out = await forward(env, ctx, me, body); break;
+        case '/chat/export': out = await exportRoom(env, me, body); break;
+        case '/chat/summary': out = await summary(env, me, body); break;
         default: return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
       }
       return json({ ok: true, ...(out || {}) }, 200, origin);
@@ -409,4 +623,6 @@ export function makeChat(deps) {
       return json({ ok: false, error: e.message || String(e) }, 400, origin);
     }
   };
+  route.runReminders = runReminders;
+  return route;
 }

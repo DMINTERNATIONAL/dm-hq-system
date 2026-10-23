@@ -123,6 +123,10 @@ export default {
     }
 
     // 전판 제품 맞춤 추천 (진단 답 + 제품목록 → Claude가 추천+이유)
+    // 채팅 '안 읽은 것 요약' — dm-contract-api 가 서비스 바인딩으로 부른다
+    if (pathname === '/ai/chat-summary' || pathname.endsWith('/ai/chat-summary')) {
+      return cors(await handleAIChatSummary(body, env));
+    }
     if (pathname === '/ai/recommend' || pathname.endsWith('/ai/recommend')) {
       return cors(await handleAIRecommend(body, env));
     }
@@ -670,6 +674,50 @@ async function handleAIPolish(body, env) {
     let text = '';
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
     return json({ ok: true, text: text.trim() });
+  } catch (e) {
+    return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
+  }
+}
+
+/* 단체방 안 읽은 메시지를 몇 줄로 정리. 1:1 은 dm-contract-api 가 애초에 보내지 않는다.
+   출력은 '- ' 로 시작하는 줄과, 나에게 확인·답이 필요한 것은 '! ' 로 시작하는 줄 — 그대로 잘라서 쓴다. */
+async function handleAIChatSummary(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
+  const msgs = Array.isArray(body.messages) ? body.messages.slice(-300) : [];
+  if (!msgs.length) return json({ ok: true, lines: [], asks: [] });
+  const me = String(body.me || '').slice(0, 20);
+  const convo = msgs.map((m) => `${String(m.bn || '').slice(0, 20)}${m.me ? ' (나를 부름)' : ''}: ${String(m.x || '').replace(/\s+/g, ' ').slice(0, 400)}`).join('\n');
+  const sys =
+    '너는 헤어살롱 회사 직원 단체 채팅방의 안 읽은 메시지를 요약하는 도우미야. 읽는 사람은 "' + me + '"이고, 며칠 만에 들어와서 핵심만 빨리 알고 싶어 해.\n\n' +
+    '규칙:\n' +
+    '- 결정된 것, 해야 할 일, 날짜·수량·품목 같은 구체적인 내용을 우선한다. 잡담과 인사는 뺀다.\n' +
+    '- 한 줄에 하나씩, 최대 6줄. 각 줄은 "- " 로 시작하고 누가 말했는지 괄호로 붙인다. 예: "- 내일 발주에 3SI 4개, 6MNV 2개 추가 (건아)"\n' +
+    '- ' + me + '에게 확인이나 답을 요청한 것이 있으면 따로 "! " 로 시작하는 줄로 쓴다(최대 3줄). 없으면 쓰지 않는다.\n' +
+    '- 메시지에 없는 내용을 지어내지 않는다. 다른 설명이나 머리말 없이 줄만 출력한다.';
+  try {
+    // api.anthropic.com 직접 호출은 엣지에서 403 → Cloudflare AI Gateway(dm-ai) 경유 (handleAIPolish 와 같음)
+    const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+    const r = await fetch(AIG, {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-chat-summary/1.0' },
+      body: JSON.stringify({
+        model: 'claude-opus-5-5', max_tokens: 4000, fallbacks: 'default',
+        output_config: { effort: 'low' },
+        system: sys,
+        messages: [{ role: 'user', content: '방 이름: ' + String(body.room || '').slice(0, 40) + '\n\n' + convo }],
+      }),
+    });
+    if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
+    const data = await r.json();
+    if (data && data.stop_reason === 'refusal') return json({ ok: false, error: '이 대화는 요약할 수 없어요' }, 200);
+    let text = '';
+    if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
+    const rows = text.split('\n').map((l) => l.trim());
+    return json({ ok: true,
+      lines: rows.filter((l) => l.startsWith('- ')).map((l) => l.slice(2)).slice(0, 6),
+      asks: rows.filter((l) => l.startsWith('! ')).map((l) => l.slice(2)).slice(0, 3) });
   } catch (e) {
     return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
   }

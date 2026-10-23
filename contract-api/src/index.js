@@ -16,7 +16,7 @@
 
 import { sendOne, subId } from './push.js';
 import { makeChat } from './chat.js';
-import { makeMedia, serveMedia } from './media.js';
+import { makeMedia, serveMedia, roomTag } from './media.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -345,10 +345,24 @@ function stripSensitive(v, hit) {
 }
 
 /* ═══ 라우팅 ═══ */
-const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken });
+const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag });
 const mediaRoute = makeMedia({ dbGet });
 
+/* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
+   요청마다 DB 를 읽으면 느려서 1분 묶어 둔다(끊긴 뒤 최대 1분 + DB 토큰 남은 시간까지는 쓸 수 있다). */
+let revokeCache = { at: 0, map: {} };
+async function revokedAt(env, ph) {
+  if (Date.now() - revokeCache.at > 60 * 1000) {
+    revokeCache = { at: Date.now(), map: (await dbGet(env, '/authSecrets/__revoke').catch(() => null)) || {} };
+  }
+  return revokeCache.map[String(ph)] || 0;
+}
+
 export default {
+  /* 5분마다: 채팅 '다시 알림' 보내기 */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
+  },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
     const url = new URL(request.url);
@@ -591,9 +605,24 @@ export default {
       const bearer = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
       const me = await verifyToken(env, bearer);
       if (!me) return json({ ok: false, error: '로그인이 필요합니다(토큰 없음/만료)' }, 401, origin);
+      if (!me.admin && me.iat && me.iat * 1000 < await revokedAt(env, me.ph))
+        return json({ ok: false, error: '로그인이 필요합니다(경영팀이 이 기기의 접속을 끊었습니다)' }, 401, origin);
       me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
+
+      /* 원격 로그아웃 — 경영팀 · 관리자 */
+      if (path === '/auth/revoke' && request.method === 'POST') {
+        if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        const { phone } = await request.json().catch(() => ({}));
+        const target = String(phone || '');
+        if (!/^[0-9]{8,12}$/.test(target)) return json({ ok: false, error: '전화번호 형식이 올바르지 않습니다' }, 400, origin);
+        await dbPut(env, '/authSecrets/__revoke/' + target, Date.now());
+        await dbDelete(env, '/pushSubs/' + target).catch(() => {});
+        revokeCache.at = 0;
+        await dbPush(env, '/auditLogs', { at: Date.now(), by: String(me.ph || 'admin'), byName: me.name || '', action: 'session.revoke', target }).catch(() => {});
+        return json({ ok: true }, 200, origin);
+      }
 
       /* ── 채팅 (chat.js) ── */
       const mediaRes = await mediaRoute(path, request, env, me, json, origin);

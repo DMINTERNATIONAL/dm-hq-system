@@ -31,3 +31,7 @@ service = "dm-naverworks-relay"
 [[r2_buckets]]
 binding = "CHAT_MEDIA"
 bucket_name = "dm-chat-media"
+
+# 5분마다: 채팅 '다시 알림'
+[triggers]
+crons = ["*/5 * * * *"]
