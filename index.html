@@ -7284,12 +7284,22 @@ if(CM_DESK){
 function cmVV(){var vv=window.visualViewport;var open=false;
   ['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e)return;var on=e.classList.contains('on');if(on)open=true;
     if(vv&&on&&window.innerWidth<1024){e.style.height=Math.round(vv.height)+'px';e.style.top=Math.round(vv.offsetTop)+'px';e.style.bottom='auto'}else{e.style.height='';e.style.top='';e.style.bottom=''}});
+  if(vv&&open&&window.innerWidth<1024){var kh=Math.round(window.innerHeight-vv.height);if(kh>150){CM_KBH=kh;try{localStorage.setItem('cm_kbh',kh)}catch(_){}}}
   /* 대화방이 열려 있는 동안 뒤 페이지가 같이 밀려 올라가지 않게 잠근다 (카톡처럼 제목은 위에, 대화는 키보드 위에) */
   var lock=open&&window.innerWidth<1024;document.documentElement.style.overflow=lock?'hidden':'';document.body.style.overflow=lock?'hidden':'';
   if(lock&&window.scrollY)window.scrollTo(0,0);
-  var ae=document.activeElement;if(ae&&ae.tagName==='TEXTAREA'){var m=$(ae.id==='CM-TCOMP-TA'?'CM-TMSGS':'CM-MSGS');if(m){try{m.scrollTo({top:m.scrollHeight,behavior:'smooth'})}catch(e){m.scrollTop=m.scrollHeight}}}}
-document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){setTimeout(cmVV,50);setTimeout(cmVV,350)}});
-document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||''))setTimeout(cmVV,100)});
+  var ae=document.activeElement;if(ae&&ae.tagName==='TEXTAREA'&&/^CM-/.test(ae.id||''))cmPinBottom(ae.id==='CM-TCOMP-TA'?'CM-TMSGS':'CM-MSGS',120)}
+/* 아이폰은 키보드가 다 올라온 뒤에야 화면 크기(visualViewport)를 알려 줘서, 그걸 기다렸다 대화를 올리면 한 박자 늦다.
+   카톡처럼 키보드와 같이 올라가도록, 지난번 키보드 높이를 기억해 두었다가 입력칸을 누르는 순간 바로 그만큼 줄이고
+   (같은 속도의 전환 효과), 줄어드는 동안 대화 맨 아래를 계속 붙잡아 둔다. 실제 높이가 오면 cmVV 가 바로잡는다 */
+var CM_KBH=0;try{CM_KBH=+localStorage.getItem('cm_kbh')||0}catch(_){}
+function cmPinBottom(msgsId,ms){var m=$(msgsId);if(!m)return;var end=Date.now()+(ms||350);(function f(){m.scrollTop=m.scrollHeight;if(Date.now()<end)requestAnimationFrame(f)})()}
+function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;var id=ta&&ta.id==='CM-TCOMP-TA'?'p-comm-thread':'p-comm-room';var e=$(id);if(!e||!e.classList.contains('on'))return;
+  if(open){if(!CM_KBH)return;var vv=window.visualViewport;if(vv&&window.innerHeight-vv.height>150)return;e.style.top='0px';e.style.bottom='auto';e.style.height=(window.innerHeight-CM_KBH)+'px'}
+  else{e.style.top='0px';e.style.bottom='auto';e.style.height=window.innerHeight+'px'}
+  cmPinBottom(id==='p-comm-thread'?'CM-TMSGS':'CM-MSGS',400)}
+document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){cmKbPredict(true,e.target);setTimeout(cmVV,50);setTimeout(cmVV,350)}});
+document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){var t=e.target;setTimeout(function(){if(document.activeElement!==t)cmKbPredict(false,t)},0);setTimeout(cmVV,100)}});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
 /* 떠 있는 창(가운데 창 · 아래에서 올라온 시트)에서 글을 쓰면 아이폰 키보드가 창 아래쪽(입력칸 · 버튼)을 가린다.
    키보드가 떠 있는 동안 창 배경을 '보이는 화면'(visualViewport) 크기로 맞춰 창이 키보드 위로 오게 한다 */
