@@ -3061,7 +3061,7 @@ function submitBulkRows(){var rows=document.querySelectorAll('#PB-ROWS .br-row')
 
 /* ═══ BREAK MGMT (Designer) ═══ */
 function openBreakMgmt(){go('p-brk-mgmt');var isHQUser=ME&&(ME.role==='경영팀'||ME.role==='본사경영팀'||ME.brand==='DM INTERNATIONAL');$('BM-SUB').textContent=isHQUser?'전 지점 휴게 현황':((ME&&ME.branch||'')+' 휴게 현황');if($('BM-BR-WRAP'))$('BM-BR-WRAP').style.display=isHQUser?'block':'none';if(bmTimer)clearInterval(bmTimer);renderBM();bmTimer=setInterval(renderBM,1000)}
-var BRK_OWNER_NAMES=['민경','세운','김세운','김민경'];var BRK_OWNER_PHONES=['01042885562','01082470187'];
+var BRK_OWNER_NAMES=['민경','세운','김세운','장민경'];var BRK_OWNER_PHONES=['01042885562','01082470187'];
 var bmSort='level';
 function isOwnerUser(u,ph){if(!u)return false;var phone=ph||u.phone||u._ph||'';if(phone&&BRK_OWNER_PHONES.indexOf(phone)>=0)return true;return false}
 function todayStrKR(){var d=new Date();var y=d.getFullYear();var m=d.getMonth()+1;var dd=d.getDate();return y+'-'+(m<10?'0':'')+m+'-'+(dd<10?'0':'')+dd}
