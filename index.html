@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/lucide@1.61.0/dist/umd/lucide.js"></script>
 
 <!-- PWA / iOS 앱 설정 -->
 <meta name="theme-color" content="#000000">
@@ -5202,6 +5202,13 @@ function showUpdateBanner(){
 }
 if('serviceWorker' in navigator){
   /* 알림을 눌렀을 때 서비스 워커가 보내는 '이 화면 열기' */
+  /* 앱 화면은 기기 저장본으로 바로 뜨고, 서비스 워커가 뒤에서 새 버전을 받아 두면 알려 준다 */
+  navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='app-updated')showUpdateBanner()});
+  var dmLastAppCheck=Date.now();
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState!=='visible'||Date.now()-dmLastAppCheck<600000||!navigator.serviceWorker.controller)return;
+    dmLastAppCheck=Date.now();navigator.serviceWorker.controller.postMessage({type:'check-app'});
+  });
   navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='open'&&e.data.url){try{var u=new URL(e.data.url);if(u.hash&&u.pathname===location.pathname){location.hash=u.hash}else{location.href=e.data.url}}catch(_){}}});
   window.addEventListener('load',function(){
     var swPath=location.pathname.indexOf('/dm-hq-system/')===0?'/dm-hq-system/sw.js':'./sw.js';

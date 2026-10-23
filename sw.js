@@ -1,7 +1,9 @@
 // DM INTERNATIONAL - Service Worker
-// 항상 최신 버전 받기 (Network First)
+// 앱 화면(index.html)은 기기에 저장된 것으로 바로 띄우고, 새 버전은 뒤에서 받아 둔다(다음에 열 때 적용 · 화면에 안내).
+// 그 밖의 같은 사이트 파일은 예전처럼 새 버전 우선(Network First), 끊기면 저장본.
 
-const CACHE_NAME = 'dm-cache-v1';
+const CACHE_NAME = 'dm-cache-v2';
+const APP_KEY = new URL('./index.html', self.registration.scope).href;
 
 self.addEventListener('install', (event) => {
   // 즉시 활성화 (대기 안 함)
@@ -23,12 +25,54 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isApp(req, url) {
+  if (url.origin !== self.location.origin) return false;
+  const p = url.pathname, scope = new URL(self.registration.scope).pathname;
+  return req.mode === 'navigate' ? (p === scope || p === scope + 'index.html') : p === scope + 'index.html' && req.destination === 'document';
+}
+
+// 서버에서 앱 화면을 다시 받아 저장한다. 저장본과 달라졌으면 열린 화면에 알린다.
+let checking = null;
+function refreshApp() {
+  if (checking) return checking;
+  checking = (async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const old = await cache.match(APP_KEY);
+      const res = await fetch(APP_KEY, { cache: 'no-cache' });
+      if (!res || res.status !== 200) return null;
+      const txt = await res.clone().text();
+      const oldTxt = old ? await old.text() : null;
+      await cache.put(APP_KEY, res.clone());
+      if (oldTxt != null && oldTxt !== txt) {
+        const list = await self.clients.matchAll({ type: 'window' });
+        list.forEach((c) => c.postMessage({ type: 'app-updated' }));
+      }
+      return res;
+    } catch (_) { return null; } finally { checking = null; }
+  })();
+  return checking;
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // 외부 도메인(Firebase, Lucide CDN 등)은 SW 개입 안 함
+  // 앱 화면: 저장본이 있으면 바로, 새 버전 확인은 뒤에서
+  if (isApp(event.request, url)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => cache.match(APP_KEY)).then((hit) => {
+        const fresh = refreshApp();
+        event.waitUntil(fresh);
+        if (hit) return hit;
+        return fresh.then((r) => r ? r.clone() : fetch(event.request));
+      }).catch(() => fetch(event.request))
+    );
+    return;
+  }
+
+  // 외부 도메인(Firebase 등)은 SW 개입 안 함
   if (url.origin !== self.location.origin) return;
 
   // Network First 전략: 새 버전 우선, 실패 시 캐시 폴백
@@ -56,6 +100,8 @@ self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  // 앱이 오래 백그라운드에 있다가 다시 보일 때 새 버전 확인
+  if (event.data && event.data.type === 'check-app') event.waitUntil(refreshApp());
 });
 
 // ── 폰·PC 알림(웹 푸시) ──
