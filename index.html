@@ -2288,13 +2288,21 @@ var BADGE_TTL=60000;
    (실시간 반영이 오기 전 옛 값을 보여주지 않게). 연결이 안 되면 예전처럼 서버에서 읽는다. */
 var LIVE={},LIVE_DIRTY=0,LIVE_PATHS=['/orders.json','/meal.json','/users.json','/breakActive.json','/externalActive.json','/pending.json','/leave/requests.json','/productDB.json','/config/supplierETA.json','/break.json'];
 function liveDirty(){LIVE_DIRTY=Date.now()+3000}
-function liveStart(){if(!ME||!ME.phone||ME._adminLogin||ME._preview||!viewFlags(ME).hq||typeof cmSdk!=='function')return;
-  LIVE_PATHS.forEach(function(p){if(LIVE[p])return;var L=LIVE[p]={txt:null,ready:false,ref:null,cb:null};
-    cmSdk().then(function(db){if(LIVE[p]!==L)return;L.ref=db.ref(p.replace(/^\//,'').replace(/\.json$/,''));
-      L.cb=function(snap){var v=snap.val();L.txt=v==null?null:JSON.stringify(v);L.ready=true};
-      L.ref.on('value',L.cb,function(){if(LIVE[p]===L)delete LIVE[p]})}).catch(function(){if(LIVE[p]===L)delete LIVE[p]})})}
-function liveStop(){Object.keys(LIVE).forEach(function(p){var L=LIVE[p];try{if(L.ref&&L.cb)L.ref.off('value',L.cb)}catch(e){}});LIVE={}}
-function fbG(p,ttl){var lv=LIVE[p];if(lv&&lv.ready&&Date.now()>LIVE_DIRTY)return Promise.resolve(lv.txt==null?null:JSON.parse(lv.txt));
+/* 경로마다 처음 필요할 때 구독한다(앱을 열자마자 10개를 다 받지 않게). 첫 값이 5초 안에 안 오면 서버에서 직접 읽는다 */
+var LIVE_ON=false,LIVE_FAIL=0;
+function liveStart(){LIVE_ON=!!(ME&&ME.phone&&!ME._adminLogin&&!ME._preview&&viewFlags(ME).hq&&typeof cmSdk==='function')}
+function liveSub(p){var L=LIVE[p];if(L)return L;L=LIVE[p]={txt:null,ready:false,ref:null,cb:null};
+  L.first=new Promise(function(res,rej){L.res=res;L.rej=rej});L.first.catch(function(){});
+  cmSdk().then(function(db){if(LIVE[p]!==L)return;L.ref=db.ref(p.replace(/^\//,'').replace(/\.json$/,''));
+    L.cb=function(snap){var v=snap.val();L.txt=v==null?null:JSON.stringify(v);if(!L.ready){L.ready=true;L.res()}};
+    L.ref.on('value',L.cb,function(e){if(LIVE[p]===L)delete LIVE[p];LIVE_FAIL=Date.now()+60000;L.rej(e)})}).catch(function(e){if(LIVE[p]===L)delete LIVE[p];LIVE_FAIL=Date.now()+60000;L.rej(e)});
+  return L}
+function liveStop(){LIVE_ON=false;Object.keys(LIVE).forEach(function(p){var L=LIVE[p];try{if(L.ref&&L.cb)L.ref.off('value',L.cb)}catch(e){}});LIVE={}}
+function fbG(p,ttl){if(LIVE_ON&&Date.now()>LIVE_DIRTY&&Date.now()>LIVE_FAIL&&LIVE_PATHS.indexOf(p)>=0){var L=liveSub(p);
+    if(L.ready)return Promise.resolve(L.txt==null?null:JSON.parse(L.txt));
+    return Promise.race([L.first,new Promise(function(_,rej){setTimeout(rej,5000)})]).then(function(){return L.txt==null?null:JSON.parse(L.txt)},function(){return fbGShared(p,ttl)})}
+  return fbGShared(p,ttl)}
+function fbGShared(p,ttl){
   var c=FBG_SHARE[p];if(c&&Date.now()-c.t<(ttl||10000))return c.pr.then(function(txt){return txt==null?null:JSON.parse(txt)});
   var pr=fbGRaw(p).then(function(v){return v==null?null:JSON.stringify(v)},function(e){delete FBG_SHARE[p];throw e});FBG_SHARE[p]={t:Date.now(),pr:pr};
   return pr.then(function(txt){return txt==null?null:JSON.parse(txt)})}
@@ -2626,7 +2634,7 @@ function loadDashKpi(){var el=document.getElementById('DASH-KPI');if(!el)return;
 function loadDashKpiFresh(el,g){var isIntern=kpiIsIntern(ME);dashKpiStores().then(function(st){return Promise.all([st,fbG('/official.json')])}).then(function(a){KPI_STORES=a[0]||{};KPI_OFFICIAL=a[1]||{};var opd=kpiPeriod,osh=kpiShop;kpiPeriod='month';kpiShop='all';try{var days=kpiDays(['flagship','moment','eto']);var win=kpiWin(days,0),prevw=kpiWin(days,1);if(!win.length){el.innerHTML='';return;}var des=kpiDesList(win),desP=kpiDesList(prevw);var gm=kpiGrowthMap();var canHQ=['경영팀','관리자','스탭장'].indexOf(g)>=0&&!kpiIsDesigner(ME)&&!kpiIsIntern(ME);var byNm=function(list){return list.filter(function(d){return d.name===ME.nick||d.name===ME.name;})[0];};var me=byNm(des),meP=byNm(desP);var h='';if(isIntern){var _ig=me&&((+me.followers||0)>0||(+me.uploads_month||0)>0);if(_ig){var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiTab='insta';openKPI()");}else{h='<div style="background:#f5f5f7;border-radius:14px;padding:14px 16px;margin-top:10px;font-size:12px;color:#86868b">📷 인스타 계정을 연결하면 팔로워·게시 KPI가 여기에 표시됩니다.</div>';}}else if(me&&((+me.payroll_base||0)>0||(+me.followers||0)>0||(+me.guests||0)>0)){var nk=ME.nick||'';var g0=gm[me.name]||0;var lu=(me.sns&&me.sns.recent_posts&&me.sns.recent_posts[0])?me.sns.recent_posts[0].ts.slice(5,10).replace('-','/'):'–';h=dashKpiCard('내 매출',dashStat('매출',kpiW(me.payroll_base||0)+'원',dashDelta(me.payroll_base||0,meP?meP.payroll_base:null))+dashStat('접객',kpiW(me.guests||0)+'명',dashDelta(me.guests||0,meP?meP.guests:null)+dashSub('신규 '+kpiW(me.신규||0)+' · 재방 '+kpiW(me.재방||0)))+dashStat('객단가',kpiW(me.avg_ticket||0)+'원',dashDelta(me.avg_ticket||0,meP?meP.avg_ticket:null))+dashStat('점판',kpiW(me.retail_amount||0)+'원',dashDelta(me.retail_amount||0,meP?meP.retail_amount:null)),"kpiView='des';kpiDesId='"+nk+"';kpiTab='sales';openKPI()");h+=dashKpiCard('내 인스타그램',dashStat('팔로워',kpiW(me.followers||0))+dashStat('팔로워 증감',(g0>0?'+':'')+kpiW(g0),dashSub(g0>0?'▲ 늘어남':(g0<0?'▼ 줄어듦':'변화 없음'),g0>0?'#34c759':(g0<0?'#ff3b30':'#8e8e93')))+dashStat('이번달 게시',kpiW(me.uploads_month||0)+'개',dashDelta(me.uploads_month||0,meP?meP.uploads_month:null))+dashStat('마지막 업로드',lu),"kpiView='des';kpiDesId='"+nk+"';kpiTab='insta';openKPI()");}else if(canHQ){var c=kpiStoreAgg(win),cP=kpiStoreAgg(prevw),v=kpiVisitsAgg(win),totF=0,totUp=0,acc=0;des.forEach(function(d){if(d.sns){totF+=d.followers;totUp+=(d.uploads_month||0);acc++;}});var avgC=c.guests?c.net/c.guests:0,avgP=cP.guests?cP.net/cP.guests:0,totUpP=0;desP.forEach(function(d){if(d.sns)totUpP+=(d.uploads_month||0);});h=dashKpiCard('전체 매출',dashStat('실매출',kpiW(c.net)+'원',dashDelta(c.net,cP.net||null))+dashStat('접객',kpiW(c.guests)+'명',dashDelta(c.guests,cP.guests?cP.guests:null)+dashSub('신규 '+kpiW(v.신규||0)+' · 재방 '+kpiW(v.재방||0)))+dashStat('객단가',kpiW(avgC)+'원',dashDelta(avgC,cP.guests?avgP:null))+dashStat('재방률',v.total?(v.재방/v.total*100).toFixed(0)+'%':'–'),"kpiView='hq';kpiTab='sales';openKPI()")+dashKpiCard('전체 인스타그램',dashStat('총 팔로워',kpiW(totF))+dashStat('이번달 게시',kpiW(totUp)+'개',dashDelta(totUp,totUpP||null))+dashStat('계정 수',acc+'개')+dashStat('공식 계정',(KPI_OFFICIAL?Object.keys(KPI_OFFICIAL).length:0)+'개'),"kpiView='hq';kpiTab='insta';openKPI()");}else{el.innerHTML='';return;}el.innerHTML=h;try{localStorage.setItem(dashKpiCacheKey(),JSON.stringify({t:Date.now(),d:todayStrKR(),h:h}))}catch(_){}}catch(e){if(!el.innerHTML)el.innerHTML='';}finally{kpiPeriod=opd;kpiShop=osh;}});}
 function openDash(){
 pushGate();
-setTimeout(liveStart,1500);
+liveStart();
 commBetaLoad().then(function(b){if(!b)return;var cur=document.querySelector('.pg.on');renderBotTab(cur?cur.id:'p-dash');if(typeof renderSidebar==='function')renderSidebar();cmBoot();cmRoute()}).catch(function(){});
 loadGradePerms(function(){if(ME&&typeof renderSidebar==='function')renderSidebar()});
 loadGradeFavs(function(){if(ME&&typeof renderSidebar==='function')renderSidebar()});
