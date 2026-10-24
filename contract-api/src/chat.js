@@ -389,7 +389,7 @@ export function makeChat(deps) {
 
   /* ═══ 팝업 공지 ═══
      게시판은 직접 들어가야 봐서 놓치는 일이 많아, 방에 공지를 올리면 그 방 사람 모두에게 앱을 열 때 팝업으로 먼저 띄운다.
-     '확인'을 누르면 다시 안 뜨고, '오늘 하루 안 보기' · '일주일간 안 보기'는 그 기간이 지나면 다시 뜬다.
+     '확인' · '공지 보러 가기' 둘 다 확인(ok)으로 기록하고 이후 안 띄운다(day · week 는 받아만 둠).
      쓰기: 경영팀 · 관리자 · 스탭장 · 디자이너(교육자 포함). 전체 공지방은 지금처럼 경영팀 · 관리자만. */
   const canPostNotice = (ph, u) => isManagerUser(ph, u) || isHqUser(ph, u) ||
     (u && (['디자이너', '스탭장'].includes(u.role) || u.academyRole === '교육자' || (Array.isArray(u.roles) && u.roles.some((r) => r === '디자이너' || r === '스탭장'))));
