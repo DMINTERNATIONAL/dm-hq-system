@@ -8125,7 +8125,7 @@ function cmUnread(m){var r=CM.room;if(!r||!r.m||!m.s)return 0;var n=0;Object.key
 function cmBody(m,isMe){
   if(m.hid)return '<div class="cm-b del">관리자가 가린 메시지입니다</div>';
   if(m.del)return '<div class="cm-b del">삭제된 메시지입니다</div>';
-  if(m.nt&&!m.del&&!m.hid){var nl=String(m.x||'').replace(/^\[공지\]\s*/,'').split('\n');return '<div class="cm-b card"><div class="cm-card"><div class="ch"><b style="color:#EF4444">공지</b></div><div class="cx"><b>'+cmEsc(nl[0])+'</b>'+(nl.length>1?'<br><span style="opacity:.75">'+cmEsc(nl.slice(1).join(" ").slice(0,90))+'</span>':'')+'</div><button class="cm-cbtn" onclick="event.stopPropagation();cmNoticeOpen(\''+m.nt+'\')">공지 보기</button></div></div>'}
+  if(m.nt&&!m.del&&!m.hid)return '<div class="cm-b card">'+cmNoticeCard(m)+'</div>';
   if(m.k==='ack'&&!CM.thRoot)return '<div class="cm-b card">'+cmAckHtml(m,m._k||'')+'</div>';
   if(m.k==='poll'&&!CM.thRoot)return '<div class="cm-b card">'+cmPollHtml(m,m._k||'')+'</div>';
   var x=cmEsc(m.x||'');
@@ -8493,12 +8493,13 @@ function cmSchedNew(boxId){var ta0=$(boxId+'-TA');var pre=ta0?ta0.value:'';var p
   bs[1].onclick=function(){var x=ta.value.trim();if(!x){ta.focus();return}var t=new Date(inp.value).getTime();if(!t||t<Date.now()+55000){alert('지금보다 1분 이상 뒤로 정해 주세요');return}
     var b=this;b.disabled=true;cmApi('sched',{rid:CM.rid,x:x,at:t}).then(function(){bg.remove();if(ta0&&ta0.value===pre){ta0.value='';ta0.style.height='auto'}toast(cmSchedWhen(t)+'에 보내도록 예약했어요');cmSchedLoad()}).catch(function(e){b.disabled=false;alert(e.message)})}}
 /* ═══ 팝업 공지 ═══ (서버 chat.js noticeCreate · noticePending · noticeSeen)
-   방에 공지를 올리면 그 방 사람 모두에게 앱을 열 때 팝업이 먼저 뜬다. '확인' · '공지 보러 가기'(그 방 공지 메시지로 이동) 둘 다 확인으로 기록 — 이후 안 뜸.
+   방에 공지를 올리면 그 방 사람 모두에게 앱을 열 때 팝업이 먼저 뜬다. '확인했습니다'(팝업 · 공지 보기 · 대화 속 카드)를 눌러야 확인으로
+   기록되고, 올린 사람은 카드에서 확인 N / M · 안 한 사람 · 다시 알림을 본다. '공지 보러 가기'는 그 방 공지로 이동만(확인 아님).
    쓰기: 경영팀 · 관리자 · 스탭장 · 디자이너(교육자). 전체 공지방은 경영팀 · 관리자만.
    등록 전 '미리보기'는 실제 팝업과 같은 그림(cmNoticeHtml)을 그대로 쓴다 */
 function cmCanNotice(){if(!ME)return false;if(CM.room&&CM.room.t==='notice')return cmIsManager();var rs=[ME.role].concat(ME.roles||[]);return cmIsManager()||cmIsHq()||rs.indexOf('디자이너')>=0||rs.indexOf('스탭장')>=0||ME.academyRole==='교육자'}
 function cmNoticeHtml(n,mode){var imgs=(n.md||[]).map(function(m){return m.url||m.src}).filter(Boolean);var d=new Date(n.at||Date.now()),p=function(x){return ('0'+x).slice(-2)};
-  var foot=mode==='view'?'<div class="np-btns one"><button class="np-ok" data-a="close">닫기</button></div>':'<div class="np-btns"><button data-a="go">공지 보러 가기</button><button class="np-ok" data-a="ok">확인</button></div>';
+  var foot=mode==='view'?(n.done?'<div class="np-btns one"><button class="np-ok" data-a="close">닫기 · 확인함</button></div>':'<div class="np-btns"><button data-a="close">닫기</button><button class="np-ok" data-a="ok">확인했습니다</button></div>'):'<div class="np-btns"><button data-a="go">공지 보러 가기</button><button class="np-ok" data-a="ok">확인했습니다</button></div>';
   return '<div class="np-box">'+(mode==='preview'?'<div class="np-pv">미리보기 — 직원 화면에 이렇게 떠요</div>':'')+'<div class="np-head"><span class="np-tag">공지</span><span class="np-room">'+cmEsc(n.rn||'')+'</span></div>'
     +'<div class="np-body"><div class="np-t">'+cmEsc(n.t||'(제목)')+'</div><div class="np-meta">'+cmEsc(n.bn||'')+' · '+(d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes())+'</div>'
     +(imgs.length?'<div class="np-imgs">'+imgs.map(function(u){return '<img src="'+cmEsc(u)+'" alt="" data-a="img">'}).join('')+'</div>':'')
@@ -8509,20 +8510,33 @@ function cmNoticeShow(n,mode,onAct){var bg=document.createElement('div');bg.clas
     if(mode==='preview'){toast('미리보기에서는 눌러도 닫히지 않아요');return}
     bg.remove();if(onAct)onAct(a)});
   return bg}
-var CM_NQ={busy:false,last:0,seenAt:0};
+/* 대화 속 공지 카드 — 확인 요청과 같은 모양: 확인 N / M · 안 한 사람 보기 · 확인했습니다 · 공지 보기 · 다시 알림 */
+function cmNoticeCard(m){var nl=String(m.x||'').replace(/^\[공지\]\s*/,'').split('\n');var nk=m.nk||{};var done=Object.keys(nk).length;
+  var n=Math.max(0,Object.keys((CM.room&&CM.room.m)||{}).length-1);var me=String(ME.phone);var mine=m.by===me;var did=!!nk[me];var pct=n?Math.min(100,Math.round(done/n*100)):0;var id=m.nt;
+  return '<div class="cm-card"><div class="ch"><b style="color:#EF4444">공지</b></div><div class="cx"><b>'+cmEsc(nl[0])+'</b>'+(nl.length>1?'<br><span style="opacity:.75">'+cmEsc(nl.slice(1).join(' ').slice(0,90))+'</span>':'')+'</div>'
+    +'<div class="cm-bar"><i style="width:'+pct+'%"></i></div><div class="cf"><span>확인 '+done+' / '+n+'</span><a onclick="event.stopPropagation();cmNoticeReaders(\''+id+'\')">안 한 사람 보기 ›</a></div>'
+    +(!mine&&!did?'<button class="cm-cbtn" onclick="event.stopPropagation();cmNoticeAck(\''+id+'\')">확인했습니다</button>':'')+(did?'<div class="cf" style="justify-content:center">확인함</div>':'')
+    +'<button class="cm-cbtn sec" onclick="event.stopPropagation();cmNoticeOpen(\''+id+'\')">공지 보기</button>'
+    +((mine||cmIsManager())&&done<n?'<button class="cm-cbtn sec" onclick="event.stopPropagation();cmApi(\'notice/nudge\',{nid:\''+id+'\'}).then(function(r){toast((r.sent||0)+\'명에게 다시 알렸어요\')}).catch(function(e){alert(e.message)})">안 한 사람에게 다시 알림</button>':'')+'</div>'}
+function cmNoticeAck(nid,cb){return cmApi('notice/seen',{nid:nid,m:'ok'}).then(function(){toast('확인했어요');if(cb)cb()}).catch(function(e){alert(e.message)})}
+function cmNoticeReaders(nid){cmApi('notice/readers',{nid:nid}).then(function(x){var nm=function(a){return a.map(function(p){return '<div class="who-row">'+cmEsc(cmName(p))+'</div>'}).join('')||'<div class="who-row">없음</div>'};var left=x.later.concat(x.none);
+  var sh=cmSheet('<div class="ttl">아직 확인 안 함 '+left.length+'</div>'+nm(left)+'<div class="ttl">확인함 '+x.ok.length+'</div>'+nm(x.ok)+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>');sh.style.zIndex='99996'}).catch(function(e){alert(e.message)})}
+var CM_NQ={busy:false,last:0,seenAt:0,skip:{}};
 function cmNoticeCheck(force){if(!COMM_BETA||!ME||CM_NQ.busy)return;if(!force&&Date.now()-CM_NQ.last<120000)return;CM_NQ.last=Date.now();
-  cmApi('notice/pending',{}).then(function(r){var items=(r.items||[]).slice();if(!items.length)return;CM_NQ.busy=true;
+  cmApi('notice/pending',{}).then(function(r){var items=(r.items||[]).filter(function(n){return !CM_NQ.skip[n.nid]});if(!items.length)return;CM_NQ.busy=true;
     var next=function(){var n=items.shift();if(!n){CM_NQ.busy=false;return}n.rn=cmRoomName(n.rid,CM.inbox&&CM.inbox[n.rid]);
-      cmNoticeShow(n,'popup',function(a){cmApi('notice/seen',{nid:n.nid,m:'ok'}).catch(function(){});
-        if(a==='go'){CM_NQ.busy=false;CM_NQ.last=0;cmOpenRoom(n.rid);setTimeout(function(){if(n.key)cmJump(n.key)},1200);return}next()})};next()}).catch(function(){})}
+      cmNoticeShow(n,'popup',function(a){
+        /* '공지 보러 가기'는 확인으로 치지 않는다 — 이번에 앱을 쓰는 동안만 다시 안 띄우고, 확인했습니다를 누를 때까지 다음에 또 뜬다 */
+        if(a==='go'){CM_NQ.skip[n.nid]=1;CM_NQ.busy=false;cmOpenRoom(n.rid);setTimeout(function(){if(n.key)cmJump(n.key)},1200);return}
+        cmNoticeAck(n.nid);next()})};next()}).catch(function(){})}
 /* 앱을 켜 둔 동안 새 공지가 오면(받은 목록 마지막 글이 '[공지]'로 바뀌면) 바로 확인 */
 function cmNoticeMaybe(ib){var mx=0;Object.keys(ib||{}).forEach(function(k){var r=ib[k];if(r&&/^\[공지\]/.test(r.x||'')&&(r.at||0)>mx)mx=r.at});if(mx>CM_NQ.seenAt){var first=!CM_NQ.seenAt;CM_NQ.seenAt=mx;if(!first)setTimeout(function(){cmNoticeCheck(true)},1500)}}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')setTimeout(cmNoticeCheck,1200)});
-function cmNoticeOpen(nid){cmApi('notice/get',{nid:nid}).then(function(r){var n=r.item;n.rn=cmRoomName(n.rid,CM.inbox&&CM.inbox[n.rid]);var bg=cmNoticeShow(n,'view');
-    var mine=n.by===String(ME.phone);if((mine||cmIsManager())&&!n.end){var bar=document.createElement('div');bar.className='np-own';bar.innerHTML='<button>확인한 사람</button><button style="color:#DC2626">공지 내리기</button>';bg.querySelector('.np-box').appendChild(bar);
-      var bs=bar.querySelectorAll('button');bs[0].onclick=function(){cmApi('notice/readers',{nid:nid}).then(function(x){var nm=function(a){return a.map(function(p){return '<div class="who-row">'+cmEsc(cmName(p))+'</div>'}).join('')||'<div class="who-row">없음</div>'};cmSheet('<div class="ttl">확인 '+x.ok.length+'</div>'+nm(x.ok)+'<div class="ttl">아직 확인 안 함 '+(x.later.length+x.none.length)+'</div>'+nm(x.later.concat(x.none))+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>').style.zIndex='99996'}).catch(function(e){alert(e.message)})};
+function cmNoticeOpen(nid){cmApi('notice/get',{nid:nid}).then(function(r){var n=r.item;n.rn=cmRoomName(n.rid,CM.inbox&&CM.inbox[n.rid]);n.done=n.mine==='ok'||n.by===String(ME.phone);var bg=cmNoticeShow(n,'view',function(a){if(a==='ok')cmNoticeAck(nid)});
+    var mine=n.by===String(ME.phone);if((mine||cmIsManager())&&!n.end){var bar=document.createElement('div');bar.className='np-own';bar.innerHTML='<button>확인 현황</button><button style="color:#DC2626">공지 내리기</button>';bg.querySelector('.np-box').appendChild(bar);
+      var bs=bar.querySelectorAll('button');bs[0].onclick=function(e){e.stopPropagation();cmNoticeReaders(nid)};
       bs[1].onclick=function(){cmConfirm('공지 내리기','내리면 아직 안 본 사람에게도 더 이상 팝업이 뜨지 않아요.','내리기',1,function(){cmApi('notice/end',{nid:nid}).then(function(){bg.remove();toast('공지를 내렸어요')}).catch(function(e){alert(e.message)})})}}
-    if(n.mine!=='ok')cmApi('notice/seen',{nid:nid,m:'ok'}).catch(function(){})}).catch(function(e){alert(e.message)})}
+}).catch(function(e){alert(e.message)})}
 /* 공지 쓰기 — 제목 · 본문 · 사진(최대 5장) → 미리보기 → 등록 */
 function cmNoticeNew(){if(!CM.rid||!cmCanNotice()){alert('공지는 디자이너 · 스탭장 · 경영팀만 올릴 수 있어요');return}
   var files=[],urls=[];var rn=cmRoomName(CM.rid,CM.room);var cnt=Object.keys((CM.room&&CM.room.m)||{}).length;

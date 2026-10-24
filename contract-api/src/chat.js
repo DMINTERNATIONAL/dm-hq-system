@@ -389,7 +389,8 @@ export function makeChat(deps) {
 
   /* ═══ 팝업 공지 ═══
      게시판은 직접 들어가야 봐서 놓치는 일이 많아, 방에 공지를 올리면 그 방 사람 모두에게 앱을 열 때 팝업으로 먼저 띄운다.
-     '확인' · '공지 보러 가기' 둘 다 확인(ok)으로 기록하고 이후 안 띄운다(day · week 는 받아만 둠).
+     '확인했습니다'(팝업 · 공지 보기 · 대화 속 카드)를 눌러야 확인(ok)으로 기록되고 이후 안 띄운다. 확인한 사람은 메시지 nk:{폰:1} 에도 남겨
+     카드에 '확인 N / M'을 실시간으로 보인다(확인 요청과 같은 방식). day · week 는 받아만 둠.
      쓰기: 경영팀 · 관리자 · 스탭장 · 디자이너(교육자 포함). 전체 공지방은 지금처럼 경영팀 · 관리자만. */
   const canPostNotice = (ph, u) => isManagerUser(ph, u) || isHqUser(ph, u) ||
     (u && (['디자이너', '스탭장'].includes(u.role) || u.academyRole === '교육자' || (Array.isArray(u.roles) && u.roles.some((r) => r === '디자이너' || r === '스탭장'))));
@@ -457,7 +458,9 @@ export function makeChat(deps) {
     /* 오늘 하루 = 한국 시간 내일 0시까지 · 일주일 = 7일 뒤 */
     const k = kst(); const tomorrow = Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate() + 1) - 9 * 3600e3;
     const until = m === 'ok' ? 0 : m === 'day' ? tomorrow : nowMs() + 7 * 86400e3;
-    await dbPut(env, `/chat/nseen/${nid}/${me.ph}`, { m, until, at: nowMs() });
+    const up = { [`chat/nseen/${nid}/${me.ph}`]: { m, until, at: nowMs() } };
+    if (m === 'ok' && n.key) up[`chat/msgs/${n.rid}/${n.key}/nk/${me.ph}`] = 1;
+    await dbPatch(env, '/', up);
     return {};
   }
   async function noticeEnd(env, me, body) {
@@ -471,6 +474,19 @@ export function makeChat(deps) {
     if (room && room.pin && room.pin.nt === nid) up[`chat/rooms/${n.rid}/pin`] = null;
     await dbPatch(env, '/', up);
     return {};
+  }
+  /* 아직 확인 안 한 사람에게 다시 알림 — 올린 사람 · 경영팀 · 관리자 */
+  async function noticeNudge(env, me, body) {
+    const u = await meUser(env, me);
+    const nid = String(body.nid || '');
+    const n = await dbGet(env, `/chat/notices/${nid}`);
+    if (!n) throw new Error('없는 공지예요');
+    if (n.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('올린 사람 · 경영팀 · 관리자만 다시 알릴 수 있어요');
+    const room = await getRoom(env, n.rid);
+    const seen = (await dbGet(env, `/chat/nseen/${nid}`).catch(() => null)) || {};
+    const left = Object.keys(room.m || {}).filter((p) => p !== n.by && !(seen[p] && seen[p].m === 'ok'));
+    if (left.length) await pushToPhones(env, left, { title: '[공지 확인 요청] ' + (room.t === 'dm' ? '' : room.n || ''), body: n.t, url: './#comm/' + n.rid, tag: 'notice-' + nid }, { urgency: 'high' }).catch(() => {});
+    return { sent: left.length };
   }
   async function noticeReaders(env, me, body) {
     const u = await meUser(env, me);
@@ -829,6 +845,7 @@ export function makeChat(deps) {
         case '/chat/notice/seen': out = await noticeSeen(env, me, body); break;
         case '/chat/notice/end': out = await noticeEnd(env, me, body); break;
         case '/chat/notice/readers': out = await noticeReaders(env, me, body); break;
+        case '/chat/notice/nudge': out = await noticeNudge(env, me, body); break;
         case '/chat/edit': out = await editOrDelete(env, me, body, false); break;
         case '/chat/delete': out = await editOrDelete(env, me, body, true); break;
         case '/chat/hide': out = await editOrDelete(env, me, body, 'hide'); break;
