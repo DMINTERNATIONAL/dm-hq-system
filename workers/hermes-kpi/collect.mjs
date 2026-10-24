@@ -75,7 +75,7 @@ const CONFIG = {
     { key: 'etoh', brand: 'ETOH', shops: ['eto'], username: 'etohbarber', label: '에토바버샵 공식' },
   ],
   saleValidateTolerance: 0.05,
-  igRateGapMs: 400,
+  igRateGapMs: 1500,   // 인스타 조회 사이 간격(한도 여유) — 30여 명이면 1분 안쪽
   igMaturedDays: 7,
   igMaturedMax: 10,
 };
@@ -935,7 +935,17 @@ async function collectSns(date, dry) {
   // role/academyRole은 메트릭에 함께 저장해 프론트에서 인턴(교육 KPI)·디자이너를 구분한다.
   const active = Object.keys(users).map(ph => ({ ph, u: users[ph] || {} }))
     .filter(x => x.u && (x.u.status || '재직') === '재직' && x.u.ig_username && BRANCH_TO_SHOP[x.u.branch]);
+  /* 2026-10-24 사고: 하루 3번(04 · 05 · 07시) 실행마다 전원을 다시 조회해 인스타 조회 한도((#4) Application request limit)를 넘었고,
+     그때 실패한 11명이 '조회 실패'로 덮어써졌다. ① 오늘 이미 수집된 사람은 건너뛴다(백업 실행은 못 한 사람만)
+     ② 한도에 걸리면 그 자리에서 멈추고 누구도 실패로 기록하지 않는다(다음 실행이 이어서) ③ 실패 기록은 진짜 문제(없는 아이디 · 개인계정 등)만 */
+  const done = {};
+  if (!process.env.SNS_FORCE) for (const shop of new Set(active.map((x) => BRANCH_TO_SHOP[x.u.branch]))) {
+    const got = (await fbGET(`/stores/${enc(shop)}/daily/${enc(date)}/sns.json?shallow=true`)) || {};
+    for (const k of Object.keys(got)) done[shop + '|' + k] = 1;
+  }
+  const isLimit = (msg) => /\(#4\)|\(#17\)|\(#32\)|\(#613\)|request limit|rate limit|too many/i.test(String(msg || ''));
   const out = [];
+  let limited = false, skipped = 0;
   for (let i = 0; i < active.length; i++) {
     const u = active[i].u;
     const shop = BRANCH_TO_SHOP[u.branch];
@@ -943,6 +953,7 @@ async function collectSns(date, dry) {
     const username = String(u.ig_username).replace(/^@/, '').trim();
     if (!username) continue;
     const ph = active[i].ph;
+    if (done[shop + '|' + safeKey(name)]) { skipped++; continue; }
     try {
       const metrics = computeSnsMetrics(await igBusinessDiscovery(username), date);
       metrics.ig_username = username;
@@ -978,13 +989,21 @@ async function collectSns(date, dry) {
       }
       out.push({ shop, name, username, ok: true, ...metrics });
     } catch (e) {
+      if (isLimit(e.message)) {
+        // 한도: 실패로 기록하지 않고 멈춘다 — 남은 사람은 다음 실행(05 · 07시)이 이어서 조회
+        limited = true;
+        out.push({ shop, name, username, ok: false, error: e.message, limited: true });
+        console.log(`[sns] 인스타 조회 한도 — ${name}부터 멈춤, 다음 실행에서 이어서`);
+        break;
+      }
       // 조회 실패(없는 아이디·개인계정·비공개 등) → 사유 기록해 직원관리에서 확인 가능
       if (!dry) { try { await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: false, username, error: e.message, at: nowIso() }); } catch (_) {} }
       out.push({ shop, name, username, ok: false, error: e.message });
     }
     if (i < active.length - 1) await sleep(CONFIG.igRateGapMs);
   }
-  return { date, count: out.length, results: out };
+  if (limited) await notify(`[Hermes] 인스타 조회 한도에 걸려 ${out.filter((x) => x.limited).length ? '일부' : ''} 수집을 다음 실행으로 미뤘어요 (실패로 기록 안 함)`).catch(() => {});
+  return { date, count: out.length, skipped, limited, results: out };
 }
 // 공식 인스타 계정 수집 (브랜드별 1개). /official/{key}/daily/{date} 저장.
 async function collectOfficialSns(date, dry) {
