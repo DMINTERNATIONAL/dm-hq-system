@@ -16,7 +16,7 @@ self.addEventListener('activate', (event) => {
       // 옛날 캐시 삭제
       caches.keys().then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+          keys.filter((k) => k !== CACHE_NAME && k !== 'dm-nav').map((k) => caches.delete(k))
         )
       ),
       // 모든 탭에서 즉시 새 SW 사용
@@ -127,7 +127,9 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
-  event.waitUntil(
+  // 아이폰은 앱이 꺼져 있으면 알림 주소 대신 첫 화면으로 열 때가 있다 → 갈 곳을 쪽지로 남겨 두고 앱이 열리면 읽는다(index.html cmPendingNav)
+  const note = caches.open('dm-nav').then((c) => c.put('/__nav', new Response(JSON.stringify({ url: target, at: Date.now() }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
+  event.waitUntil(note.then(() =>
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
         if (c.url.indexOf(self.registration.scope) === 0 && 'focus' in c) {
@@ -137,5 +139,5 @@ self.addEventListener('notificationclick', (event) => {
       }
       return self.clients.openWindow(target);
     })
-  );
+  ));
 });
