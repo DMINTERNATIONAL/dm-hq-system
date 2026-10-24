@@ -14,6 +14,8 @@
  *   /chat/inbox/{폰}/{rid}   { s 방 최신 번호, r 내가 읽은 번호, at, x, bn, t, n 이 사람에게 보일 방 이름, mn 나를 부른 번호,
  *                              pin 상단 고정 시각, nm 나만 보는 방 이름, hid 1:1 숨긴 시점 번호(s 가 커지면 다시 보임) }
  *   /chat/sched/{id}         예약 메시지 { ph, rid, x, at 보낼 시각, mn } — 1분 타이머가 보낸다
+ *   /chat/notices/{nid}      팝업 공지 { rid, t 제목, x 본문, md:[{u,w,h}] 사진, by, bn, at, end 내린 시각, key 대화에 올린 메시지 }
+ *   /chat/nseen/{nid}/{폰}   팝업 닫은 기록 { m ok|day|week, until 다시 띄울 시각(ok 는 0), at }
  *   /chat/reads/{rid}/{폰}   내가 읽은 번호 — 말풍선 옆 '안 읽은 사람 수' 계산용
  *   /chat/act/{폰}/{id}      내 활동 { k mention · reply · all, rid, key, x, bn, at, done }
  *
@@ -92,7 +94,7 @@ async function unfurl(u) {
 }
 
 export function makeChat(deps) {
-  const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken } = deps;
+  const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, signedUrl } = deps;
 
   /* 번호 매기기 — 같은 방에 동시에 두 명이 보내도 번호가 겹치지 않게 조건부 쓰기(ETag)로 올린다 */
   async function nextSeq(env, rid) {
@@ -383,6 +385,104 @@ export function makeChat(deps) {
       catch (e) { await pushToPhones(env, [v.ph], { title: '예약 메시지를 보내지 못했어요', body: clip(e.message, 100), url: './#comm/' + v.rid, tag: 'sched-' + id }).catch(() => {}); }
     }
     return due.length;
+  }
+
+  /* ═══ 팝업 공지 ═══
+     게시판은 직접 들어가야 봐서 놓치는 일이 많아, 방에 공지를 올리면 그 방 사람 모두에게 앱을 열 때 팝업으로 먼저 띄운다.
+     '확인'을 누르면 다시 안 뜨고, '오늘 하루 안 보기' · '일주일간 안 보기'는 그 기간이 지나면 다시 뜬다.
+     쓰기: 경영팀 · 관리자 · 스탭장 · 디자이너(교육자 포함). 전체 공지방은 지금처럼 경영팀 · 관리자만. */
+  const canPostNotice = (ph, u) => isManagerUser(ph, u) || isHqUser(ph, u) ||
+    (u && (['디자이너', '스탭장'].includes(u.role) || u.academyRole === '교육자' || (Array.isArray(u.roles) && u.roles.some((r) => r === '디자이너' || r === '스탭장'))));
+  async function noticeCreate(env, ctx, me, body) {
+    const u = await meUser(env, me);
+    const ph = String(me.ph), rid = String(body.rid || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
+    if (!canPostNotice(ph, u)) throw new Error('공지는 디자이너 · 스탭장 · 경영팀만 올릴 수 있어요');
+    if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
+    const t = clip(body.t, 60).trim(), x = clip(body.x, 3000).trim();
+    if (!t) throw new Error('제목을 입력해 주세요');
+    const keyOk = (v) => /^p\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
+    const md = (Array.isArray(body.md) ? body.md : []).slice(0, 5).filter((m) => m && keyOk(m.u)).map((m) => ({ u: String(m.u), w: m.w | 0, h: m.h | 0 }));
+    const tag = await deps.roomTag(rid);
+    if (md.some((m) => !m.u.startsWith(`p/${tag}/`))) throw new Error('사진 정보가 올바르지 않습니다');
+    const nid = 'n' + rid36();
+    const sent = await send(env, ctx, me, { rid, k: 't', x: `[공지] ${t}${x ? '\n' + clip(x, 300) : ''}` });
+    const doc = { rid, t, x, by: ph, bn: nameOf(u), at: nowMs(), key: sent.key };
+    if (md.length) doc.md = md;
+    await dbPatch(env, '/', {
+      [`chat/notices/${nid}`]: doc,
+      [`chat/msgs/${rid}/${sent.key}/nt`]: nid,
+      [`chat/rooms/${rid}/pin`]: { key: sent.key, x: '[공지] ' + t, bn: nameOf(u), at: nowMs(), by: nameOf(u), nt: nid },
+    });
+    return { nid, key: sent.key };
+  }
+  async function noticeSigned(env, base, n) {
+    const out = { ...n };
+    if (n.md) out.md = await Promise.all(n.md.map(async (m) => ({ ...m, url: await signedUrl(env, base, m.u) })));
+    return out;
+  }
+  /* 지금 나에게 띄울 공지 — 내가 들어가 있는 방 · 아직 안 내린 것 · 내가 쓴 것 아님 · 확인 안 했고 '안 보기' 기간도 아님 */
+  async function noticePending(env, me, base) {
+    await meUser(env, me);
+    const ph = String(me.ph);
+    const [all, inbox] = await Promise.all([dbGet(env, '/chat/notices').catch(() => null), dbGet(env, '/chat/inbox/' + ph).catch(() => null)]);
+    const live = Object.entries(all || {}).filter(([, n]) => n && !n.end && n.by !== ph && inbox && inbox[n.rid] && n.at > nowMs() - 60 * 86400e3);
+    const out = [];
+    for (const [nid, n] of live) {
+      const seen = await dbGet(env, `/chat/nseen/${nid}/${ph}`).catch(() => null);
+      if (seen && (seen.m === 'ok' || (seen.until || 0) > nowMs())) continue;
+      out.push({ nid, ...(await noticeSigned(env, base, n)) });
+    }
+    out.sort((a, b) => a.at - b.at);
+    return { items: out.slice(0, 10) };
+  }
+  async function noticeGet(env, me, body, base) {
+    await meUser(env, me);
+    const nid = String(body.nid || '');
+    if (!/^n[a-z0-9]{6,20}$/.test(nid)) throw new Error('공지 정보가 올바르지 않습니다');
+    const n = await dbGet(env, `/chat/notices/${nid}`);
+    if (!n) throw new Error('없는 공지예요');
+    const room = await getRoom(env, n.rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const seen = await dbGet(env, `/chat/nseen/${nid}/${me.ph}`).catch(() => null);
+    return { item: { nid, ...(await noticeSigned(env, base, n)), mine: seen ? seen.m : null } };
+  }
+  async function noticeSeen(env, me, body) {
+    await meUser(env, me);
+    const nid = String(body.nid || ''), m = String(body.m || '');
+    if (!/^n[a-z0-9]{6,20}$/.test(nid) || !['ok', 'day', 'week'].includes(m)) throw new Error('잘못된 요청입니다');
+    const n = await dbGet(env, `/chat/notices/${nid}`);
+    if (!n) throw new Error('없는 공지예요');
+    /* 오늘 하루 = 한국 시간 내일 0시까지 · 일주일 = 7일 뒤 */
+    const k = kst(); const tomorrow = Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate() + 1) - 9 * 3600e3;
+    const until = m === 'ok' ? 0 : m === 'day' ? tomorrow : nowMs() + 7 * 86400e3;
+    await dbPut(env, `/chat/nseen/${nid}/${me.ph}`, { m, until, at: nowMs() });
+    return {};
+  }
+  async function noticeEnd(env, me, body) {
+    const u = await meUser(env, me);
+    const nid = String(body.nid || '');
+    const n = await dbGet(env, `/chat/notices/${nid}`);
+    if (!n) throw new Error('없는 공지예요');
+    if (n.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('올린 사람 · 경영팀 · 관리자만 내릴 수 있어요');
+    const up = { [`chat/notices/${nid}/end`]: nowMs() };
+    const room = await getRoom(env, n.rid).catch(() => null);
+    if (room && room.pin && room.pin.nt === nid) up[`chat/rooms/${n.rid}/pin`] = null;
+    await dbPatch(env, '/', up);
+    return {};
+  }
+  async function noticeReaders(env, me, body) {
+    const u = await meUser(env, me);
+    const nid = String(body.nid || '');
+    const n = await dbGet(env, `/chat/notices/${nid}`);
+    if (!n) throw new Error('없는 공지예요');
+    const room = await getRoom(env, n.rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    const seen = (await dbGet(env, `/chat/nseen/${nid}`).catch(() => null)) || {};
+    const ok = [], later = [], none = [];
+    for (const p of Object.keys(room.m || {})) { if (p === n.by) continue; const s = seen[p]; (s && s.m === 'ok' ? ok : s ? later : none).push(p); }
+    return { ok, later, none, end: n.end || 0 };
   }
 
   async function ensureDm(env, me, to) {
@@ -723,6 +823,12 @@ export function makeChat(deps) {
         case '/chat/sched': out = await schedCreate(env, me, body); break;
         case '/chat/sched/list': out = await schedList(env, me, body); break;
         case '/chat/sched/cancel': out = await schedCancel(env, me, body); break;
+        case '/chat/notice/create': out = await noticeCreate(env, ctx, me, body); break;
+        case '/chat/notice/pending': out = await noticePending(env, me, new URL(request.url).origin); break;
+        case '/chat/notice/get': out = await noticeGet(env, me, body, new URL(request.url).origin); break;
+        case '/chat/notice/seen': out = await noticeSeen(env, me, body); break;
+        case '/chat/notice/end': out = await noticeEnd(env, me, body); break;
+        case '/chat/notice/readers': out = await noticeReaders(env, me, body); break;
         case '/chat/edit': out = await editOrDelete(env, me, body, false); break;
         case '/chat/delete': out = await editOrDelete(env, me, body, true); break;
         case '/chat/hide': out = await editOrDelete(env, me, body, 'hide'); break;
