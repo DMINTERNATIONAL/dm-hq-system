@@ -1781,7 +1781,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-fl a{color:var(--cm-blue);font-weight:700;cursor:pointer;margin-left:6px}
 .cm-toptabs{margin-bottom:10px}
 .ios-home-bar .cm-comp{padding-bottom:30px;padding-left:14px;padding-right:14px}
-/* 키보드가 떠 있으면 홈 막대가 없으니 입력창 아래 여백도 없앤다(입력창과 키보드 사이 흰 띠) */html.cm-kbon .cm-comp{padding-bottom:8px!important}.cm-comp{transition:padding-bottom .25s}
+/* 키보드가 떠 있으면 홈 막대가 없으니 입력창 아래 여백도 없앤다(입력창과 키보드 사이 흰 띠) */html.cm-kbon .cm-comp{padding-bottom:8px!important}.cm-comp{transition:padding-bottom .28s cubic-bezier(.3,.5,.2,1)}
 .ios-home-bar .cm-ro{padding-bottom:30px}
 .ios-home-bar .cm-sheet{padding-bottom:30px}
 .cm-pinbar b{flex:0 0 auto}
@@ -9852,7 +9852,7 @@ function cmPinBottom(msgsId,ms){var m=$(msgsId);if(!m)return;var end=Date.now()+
 function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;var id=ta&&ta.id==='CM-TCOMP-TA'?'p-comm-thread':'p-comm-room';var e=$(id);if(!e||!e.classList.contains('on'))return;
   /* 올라갈 때는 전환 효과 없이 '즉시' 줄인다. 천천히 줄이면 그 사이 아이폰이 '입력칸이 키보드에 가려진다'고 보고 화면 전체를
      한 번 더 밀어 올려, 두 움직임이 겹쳐 버벅였다(위로 너무 갔다가 제자리로). 내려갈 때는 지금처럼 부드럽게 */
-  if(open){if(!CM_KBH)return;var vv=window.visualViewport;if(vv&&window.innerHeight-vv.height>150)return;document.documentElement.classList.add('cm-kbon');CM._kbOpenAt=Date.now();
+  if(open){if(!CM_KBH)return;var vv=window.visualViewport;if(vv&&window.innerHeight-vv.height>150)return;CM._kbOpenAt=Date.now();
     var m=$(id==='p-comm-thread'?'CM-TMSGS':'CM-MSGS');var st=m?m.scrollTop:0;var comp=$(id==='p-comm-thread'?'CM-TCOMP':'CM-COMP');
     var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     /* 카톡처럼 '한 덩어리'로: 대화 + 입력창이 키보드와 같은 곡선 · 시간(녹화로 잰 0.28초)으로 같이 올라온다 (10/24 네 번째 녹화 —
@@ -9861,6 +9861,9 @@ function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;va
        - 대화 칸은 그대로 두고 입력창 · 대화를 transform 으로만 올린다(화면 다시 그리기 없이 매끄럽게, 제목은 그 위에 고정)
        - 다 올라오면 한 프레임에 실제 크기로 바꾸고 스크롤을 그만큼 옮겨 보이는 모습은 그대로
        아이폰이 그래도 화면을 밀면(cmVV 감지) 바로 끝내고 이 기기는 다음부터 즉시 방식 */
+    /* 키보드가 뜨면 입력창 아래 홈 막대 여백이 30 → 8px 로 줄어든다(dP). 이 변화도 같은 순간 · 같은 곡선으로 움직이고
+       대화는 (키보드 높이 − dP)만큼만 올라가야 마지막에 22px 튀지 않는다(10/24 진단 기록: 끝에서 423 → 445 로 툭) */
+    var ci=comp&&comp.querySelector('.cm-comp'),pbOld=ci?parseFloat(getComputedStyle(ci).paddingBottom)||0:0,dP=Math.max(0,Math.round(pbOld-8));CM._kbDP=dP;
     if(CM_KBFX&&m&&comp&&!reduce){var K=CM_KBH,H=window.innerHeight;
       e.style.transition='none';e.style.top='0px';e.style.bottom='auto';e.style.height=H+'px';
       /* 제목 · 고정 공지 등 대화 위쪽 줄은 올라오는 대화보다 위에 */
@@ -9873,12 +9876,13 @@ function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;va
       fx.done=function(){if(CM._kbFx!==fx)return;CM._kbFx=null;var t=m.scrollTop;
         ['position','left','right','bottom','zIndex','transform','transition','willChange'].forEach(function(k){comp.style[k]=''});
         m.style.transform='';m.style.transition='';m.style.willChange='';m.style.paddingBottom='';raised.forEach(function(c){c.style.position='';c.style.zIndex=''})
-        e.style.height=(H-K)+'px';m.scrollTop=t+K;setTimeout(function(){e.style.transition=''},60);var v2=window.visualViewport;if(v2&&window.innerHeight-v2.height>150)cmVV()};
+        e.style.height=(H-K)+'px';m.scrollTop=t+K-dP;setTimeout(function(){e.style.transition=''},60);var v2=window.visualViewport;if(v2&&window.innerHeight-v2.height>150)cmVV()};
       /* 키보드는 이 처리가 끝나고 두 프레임쯤 뒤에 움직이기 시작한다 — 같이 출발하도록 두 프레임 기다렸다 시작 */
       var go2=function(){if(CM._kbFx!==fx||fx.started)return;fx.started=1;var tr='transform '+CM_KB_MS+'ms cubic-bezier(.3,.5,.2,1)';
-        comp.style.transition=tr;m.style.transition=tr;comp.style.transform='translateY(0px)';m.style.transform='translateY(-'+K+'px)';setTimeout(fx.done,CM_KB_MS+40)};
+        document.documentElement.classList.add('cm-kbon');comp.style.transition=tr;m.style.transition=tr;comp.style.transform='translateY(0px)';m.style.transform='translateY(-'+(K-dP)+'px)';setTimeout(fx.done,CM_KB_MS+40)};
       requestAnimationFrame(function(){requestAnimationFrame(go2)});setTimeout(go2,80);return}
-    /* 즉시 방식(동작 줄이기 설정 · 아이폰이 화면을 미는 기기): 화면 크기는 즉시, 대화는 같은 곡선으로 굴러 올라감 */
+    /* 즉시 방식(동작 줄이기 설정): 화면 크기는 즉시, 대화는 같은 곡선으로 굴러 올라감 */
+    document.documentElement.classList.add('cm-kbon');
     e.style.transition='none';e.style.top='0px';e.style.bottom='auto';e.style.height=(window.innerHeight-CM_KBH)+'px';void e.offsetHeight;
     var fill=document.createElement('div');fill.className='cm-kbfill';fill.style.height=CM_KBH+'px';document.body.appendChild(fill);setTimeout(function(){fill.remove()},450);
     if(m){m.scrollTop=st;
@@ -9896,7 +9900,7 @@ function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;va
       e.style.transition='none';m2.style.paddingBottom=(pb2+K2)+'px';
       c2.style.transition='none';c2.style.position='relative';c2.style.zIndex='3';c2.style.transform='translateY(-'+K2+'px)';
       e.style.top='0px';e.style.bottom='auto';e.style.height=window.innerHeight+'px';m2.scrollTop=st2;void c2.offsetHeight;
-      var fx2={close:1,el:c2,m:m2,room:e};CM._kbFx=fx2;var from2=st2,to2=Math.max(0,st2-K2),t02=performance.now();
+      var fx2={close:1,el:c2,m:m2,room:e};CM._kbFx=fx2;var dP2=CM._kbDP||0,from2=st2,to2=Math.max(0,st2-(K2-dP2)),t02=performance.now();
       c2.style.transition='transform '+CM_KB_MS+'ms cubic-bezier(.3,.5,.2,1)';c2.style.transform='translateY(0px)';
       (function step(now){if(CM._kbFx!==fx2)return;var k=Math.min(1,(now-t02)/CM_KB_MS);m2.scrollTop=from2+(to2-from2)*cmKbEase(k);if(k<1)requestAnimationFrame(step)})(t02);
       fx2.done=function(){if(CM._kbFx!==fx2)return;CM._kbFx=null;['transition','transform','position','zIndex'].forEach(function(k){c2.style[k]=''});
