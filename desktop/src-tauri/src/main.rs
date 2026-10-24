@@ -4,6 +4,7 @@
 //   - 컴퓨터를 켜면 자동 실행
 //   - 하나만 실행 (두 번 열면 기존 창을 앞으로)
 //   - 켤 때 새 버전이 있으면 받아서 다시 시작 (GitHub 릴리스의 latest.json)
+//   - 창 크기 · 위치를 기억해 다음에 그대로 연다 (웹앱의 '작게 보기 / 크게 보기'로 바꾼 크기 포함)
 // 알림 · 아이콘 숫자는 웹앱이 window.__TAURI__ 로 직접 띄운다 (index.html 의 cmDesktop*).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -29,6 +30,7 @@ fn main() {
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "DM 열기", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "DM 끝내기", true, None::<&str>)?;
@@ -81,6 +83,9 @@ fn main() {
         // 창 닫기 = 숨기기 (프로그램은 계속 돌며 알림을 받는다)
         .on_window_event(|w, e| {
             if let WindowEvent::CloseRequested { api, .. } = e {
+                // 숨기기 전에 지금 창 크기 · 위치를 저장 (앱을 끄지 않고 숨기기만 하므로 여기서 저장해야 한다)
+                use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+                let _ = w.app_handle().save_window_state(StateFlags::all());
                 let _ = w.hide();
                 api.prevent_close();
             }

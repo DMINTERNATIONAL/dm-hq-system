@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "웹앱(GitHub Pages)이 알림 · 아이콘 숫자 · 외부 링크 열기를 쓸 수 있게",
+  "description": "웹앱(GitHub Pages)이 알림 · 아이콘 숫자 · 외부 링크 열기 · 창 크기(작게/크게 보기) · 항상 위에를 쓸 수 있게",
   "windows": ["main"],
   "remote": { "urls": ["https://dminternational.github.io/*", "http://localhost:8012/*"] },
   "permissions": [
@@ -10,6 +10,9 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-unminimize",
+    "core:window:allow-set-size",
+    "core:window:allow-center",
+    "core:window:allow-set-always-on-top",
     "notification:default",
     "opener:default"
   ]
