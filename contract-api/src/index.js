@@ -309,6 +309,9 @@ async function relayCall(env, path, payload) {
    한 번에 6개씩 — 동시에 너무 많이 열면 Worker 의 외부 요청 한도에 걸린다. */
 async function pushToPhones(env, phones, payload, opts = {}) {
   if (!env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC) return { sent: 0, failed: 0, error: 'VAPID 키 미설정' };
+  /* '알림에 내용 보기'를 끈 사람에게는 제목 · 내용 대신 'DM · 새 메시지가 있어요' (누르면 가는 곳은 같다) */
+  const prefs = (await dbGet(env, '/chat/prefs').catch(() => null)) || {};
+  const plain = { title: 'DM', body: '새 메시지가 있어요', url: payload.url, tag: payload.tag };
   const subs = [];
   for (const ph of [...new Set(phones.map(String))]) {
     const m = (await dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null)) || {};
@@ -319,7 +322,7 @@ async function pushToPhones(env, phones, payload, opts = {}) {
   for (let i = 0; i < subs.length; i += 6) {
     await Promise.all(subs.slice(i, i + 6).map(async ({ ph, id, s }) => {
       try {
-        const r = await sendOne(env, s, payload, opts);
+        const r = await sendOne(env, s, (prefs[ph] && prefs[ph].hide) ? plain : payload, opts);
         if (r.ok) sent++; else failed++;
         if (r.gone) { removed++; await dbDelete(env, `/pushSubs/${encodeURIComponent(ph)}/${id}`).catch(() => {}); }
         detail.push({ device: s.device || '', status: r.status });

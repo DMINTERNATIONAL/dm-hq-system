@@ -8348,13 +8348,13 @@ function cmActAllDone(){var up={};Object.keys(CM.act||{}).forEach(function(k){if
 /* ── 채팅 설정 (글자 크기 · 엔터 · 알림) ── */
 var CM_FS=[[13,'작게'],[14,'보통'],[16,'크게'],[18,'아주 크게'],[20,'가장 크게']];
 /* 채팅 설정은 바로 바뀌지 않고 '저장'을 눌러야 적용된다 (바뀌었는지 헷갈리지 않게) */
-function cmOpenSettings(){var pf=cmPrefs();CM.sd={fs:CM.fs,enter:CM.enterSend,only:pf.only?1:0,quiet:pf.quiet?1:0,bc:cmLook('cm_bc','blue'),th:cmLook('cm_th','sys')};CM.sd0=JSON.stringify(CM.sd);go('p-comm-font');cmRenderFont()}
+function cmOpenSettings(){var pf=cmPrefs();CM.sd={fs:CM.fs,enter:CM.enterSend,only:pf.only?1:0,quiet:pf.quiet?1:0,hide:pf.hide?1:0,bc:cmLook('cm_bc','blue'),th:cmLook('cm_th','sys')};CM.sd0=JSON.stringify(CM.sd);go('p-comm-font');cmRenderFont()}
 function cmSdDirty(){return CM.sd&&JSON.stringify(CM.sd)!==CM.sd0}
-function cmSaveSettings(){var d=CM.sd;if(!d)return;try{localStorage.setItem('cm_bc',d.bc||'blue');localStorage.setItem('cm_th',d.th||'sys')}catch(e){}cmApplyLook();var pf=cmPrefs();var prefChanged=(!!pf.only)!==!!d.only||(!!pf.quiet)!==!!d.quiet;
+function cmSaveSettings(){var d=CM.sd;if(!d)return;try{localStorage.setItem('cm_bc',d.bc||'blue');localStorage.setItem('cm_th',d.th||'sys')}catch(e){}cmApplyLook();var pf=cmPrefs();var prefChanged=(!!pf.only)!==!!d.only||(!!pf.quiet)!==!!d.quiet||(!!pf.hide)!==!!d.hide;
   CM.fs=d.fs;CM.enterSend=!!d.enter;try{localStorage.setItem('cm_fs',String(d.fs));localStorage.setItem('cm_enter',d.enter?'1':'0')}catch(e){}
   var done=function(){CM.sd0=JSON.stringify(CM.sd);toast('저장했어요');openComm('chat')};
   if(!prefChanged)return done();
-  cmApi('prefs',{quiet:!!d.quiet,only:!!d.only}).then(function(){try{localStorage.setItem('cm_prefs',JSON.stringify({only:d.only,quiet:d.quiet}))}catch(e){}done()}).catch(function(e){alert('알림 설정을 저장하지 못했어요\n\n'+e.message)})}
+  cmApi('prefs',{quiet:!!d.quiet,only:!!d.only,hide:!!d.hide}).then(function(){try{localStorage.setItem('cm_prefs',JSON.stringify({only:d.only,quiet:d.quiet,hide:d.hide}))}catch(e){}done()}).catch(function(e){alert('알림 설정을 저장하지 못했어요\n\n'+e.message)})}
 function cmSettingsBack(){if(cmSdDirty())cmConfirm('저장하지 않고 나갈까요?','바꾼 설정이 적용되지 않습니다.','나가기',false,function(){openComm('chat')});else openComm('chat')}
 function cmRenderFont(){var p=$('p-comm-font');if(!p)return;if(!CM.sd)CM.sd={fs:CM.fs,enter:CM.enterSend,only:0,quiet:0};var cur=CM_FS.filter(function(f){return f[0]===CM.sd.fs})[0]||CM_FS[1];
   var demo=[{k:'a',m:{by:'x',bn:'건아 매니저',at:Date.now()-60000,k:'t',x:'내일 발주 마감 오전 11시예요'}},{k:'b',m:{by:String(ME.phone),bn:'',at:Date.now()-30000,k:'t',x:'네 확인했어요'}},{k:'c',m:{by:'y',bn:'연서',at:Date.now(),k:'t',x:'3SI 두 개 더 넣어 주세요'}}];
@@ -8365,6 +8365,7 @@ function cmRenderFont(){var p=$('p-comm-font');if(!p)return;if(!CM.sd)CM.sd={fs:
   h+='<div class="cm-grp"><div class="ttl">입력</div><div class="cm-it">PC에서 엔터로 보내기<button class="cm-sw'+(CM.sd.enter?' on':'')+'" onclick="CM.sd.enter=!CM.sd.enter;cmRenderFont()"></button></div></div>';
   var pf=CM.sd;
   h+='<div class="cm-grp"><div class="ttl">알림 받는 범위</div><div class="cm-it">@나 · 확인 요청 · 내 글 답장만 알림<button class="cm-sw'+(pf.only?' on':'')+'" onclick="cmSetPref(\'only\','+(!pf.only)+')"></button></div><div class="cm-it">밤에는 조용히 (22:00~08:00)<button class="cm-sw'+(pf.quiet?' on':'')+'" onclick="cmSetPref(\'quiet\','+(!pf.quiet)+')"></button></div><div class="cm-it" style="font-size:12.5px;color:var(--cm-ink3)">연차 · 정기 휴무인 날은 자동으로 @나 · 확인 요청만 알림</div></div>';
+  h+='<div class="cm-grp"><div class="ttl">알림 내용</div><div class="cm-it">알림에 내용 보기<button class="cm-sw'+(pf.hide?'':' on')+'" onclick="cmSetPref(\'hide\','+(!pf.hide)+')"></button></div><div class="cm-it" style="font-size:12.5px;color:var(--cm-ink3)">끄면 알림이 \'DM · 새 메시지가 있어요\'로만 와요. 눌러서 들어가면 내용이 보여요.</div></div>';
   if(cmIsManager())h+='<div class="cm-grp"><div class="ttl">관리</div><div class="cm-it" style="cursor:pointer" onclick="cmOpenNew(\'revoke\')">직원 기기 로그아웃 (잃어버린 폰)<span class="rl">›</span></div></div>';
   h+='<div class="cm-grp"><div class="ttl">알림</div><div class="cm-it" style="cursor:pointer" onclick="pushPanel()">폰 · PC 알림 켜기 · 시험<span class="rl">›</span></div><div class="cm-it" style="cursor:pointer" onclick="cmReadAll()">모든 방 읽음으로 표시<span class="rl">›</span></div></div>';
   h+='<button class="cm-cbtn" style="width:100%;padding:13px;margin-top:4px'+(dirty?'':';background:#CBD5E1')+'" onclick="cmSaveSettings()">'+(dirty?'저장':'바뀐 내용 없음')+'</button>';
@@ -8795,7 +8796,7 @@ function wcMount(boxId,o){var box=$(boxId);if(!box||!COMM_BETA)return;var sk=Str
    대화 목록 · 내 활동이 바뀌면 직접 PC 알림을 띄우고, 아이콘 숫자를 붙인다. */
 var CM_DESK=!!(window.__TAURI__&&window.__TAURI__.notification);
 var CM_DESK_SEEN={s:{},a:{},ready:false};
-function cmDeskNotify(title,body,hash){if(!CM_DESK)return;if(hash&&(!document.hasFocus()||document.visibilityState!=='visible'))CM_DESK_LAST={h:hash,at:Date.now()};var n=window.__TAURI__.notification;Promise.resolve(n.isPermissionGranted()).then(function(ok){return ok?true:n.requestPermission().then(function(p){return p==='granted'})}).then(function(ok){if(ok)n.sendNotification({title:title,body:body})}).catch(function(){})}
+function cmDeskNotify(title,body,hash){if(!CM_DESK)return;if(cmPrefs().hide){title='DM';body='새 메시지가 있어요'}if(hash&&(!document.hasFocus()||document.visibilityState!=='visible'))CM_DESK_LAST={h:hash,at:Date.now()};var n=window.__TAURI__.notification;Promise.resolve(n.isPermissionGranted()).then(function(ok){return ok?true:n.requestPermission().then(function(p){return p==='granted'})}).then(function(ok){if(ok)n.sendNotification({title:title,body:body})}).catch(function(){})}
 function cmDeskCheck(){if(!CM_DESK||!CM.inbox)return;var first=!CM_DESK_SEEN.ready;var me=ME&&(ME.nick||ME.name);
   Object.keys(CM.inbox).forEach(function(k){var r=CM.inbox[k];if(!r)return;var prev=CM_DESK_SEEN.s[k];CM_DESK_SEEN.s[k]=r.s||0;if(first||prev==null||(r.s||0)<=prev)return;if((r.r||0)>=(r.s||0))return;if(r.bn===me)return;
     var viewing=CM.rid===k&&cmOn('p-comm-room')&&document.hasFocus();if(viewing)return;var mention=(r.mn||0)>prev;if(r.mute&&!mention)return;

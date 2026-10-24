@@ -708,8 +708,9 @@ export function makeChat(deps) {
 
   async function prefs(env, me, body) {
     await meUser(env, me);
-    const v = { quiet: body.quiet ? 1 : null, only: body.only ? 1 : null };
-    await dbPut(env, `/chat/prefs/${me.ph}`, (v.quiet || v.only) ? v : null);
+    /* hide: 알림에 내용을 보이지 않음(카톡 '메시지 미리보기 끄기') — pushToPhones 가 이 사람에게는 'DM · 새 메시지가 있어요'로 보낸다 */
+    const v = { quiet: body.quiet ? 1 : null, only: body.only ? 1 : null, hide: body.hide ? 1 : null };
+    await dbPut(env, `/chat/prefs/${me.ph}`, (v.quiet || v.only || v.hide) ? v : null);
     quietCache.at = 0;
     return {};
   }
