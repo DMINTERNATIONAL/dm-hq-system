@@ -411,6 +411,7 @@ export default {
   /* 5분마다: 채팅 '다시 알림' 보내기 */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
+    ctx.waitUntil(chatRoute.runScheduled(env, ctx).catch((e) => console.log('sched', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';

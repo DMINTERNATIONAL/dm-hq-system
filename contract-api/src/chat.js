@@ -11,7 +11,9 @@
  *                              x 글, md 첨부, rp 인용 답장, th:{c 답장 수, l 마지막}, mn 부른 사람, rx 반응,
  *                              ed 수정 시각, del 삭제 }
  *   /chat/thr/{rid}/{root}/{key}  답장 묶기(스레드) 안의 메시지
- *   /chat/inbox/{폰}/{rid}   { s 방 최신 번호, r 내가 읽은 번호, at, x, bn, t, n 이 사람에게 보일 방 이름, mn 나를 부른 번호 }
+ *   /chat/inbox/{폰}/{rid}   { s 방 최신 번호, r 내가 읽은 번호, at, x, bn, t, n 이 사람에게 보일 방 이름, mn 나를 부른 번호,
+ *                              pin 상단 고정 시각, nm 나만 보는 방 이름, hid 1:1 숨긴 시점 번호(s 가 커지면 다시 보임) }
+ *   /chat/sched/{id}         예약 메시지 { ph, rid, x, at 보낼 시각, mn } — 1분 타이머가 보낸다
  *   /chat/reads/{rid}/{폰}   내가 읽은 번호 — 말풍선 옆 '안 읽은 사람 수' 계산용
  *   /chat/act/{폰}/{id}      내 활동 { k mention · reply · all, rid, key, x, bn, at, done }
  *
@@ -39,6 +41,55 @@ const kst = () => new Date(Date.now() + 9 * 3600e3);
 const kstDate = () => kst().toISOString().slice(0, 10);
 /* 정기 휴무 — 앱의 isRegularDayOff 와 같은 규칙 */
 const regularOff = (brand) => { const d = kst().getUTCDay(); return brand === 'DAY:MEAN' ? (d === 1 || d === 2) : brand === 'ETOH' ? d === 1 : false; };
+
+/* ═══ 링크 미리보기 ═══
+   주소의 HTML 앞부분(최대 300KB · 4초)만 읽어 og:title · og:description · og:image 를 뽑는다.
+   사내 주소 · IP 주소 · http/https 아닌 것은 열지 않는다(남의 내부망을 대신 열어 주지 않게). */
+const URL_RE = /https?:\/\/[^\s<>"']+/;
+const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+const decodeEnt = (s) => String(s).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)) : (ENT[e.toLowerCase()] ?? m));
+function safeUrl(u) {
+  try {
+    const x = new URL(u);
+    if (x.protocol !== 'https:' && x.protocol !== 'http:') return null;
+    const h = x.hostname.toLowerCase();
+    if (!h.includes('.') || /^(localhost|.*\.local|.*\.internal|.*\.lan)$/.test(h) || /^[\d.]+$/.test(h) || h.includes(':')) return null;
+    return x;
+  } catch (_) { return null; }
+}
+async function unfurl(u) {
+  const x = safeUrl(u.replace(/[),.!?]+$/, ''));
+  if (!x) return null;
+  const ac = new AbortController(); const timer = setTimeout(() => ac.abort(), 4000);
+  try {
+    /* 유튜브는 페이지 앞부분에 제목이 안 나와서 공식 oEmbed 로 */
+    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(x.hostname)) {
+      const o = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(x.href), { signal: ac.signal });
+      if (!o.ok) return null;
+      const j = await o.json();
+      if (!j || !j.title) return null;
+      const lp = { u: x.href.slice(0, 500), t: String(j.title).slice(0, 100), h: 'youtube.com' };
+      if (j.author_name) lp.d = String(j.author_name).slice(0, 160);
+      if (j.thumbnail_url && String(j.thumbnail_url).startsWith('https://')) lp.i = String(j.thumbnail_url).slice(0, 500);
+      return lp;
+    }
+    const r = await fetch(x.href, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DMLinkPreview/1.0)', Accept: 'text/html' }, redirect: 'follow', signal: ac.signal });
+    if (!r.ok || !/text\/html/i.test(r.headers.get('content-type') || '') || !r.body) return null;
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let html = '', n = 0;
+    while (n < 300000) { const { done, value } = await reader.read(); if (done) break; n += value.length; html += dec.decode(value, { stream: true }); if (/<\/head>/i.test(html)) break; }
+    try { await reader.cancel(); } catch (_) {}
+    const pick = (re) => { const m = html.match(re); return m ? decodeEnt(m[1]).replace(/\s+/g, ' ').trim() : ''; };
+    const meta = (p) => pick(new RegExp(`<meta[^>]+(?:property|name)=["']${p}["'][^>]*content=["']([^"']*)["']`, 'i')) || pick(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${p}["']`, 'i'));
+    const t = meta('og:title') || meta('twitter:title') || pick(/<title[^>]*>([^<]*)<\/title>/i);
+    if (!t) return null;
+    let img = meta('og:image') || meta('twitter:image');
+    if (img) { try { img = new URL(img, r.url || x.href).href; if (!img.startsWith('https://')) img = ''; } catch (_) { img = ''; } }
+    const lp = { u: x.href.slice(0, 500), t: t.slice(0, 100), h: x.hostname.replace(/^www\./, '') };
+    const d = meta('og:description') || meta('description'); if (d) lp.d = d.slice(0, 160);
+    if (img) lp.i = img.slice(0, 500);
+    return lp;
+  } catch (_) { return null; } finally { clearTimeout(timer); }
+}
 
 export function makeChat(deps) {
   const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken } = deps;
@@ -261,7 +312,77 @@ export function makeChat(deps) {
     }
     })().catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(pushJob); else await pushJob;
+    /* 링크 미리보기 — 글에 주소가 있으면 그 페이지의 제목 · 설명 · 대표 사진을 뒤에서 받아 메시지에 붙인다 */
+    const link = !md && k === 't' && x ? (x.match(URL_RE) || [])[0] : null;
+    if (link) {
+      const lpJob = unfurl(link).then((lp) => lp ? dbPut(env, `${root ? `/chat/thr/${rid}/${root}/${key}` : `/chat/msgs/${rid}/${key}`}/lp`, lp) : null).catch(() => {});
+      if (ctx && ctx.waitUntil) ctx.waitUntil(lpJob); else await lpJob;
+    }
     return { key, seq, at };
+  }
+
+  /* 내 목록에서만 — 상단 고정 · 나만 보는 방 이름 · 1:1 숨기기(카톡 '나가기'처럼 목록에서 지우고, 새 메시지가 오면 다시 보임) */
+  async function roomPrefs(env, me, body) {
+    await meUser(env, me);
+    const rid = String(body.rid || ''), ph = String(me.ph);
+    const room = await getRoom(env, rid);
+    if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
+    const b = `chat/inbox/${ph}/${rid}`, up = {};
+    if ('pin' in body) up[`${b}/pin`] = body.pin ? nowMs() : null;
+    if ('nm' in body) up[`${b}/nm`] = clip(body.nm, 30).trim() || null;
+    if ('hide' in body) {
+      if (body.hide && room.t !== 'dm' && room.t !== 'me') throw new Error('1:1 대화만 목록에서 지울 수 있어요');
+      up[`${b}/hid`] = body.hide ? (room.seq || 0) : null;
+      if (body.hide) up[`${b}/pin`] = null;
+    }
+    if (!Object.keys(up).length) throw new Error('바꿀 내용이 없습니다');
+    await dbPatch(env, '/', up);
+    return {};
+  }
+
+  /* 예약 전송 — 정한 시각에 1분 타이머(scheduled)가 보낸 사람 이름으로 보낸다. 보낼 때 방 참여 · 권한을 다시 확인한다 */
+  async function schedCreate(env, me, body) {
+    const u = await meUser(env, me);
+    const rid = String(body.rid || ''), ph = String(me.ph);
+    const room = await getRoom(env, rid);
+    if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
+    if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
+    const x = clip(body.x, 5000).trim();
+    if (!x) throw new Error('보낼 내용을 입력해 주세요');
+    const at = Math.round(Number(body.at) || 0);
+    if (at < nowMs() + 50 * 1000) throw new Error('지금보다 1분 이상 뒤로 정해 주세요');
+    if (at > nowMs() + 30 * 86400e3) throw new Error('30일 안으로만 예약할 수 있어요');
+    const all = (await dbGet(env, '/chat/sched').catch(() => null)) || {};
+    if (Object.values(all).filter((v) => v && v.ph === ph).length >= 20) throw new Error('예약은 한 사람당 20개까지예요');
+    const mn = body.mn === '*' ? '*' : (Array.isArray(body.mn) ? body.mn.slice(0, 50).map(String) : []);
+    const id = rid36();
+    await dbPut(env, `/chat/sched/${id}`, { ph, rid, x, at, mn, made: nowMs() });
+    return { id };
+  }
+  async function schedList(env, me, body) {
+    const all = (await dbGet(env, '/chat/sched').catch(() => null)) || {};
+    const rid = String(body.rid || ''), ph = String(me.ph);
+    const items = Object.entries(all).filter(([, v]) => v && v.ph === ph && (!rid || v.rid === rid))
+      .map(([id, v]) => ({ id, rid: v.rid, x: v.x, at: v.at })).sort((a, b) => a.at - b.at);
+    return { items };
+  }
+  async function schedCancel(env, me, body) {
+    const id = String(body.id || '');
+    if (!/^[a-z0-9]{6,20}$/.test(id)) throw new Error('예약 정보가 올바르지 않습니다');
+    const v = await dbGet(env, `/chat/sched/${id}`).catch(() => null);
+    if (!v || v.ph !== String(me.ph)) throw new Error('이미 보냈거나 없는 예약이에요');
+    await dbDelete(env, `/chat/sched/${id}`);
+    return {};
+  }
+  async function runScheduled(env, ctx) {
+    const all = (await dbGet(env, '/chat/sched').catch(() => null)) || {};
+    const due = Object.entries(all).filter(([, v]) => v && v.at <= nowMs() + 20 * 1000);
+    for (const [id, v] of due) {
+      await dbDelete(env, `/chat/sched/${id}`);          // 먼저 지운다 — 타이머가 겹쳐도 두 번 보내지 않게
+      try { await send(env, ctx, { ph: v.ph }, { rid: v.rid, k: 't', x: v.x, mn: v.mn }); }
+      catch (e) { await pushToPhones(env, [v.ph], { title: '예약 메시지를 보내지 못했어요', body: clip(e.message, 100), url: './#comm/' + v.rid, tag: 'sched-' + id }).catch(() => {}); }
+    }
+    return due.length;
   }
 
   async function ensureDm(env, me, to) {
@@ -397,7 +518,7 @@ export function makeChat(deps) {
     else {
       const x = clip(body.x, 5000).trim();
       if (!x) throw new Error('내용을 입력해 주세요');
-      await dbPatch(env, path, { x, ed: nowMs() });
+      await dbPatch(env, path, { x, ed: nowMs(), lp: null });
     }
     return {};
   }
@@ -598,6 +719,10 @@ export function makeChat(deps) {
         case '/chat/leave': out = await leave(env, me, body); break;
         case '/chat/rename': out = await rename(env, me, body); break;
         case '/chat/mute': out = await mute(env, me, body); break;
+        case '/chat/roomprefs': out = await roomPrefs(env, me, body); break;
+        case '/chat/sched': out = await schedCreate(env, me, body); break;
+        case '/chat/sched/list': out = await schedList(env, me, body); break;
+        case '/chat/sched/cancel': out = await schedCancel(env, me, body); break;
         case '/chat/edit': out = await editOrDelete(env, me, body, false); break;
         case '/chat/delete': out = await editOrDelete(env, me, body, true); break;
         case '/chat/hide': out = await editOrDelete(env, me, body, 'hide'); break;
@@ -620,6 +745,7 @@ export function makeChat(deps) {
     }
   };
   route.runReminders = runReminders;
+  route.runScheduled = runScheduled;
   route.eligible = eligible;
   return route;
 }
