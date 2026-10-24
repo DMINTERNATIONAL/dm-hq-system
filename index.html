@@ -8822,9 +8822,14 @@ function cmVV(){var vv=window.visualViewport;var open=false;
 var CM_KBH=0;try{CM_KBH=+localStorage.getItem('cm_kbh')||0}catch(_){}
 function cmPinBottom(msgsId,ms){var m=$(msgsId);if(!m)return;var end=Date.now()+(ms||350);(function f(){m.scrollTop=m.scrollHeight;if(Date.now()<end)requestAnimationFrame(f)})()}
 function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;var id=ta&&ta.id==='CM-TCOMP-TA'?'p-comm-thread':'p-comm-room';var e=$(id);if(!e||!e.classList.contains('on'))return;
-  if(open){if(!CM_KBH)return;var vv=window.visualViewport;if(vv&&window.innerHeight-vv.height>150)return;e.style.top='0px';e.style.bottom='auto';e.style.height=(window.innerHeight-CM_KBH)+'px'}
+  /* 올라갈 때는 전환 효과 없이 '즉시' 줄인다. 천천히 줄이면 그 사이 아이폰이 '입력칸이 키보드에 가려진다'고 보고 화면 전체를
+     한 번 더 밀어 올려, 두 움직임이 겹쳐 버벅였다(위로 너무 갔다가 제자리로). 내려갈 때는 지금처럼 부드럽게 */
+  if(open){if(!CM_KBH)return;var vv=window.visualViewport;if(vv&&window.innerHeight-vv.height>150)return;
+    e.style.transition='none';e.style.top='0px';e.style.bottom='auto';e.style.height=(window.innerHeight-CM_KBH)+'px';void e.offsetHeight;
+    var m=$(id==='p-comm-thread'?'CM-TMSGS':'CM-MSGS');if(m)m.scrollTop=m.scrollHeight;
+    setTimeout(function(){e.style.transition=''},450)}
   else{e.style.top='0px';e.style.bottom='auto';e.style.height=window.innerHeight+'px'}
-  cmPinBottom(id==='p-comm-thread'?'CM-TMSGS':'CM-MSGS',400)}
+  cmPinBottom(id==='p-comm-thread'?'CM-TMSGS':'CM-MSGS',open?250:400)}
 document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){cmKbPredict(true,e.target);setTimeout(cmVV,50);setTimeout(cmVV,350)}});
 document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){var t=e.target;setTimeout(function(){if(document.activeElement!==t)cmKbPredict(false,t)},0);setTimeout(cmVV,100)}});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
