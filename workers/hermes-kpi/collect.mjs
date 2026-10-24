@@ -997,7 +997,12 @@ async function collectSns(date, dry) {
         break;
       }
       // 조회 실패(없는 아이디·개인계정·비공개 등) → 사유 기록해 직원관리에서 확인 가능
-      if (!dry) { try { await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: false, username, error: e.message, at: nowIso() }); } catch (_) {} }
+      // n = 같은 아이디로 연속 실패한 횟수, since = 처음 실패한 날 → 앱이 n>=3 이고 다음 날 9시가 지나면 본인에게 '아이디 확인' 팝업
+      const prev = u.ig_check || {};
+      const again = prev.ok === false && prev.username === username && !isLimit(prev.error);
+      const n = again ? (+prev.n || 1) + 1 : 1;
+      const since = again && prev.since ? prev.since : date;
+      if (!dry) { try { await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: false, username, error: e.message, at: nowIso(), n, since }); } catch (_) {} }
       out.push({ shop, name, username, ok: false, error: e.message });
     }
     if (i < active.length - 1) await sleep(CONFIG.igRateGapMs);
