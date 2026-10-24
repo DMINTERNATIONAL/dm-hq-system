@@ -1841,8 +1841,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-tm b{color:#D97706;font-weight:800}
 .cm-rp{font-size:12px;border-left:3px solid #CBD5E1;padding:1px 0 1px 7px;margin-bottom:5px;color:var(--cm-ink2);opacity:.9}
 .cm-m.me .cm-rp{border-color:rgba(255,255,255,.6);color:#E0EAFF}
-.cm-th{margin-top:6px;padding-top:5px;border-top:1px solid var(--cm-line);font-size:12px;color:var(--cm-blue);font-weight:700;cursor:pointer}
-.cm-m.me .cm-th{border-color:rgba(255,255,255,.3);color:var(--cm-me-ink,#fff)}
+.cm-th,.cm-rpn{margin-top:6px;padding-top:5px;border-top:1px solid var(--cm-line);font-size:12px;color:var(--cm-blue);font-weight:700;cursor:pointer}.cm-rp{cursor:pointer}
+.cm-m.me .cm-th,.cm-m.me .cm-rpn{border-color:rgba(255,255,255,.3);color:var(--cm-me-ink,#fff)}.cm-m .cm-b.card .cm-rpn{background:#fff;color:var(--cm-blue);border:1px solid var(--cm-line);border-radius:10px;padding:8px 12px;margin-top:6px;text-align:center}
 .cm-rx{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
 .cm-rx span{font-size:11px;background:#fff;border:1px solid var(--cm-line);border-radius:99px;padding:0 7px;color:var(--cm-ink2);cursor:pointer}
 .cm-rx span.mine{border-color:var(--cm-blue);color:var(--cm-blue);font-weight:700}
@@ -2106,7 +2106,7 @@ html.dm-dark .cm-b{background:#1C1C1E}
 html.dm-dark .cm-b .mn{color:#759CF2}
 html.dm-dark .cm-tm b{color:#F8C080}
 html.dm-dark .cm-rp{border-left:3px solid #2C2C2E}
-html.dm-dark .cm-m.me .cm-rp{color:#395EAC}
+html.dm-dark .cm-m .cm-b.card .cm-rpn{background:#1C1C1E}
 html.dm-dark .cm-rx span{background:#1C1C1E}
 html.dm-dark .cm-comp{background:#1C1C1E}
 html.dm-dark .cm-send:disabled{background:#3A3A3C}
@@ -2296,61 +2296,30 @@ html.dm-dark [style^="color:#9ca3af" i],html.dm-dark [style*=";color:#9ca3af" i]
 html.dm-dark [style^="color:#a855f7" i],html.dm-dark [style*=";color:#a855f7" i],html.dm-dark [style*="; color:#a855f7" i]{color:#AB5CF6!important}
 html.dm-dark [style^="color:#a9762d" i],html.dm-dark [style*=";color:#a9762d" i],html.dm-dark [style*="; color:#a9762d" i]{color:#E4C498!important}
 html.dm-dark [style^="color:#b8860b" i],html.dm-dark [style*=";color:#b8860b" i],html.dm-dark [style*="; color:#b8860b" i]{color:#F8D88A!important}
-html.dm-dark [style^="color:#bbf7d0" i],html.dm-dark [style*=";color:#bbf7d0" i],html.dm-dark [style*="; color:#bbf7d0" i]{color:#45A065!important}
 html.dm-dark [style^="color:#be185d" i],html.dm-dark [style*=";color:#be185d" i],html.dm-dark [style*="; color:#be185d" i]{color:#F08BB5!important}
-html.dm-dark [style^="color:#bfdbfe" i],html.dm-dark [style*=";color:#bfdbfe" i],html.dm-dark [style*="; color:#bfdbfe" i]{color:#3B6DAA!important}
 html.dm-dark [style^="color:#c15a24" i],html.dm-dark [style*=";color:#c15a24" i],html.dm-dark [style*="; color:#c15a24" i]{color:#EAAD8D!important}
 html.dm-dark [style^="color:#c39a5a" i],html.dm-dark [style*=";color:#c39a5a" i],html.dm-dark [style*="; color:#c39a5a" i]{color:#D6B98D!important}
 html.dm-dark [style^="color:#c76b93" i],html.dm-dark [style*=";color:#c76b93" i],html.dm-dark [style*="; color:#c76b93" i]{color:#D289A9!important}
 html.dm-dark [style^="color:#cd7f32" i],html.dm-dark [style*=";color:#cd7f32" i],html.dm-dark [style*="; color:#cd7f32" i]{color:#E3B68B!important}
-html.dm-dark [style^="color:#cffafe" i],html.dm-dark [style*=";color:#cffafe" i],html.dm-dark [style*="; color:#cffafe" i]{color:#3CA0AA!important}
 html.dm-dark [style^="color:#d1d5db" i],html.dm-dark [style*=";color:#d1d5db" i],html.dm-dark [style*="; color:#d1d5db" i]{color:#6C7889!important}
 html.dm-dark [style^="color:#d9822b" i],html.dm-dark [style*=";color:#d9822b" i],html.dm-dark [style*="; color:#d9822b" i]{color:#E9B683!important}
-html.dm-dark [style^="color:#dbeafe" i],html.dm-dark [style*=";color:#dbeafe" i],html.dm-dark [style*="; color:#dbeafe" i]{color:#3C6BA9!important}
-html.dm-dark [style^="color:#dcfce7" i],html.dm-dark [style*=";color:#dcfce7" i],html.dm-dark [style*="; color:#dcfce7" i]{color:#42A364!important}
-html.dm-dark [style^="color:#e0f2fe" i],html.dm-dark [style*=";color:#e0f2fe" i],html.dm-dark [style*="; color:#e0f2fe" i]{color:#3D7EA9!important}
-html.dm-dark [style^="color:#e2e8f0" i],html.dm-dark [style*=";color:#e2e8f0" i],html.dm-dark [style*="; color:#e2e8f0" i]{color:#607085!important}
 html.dm-dark [style^="color:#e3e3e3" i],html.dm-dark [style*=";color:#e3e3e3" i],html.dm-dark [style*="; color:#e3e3e3" i]{color:#747474!important}
 html.dm-dark [style^="color:#e5e7eb" i],html.dm-dark [style*=";color:#e5e7eb" i],html.dm-dark [style*="; color:#e5e7eb" i]{color:#646D7F!important}
 html.dm-dark [style^="color:#e5e9f0" i],html.dm-dark [style*=";color:#e5e9f0" i],html.dm-dark [style*="; color:#e5e9f0" i]{color:#636D7E!important}
-html.dm-dark [style^="color:#e7f8ee" i],html.dm-dark [style*=";color:#e7f8ee" i],html.dm-dark [style*="; color:#e7f8ee" i]{color:#53926D!important}
-html.dm-dark [style^="color:#e9d5ff" i],html.dm-dark [style*=";color:#e9d5ff" i],html.dm-dark [style*="; color:#e9d5ff" i]{color:#7039AC!important}
 html.dm-dark [style^="color:#e9e9ec" i],html.dm-dark [style*=";color:#e9e9ec" i],html.dm-dark [style*="; color:#e9e9ec" i]{color:#686878!important}
-html.dm-dark [style^="color:#eaf2fe" i],html.dm-dark [style*=";color:#eaf2fe" i],html.dm-dark [style*="; color:#eaf2fe" i]{color:#3F68A7!important}
-html.dm-dark [style^="color:#eaf6ee" i],html.dm-dark [style*=";color:#eaf6ee" i],html.dm-dark [style*="; color:#eaf6ee" i]{color:#5C8A6B!important}
 html.dm-dark [style^="color:#ec4899" i],html.dm-dark [style*=";color:#ec4899" i],html.dm-dark [style*="; color:#ec4899" i]{color:#F06BAC!important}
 html.dm-dark [style^="color:#eceef1" i],html.dm-dark [style*=";color:#eceef1" i],html.dm-dark [style*="; color:#eceef1" i]{color:#616C7B!important}
-html.dm-dark [style^="color:#ecfdf5" i],html.dm-dark [style*=";color:#ecfdf5" i],html.dm-dark [style*="; color:#ecfdf5" i]{color:#44A175!important}
-html.dm-dark [style^="color:#ede9fe" i],html.dm-dark [style*=";color:#ede9fe" i],html.dm-dark [style*="; color:#ede9fe" i]{color:#523EA7!important}
-html.dm-dark [style^="color:#eef0fb" i],html.dm-dark [style*=";color:#eef0fb" i],html.dm-dark [style*="; color:#eef0fb" i]{color:#4F5A96!important}
-html.dm-dark [style^="color:#eef2f6" i],html.dm-dark [style*=";color:#eef2f6" i],html.dm-dark [style*="; color:#eef2f6" i]{color:#617384!important}
-html.dm-dark [style^="color:#eef2ff" i],html.dm-dark [style*=";color:#eef2ff" i],html.dm-dark [style*="; color:#eef2ff" i]{color:#3954AC!important}
-html.dm-dark [style^="color:#eef4fb" i],html.dm-dark [style*=";color:#eef4fb" i],html.dm-dark [style*="; color:#eef4fb" i]{color:#4F7096!important}
-html.dm-dark [style^="color:#efe3c6" i],html.dm-dark [style*=";color:#efe3c6" i],html.dm-dark [style*="; color:#efe3c6" i]{color:#938053!important}
-html.dm-dark [style^="color:#eff6ff" i],html.dm-dark [style*=";color:#eff6ff" i],html.dm-dark [style*="; color:#eff6ff" i]{color:#396CAC!important}
-html.dm-dark [style^="color:#f0fdf4" i],html.dm-dark [style*=";color:#f0fdf4" i],html.dm-dark [style*="; color:#f0fdf4" i]{color:#479F62!important}
 html.dm-dark [style^="color:#f1f1f4" i],html.dm-dark [style*=";color:#f1f1f4" i],html.dm-dark [style*="; color:#f1f1f4" i]{color:#5F5F79!important}
 html.dm-dark [style^="color:#f1f3f6" i],html.dm-dark [style*=";color:#f1f3f6" i],html.dm-dark [style*="; color:#f1f3f6" i]{color:#5F6979!important}
-html.dm-dark [style^="color:#f1f5f9" i],html.dm-dark [style*=";color:#f1f5f9" i],html.dm-dark [style*="; color:#f1f5f9" i]{color:#5C738A!important}
 html.dm-dark [style^="color:#f3f4f6" i],html.dm-dark [style*=";color:#f3f4f6" i],html.dm-dark [style*="; color:#f3f4f6" i]{color:#5E6778!important}
 html.dm-dark [style^="color:#f4f6f9" i],html.dm-dark [style*=";color:#f4f6f9" i],html.dm-dark [style*="; color:#f4f6f9" i]{color:#5E6978!important}
 html.dm-dark [style^="color:#f59e0b" i],html.dm-dark [style*=";color:#f59e0b" i],html.dm-dark [style*="; color:#f59e0b" i]{color:#F8C775!important}
 html.dm-dark [style^="color:#f5a623" i],html.dm-dark [style*=";color:#f5a623" i],html.dm-dark [style*="; color:#f5a623" i]{color:#F7C36D!important}
-html.dm-dark [style^="color:#f8d7da" i],html.dm-dark [style*=";color:#f8d7da" i],html.dm-dark [style*="; color:#f8d7da" i]{color:#9B4A52!important}
 html.dm-dark [style^="color:#f97316" i],html.dm-dark [style*=";color:#f97316" i],html.dm-dark [style*="; color:#f97316" i]{color:#F7A870!important}
 html.dm-dark [style^="color:#fcd34d" i],html.dm-dark [style*=";color:#fcd34d" i],html.dm-dark [style*="; color:#fcd34d" i]{color:#F6D25D!important}
-html.dm-dark [style^="color:#fce7f3" i],html.dm-dark [style*=";color:#fce7f3" i],html.dm-dark [style*="; color:#fce7f3" i]{color:#9F4679!important}
-html.dm-dark [style^="color:#fecaca" i],html.dm-dark [style*=";color:#fecaca" i],html.dm-dark [style*="; color:#fecaca" i]{color:#AA3B3B!important}
-html.dm-dark [style^="color:#fee2e2" i],html.dm-dark [style*=";color:#fee2e2" i],html.dm-dark [style*="; color:#fee2e2" i]{color:#A83D3D!important}
 html.dm-dark [style^="color:#fee500" i],html.dm-dark [style*=";color:#fee500" i],html.dm-dark [style*="; color:#fee500" i]{color:#F8EB76!important}
-html.dm-dark [style^="color:#fef3c7" i],html.dm-dark [style*=";color:#fef3c7" i],html.dm-dark [style*="; color:#fef3c7" i]{color:#AA943B!important}
-html.dm-dark [style^="color:#fef9c3" i],html.dm-dark [style*=";color:#fef9c3" i],html.dm-dark [style*="; color:#fef9c3" i]{color:#AAA13B!important}
 html.dm-dark [style^="color:#ff375f" i],html.dm-dark [style*=";color:#ff375f" i],html.dm-dark [style*="; color:#ff375f" i]{color:#F76381!important}
 html.dm-dark [style^="color:#ff3b30" i],html.dm-dark [style*=";color:#ff3b30" i],html.dm-dark [style*="; color:#ff3b30" i]{color:#F76D65!important}
-html.dm-dark [style^="color:#fff0ef" i],html.dm-dark [style*=";color:#fff0ef" i],html.dm-dark [style*="; color:#fff0ef" i]{color:#AC4139!important}
-html.dm-dark [style^="color:#fff3e0" i],html.dm-dark [style*=";color:#fff3e0" i],html.dm-dark [style*="; color:#fff3e0" i]{color:#AC8039!important}
-html.dm-dark [style^="color:#fff7ed" i],html.dm-dark [style*=";color:#fff7ed" i],html.dm-dark [style*="; color:#fff7ed" i]{color:#AC7939!important}
-html.dm-dark [style^="color:#fffbeb" i],html.dm-dark [style*=";color:#fffbeb" i],html.dm-dark [style*="; color:#fffbeb" i]{color:#AC9539!important}
 html.dm-dark [style*="background:#fff" i]{background:#1C1C1E!important}
 html.dm-dark [style*="background:#eee" i]{background:#2C2C2E!important}
 html.dm-dark [style*="background:#111" i]{background:#3A3A3C!important}
@@ -2616,49 +2585,18 @@ html.dm-dark [style^="color: rgb(209, 209, 214)" i],html.dm-dark [style*=";color
 html.dm-dark [style^="color: rgb(107, 114, 128)" i],html.dm-dark [style*=";color: rgb(107, 114, 128)" i],html.dm-dark [style*="; color: rgb(107, 114, 128)" i]{color:#7F8694!important}
 html.dm-dark [style^="color: rgb(139, 139, 136)" i],html.dm-dark [style*=";color: rgb(139, 139, 136)" i],html.dm-dark [style*="; color: rgb(139, 139, 136)" i]{color:#8B8B88!important}
 html.dm-dark [style^="color: rgb(156, 163, 175)" i],html.dm-dark [style*=";color: rgb(156, 163, 175)" i],html.dm-dark [style*="; color: rgb(156, 163, 175)" i]{color:#87909E!important}
-html.dm-dark [style^="color: rgb(187, 247, 208)" i],html.dm-dark [style*=";color: rgb(187, 247, 208)" i],html.dm-dark [style*="; color: rgb(187, 247, 208)" i]{color:#45A065!important}
-html.dm-dark [style^="color: rgb(191, 219, 254)" i],html.dm-dark [style*=";color: rgb(191, 219, 254)" i],html.dm-dark [style*="; color: rgb(191, 219, 254)" i]{color:#3B6DAA!important}
 html.dm-dark [style^="color: rgb(199, 107, 147)" i],html.dm-dark [style*=";color: rgb(199, 107, 147)" i],html.dm-dark [style*="; color: rgb(199, 107, 147)" i]{color:#D289A9!important}
-html.dm-dark [style^="color: rgb(207, 250, 254)" i],html.dm-dark [style*=";color: rgb(207, 250, 254)" i],html.dm-dark [style*="; color: rgb(207, 250, 254)" i]{color:#3CA0AA!important}
 html.dm-dark [style^="color: rgb(209, 213, 219)" i],html.dm-dark [style*=";color: rgb(209, 213, 219)" i],html.dm-dark [style*="; color: rgb(209, 213, 219)" i]{color:#6C7889!important}
-html.dm-dark [style^="color: rgb(219, 234, 254)" i],html.dm-dark [style*=";color: rgb(219, 234, 254)" i],html.dm-dark [style*="; color: rgb(219, 234, 254)" i]{color:#3C6BA9!important}
-html.dm-dark [style^="color: rgb(220, 252, 231)" i],html.dm-dark [style*=";color: rgb(220, 252, 231)" i],html.dm-dark [style*="; color: rgb(220, 252, 231)" i]{color:#42A364!important}
-html.dm-dark [style^="color: rgb(224, 242, 254)" i],html.dm-dark [style*=";color: rgb(224, 242, 254)" i],html.dm-dark [style*="; color: rgb(224, 242, 254)" i]{color:#3D7EA9!important}
-html.dm-dark [style^="color: rgb(226, 232, 240)" i],html.dm-dark [style*=";color: rgb(226, 232, 240)" i],html.dm-dark [style*="; color: rgb(226, 232, 240)" i]{color:#607085!important}
 html.dm-dark [style^="color: rgb(227, 227, 227)" i],html.dm-dark [style*=";color: rgb(227, 227, 227)" i],html.dm-dark [style*="; color: rgb(227, 227, 227)" i]{color:#747474!important}
 html.dm-dark [style^="color: rgb(229, 231, 235)" i],html.dm-dark [style*=";color: rgb(229, 231, 235)" i],html.dm-dark [style*="; color: rgb(229, 231, 235)" i]{color:#646D7F!important}
 html.dm-dark [style^="color: rgb(229, 233, 240)" i],html.dm-dark [style*=";color: rgb(229, 233, 240)" i],html.dm-dark [style*="; color: rgb(229, 233, 240)" i]{color:#636D7E!important}
-html.dm-dark [style^="color: rgb(231, 248, 238)" i],html.dm-dark [style*=";color: rgb(231, 248, 238)" i],html.dm-dark [style*="; color: rgb(231, 248, 238)" i]{color:#53926D!important}
-html.dm-dark [style^="color: rgb(233, 213, 255)" i],html.dm-dark [style*=";color: rgb(233, 213, 255)" i],html.dm-dark [style*="; color: rgb(233, 213, 255)" i]{color:#7039AC!important}
 html.dm-dark [style^="color: rgb(233, 233, 236)" i],html.dm-dark [style*=";color: rgb(233, 233, 236)" i],html.dm-dark [style*="; color: rgb(233, 233, 236)" i]{color:#686878!important}
-html.dm-dark [style^="color: rgb(234, 242, 254)" i],html.dm-dark [style*=";color: rgb(234, 242, 254)" i],html.dm-dark [style*="; color: rgb(234, 242, 254)" i]{color:#3F68A7!important}
-html.dm-dark [style^="color: rgb(234, 246, 238)" i],html.dm-dark [style*=";color: rgb(234, 246, 238)" i],html.dm-dark [style*="; color: rgb(234, 246, 238)" i]{color:#5C8A6B!important}
 html.dm-dark [style^="color: rgb(236, 238, 241)" i],html.dm-dark [style*=";color: rgb(236, 238, 241)" i],html.dm-dark [style*="; color: rgb(236, 238, 241)" i]{color:#616C7B!important}
-html.dm-dark [style^="color: rgb(236, 253, 245)" i],html.dm-dark [style*=";color: rgb(236, 253, 245)" i],html.dm-dark [style*="; color: rgb(236, 253, 245)" i]{color:#44A175!important}
-html.dm-dark [style^="color: rgb(237, 233, 254)" i],html.dm-dark [style*=";color: rgb(237, 233, 254)" i],html.dm-dark [style*="; color: rgb(237, 233, 254)" i]{color:#523EA7!important}
 html.dm-dark [style^="color: rgb(238, 238, 238)" i],html.dm-dark [style*=";color: rgb(238, 238, 238)" i],html.dm-dark [style*="; color: rgb(238, 238, 238)" i]{color:#6E6E6E!important}
-html.dm-dark [style^="color: rgb(238, 240, 251)" i],html.dm-dark [style*=";color: rgb(238, 240, 251)" i],html.dm-dark [style*="; color: rgb(238, 240, 251)" i]{color:#4F5A96!important}
-html.dm-dark [style^="color: rgb(238, 242, 246)" i],html.dm-dark [style*=";color: rgb(238, 242, 246)" i],html.dm-dark [style*="; color: rgb(238, 242, 246)" i]{color:#617384!important}
-html.dm-dark [style^="color: rgb(238, 242, 255)" i],html.dm-dark [style*=";color: rgb(238, 242, 255)" i],html.dm-dark [style*="; color: rgb(238, 242, 255)" i]{color:#3954AC!important}
-html.dm-dark [style^="color: rgb(238, 244, 251)" i],html.dm-dark [style*=";color: rgb(238, 244, 251)" i],html.dm-dark [style*="; color: rgb(238, 244, 251)" i]{color:#4F7096!important}
-html.dm-dark [style^="color: rgb(239, 227, 198)" i],html.dm-dark [style*=";color: rgb(239, 227, 198)" i],html.dm-dark [style*="; color: rgb(239, 227, 198)" i]{color:#938053!important}
-html.dm-dark [style^="color: rgb(239, 246, 255)" i],html.dm-dark [style*=";color: rgb(239, 246, 255)" i],html.dm-dark [style*="; color: rgb(239, 246, 255)" i]{color:#396CAC!important}
-html.dm-dark [style^="color: rgb(240, 253, 244)" i],html.dm-dark [style*=";color: rgb(240, 253, 244)" i],html.dm-dark [style*="; color: rgb(240, 253, 244)" i]{color:#479F62!important}
 html.dm-dark [style^="color: rgb(241, 241, 244)" i],html.dm-dark [style*=";color: rgb(241, 241, 244)" i],html.dm-dark [style*="; color: rgb(241, 241, 244)" i]{color:#5F5F79!important}
 html.dm-dark [style^="color: rgb(241, 243, 246)" i],html.dm-dark [style*=";color: rgb(241, 243, 246)" i],html.dm-dark [style*="; color: rgb(241, 243, 246)" i]{color:#5F6979!important}
-html.dm-dark [style^="color: rgb(241, 245, 249)" i],html.dm-dark [style*=";color: rgb(241, 245, 249)" i],html.dm-dark [style*="; color: rgb(241, 245, 249)" i]{color:#5C738A!important}
 html.dm-dark [style^="color: rgb(243, 244, 246)" i],html.dm-dark [style*=";color: rgb(243, 244, 246)" i],html.dm-dark [style*="; color: rgb(243, 244, 246)" i]{color:#5E6778!important}
 html.dm-dark [style^="color: rgb(244, 246, 249)" i],html.dm-dark [style*=";color: rgb(244, 246, 249)" i],html.dm-dark [style*="; color: rgb(244, 246, 249)" i]{color:#5E6978!important}
-html.dm-dark [style^="color: rgb(248, 215, 218)" i],html.dm-dark [style*=";color: rgb(248, 215, 218)" i],html.dm-dark [style*="; color: rgb(248, 215, 218)" i]{color:#9B4A52!important}
-html.dm-dark [style^="color: rgb(252, 231, 243)" i],html.dm-dark [style*=";color: rgb(252, 231, 243)" i],html.dm-dark [style*="; color: rgb(252, 231, 243)" i]{color:#9F4679!important}
-html.dm-dark [style^="color: rgb(254, 202, 202)" i],html.dm-dark [style*=";color: rgb(254, 202, 202)" i],html.dm-dark [style*="; color: rgb(254, 202, 202)" i]{color:#AA3B3B!important}
-html.dm-dark [style^="color: rgb(254, 226, 226)" i],html.dm-dark [style*=";color: rgb(254, 226, 226)" i],html.dm-dark [style*="; color: rgb(254, 226, 226)" i]{color:#A83D3D!important}
-html.dm-dark [style^="color: rgb(254, 243, 199)" i],html.dm-dark [style*=";color: rgb(254, 243, 199)" i],html.dm-dark [style*="; color: rgb(254, 243, 199)" i]{color:#AA943B!important}
-html.dm-dark [style^="color: rgb(254, 249, 195)" i],html.dm-dark [style*=";color: rgb(254, 249, 195)" i],html.dm-dark [style*="; color: rgb(254, 249, 195)" i]{color:#AAA13B!important}
-html.dm-dark [style^="color: rgb(255, 240, 239)" i],html.dm-dark [style*=";color: rgb(255, 240, 239)" i],html.dm-dark [style*="; color: rgb(255, 240, 239)" i]{color:#AC4139!important}
-html.dm-dark [style^="color: rgb(255, 243, 224)" i],html.dm-dark [style*=";color: rgb(255, 243, 224)" i],html.dm-dark [style*="; color: rgb(255, 243, 224)" i]{color:#AC8039!important}
-html.dm-dark [style^="color: rgb(255, 247, 237)" i],html.dm-dark [style*=";color: rgb(255, 247, 237)" i],html.dm-dark [style*="; color: rgb(255, 247, 237)" i]{color:#AC7939!important}
-html.dm-dark [style^="color: rgb(255, 251, 235)" i],html.dm-dark [style*=";color: rgb(255, 251, 235)" i],html.dm-dark [style*="; color: rgb(255, 251, 235)" i]{color:#AC9539!important}
 html.dm-dark [style*="border:1.5px solid #bfdbfe" i]{border:1.5px solid #264369!important}
 html.dm-dark [style*="border:1.5px solid #fca5a5" i]{border:1.5px solid #672627!important}
 html.dm-dark [style*="border-top:1px dashed #eee" i]{border-top:1px dashed #2C2C2E!important}
@@ -9105,7 +9043,7 @@ function cmRowAct(rid,act){var r=CM.inbox&&CM.inbox[rid];if(!r)return;
 function cmOpenRoom(rid,thRoot){
   if(!COMM_BETA)return;cmBoot();
   CM.find={on:false,q:'',k:''};
-  if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[]}
+  if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[];CM.rpRoot=null;CM.rpAll={}}
   go('p-comm-room');cmRoomShell();cmVV();CM.sched=[];setTimeout(cmSchedLoad,300);
   if(!CM.room){var cr=cmCacheGet('r_'+rid),cm=cmCacheGet('m_'+rid),cd=cmCacheGet('d_'+rid);if(cr&&cm){CM.room=cr;CM.msgs=cm;CM.reads=cd||{};cmRoomHead();cmRenderMsgs()}}
   cmStream('room','/chat/rooms/'+rid,'',function(d){CM.room=d;cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
@@ -9128,11 +9066,12 @@ function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object
   var nb=$('CM-NOTICE');if(nb)nb.innerHTML=r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'';
   var canWrite=!(r.t==='notice'&&!cmIsManager());var c=$('CM-COMP');if(c&&c.getAttribute('data-ro')!==String(!canWrite)){c.setAttribute('data-ro',String(!canWrite));if(canWrite)cmComposer('CM-COMP',false);else c.innerHTML='<div class="cm-ro">경영팀 · 관리자만 쓸 수 있는 방입니다</div>'}}
 function cmUnread(m){var r=CM.room;if(!r||!r.m||!m.s)return 0;var n=0;Object.keys(r.m).forEach(function(p){if(p!==m.by&&(CM.reads[p]||0)<m.s)n++});return n}
+function cmRpnHtml(m){var n=!CM.thRoot&&!CM.rpRoot&&CM.rpN&&m&&m._k&&CM.rpN[m._k];return n?'<div class="cm-rpn">답장 '+n+'개 모아 보기 ›</div>':''}
 function cmBody(m,isMe){
   if(m.hid)return '<div class="cm-b del">관리자가 가린 메시지입니다</div>';
   if(m.del)return '<div class="cm-b del">삭제된 메시지입니다</div>';
-  if(m.nt&&!m.del&&!m.hid)return '<div class="cm-b card">'+cmNoticeCard(m)+'</div>';
-  if(m.k==='ack'&&!CM.thRoot)return '<div class="cm-b card">'+cmAckHtml(m,m._k||'')+'</div>';
+  if(m.nt&&!m.del&&!m.hid)return '<div class="cm-b card">'+cmNoticeCard(m)+cmRpnHtml(m)+'</div>';
+  if(m.k==='ack'&&!CM.thRoot)return '<div class="cm-b card">'+cmAckHtml(m,m._k||'')+cmRpnHtml(m)+'</div>';
   if(m.k==='poll'&&!CM.thRoot)return '<div class="cm-b card">'+cmPollHtml(m,m._k||'')+'</div>';
   var x=cmEsc(m.x||'');
   if(m.mn)x=x.replace(/@([^\s@<]+)/g,'<span class="mn">@$1</span>');
@@ -9140,7 +9079,8 @@ function cmBody(m,isMe){
   x=x.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">$1</a>');
   var rp=m.rp?'<div class="cm-rp">'+cmEsc(m.rp.bn)+' · '+cmEsc(m.rp.x)+'</div>':'';
   var md=cmMediaHtml(m);
-  var th=m.th&&m.th.c&&!CM.thRoot?'<div class="cm-th">답장 '+m.th.c+'개 · '+cmTime(m.th.l)+' ›</div>':'';
+  var th=m.th&&m.th.c&&!CM.thRoot&&!CM.rpRoot?'<div class="cm-th">답장 '+m.th.c+'개 · '+cmTime(m.th.l)+' ›</div>':'';
+  th+=cmRpnHtml(m);
   var fw=m.fw?'<div class="cm-fw">전달됨 · '+cmEsc(m.fw)+'</div>':'';
   var lp='';if(m.lp&&m.lp.u&&/^https?:\/\//.test(m.lp.u)){var L=m.lp;lp='<a class="cm-lp" href="'+cmEsc(L.u)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">'+(L.i&&/^https:\/\//.test(L.i)?'<img src="'+cmEsc(L.i)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+'<span><b>'+cmEsc(L.t||'')+'</b>'+(L.d?'<em>'+cmEsc(L.d)+'</em>':'')+'<small>'+cmEsc(L.h||'')+'</small></span></a>'}
   return '<div class="cm-b'+(md&&!x?' media':'')+'">'+fw+rp+md+x+(m.ed?' <span style="font-size:11px;opacity:.7">(수정됨)</span>':'')+lp+th+'</div>'}
@@ -9158,7 +9098,7 @@ function cmMsgHtml(list,opts){
     prev=m});
   return h}
 var CM_PENDING={};
-function cmRenderMsgs(){var box=$('CM-MSGS');if(!box||!CM.room)return;
+function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.reply=CM._rpSaved||null}if(CM.rpRoot)setTimeout(cmRenderReplies,0);CM.rpN=cmRpCount(CM.msgs);var box=$('CM-MSGS');if(!box||!CM.room)return;
   var near=box.scrollHeight-box.scrollTop-box.clientHeight<120||box.getAttribute('data-first')!=='1';
   var keys=Object.keys(CM.msgs).sort();CM.firstKey=keys[0]||null;
   var list=keys.map(function(k){return {k:k,m:CM.msgs[k]}});
@@ -9215,10 +9155,11 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   if(mn!=='*'&&CM.mnG)Object.keys(CM.mnG).forEach(function(g){if(x.indexOf('@'+g)>=0)CM.mnG[g].forEach(function(p){if(mn.indexOf(p)<0)mn.push(p)})});CM.mnG={};
   var tg=CM_TAGS.filter(function(t){return x.indexOf('#'+t)>=0});
   if(CM.edit){var ed=CM.edit;CM.edit=null;ta.value='';cmReplyBar(boxId);cmApi('edit',{rid:CM.rid,key:ed.key,root:ed.root||null,x:x}).catch(function(e){alert(e.message)});return}
+  if(boxId==='CM-TCOMP'&&CM.rpRoot&&!CM.reply)CM.reply=CM.rpQ0;
   var body={rid:CM.rid,k:'t',x:x,mn:mn,tg:tg};if(CM.reply&&!thread)body.rp=CM.reply;if(thread)body.root=CM.thRoot;
   var tmp='zz'+Date.now();var me=String(ME.phone);CM._sentAt=Date.now();
   CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
-  ta.value='';ta.style.height='auto';CM.reply=null;CM.mn=[];cmReplyBar(boxId);
+  ta.value='';ta.style.height='auto';CM.reply=boxId==='CM-TCOMP'&&CM.rpRoot?CM.rpQ0:null;CM.mn=[];cmReplyBar(boxId);
   if(thread)cmRenderThread();else cmRenderMsgs();
   cmApi('send',body).then(function(){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;alert('보내지 못했어요\n\n'+e.message)})}
 
@@ -9236,8 +9177,11 @@ function cmBindPress(box){box.querySelectorAll('.cm-line .cm-b').forEach(functio
   b.addEventListener('touchmove',function(e){if(t&&(Math.abs(e.touches[0].clientX-sx)>8||Math.abs(e.touches[0].clientY-sy)>8)){clearTimeout(t);t=null}},{passive:true});
   b.addEventListener('touchend',function(){if(t){clearTimeout(t);t=null}});
   b.addEventListener('contextmenu',function(e){e.preventDefault();cmMenu(key,root,b)});
-  var th=b.querySelector('.cm-th');if(th)th.addEventListener('click',function(e){e.stopPropagation();cmOpenThread(key)})})}
-function cmMsgBy(key,root){return root?CM.thMsgs[key]:CM.msgs[key]}
+  var th=b.querySelector('.cm-th');if(th)th.addEventListener('click',function(e){e.stopPropagation();cmOpenThread(key)});
+  if(!root&&box.id!=='CM-TMSGS'){var rq=b.querySelector('.cm-rp'),rn=b.querySelector('.cm-rpn');
+    if(rq)rq.addEventListener('click',function(e){e.stopPropagation();var m=cmMsgBy(key);if(m&&m.rp&&m.rp.key)cmOpenReplies(m.rp.key)});
+    if(rn)rn.addEventListener('click',function(e){e.stopPropagation();cmOpenReplies(key)})}})}
+function cmMsgBy(key,root){return root?CM.thMsgs[key]:(CM.msgs[key]||(CM.rpAll&&CM.rpAll[key]))}
 function cmCloseMenu(){var p=$('CM-POP');if(p)p.remove();document.querySelectorAll('.cm-m.sel').forEach(function(e){e.classList.remove('sel')})}
 function cmMenu(key,root,el){cmCloseMenu();var m=cmMsgBy(key,root);if(!m||m.del||m.hid||key.indexOf('zz')===0)return;
   el.closest('.cm-m').classList.add('sel');
@@ -9248,7 +9192,8 @@ function cmMenu(key,root,el){cmCloseMenu();var m=cmMsgBy(key,root);if(!m||m.del|
   document.body.appendChild(pop);
   var rc=el.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;var left=Math.max(8,Math.min(window.innerWidth-pw-8,(m.by===String(ME.phone)?rc.right-pw:rc.left)));var top=rc.top-ph-8;if(top<60)top=rc.bottom+8;pop.style.left=left+'px';pop.style.top=top+'px';
   setTimeout(function(){document.addEventListener('click',function h(e){if(!pop.contains(e.target)){cmCloseMenu();document.removeEventListener('click',h,true)}},true)},0)}
-function cmDoReply(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m)return;if(root){cmOpenThread(root);return}CM.reply={key:key,bn:m.bn,x:(m.x||'사진').slice(0,80)};cmReplyBar('CM-COMP');var ta=$('CM-COMP-TA');if(ta)ta.focus()}
+function cmDoReply(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m)return;if(root){cmOpenThread(root);return}
+  if(CM.rpRoot&&cmOn('p-comm-thread')){CM.reply={key:key,bn:m.bn,x:(m.x||'사진').slice(0,80)};cmReplyBar('CM-TCOMP');var rt=$('CM-TCOMP-TA');if(rt)rt.focus();return}CM.reply={key:key,bn:m.bn,x:(m.x||'사진').slice(0,80)};cmReplyBar('CM-COMP');var ta=$('CM-COMP-TA');if(ta)ta.focus()}
 function cmCopy(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m||!m.x)return;try{navigator.clipboard.writeText(m.x).then(function(){toast('복사했어요')},function(){toast('복사하지 못했어요')})}catch(e){toast('복사하지 못했어요')}}
 function cmPin(key){cmCloseMenu();cmApi('pin',{rid:CM.rid,key:key}).then(function(){toast('방 공지로 올렸어요')}).catch(function(e){alert(e.message)})}
 function cmReact(key,r,root){cmApi('react',{rid:CM.rid,key:key,r:r,root:root||null}).catch(function(e){alert(e.message)})}
@@ -9267,10 +9212,35 @@ function cmDelete(key,root){cmConfirm('메시지를 삭제할까요?','모두의
 function cmHide(key,root){cmConfirm('이 메시지를 가릴까요?','\'관리자가 가린 메시지입니다\'로 바뀌고, 누가 가렸는지 기록됩니다.','가리기',true,function(){cmApi('hide',{rid:CM.rid,key:key,root:root||null}).catch(function(e){alert(e.message)})})}
 
 /* ── 답장 묶기(스레드) ── */
-function cmOpenThread(root){CM.thRoot=root;CM.thMsgs={};go('p-comm-thread');setTimeout(cmVV,0);var p=$('p-comm-thread');p.style.setProperty('--cm-fs',CM.fs+'px');
+function cmOpenThread(root){CM.rpRoot=null;CM.thRoot=root;CM.thMsgs={};go('p-comm-thread');setTimeout(cmVV,0);var p=$('p-comm-thread');p.style.setProperty('--cm-fs',CM.fs+'px');
   p.innerHTML='<div class="cm-rhead"><button class="cm-tb" onclick="cmCloseThread()">‹ 대화</button><div class="t">답장</div><span style="width:44px"></span></div><div class="cm-msgs" id="CM-TMSGS"><div class="sk"></div></div><div id="CM-TCOMP"></div>';
   cmComposer('CM-TCOMP',true);
   cmStream('thr','/chat/thr/'+CM.rid+'/'+root,'',function(d){CM.thMsgs=d||{};cmRenderThread()});cmActSeen(CM.rid,null,root)}
+/* 답장 모아 보기 — 인용 답장(rp)은 대화방에 그대로 두고, 인용을 누르거나 원래 메시지의 '답장 N개 모아 보기'를 누르면
+   그 메시지에 달린 답장(답장의 답장까지)을 한 페이지에 모아 보여 준다. 여기서 보내는 글도 원래 메시지를 인용해 대화방에 올라간다 */
+function cmRpTop(k,map){var g=0;while(g++<60){var m=map[k];if(!m||!m.rp||!m.rp.key)return k;k=m.rp.key}return k}
+function cmRpCount(map){var n={};Object.keys(map||{}).forEach(function(k){var m=map[k];if(m&&m.rp&&m.rp.key&&!m.del&&!m.hid){var t=cmRpTop(m.rp.key,map);n[t]=(n[t]||0)+1}});return n}
+function cmRpMap(){var all={};Object.keys(CM.rpAll||{}).forEach(function(k){all[k]=CM.rpAll[k]});Object.keys(CM.msgs||{}).forEach(function(k){all[k]=CM.msgs[k]});return all}
+function cmOpenReplies(key){var rid=CM.rid;if(!rid||!key)return;CM.rpAll=CM.rpAll&&CM.rpRid===rid?CM.rpAll:{};CM.rpRid=rid;
+  var seg=cmSeg('/chat/msgs/'+rid);
+  /* 맨 위 원글까지 거슬러 올라간다(불러오지 않은 옛 메시지면 하나씩 받아 온다) */
+  var up=function(k,g){var map=cmRpMap(),m=map[k];if(m)return m.rp&&m.rp.key&&g<20?up(m.rp.key,g+1):Promise.resolve(k);
+    return fbG(seg+'/'+k+'.json').then(function(d){if(!d)return k;CM.rpAll[k]=d;return d.rp&&d.rp.key&&g<20?up(d.rp.key,g+1):k}).catch(function(){return k})};
+  up(key,0).then(function(root){if(CM.rid!==rid)return;
+    var rm=cmRpMap()[root];CM.rpRoot=root;CM.rpQ0={key:root,bn:rm?rm.bn:'',x:rm?(rm.x||'사진').slice(0,80):''};CM._rpSaved=CM.reply;CM.reply=CM.rpQ0;
+    go('p-comm-thread');setTimeout(cmVV,0);var p=$('p-comm-thread');p.style.setProperty('--cm-fs',CM.fs+'px');
+    p.innerHTML='<div class="cm-rhead"><button class="cm-tb" onclick="cmCloseReplies()">‹ 대화</button><div class="t">답장 모아 보기</div><span style="width:44px"></span></div><div class="cm-msgs" id="CM-TMSGS"><div class="sk"></div></div><div id="CM-TCOMP"></div>';
+    cmComposer('CM-TCOMP',false);cmReplyBar('CM-TCOMP');cmRenderReplies();
+    /* 원글 뒤에 온 메시지를 전부 받아 답장 사슬을 찾는다 */
+    fbG(seg+'.json?orderBy=%22$key%22&startAt=%22'+root+'%22').then(function(d){if(CM.rpRoot!==root)return;Object.keys(d||{}).forEach(function(k){if(d[k])CM.rpAll[k]=d[k]});cmRenderReplies()}).catch(function(){})})}
+function cmRenderReplies(){var box=$('CM-TMSGS');if(!box||!CM.rpRoot)return;var root=CM.rpRoot,all=cmRpMap(),inT={},list=[];inT[root]=1;
+  Object.keys(all).sort().forEach(function(k){if(k<=root)return;var m=all[k];if(m&&m.rp&&inT[m.rp.key]){inT[k]=1;list.push({k:k,m:m})}});
+  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid===CM.rid&&!p.root&&p.m&&p.m.rp&&inT[p.m.rp.key])list.push({k:k,m:p.m,pending:true})});
+  var rm=all[root],n=list.filter(function(x){return !x.pending&&!x.m.del&&!x.m.hid}).length;
+  var near=box.scrollHeight-box.scrollTop-box.clientHeight<120||!box.getAttribute('data-r');
+  box.innerHTML=(rm?cmMsgHtml([{k:root,m:rm}],{}):'<div class="cm-sys">원래 메시지를 찾을 수 없어요</div>')+'<div class="cm-sys">답장 '+n+'개</div>'+cmMsgHtml(list,{day:rm?new Date(rm.at).toDateString():''});
+  box.setAttribute('data-r',root);cmBindPress(box);cmFillMedia(box);if(near)box.scrollTop=box.scrollHeight}
+function cmCloseReplies(){CM.rpRoot=null;CM.reply=CM._rpSaved||null;CM._rpSaved=null;go('p-comm-room');cmRenderMsgs();cmVV()}
 function cmCloseThread(){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;go('p-comm-room');cmRenderMsgs();cmVV()}
 function cmRenderThread(){var box=$('CM-TMSGS');if(!box||!CM.thRoot)return;var rootM=CM.msgs[CM.thRoot];
   var list=Object.keys(CM.thMsgs).sort().map(function(k){return {k:k,m:CM.thMsgs[k]}});

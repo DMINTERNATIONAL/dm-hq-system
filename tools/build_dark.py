@@ -83,7 +83,7 @@ def fg(c):
         nl = max(0.42, min(0.95, nl))
         return from_hls(h, nl, min(s, 0.12))
     if l < 0.66: return from_hls(h, 0.66 + (0.66 - l) * 0.35, min(s, 0.9))
-    if l > 0.85: return from_hls(h, 0.45, s * 0.5)                     # 아주 연한 색 글씨
+    # 아주 연한 색 글씨(#E0EAFF 등)는 거의 늘 색 바탕(내 말풍선 등) 위라 그대로 둔다
     return None
 
 def bd(c):
