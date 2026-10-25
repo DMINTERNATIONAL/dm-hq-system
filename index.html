@@ -1888,6 +1888,8 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-viewer .va{display:flex;gap:6px}
 .cm-viewer .vbody{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding-bottom:var(--sab)}
 .cm-viewer img,.cm-viewer video{max-width:100%;max-height:100%;object-fit:contain}
+.cm-swipe{align-self:stretch;width:100%;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:none}.cm-swipe::-webkit-scrollbar{display:none}
+.cm-slide{flex:0 0 100%;width:100%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .cm-b.card{background:transparent;box-shadow:none;padding:0;max-width:280px;width:280px}
 .cm-card{background:#fff;border:1px solid var(--cm-line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;color:var(--cm-ink);font-size:14px}
 .cm-card .ch{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--cm-ink3)}
@@ -9521,10 +9523,22 @@ function cmMediaAct(btn,k,act){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmOpenO
   cmMediaFile(k).then(function(f){btn.disabled=false;if(wantShare){btn.textContent=(act==='share'?'공유':'저장')+' ›';toast('준비됐어요. 한 번 더 눌러 주세요')}else{btn.textContent=label;cmSaveBlob(f)}})
     .catch(function(){btn.disabled=false;btn.textContent=label;alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
 function cmMediaBtns(k){var e=String(k).replace(/'/g,'');return '<button onclick="cmMediaAct(this,\''+e+'\',\'save\')">저장</button><button onclick="cmMediaAct(this,\''+e+'\',\'share\')">공유</button>'}
-function cmView(enc,i){var pics=JSON.parse(decodeURIComponent(enc));var bg=cmOverlay('<img alt="">');var img=bg.querySelector('.vbody img');
-  function show(){var x=pics[i];bg.querySelector('.vt').textContent=(i+1)+' / '+pics.length;img.removeAttribute('src');cmUrl(x.u).then(function(u){img.src=u});
-    var sk=x.o||x.u;cmMediaFile(sk).catch(function(){});bg.querySelector('.va').innerHTML=cmMediaBtns(sk)+(pics.length>1?'<button onclick="this.closest(\'.cm-viewer\')._go(-1)">이전</button><button onclick="this.closest(\'.cm-viewer\')._go(1)">다음</button>':'')}
-  bg._go=function(d){i=(i+d+pics.length)%pics.length;show()};show()}
+/* 사진 보기 — 카톡처럼 옆으로 밀어 넘긴다(가로 스크롤 + 스냅, 손을 떼면 한 장씩 착 붙음). 그 방의 사진을 처음부터 끝까지
+   순서대로 넘길 수 있고(누른 사진에서 시작), 지금 장과 양옆 장만 미리 받는다. PC 는 ← → 키 · 이전/다음 버튼 */
+function cmRoomPics(){var src=CM.msgs||{},out=[];Object.keys(src).sort().forEach(function(k){var m=src[k];if(!m||m.del||m.hid)return;(m.md||[]).forEach(function(x){if(x&&x.u&&!x.v&&!x.f)out.push(x)})});return out}
+function cmView(enc,i){var pics=JSON.parse(decodeURIComponent(enc));var start=pics[i];
+  var all=cmRoomPics(),j=-1;if(start)for(var q=0;q<all.length;q++)if(all[q].u===start.u){j=q;break}
+  if(j>=0){pics=all;i=j}
+  var bg=cmOverlay('<div class="cm-swipe">'+pics.map(function(){return '<div class="cm-slide"><img alt=""></div>'}).join('')+'</div>');
+  var tr=bg.querySelector('.cm-swipe'),slides=tr.children,touch='ontouchstart' in window;
+  function load(k){if(k<0||k>=pics.length)return;var im=slides[k].firstChild;if(im.getAttribute('src')||im._ld)return;im._ld=1;cmUrl(pics[k].u).then(function(u){im.src=u})}
+  function upd(){bg.querySelector('.vt').textContent=(i+1)+' / '+pics.length;var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
+    bg.querySelector('.va').innerHTML=cmMediaBtns(sk)+(pics.length>1&&!touch?'<button onclick="this.closest(\'.cm-viewer\')._go(-1)">이전</button><button onclick="this.closest(\'.cm-viewer\')._go(1)">다음</button>':'');load(i);load(i+1);load(i-1)}
+  tr.scrollLeft=i*tr.clientWidth;upd();requestAnimationFrame(function(){tr.scrollLeft=i*tr.clientWidth});
+  var tm=null;tr.addEventListener('scroll',function(){load(Math.floor(tr.scrollLeft/tr.clientWidth));load(Math.ceil(tr.scrollLeft/tr.clientWidth));clearTimeout(tm);tm=setTimeout(function(){var k=Math.round(tr.scrollLeft/(tr.clientWidth||1));if(k!==i&&k>=0&&k<pics.length){i=k;upd()}},90)},{passive:true});
+  bg._go=function(d){var k=Math.max(0,Math.min(pics.length-1,i+d));tr.scrollTo({left:k*tr.clientWidth,behavior:'smooth'})};
+  var key=function(e){if(!bg.isConnected){document.removeEventListener('keydown',key);return}if(e.key==='ArrowLeft')bg._go(-1);else if(e.key==='ArrowRight')bg._go(1);else if(e.key==='Escape'){bg.remove();CM_FILES={}}};
+  document.addEventListener('keydown',key)}
 function cmOpenOrig(k){cmUrl(k).then(function(u){window.open(u,'_blank')}).catch(function(e){alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
 function cmPlay(k){var bg=cmOverlay('<video controls playsinline autoplay></video>');bg.querySelector('.vt').textContent='동영상';bg.querySelector('.va').innerHTML=cmMediaBtns(k);var v=bg.querySelector('video');cmUrl(k).then(function(u){v.src=u}).catch(function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'});v.onerror=function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff;text-align:center;padding:20px">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'}}
 
