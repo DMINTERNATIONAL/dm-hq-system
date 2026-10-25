@@ -627,16 +627,43 @@ export function makeChat(deps) {
     if (del === 'hide') {
       if (!isManagerUser(String(me.ph), u)) throw new Error('가리기는 경영팀 · 관리자만 할 수 있습니다');
       await dbPatch(env, path, { x: null, md: null, hid: { by: nameOf(u), at: nowMs() } });
+      if (!root) await fixPreview(env, rid, room, m, '가려진 메시지입니다');
       return {};
     }
     if (!mine) throw new Error('내가 보낸 메시지만 바꿀 수 있습니다');
-    if (del) await dbPatch(env, path, { x: null, md: null, del: 1 });
-    else {
+    if (del) {
+      await dbPatch(env, path, { x: null, md: null, del: 1 });
+      if (!root) await fixPreview(env, rid, room, m, '삭제된 메시지입니다');
+    } else {
       const x = clip(body.x, 5000).trim();
       if (!x) throw new Error('내용을 입력해 주세요');
       await dbPatch(env, path, { x, ed: nowMs(), lp: null });
+      if (!root) await fixPreview(env, rid, room, m, clip(x, 80));
     }
     return {};
+  }
+
+  /* 방 목록 미리보기: 지우거나 가리거나 고친 메시지가 그 방의 마지막 메시지면 모두의 목록 문구도 바꾼다
+     (예전엔 메시지만 지워지고 목록에는 지운 글이 그대로 보였다 — 10/25 사용자 신고) */
+  async function fixPreview(env, rid, room, m, text) {
+    if (!m || !m.s || (room.seq || 0) !== m.s) return;
+    const up = { [`chat/rooms/${rid}/last/x`]: text };
+    for (const p of Object.keys(room.m || {})) up[`chat/inbox/${p}/${rid}/x`] = text;
+    await dbPatch(env, '/', up);
+  }
+
+  /* 한 번만: 이미 지워졌거나 가려진 마지막 메시지가 목록에 그대로 보이는 방을 고친다(경영팀 · 관리자) */
+  async function fixAllPreviews(env, me) {
+    const u = await meUser(env, me);
+    if (!isManagerUser(String(me.ph), u)) throw new Error('경영팀 · 관리자만 할 수 있습니다');
+    const rooms = (await dbGet(env, '/chat/rooms').catch(() => null)) || {};
+    let fixed = 0;
+    for (const [rid, room] of Object.entries(rooms)) {
+      if (!room || !room.seq) continue;
+      const m = await dbGet(env, `/chat/msgs/${rid}/${pad(room.seq)}`).catch(() => null);
+      if (m && (m.del || m.hid)) { await fixPreview(env, rid, room, m, m.del ? '삭제된 메시지입니다' : '가려진 메시지입니다'); fixed++; }
+    }
+    return { rooms: Object.keys(rooms).length, fixed };
   }
 
   async function react(env, me, body) {
@@ -850,6 +877,7 @@ export function makeChat(deps) {
         case '/chat/edit': out = await editOrDelete(env, me, body, false); break;
         case '/chat/delete': out = await editOrDelete(env, me, body, true); break;
         case '/chat/hide': out = await editOrDelete(env, me, body, 'hide'); break;
+        case '/chat/fix-previews': out = await fixAllPreviews(env, me); break;
         case '/chat/react': out = await react(env, me, body); break;
         case '/chat/pin': out = await pinNotice(env, me, body); break;
         case '/chat/ack': out = await ack(env, me, body); break;
