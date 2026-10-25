@@ -97,13 +97,17 @@ export function makeChat(deps) {
   const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, signedUrl } = deps;
 
   /* 번호 매기기 — 같은 방에 동시에 두 명이 보내도 번호가 겹치지 않게 조건부 쓰기(ETag)로 올린다 */
-  async function nextSeq(env, rid) {
+  /* 방 번호 읽기(ETag 포함) — 보내기에서는 계정 · 방 확인과 동시에 미리 읽어 DB 왕복 하나를 줄인다 */
+  async function seqRead(env, rid) {
     const t = await accessToken(env);
     const url = `${env.FIREBASE_URL}/chat/rooms/${rid}/seq.json?access_token=${t}`;
+    const g = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' });
+    return { url, etag: g.headers.get('ETag'), cur: (await g.json()) || 0 };
+  }
+  async function nextSeq(env, rid, pre) {
     for (let i = 0; i < 8; i++) {
-      const g = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' });
-      const etag = g.headers.get('ETag');
-      const cur = (await g.json()) || 0;
+      const r = i === 0 && pre ? await pre : await seqRead(env, rid);
+      const url = r.url, etag = r.etag, cur = r.cur;
       const p = await fetch(url, { method: 'PUT', headers: { 'if-match': etag, 'Content-Type': 'application/json' }, body: JSON.stringify(cur + 1) });
       if (p.ok) return cur + 1;
       if (p.status !== 412) throw new Error('번호 매기기 실패 ' + p.status);
@@ -215,6 +219,7 @@ export function makeChat(deps) {
     const ph = String(me.ph);
     const rid = String(body.rid || '');
     /* 계정 · 방 조회를 동시에 (DB 왕복 하나 줄이기) */
+    const seqPre = body.root ? null : seqRead(env, rid).catch(() => null);
     const [u, room] = await Promise.all([meUser(env, me), getRoom(env, rid)]);
     if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
     if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
@@ -267,7 +272,7 @@ export function makeChat(deps) {
       up[`chat/thr/${rid}/${root}/${key}`] = msg;
       up[`chat/msgs/${rid}/${root}/th`] = { c: ((rootMsg.th && rootMsg.th.c) || 0) + 1, l: at, by: { ...((rootMsg.th && rootMsg.th.by) || {}), [ph]: 1 } };
     } else {
-      seq = await nextSeq(env, rid);
+      seq = await nextSeq(env, rid, seqPre && seqPre.then((r) => r || seqRead(env, rid)));
       key = pad(seq);
       msg.s = seq;
       up[`chat/msgs/${rid}/${key}`] = msg;

@@ -1855,7 +1855,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-rx span{font-size:11px;background:#fff;border:1px solid var(--cm-line);border-radius:99px;padding:0 7px;color:var(--cm-ink2);cursor:pointer}
 .cm-rx span.mine{border-color:var(--cm-blue);color:var(--cm-blue);font-weight:700}
 .cm-m.sel .cm-b{box-shadow:0 0 0 2px var(--cm-blue)}
-.cm-pending{opacity:.55}
+.cm-pending.cm-slow{opacity:.55}
 .cm-comp{display:flex;gap:7px;align-items:flex-end;padding:8px 10px max(10px,calc(8px + var(--sab)));background:#fff;border-top:1px solid var(--cm-line)}
 .cm-comp textarea{flex:1;min-width:0;border:none;background:var(--cm-bg);border-radius:18px;padding:9px 13px;font-size:16px;line-height:1.4;resize:none;max-height:120px;font-family:inherit;outline:none}
 .cm-send{border:none;background:var(--cm-blue);color:#fff;border-radius:18px;padding:9px 14px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
@@ -5504,7 +5504,7 @@ function pushAliveId(){if(PUSH_ALIVE.id)return Promise.resolve(PUSH_ALIVE.id);if
     return crypto.subtle.digest('SHA-256',new TextEncoder().encode(sub.endpoint)).then(function(h){var b=String.fromCharCode.apply(null,new Uint8Array(h).slice(0,15));PUSH_ALIVE.id=btoa(b).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return PUSH_ALIVE.id})}).catch(function(){return null})}
 function pushAlive(on){if(!ME||!ME.phone||ME._adminLogin||ME._preview)return;pushAliveId().then(function(id){if(!id)return;fbP('/pushAlive/'+ME.phone+'/'+id+'.json',on?Date.now():0).catch(function(){})})}
 function pushAliveStart(){if(PUSH_ALIVE.t)clearInterval(PUSH_ALIVE.t);pushAlive(document.visibilityState==='visible');PUSH_ALIVE.t=setInterval(function(){if(document.visibilityState==='visible')pushAlive(true)},20000)}
-document.addEventListener('visibilitychange',function(){if(ME)pushAlive(document.visibilityState==='visible')});
+document.addEventListener('visibilitychange',function(){if(ME)pushAlive(document.visibilityState==='visible');if(document.visibilityState==='visible'&&typeof cmVV==='function'){if(CM._kbFx&&CM._kbFx.done)CM._kbFx.done();setTimeout(cmVV,60);setTimeout(cmVV,400)}});
 window.addEventListener('pagehide',function(){if(ME)pushAlive(false)});
 function pushState(){
   if(!pushSupported())return Promise.resolve(pushIsIOS()&&!pushStandalone()?'needInstall':'unsupported');
@@ -9095,7 +9095,8 @@ function cmOpenRoom(rid,thRoot){
   if(!COMM_BETA)return;cmBoot();
   CM.find={on:false,q:'',k:''};
   if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[];CM.rpRoot=null;CM.rpAll={}}
-   if(DM_SMALL&&window.innerWidth<CM_SMALL_WX-40)cmDeskWidth(CM_SMALL_WX);   var wasOn=cmOn('p-comm-room'),prevPg=document.querySelector('.pg.on');if(!wasOn)cmRoomLog();CM_AT_BOTTOM['CM-MSGS']=true;
+   if(DM_SMALL&&window.innerWidth<CM_SMALL_WX-40)cmDeskWidth(CM_SMALL_WX);   if(CM._kbFx&&CM._kbFx.done)CM._kbFx.done();
+   var wasOn=cmOn('p-comm-room'),prevPg=document.querySelector('.pg.on');if(!wasOn)cmRoomLog();CM_AT_BOTTOM['CM-MSGS']=true;
    go('p-comm-room');cmRoomShell();cmVV();CM.sched=[];setTimeout(cmSchedLoad,300);
    /* 들어가는 효과: 대화를 화면 밖에서 먼저 다 그린 뒤 밀어 넣는다. 그리면서 밀면 처음 몇 프레임이 빠져 방이 '툭' 튀어나왔다 */
    (function(){var p=$('p-comm-room');if(!p||wasOn||window.innerWidth>=1024||(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches))return;
@@ -9152,7 +9153,7 @@ function cmMsgHtml(list,opts){
     if(m.k==='sys'){h+='<div class="cm-sys'+(nw?' cm-new':'')+'">'+cmEsc(m.x)+'</div>';prev=null;return}
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     var un=opts.thread?0:cmUnread(m);
-    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending':'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
+    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
 var CM_PENDING={};
@@ -9160,7 +9161,7 @@ function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.
   var near=box.scrollHeight-box.scrollTop-box.clientHeight<120||box.getAttribute('data-first')!=='1';
   var keys=Object.keys(CM.msgs).sort();CM.firstKey=keys[0]||null;
   var list=keys.map(function(k){return {k:k,m:CM.msgs[k]}});
-  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid===CM.rid&&!p.root)list.push({k:k,m:p.m,pending:true})});
+  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root)return;if(p.key&&CM.msgs[p.key]){delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
   var more=(keys.length>=60&&!CM.older)||CM.older==='more'?'<button class="cm-more" onclick="cmLoadOlder()">이전 대화 더 보기</button>':'';
   var prevH=box.scrollHeight,prevT=box.scrollTop;
   if(CM.find.on){box.innerHTML=cmFindHtml();box.removeAttribute('data-first');return}
@@ -9219,7 +9220,9 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
   ta.value='';ta.style.height='auto';CM.reply=boxId==='CM-TCOMP'&&CM.rpRoot?CM.rpQ0:null;CM.mn=[];cmReplyBar(boxId);
   if(thread)cmRenderThread();else cmRenderMsgs();
-  cmApi('send',body).then(function(){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;alert('보내지 못했어요\n\n'+e.message)})}
+  setTimeout(function(){if(CM_PENDING[tmp]){if(thread)cmRenderThread();else cmRenderMsgs()}},2100);
+  /* 서버가 받았다고 답해도 실제 메시지가 실시간으로 들어올 때까지 보낸 말풍선을 그대로 둔다(사라졌다 다시 나타나던 것) */
+  cmApi('send',body).then(function(r){var have=r&&r.key&&(thread?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp]},8000);if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;alert('보내지 못했어요\n\n'+e.message)})}
 
 /* ── 길게 누르기 → 말풍선 옆 메뉴 ── */
 /* 대화 다시 그리기 — 예전엔 메시지가 하나 올 때마다 방 전체를 새로 그려(보낼 때 두 번) 사진이 다시 불러와지며 깜빡였다.
@@ -9311,7 +9314,7 @@ function cmCloseReplies(){CM.rpRoot=null;CM.reply=CM._rpSaved||null;CM._rpSaved=
 function cmCloseThread(){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;go('p-comm-room');cmRenderMsgs();cmVV()}
 function cmRenderThread(){var box=$('CM-TMSGS');if(!box||!CM.thRoot)return;var rootM=CM.msgs[CM.thRoot];
   var list=Object.keys(CM.thMsgs).sort().map(function(k){return {k:k,m:CM.thMsgs[k]}});
-  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid===CM.rid&&p.root===CM.thRoot)list.push({k:k,m:p.m,pending:true})});
+  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root!==CM.thRoot)return;if(p.key&&CM.thMsgs[p.key]){delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
   var saveRoot=CM.thRoot;var head=rootM?cmMsgHtml([{k:CM.thRoot,m:rootM}],{thread:null}):'';
   box.innerHTML=head+'<div class="cm-sys">답장 '+Object.keys(CM.thMsgs).length+'개</div>'+cmMsgHtml(list,{thread:saveRoot,day:rootM?new Date(rootM.at).toDateString():''});
   cmBindPress(box);cmFillMedia(box);box.scrollTop=box.scrollHeight}
@@ -9857,9 +9860,12 @@ function cmVV(){var vv=window.visualViewport;var open=false;
   /* 키보드와 같이 움직이는 중에는 크기를 건드리지 않는다. 아이폰이 화면을 밀면(보이는 영역 offsetTop) 대화방을 그만큼 따라 내려
      제목이 제자리에 보이게만 한다 — 예전엔 이때 '즉시 방식'으로 바꿔 저장했는데 잘못 걸려 계속 즉시 방식이 됐다(10/24 다섯 번째 녹화) */
   if(CM._kbFx){if(vv&&!CM._kbFx.close)CM._kbFx.room.style.top=Math.round(vv.offsetTop)+'px';return}
-  if(vv&&window.innerWidth<1024)document.documentElement.classList.toggle('cm-kbon',window.innerHeight-vv.height>150||(CM._kbOpenAt&&Date.now()-CM._kbOpenAt<700&&document.activeElement&&document.activeElement.tagName==='TEXTAREA'));
+  if(vv&&window.innerWidth<1024)document.documentElement.classList.toggle('cm-kbon',!!(document.activeElement&&/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName))&&window.innerHeight-vv.height>150||(CM._kbOpenAt&&Date.now()-CM._kbOpenAt<700&&document.activeElement&&document.activeElement.tagName==='TEXTAREA'));
   ['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e)return;var on=e.classList.contains('on');if(on)open=true;
-    if(vv&&on&&window.innerWidth<1024){e.style.height=Math.round(vv.height)+'px';e.style.top=Math.round(vv.offsetTop)+'px';e.style.bottom='auto'}else{e.style.height='';e.style.top='';e.style.bottom=''}});
+    /* 글 쓰는 칸에 커서가 없으면 키보드도 없다 — 앱이 뒤에 있다 돌아오거나 알림으로 들어왔을 때 아이폰이 옛 크기(키보드 있을 때)를
+       알려 줘서 키보드만큼 빈칸이 남던 것(10/25). 그땐 화면 전체 높이로 */
+    var edit=document.activeElement&&/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if(vv&&on&&window.innerWidth<1024){e.style.height=Math.round(edit?vv.height:window.innerHeight)+'px';e.style.top=Math.round(edit?vv.offsetTop:0)+'px';e.style.bottom='auto'}else{e.style.height='';e.style.top='';e.style.bottom=''}});
   if(vv&&open&&window.innerWidth<1024){var kh=Math.round(window.innerHeight-vv.height);if(kh>150){CM_KBH=kh;try{localStorage.setItem('cm_kbh',kh)}catch(_){}}}
   /* 대화방이 열려 있는 동안 뒤 페이지가 같이 밀려 올라가지 않게 잠근다 (카톡처럼 제목은 위에, 대화는 키보드 위에) */
   var lock=open&&window.innerWidth<1024;document.documentElement.style.overflow=lock?'hidden':'';document.body.style.overflow=lock?'hidden':'';
