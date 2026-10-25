@@ -9155,7 +9155,7 @@ function cmMsgHtml(list,opts){
     if(m.k==='sys'){h+='<div class="cm-sys'+(nw?' cm-new':'')+'">'+cmEsc(m.x)+'</div>';prev=null;return}
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     var un=opts.thread?0:cmUnread(m);
-    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
+    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
 var CM_PENDING={};
