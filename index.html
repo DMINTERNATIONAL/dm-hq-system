@@ -5491,6 +5491,8 @@ function ctSetPw(phone,newPw){
    아이폰은 홈 화면에 추가한 앱으로 열었을 때만 된다(사파리 탭에서는 PushManager 가 아예 없다).
    지금은 시험 단계라 대표(BRK_OWNER_PHONES)와 /config/comm/users/{전화번호}=true 인 사람에게만 메뉴가 보인다. */
 var COMM_BETA=false;
+/* 하단바가 처음엔 '발주'로 그려졌다가 서버 답이 오면 '채팅'으로 바뀌던 것 — 지난번 답을 기억해 처음부터 그 모양으로 */
+try{(function(){var me=JSON.parse(localStorage.getItem('dm_me')||'null');if(me&&me.phone)COMM_BETA=localStorage.getItem('comm_beta_'+me.phone)==='1'})()}catch(_){}
 function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
 function pushIsIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
 function pushStandalone(){return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true}
@@ -5545,7 +5547,7 @@ function pushDisable(){
 /* 앱을 열 때마다 조용히 다시 맡긴다 — 폰이 구독을 갱신했거나 서버에서 지워졌어도 다시 살아난다 */
 function pushSync(){if(!pushSupported()||Notification.permission!=='granted')return;pushSubscribe().then(function(){PUSH_ALIVE.id=null;pushAliveStart()}).catch(function(e){console.log('pushSync',e)})}
 /* 서버(chat.js eligible)와 같은 명단: /config/comm { open: 전 직원 오픈, users: {폰:true} 시험 명단 } + 대표 */
-function commBetaLoad(){if(!ME||!ME.phone||ME._adminLogin)return Promise.resolve(false);return fbG('/config/comm.json').then(function(c){c=c||{};COMM_BETA=c.open===true||!!(c.users&&c.users[ME.phone])||BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0;if(COMM_BETA)pushSync();return COMM_BETA})}
+function commBetaLoad(){if(!ME||!ME.phone||ME._adminLogin)return Promise.resolve(false);return fbG('/config/comm.json').then(function(c){c=c||{};COMM_BETA=c.open===true||!!(c.users&&c.users[ME.phone])||BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0;try{localStorage.setItem('comm_beta_'+ME.phone,COMM_BETA?'1':'0')}catch(_){}if(COMM_BETA)pushSync();return COMM_BETA})}
 function pushPanel(){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmDeskNotify('DM 알림 시험','이 알림이 보이면 PC 알림이 켜진 거예요');alert('PC · 맥 설치판은 앱이 켜져 있는 동안(창을 닫아도 작업 표시줄에 남아요) 알림이 와요.\n\n방금 시험 알림을 보냈어요. 안 보이면 컴퓨터 설정에서 DM 알림을 허용해 주세요.');return}
   var bg=document.createElement('div');bg.className='modal-bg';bg.style.display='flex';bg.onclick=function(e){if(e.target===bg)bg.remove()};
   bg.innerHTML='<div class="modal-box" style="max-width:420px"><h4>폰 · PC 알림</h4><p id="PUSH-ST" style="font-size:13px;color:#475569;margin:6px 0 14px">확인 중…</p><div style="display:flex;flex-direction:column;gap:8px"><button class="gbtn pri" id="PUSH-ON">알림 켜기</button><button class="gbtn sec" id="PUSH-TEST">시험 알림 보내기</button><button class="gbtn sec" id="PUSH-OFF" style="color:#c0392b">이 기기 알림 끄기</button><button class="gbtn sec" onclick="this.closest(\'.modal-bg\').remove()">닫기</button></div><p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.6">기기마다 따로 켭니다 (폰 · PC 각각).<br>아이폰은 홈 화면에 추가한 DM 앱에서만 됩니다.</p></div>';
@@ -9160,10 +9162,11 @@ function cmMsgHtml(list,opts){
   opts=opts||{};var h='',prev=null,lastDay=opts.day||'';
   list.forEach(function(it){var key=it.k,m=it.m;if(!m)return;
     var day=new Date(m.at).toDateString();if(day!==lastDay){h+='<div class="cm-day">'+cmDay(m.at)+'</div>';lastDay=day;prev=null}
-    var nw=opts.anim&&!CM_SEEN[opts.anim+'|'+key];if(opts.anim)CM_SEEN[opts.anim+'|'+key]=1;
+    var nw=opts.anim&&!CM_SEEN[opts.anim+'|'+key]&&!it.pending;if(opts.anim)CM_SEEN[opts.anim+'|'+key]=1;
     if(m.k==='sys'){h+='<div class="cm-sys'+(nw?' cm-new':'')+'">'+cmEsc(m.x)+'</div>';prev=null;return}
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
-    var un=opts.thread?0:cmUnread(m);
+    /* 보내는 중인 글도 '1'(안 읽은 사람 수)을 바로 — 진짜 글이 도착할 때까지 0.5~1초 늦게 떴다(10/27) */
+    var un=opts.thread?0:(it.pending?Math.max(0,Object.keys((CM.room&&CM.room.m)||{}).length-1):cmUnread(m));
     h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
@@ -9540,14 +9543,33 @@ function cmMediaAct(btn,k,act){if(typeof CM_DESK!=='undefined'&&CM_DESK){cmOpenO
 function cmMediaBtns(k){var e=String(k).replace(/'/g,'');return '<button onclick="cmMediaAct(this,\''+e+'\',\'save\')">저장</button><button onclick="cmMediaAct(this,\''+e+'\',\'share\')">공유</button>'}
 /* 사진 보기 — 카톡처럼 옆으로 밀어 넘긴다(가로 스크롤 + 스냅, 손을 떼면 한 장씩 착 붙음). 그 방의 사진을 처음부터 끝까지
    순서대로 넘길 수 있고(누른 사진에서 시작), 지금 장과 양옆 장만 미리 받는다. PC 는 ← → 키 · 이전/다음 버튼 */
+/* 사진 확대 — 두 손가락으로 벌려 확대(1~5배), 확대한 채로 한 손가락으로 이동, 두 번 톡 = 2.5배 ↔ 원래대로(PC 는 더블클릭).
+   확대한 동안에는 옆으로 넘어가지 않고, 원래 크기로 돌아오면 다시 넘길 수 있다(10/27 '이미지 확대 안 됨') */
+function cmZoomable(slide,img,tr){var s=1,tx=0,ty=0,st=null,lastTap=0;img.style.transformOrigin='50% 50%';img.style.willChange='transform';
+  function apply(anim){img.style.transition=anim?'transform .22s ease-out':'none';img.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';tr.style.overflowX=s>1.01?'hidden':'auto'}
+  function clamp(){if(s<=1.01){s=1;tx=0;ty=0;return}var r=slide.getBoundingClientRect(),w=img.offsetWidth*s,h=img.offsetHeight*s,mx=Math.max(0,(w-r.width)/2),my=Math.max(0,(h-r.height)/2);tx=Math.max(-mx,Math.min(mx,tx));ty=Math.max(-my,Math.min(my,ty))}
+  function zoomAt(x,y){var r=slide.getBoundingClientRect();if(s>1.01){s=1;tx=0;ty=0}else{var px=x-(r.left+r.width/2),py=y-(r.top+r.height/2);s=2.5;tx=-px*(s-1);ty=-py*(s-1);clamp()}apply(true)}
+  slide.addEventListener('touchstart',function(e){
+    if(e.touches.length===2){var a=e.touches[0],b=e.touches[1];st={m:'pinch',d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,s:s,tx:tx,ty:ty,cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2};tr.style.overflowX='hidden';e.preventDefault();return}
+    if(e.touches.length!==1)return;var t=e.touches[0],now=Date.now();
+    if(now-lastTap<300){e.preventDefault();lastTap=0;st=null;zoomAt(t.clientX,t.clientY);return}
+    lastTap=now;if(s>1.01)st={m:'pan',x:t.clientX,y:t.clientY,tx:tx,ty:ty}},{passive:false});
+  slide.addEventListener('touchmove',function(e){if(!st)return;
+    if(st.m==='pinch'&&e.touches.length===2){e.preventDefault();var a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),ns=Math.max(1,Math.min(5,st.s*d/st.d)),r=slide.getBoundingClientRect();
+      var cx=st.cx-(r.left+r.width/2),cy=st.cy-(r.top+r.height/2);tx=cx-(cx-st.tx)*ns/st.s+((a.clientX+b.clientX)/2-st.cx);ty=cy-(cy-st.ty)*ns/st.s+((a.clientY+b.clientY)/2-st.cy);s=ns;apply(false)}
+    else if(st.m==='pan'&&e.touches.length===1){e.preventDefault();var t=e.touches[0];tx=st.tx+(t.clientX-st.x);ty=st.ty+(t.clientY-st.y);clamp();apply(false)}},{passive:false});
+  slide.addEventListener('touchend',function(e){if(!e.touches.length&&st){st=null;clamp();apply(true)}else if(e.touches.length===1&&st&&st.m==='pinch'){var t=e.touches[0];st={m:'pan',x:t.clientX,y:t.clientY,tx:tx,ty:ty}}});
+  slide.addEventListener('dblclick',function(e){zoomAt(e.clientX,e.clientY)});
+  return {reset:function(){if(s!==1||tx||ty){s=1;tx=0;ty=0;apply(false)}}}}
 function cmRoomPics(){var src=CM.msgs||{},out=[];Object.keys(src).sort().forEach(function(k){var m=src[k];if(!m||m.del||m.hid)return;(m.md||[]).forEach(function(x){if(x&&x.u&&!x.v&&!x.f)out.push(x)})});return out}
 function cmView(enc,i){var pics=JSON.parse(decodeURIComponent(enc));var start=pics[i];
   var all=cmRoomPics(),j=-1;if(start)for(var q=0;q<all.length;q++)if(all[q].u===start.u){j=q;break}
   if(j>=0){pics=all;i=j}
   var bg=cmOverlay('<div class="cm-swipe">'+pics.map(function(){return '<div class="cm-slide"><img alt=""></div>'}).join('')+'</div>');
   var tr=bg.querySelector('.cm-swipe'),slides=tr.children,touch='ontouchstart' in window;
+  var zooms=[].map.call(slides,function(sl){return cmZoomable(sl,sl.firstChild,tr)});
   function load(k){if(k<0||k>=pics.length)return;var im=slides[k].firstChild;if(im.getAttribute('src')||im._ld)return;im._ld=1;cmUrl(pics[k].u).then(function(u){im.src=u})}
-  function upd(){bg.querySelector('.vt').textContent=(i+1)+' / '+pics.length;var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
+  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});bg.querySelector('.vt').textContent=(i+1)+' / '+pics.length;var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
     bg.querySelector('.va').innerHTML=cmMediaBtns(sk)+(pics.length>1&&!touch?'<button onclick="this.closest(\'.cm-viewer\')._go(-1)">이전</button><button onclick="this.closest(\'.cm-viewer\')._go(1)">다음</button>':'');load(i);load(i+1);load(i-1)}
   tr.scrollLeft=i*tr.clientWidth;upd();requestAnimationFrame(function(){tr.scrollLeft=i*tr.clientWidth});
   var tm=null;tr.addEventListener('scroll',function(){load(Math.floor(tr.scrollLeft/tr.clientWidth));load(Math.ceil(tr.scrollLeft/tr.clientWidth));clearTimeout(tm);tm=setTimeout(function(){var k=Math.round(tr.scrollLeft/(tr.clientWidth||1));if(k!==i&&k>=0&&k<pics.length){i=k;upd()}},90)},{passive:true});
