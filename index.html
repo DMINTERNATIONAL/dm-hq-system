@@ -5500,14 +5500,16 @@ function pushDevice(){var u=navigator.userAgent;var d=/iPhone/.test(u)?'iPhone':
 function pushKeyBytes(k){var s=k.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
 /* 지금 이 기기 상태: off(꺼짐) · on(켜짐) · denied(거부됨) · needInstall(아이폰 홈 화면 필요) · unsupported */
 /* 앱을 쓰는 중에는 이 기기로 위에서 내려오는 알림을 보내지 않는다(카톡처럼 — 10/25 사용자 요청).
-   화면에 앱이 떠 있는 동안 20초마다 '이 기기 사용 중'을 /pushAlive/{폰}/{기기} 에 남기고, 서버는 30초 안에 사용 중인 기기는 건너뛴다.
+   화면에 앱이 떠 있는 동안 8초마다 '이 기기 사용 중'을 /pushAlive/{폰}/{기기} 에 남기고, 서버는 15초 안에 사용 중인 기기에는 채팅 알림만 건너뛴다.
    앱을 내리면 바로 지운다. 기기 이름은 서버와 같은 방식(구독 주소 SHA-256 앞 15바이트, base64url) */
 var PUSH_ALIVE={id:null,t:null};
 function pushAliveId(){if(PUSH_ALIVE.id)return Promise.resolve(PUSH_ALIVE.id);if(!pushSupported()||Notification.permission!=='granted'||!window.crypto||!crypto.subtle)return Promise.resolve(null);
   return navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription()}).then(function(sub){if(!sub)return null;
     return crypto.subtle.digest('SHA-256',new TextEncoder().encode(sub.endpoint)).then(function(h){var b=String.fromCharCode.apply(null,new Uint8Array(h).slice(0,15));PUSH_ALIVE.id=btoa(b).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return PUSH_ALIVE.id})}).catch(function(){return null})}
-function pushAlive(on){if(!ME||!ME.phone||ME._adminLogin||ME._preview)return;pushAliveId().then(function(id){if(!id)return;fbP('/pushAlive/'+ME.phone+'/'+id+'.json',on?Date.now():0).catch(function(){})})}
-function pushAliveStart(){if(PUSH_ALIVE.t)clearInterval(PUSH_ALIVE.t);pushAlive(document.visibilityState==='visible');PUSH_ALIVE.t=setInterval(function(){if(document.visibilityState==='visible')pushAlive(true)},20000)}
+/* fbP 를 쓰면 쓰기마다 읽기 저장분(배지 1분 재사용 · 실시간 받아두기)을 비워 20초마다 큰 자료를 다시 받았다(10/27 검토) — 직접 보낸다.
+   시간은 서버 시계(.sv timestamp), 앱을 내릴 때도 끝까지 보내지게 keepalive */
+function pushAlive(on){if(!ME||!ME.phone||ME._adminLogin||ME._preview)return;pushAliveId().then(function(id){if(!id)return;return dbToken().then(function(t){return fetch(fbUrl('/pushAlive/'+ME.phone+'/'+id+'.json',t),{method:'PUT',keepalive:true,headers:{'Content-Type':'application/json'},body:on?'{".sv":"timestamp"}':'0'})})}).catch(function(){})}
+function pushAliveStart(){if(PUSH_ALIVE.t)clearInterval(PUSH_ALIVE.t);pushAlive(document.visibilityState==='visible');PUSH_ALIVE.t=setInterval(function(){if(document.visibilityState==='visible')pushAlive(true)},8000)}
 document.addEventListener('visibilitychange',function(){if(ME)pushAlive(document.visibilityState==='visible');if(document.visibilityState==='visible'&&typeof cmVV==='function'){if(CM._kbFx&&CM._kbFx.done)CM._kbFx.done();setTimeout(cmVV,60);setTimeout(cmVV,400)}});
 window.addEventListener('pagehide',function(){if(ME)pushAlive(false)});
 function pushState(){
@@ -5626,6 +5628,7 @@ function igGateWhy(e){e=String(e||'');
   return '조회가 계속 안 돼요'+(e?' ('+igEsc(e).slice(0,80)+')':'')+'.'}
 function igGate(){
   if(!ME||!ME.phone||ME._adminLogin||ME._preview||!igGateIsIntern(ME)||$('ig-gate'))return;
+  try{if(Date.now()-(+sessionStorage.getItem('ig_later')||0)<3600000)return}catch(_){}
   var k=igGateKst();if(k.h<9)return;
   fbG('/users/'+ME.phone+'/ig_check.json',0).then(function(c){if(igGateDue(c)&&!$('ig-gate'))igGateShow(c)}).catch(function(){})}
 function igGateShow(c){
@@ -5649,8 +5652,10 @@ function igGateShow(c){
     b.disabled=true;st.innerHTML='<span style="color:#94A3B8">조회 중…</span>';
     fetch(window.IG_VERIFY_URL+'/?u='+encodeURIComponent(u)).then(function(r){return r.json()}).then(function(d){b.disabled=false;
       if(d&&d.ok){okU=u;okF=+d.followers||0;ok.disabled=false;ok.style.opacity='1';st.innerHTML='<span style="color:#16A34A;font-weight:700">✓ 연결됐어요 · @'+igEsc(u)+' · 팔로워 '+okF.toLocaleString()+'명</span>';return}
-      var e=(d&&d.error)||'';st.innerHTML=/\(#4\)|request limit|rate limit|too many/i.test(e)?'<span style="color:#D97706;font-weight:700">인스타 조회가 잠시 막혔어요. 조금 뒤 다시 눌러 주세요</span>':'<span style="color:#EF4444;font-weight:700">아직 연결이 안 돼요 — '+igGateWhy(e)+'</span>'})
-    .catch(function(){b.disabled=false;st.innerHTML='<span style="color:#EF4444">인터넷 연결을 확인하고 다시 눌러 주세요</span>'})};
+      var e=(d&&d.error)||'';var sure=/invalid user|cannot be found|does not exist|존재하지 않|business|professional|개인 계정/i.test(e);st.innerHTML=/\(#4\)|request limit|rate limit|too many/i.test(e)?'<span style="color:#D97706;font-weight:700">인스타 조회가 잠시 막혔어요. 조금 뒤 다시 눌러 주세요</span>':'<span style="color:#EF4444;font-weight:700">아직 연결이 안 돼요 — '+igGateWhy(e)+'</span>';if(!sure)igLater()})
+    .catch(function(){b.disabled=false;st.innerHTML='<span style="color:#EF4444">인터넷 연결을 확인하고 다시 눌러 주세요</span>';igLater()})};
+  /* 확인 자체가 안 될 때(인터넷 · 조회 한도 · 서버 문제)는 앱이 막히지 않게 '나중에'로 1시간 닫을 수 있다 */
+  function igLater(){if($('IGG-LATER'))return;ok.insertAdjacentHTML('afterend','<button id="IGG-LATER" class="gbtn" style="width:100%;margin-top:8px">나중에 다시 확인</button>');$('IGG-LATER').onclick=function(){try{sessionStorage.setItem('ig_later',String(Date.now()))}catch(_){}g.remove()}}
   ok.onclick=function(){if(!okU)return;ok.disabled=true;ok.textContent='저장 중…';var ph=ME.phone;
     var w=[fbCheckedP('/users/'+ph+'/ig_check.json',{ok:true,username:okU,followers:okF,at:Date.now()})];
     if(okU!==String(ME.ig_username||'').replace(/^@/,''))w.push(fbCheckedP('/users/'+ph+'/ig_username.json',okU));
@@ -7610,7 +7615,16 @@ function dmHardRefresh(){
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
 var DM_BUILD='2026-10-25-4',DM_UPDATE_READY=false;
-function dmCanAutoReload(){var tas=document.querySelectorAll('textarea,input[type=text],input:not([type])');for(var i=0;i<tas.length;i++)if(tas[i].value&&tas[i].offsetParent)return false;return !(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)}
+function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
+  /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
+  var vis=function(e){return e.getClientRects().length>0};
+  var ovs=document.querySelectorAll('.modal-bg,.cm-modal-bg,.cm-sheet-bg,.np-bg,.cm-viewer,#ig-gate,#update-banner,[id$="-modal"]');for(var o=0;o<ovs.length;o++)if(vis(ovs[o]))return false;
+  /* 화면에 보이는 입력칸 중 손댄 것이 있으면 안 함(숫자 · 날짜 · 선택 · 체크 포함 — 시험 점수 · 식대 금액 등) */
+  var els=document.querySelectorAll('input,textarea,select');for(var i=0;i<els.length;i++){var e=els[i];if(e.type==='hidden'||e.type==='file'||!vis(e))continue;
+    if(e.tagName==='SELECT'){var d0=0;for(var j=0;j<e.options.length;j++)if(e.options[j].defaultSelected){d0=j;break}if(e.selectedIndex!==d0)return false;continue}
+    if(e.type==='checkbox'||e.type==='radio'){if(e.checked!==e.defaultChecked)return false;continue}
+    if(e.value!==e.defaultValue)return false}
+  return true}
 function dmAutoReload(){if(DM_UPDATE_READY&&document.visibilityState==='hidden'&&dmCanAutoReload())location.reload()}
 document.addEventListener('visibilitychange',dmAutoReload);
 function showUpdateBanner(){
@@ -7639,7 +7653,7 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='app-updated')showUpdateBanner()});
   var dmLastAppCheck=Date.now();
   document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState!=='visible'||Date.now()-dmLastAppCheck<60000||!navigator.serviceWorker.controller)return;
+    if(document.visibilityState!=='visible'||Date.now()-dmLastAppCheck<180000||!navigator.serviceWorker.controller)return;
     dmLastAppCheck=Date.now();navigator.serviceWorker.controller.postMessage({type:'check-app'});
   });
   /* 계속 켜 두는 맥 · PC 앱(창이 늘 보이는 경우)도 15분마다 새 버전 확인 */
@@ -9077,7 +9091,7 @@ var CM_PIN_SVG='<svg class="cm-pin" viewBox="0 0 24 24" fill="none" stroke="curr
 /* 목록에서 방을 길게 누르거나(폰) 오른쪽 클릭(PC)하면 카톡처럼 바로 메뉴 — 상단 고정 · 알림 · 나만 보는 이름 · 읽음 처리 · 나가기 */
 (function(){var t=null,x0=0,y0=0;
   function rowOf(e){return e.target&&e.target.closest&&e.target.closest('#CM-VIEW .cm-row[data-rid]')}
-  document.addEventListener('touchstart',function(e){var row=rowOf(e);if(!row)return;var p=e.touches[0];x0=p.clientX;y0=p.clientY;clearTimeout(t);t=setTimeout(function(){CM._lp=1;if(navigator.vibrate)try{navigator.vibrate(10)}catch(_){}cmRowMenu(row.getAttribute('data-rid'))},480)},{passive:true});
+  document.addEventListener('touchstart',function(e){var row=rowOf(e);if(!row)return;var rid0=row.getAttribute('data-rid');var p=e.touches[0];x0=p.clientX;y0=p.clientY;clearTimeout(t);t=setTimeout(function(){CM._lp=1;if(navigator.vibrate)try{navigator.vibrate(10)}catch(_){}cmRowMenu(rid0)},480)},{passive:true});
   document.addEventListener('touchmove',function(e){if(!t)return;var p=e.touches[0];if(Math.abs(p.clientX-x0)>10||Math.abs(p.clientY-y0)>10){clearTimeout(t);t=null}},{passive:true});
   document.addEventListener('touchend',function(){clearTimeout(t);t=null;setTimeout(function(){CM._lp=0},400)},{passive:true});
   document.addEventListener('contextmenu',function(e){var row=rowOf(e);if(!row)return;e.preventDefault();cmRowMenu(row.getAttribute('data-rid'))});
@@ -9257,6 +9271,8 @@ function cmPatch(box,html){var tmp=document.createElement('div');tmp.innerHTML=h
 function cmPatchDeep(box,html){var tmp=document.createElement('div');tmp.innerHTML=html;cmMerge(box,tmp)}
 function cmMerge(o,n){var oc=o.children,nc=n.children;
   if(oc.length!==nc.length||o.childNodes.length!==n.childNodes.length){o.innerHTML=n.innerHTML;return}
+  /* 글자 조각(텍스트 노드)이 다르면 통째로 — 필터 문구 'X만 보는 중'이 안 바뀌던 것 */
+  for(var q=0;q<o.childNodes.length;q++){var x=o.childNodes[q],y=n.childNodes[q];if(x.nodeType!==y.nodeType||(x.nodeType===3&&x.nodeValue!==y.nodeValue)){o.innerHTML=n.innerHTML;return}}
   for(var i=0;i<nc.length;i++){var a=oc[i],b=nc[i];if(a.outerHTML===b.outerHTML)continue;
     if(a.tagName!==b.tagName||a.tagName==='INPUT'||a.tagName==='TEXTAREA'){if(a.tagName===b.tagName&&a===document.activeElement)continue;o.replaceChild(b.cloneNode(true),a);continue}
     [].slice.call(a.attributes).forEach(function(at){if(!b.hasAttribute(at.name))a.removeAttribute(at.name)});
@@ -9499,7 +9515,9 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
   if(files.length>max){alert('한 번에 '+max+'개까지 보낼 수 있어요');return}
   var lim={o:20,v:300,f:50}[kind];if(lim){var big=files.filter(function(f){return f.size>lim*1048576});if(big.length){alert('너무 큰 파일이 있어요 (최대 '+lim+'MB)\n\n'+big.map(function(f){return f.name}).join('\n'));return}}
   var tmp='zz'+Date.now();var me=String(ME.phone);var label=kind==='v'?'동영상':kind==='f'?'파일 '+files.length+'개':'사진 '+files.length+'장';
-  CM_PENDING[tmp]={rid:rid,root:thread?CM.thRoot:null,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:label+' 올리는 중…'}};
+  /* 올리기 시작할 때의 스레드 · 답장 모아 보기를 기억(올리는 동안 화면을 옮겨도 그 자리로) — 답장 모아 보기에서는 원글을 인용해 보낸다 */
+  var root0=thread?CM.thRoot:null,rp0=!thread&&CM.rpRoot?(CM.reply||CM.rpQ0):null;
+  CM_PENDING[tmp]={rid:rid,root:root0,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:label+' 올리는 중…',rp:rp0||undefined}};
   var paint=function(){if(thread)cmRenderThread();else cmRenderMsgs()};paint();
   var prog=function(t){CM_PENDING[tmp].m.x=label+' 올리는 중… '+Math.round(t*100)+'%';paint()};
   var done=0,md=[];
@@ -9507,7 +9525,9 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
     if(kind==='v')return cmPoster(f).then(function(pv){var pj=pv&&pv.blob?cmUpload(rid,pv.blob,'p','poster.jpg'):Promise.resolve(null);return pj.then(function(pk){return cmUpload(rid,f,'v',f.name,prog).then(function(vk){md[ix]={v:vk,u:pk||undefined,w:pv&&pv.w||0,h:pv&&pv.h||0,d:pv&&pv.d||0,sz:f.size,n:f.name}})})});
     if(kind==='f')return cmUpload(rid,f,'f',f.name,files.length===1?prog:null).then(function(fk){md[ix]={f:fk,n:f.name,sz:f.size};done++;prog(done/files.length)});
     return cmShrink(f,pq[1],pq[2]).then(function(s){if(!s)throw new Error(f.name+' 사진을 읽지 못했어요');return cmUpload(rid,s.blob,'p','photo.jpg').then(function(pk){var it={u:pk,w:s.w,h:s.h,sz:s.blob.size};if(kind!=='o')return it;return cmUpload(rid,f,'o',f.name).then(function(ok){it.o=ok;it.sz=f.size;it.n=f.name;return it})})}).then(function(it){md[ix]=it;done++;prog(done/files.length)})});
-  Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(thread)body.root=CM.thRoot;return cmApi('send',body)}).then(function(){delete CM_PENDING[tmp];paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert('보내지 못했어요\n\n'+e.message)})}
+  Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(root0)body.root=root0;if(rp0)body.rp=rp0;
+    /* 다 올리면 진짜 메시지 모양(사진)으로 바꿔 두고, 실시간으로 들어올 때까지 그 자리에 둔다(사라졌다 나타나던 것) */
+    if(CM_PENDING[tmp])CM_PENDING[tmp].m=Object.assign({},CM_PENDING[tmp].m,{x:'',k:body.k,md:body.md});paint();return cmApi('send',body)}).then(function(r){var have=r&&r.key&&(root0?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp];paint()},8000);paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert('보내지 못했어요\n\n'+e.message)})}
 function cmMediaHtml(m){var md=m.md||[];if(!md.length)return '';
   var vids=md.filter(function(x){return x.v}),pics=md.filter(function(x){return x.u&&!x.v}),docs=md.filter(function(x){return x.f});
   var h='';
@@ -9977,7 +9997,7 @@ function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;va
       fx.done=function(){if(CM._kbFx!==fx)return;CM._kbFx=null;var t=m.scrollTop;
         ['position','left','right','bottom','zIndex','transform','transition','willChange'].forEach(function(k){comp.style[k]=''});
         m.style.transform='';m.style.transition='';m.style.willChange='';m.style.paddingBottom='';raised.forEach(function(c){c.style.position='';c.style.zIndex=''})
-        e.style.height=(H-K)+'px';m.scrollTop=t+K-dP;setTimeout(function(){e.style.transition=''},60);var v2=window.visualViewport;if(v2&&window.innerHeight-v2.height>150)cmVV()};
+        e.style.height=(H-K)+'px';m.scrollTop=t+K-dP;setTimeout(function(){e.style.transition=''},60);var v2=window.visualViewport;if(v2&&(window.innerHeight-v2.height>150||pushIsIOS()))cmVV()};
       /* 키보드는 이 처리가 끝나고 두 프레임쯤 뒤에 움직이기 시작한다 — 같이 출발하도록 두 프레임 기다렸다 시작 */
       var go2=function(){if(CM._kbFx!==fx||fx.started)return;fx.started=1;var tr='transform '+CM_KB_MS+'ms cubic-bezier(.3,.5,.2,1)';
         document.documentElement.classList.add('cm-kbon');comp.style.transition=tr;m.style.transition=tr;comp.style.transform='translateY(0px)';m.style.transform='translateY(-'+(K-dP)+'px)';setTimeout(fx.done,CM_KB_MS+40)};

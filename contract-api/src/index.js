@@ -313,17 +313,18 @@ async function pushToPhones(env, phones, payload, opts = {}) {
   const prefs = (await dbGet(env, '/chat/prefs').catch(() => null)) || {};
   const plain = { title: 'DM', body: '새 메시지가 있어요', url: payload.url, tag: payload.tag };
   const subs = [];
-  /* 지금 앱을 쓰고 있는 기기(30초 안에 '사용 중'을 남긴 기기)에는 보내지 않는다 — 카톡처럼 앱 안에서는 위 알림 없음.
-     시험 알림(opts.always)은 예외 */
+  /* 채팅 메시지 알림(opts.chat)은 지금 앱을 쓰고 있는 기기(15초 안에 '사용 중'을 남긴 기기)에는 보내지 않는다 — 카톡처럼 앱 안에서는 위 알림 없음.
+     '사용 중' 시각은 앱이 Firebase 서버 시계로 남긴다. 게시판 필독 · 설문 · 다시 알림 · 시험 알림 등은 그대로 보낸다.
+     '사용 중' 표는 사람마다 따로 읽지 않고 한 번에(외부 요청 수 줄이기) */
   const now = Date.now();
   let skipped = 0;
+  const aliveAll = opts.chat ? ((await dbGet(env, '/pushAlive').catch(() => null)) || {}) : {};
   for (const ph of [...new Set(phones.map(String))]) {
-    const [m, alive] = await Promise.all([
-      dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null),
-      opts.always ? null : dbGet(env, '/pushAlive/' + encodeURIComponent(ph)).catch(() => null)]);
+    const m = await dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null);
+    const alive = aliveAll[ph] || null;
     for (const [id, s] of Object.entries(m || {})) {
       if (!s || !s.endpoint) continue;
-      if (alive && +alive[id] > now - 30000) { skipped++; continue; }
+      if (alive && +alive[id] > now - 15000) { skipped++; continue; }
       subs.push({ ph, id, s });
     }
   }
@@ -752,7 +753,7 @@ export default {
       if (path === '/push/test' && request.method === 'POST') {
         const r = await pushToPhones(env, [String(me.ph)], {
           title: 'DM 알림 시험', body: '이 알림이 보이면 설정이 끝난 거예요.', url: './#p-dash', tag: 'push-test',
-        }, { always: true });
+        });
         return json({ ok: true, ...r }, 200, origin);
       }
 

@@ -998,6 +998,13 @@ async function collectSns(date, dry) {
       }
       // 조회 실패(없는 아이디·개인계정·비공개 등) → 사유 기록해 직원관리에서 확인 가능
       // n = 같은 아이디로 연속 실패한 횟수, since = 처음 실패한 날 → 앱이 n>=3 이고 다음 날 9시가 지나면 본인에게 '아이디 확인' 팝업
+      // 아이디 문제(없는 아이디 · 개인 계정)만 센다. 인스타 서버 오류 · 네트워크 같은 일시 오류는 기록하지 않는다(10/27 검토 —
+      // 일시 오류로 하루에 3번 세어져 다음 날 닫을 수 없는 팝업이 뜰 수 있었다)
+      if (!/Invalid user|cannot be found|does not exist|not a business|professional|business account|creator account/i.test(String(e.message || ''))) {
+        out.push({ shop, name, username, ok: false, error: e.message, transient: true });
+        if (i < active.length - 1) await sleep(CONFIG.igRateGapMs);
+        continue;
+      }
       const prev = u.ig_check || {};
       const again = prev.ok === false && prev.username === username && !isLimit(prev.error);
       const n = again ? (+prev.n || 1) + 1 : 1;

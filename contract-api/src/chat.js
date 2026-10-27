@@ -315,7 +315,7 @@ export function makeChat(deps) {
       const text = x ? clip(x, 120) : (k === 'p' ? '사진을 보냈습니다' : k === 'v' ? '동영상을 보냈습니다' : '파일을 보냈습니다');
       const head = k === 'ack' ? '[확인 요청] ' : k === 'poll' ? '[투표] ' : root ? '(답장) ' : '';
       const payload = { title, body: (room.t === 'dm' ? '' : bn + ': ') + head + text, url: './#comm/' + rid, tag: 'chat-' + rid };
-      const pr = await pushToPhones(env, targets, payload, { urgency: actFor.size ? 'high' : 'normal', topic: 'c' + rid.slice(0, 30) }).catch((e) => ({ error: e.message }));
+      const pr = await pushToPhones(env, targets, payload, { urgency: actFor.size ? 'high' : 'normal', topic: 'c' + rid.slice(0, 30), chat: true }).catch((e) => ({ error: e.message }));
       /* 임시 진단(10/27 '사진은 알림이 안 옴'): 메시지마다 알림 대상 · 보낸 기기 · 건너뛴 기기 · 실패를 남긴다. 원인 확인 뒤 지운다 */
       await dbPut(env, '/debug/push/' + Date.now(), { rid, k, targets: targets.length, devices: pr.devices || 0, sent: pr.sent || 0, skipped: pr.skipped || 0, failed: pr.failed || 0, err: pr.error || '', st: (pr.detail || []).map((d) => String(d.status || d.error || '')).join(',').slice(0, 200) }).catch(() => {});
     } else {
