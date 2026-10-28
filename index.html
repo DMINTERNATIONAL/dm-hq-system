@@ -7623,7 +7623,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-28-2',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-28-3',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -9212,7 +9212,7 @@ var CM_PENDING={};
 function cmMaxKey(src){var mx='';for(var k in src)if(k>mx)mx=k;return mx}
 function cmPendKey(p,src,used){if(p.key)return src[p.key]?p.key:null;var ks=Object.keys(src).sort();for(var i=0;i<ks.length;i++){var k=ks[i],m=src[k];if(used[k]||!m||k<=(p.since||'')||m.by!==p.m.by||m.k!==p.m.k||(m.x||'')!==(p.m.x||''))continue;return k}return null}
 function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.reply=CM._rpSaved||null}if(CM.rpRoot)setTimeout(cmRenderReplies,0);CM.rpN=cmRpCount(CM.msgs);var box=$('CM-MSGS');if(!box||!CM.room)return;
-  var away=document.visibilityState!=='visible'||(!document.hasFocus()&&((typeof CM_DESK!=='undefined'&&CM_DESK)||!('ontouchstart' in window)));
+  var away=cmAway();
    var near=box.scrollHeight-box.scrollTop-box.clientHeight<120||box.getAttribute('data-first')!=='1'||CM_AT_BOTTOM['CM-MSGS']!==false||away;if(away)CM._wantBottom=true;
   var keys=Object.keys(CM.msgs).sort();CM.firstKey=keys[0]||null;
   var list=keys.map(function(k){return {k:k,m:CM.msgs[k]}});
@@ -9235,8 +9235,13 @@ function cmActSeen(rid,uptoKey,root){var up={};Object.keys(CM.act||{}).forEach(f
   if(root){if(a.th&&a.key===root){up[id+'/done']=1;a.done=1}}else if(!a.th&&a.key<=uptoKey){up[id+'/done']=1;a.done=1}});
   if(Object.keys(up).length){fbReq(cmSeg('/chat/act/'+ME.phone)+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(up)}).catch(function(){});cmBadges()}}
 var CM_READ_T=null;
-function cmMarkRead(){if(!CM.rid||document.visibilityState!=='visible'||!cmOn('p-comm-room'))return;clearTimeout(CM_READ_T);CM_READ_T=setTimeout(function(){var mx=0;Object.keys(CM.msgs).forEach(function(k){var m=CM.msgs[k];if(m&&m.s>mx)mx=m.s});var mine=CM.reads[ME.phone]||0;if(mx>mine){CM.reads[ME.phone]=mx;cmP('/chat/reads/'+CM.rid+'/'+ME.phone,mx);cmP('/chat/inbox/'+ME.phone+'/'+CM.rid+'/r',mx)}if(mx)cmActSeen(CM.rid,String(mx).padStart(9,'0'))},400)}
+/* 화면을 안 보고 있는가 — 숨김, 또는 컴퓨터(맥 · PC 앱 · 브라우저)에서 창이 뒤에 있을 때.
+   10/28 진단: 방을 열어 둔 채 다른 창을 쓰면 새 글이 바로 '읽음'이 돼 독 숫자가 1 → 0 으로 곧장 지워졌다(보낸 사람의 '1'도 사라짐).
+   카톡 PC처럼 창을 앞으로 가져와야 읽은 것으로 친다 */
+function cmAway(){return document.visibilityState!=='visible'||(!document.hasFocus()&&((typeof CM_DESK!=='undefined'&&CM_DESK)||!('ontouchstart' in window)))}
+function cmMarkRead(){if(!CM.rid||cmAway()||!cmOn('p-comm-room'))return;clearTimeout(CM_READ_T);CM_READ_T=setTimeout(function(){if(cmAway())return;var mx=0;Object.keys(CM.msgs).forEach(function(k){var m=CM.msgs[k];if(m&&m.s>mx)mx=m.s});var mine=CM.reads[ME.phone]||0;if(mx>mine){CM.reads[ME.phone]=mx;cmP('/chat/reads/'+CM.rid+'/'+ME.phone,mx);cmP('/chat/inbox/'+ME.phone+'/'+CM.rid+'/r',mx)}if(mx)cmActSeen(CM.rid,String(mx).padStart(9,'0'))},400)}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')cmMarkRead()});
+window.addEventListener('focus',function(){cmMarkRead()});
 
 /* ── 입력창 ── */
 function cmComposer(boxId,thread){var b=$(boxId);if(!b)return;
