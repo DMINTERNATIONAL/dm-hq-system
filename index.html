@@ -7623,7 +7623,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-28-1',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-28-2',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -9151,7 +9151,8 @@ function cmOpenRoom(rid,thRoot){
   if(thRoot)setTimeout(function(){cmOpenThread(thRoot)},300)}
 /* 넓은 화면: 대화방 안에 왼쪽 목록. 작게 보기는 목록 페이지를 그대로 왼쪽에 두므로(cm-dock) 대화방만 */
 function cmWide(){if(DM_SOLO||DM_SMALL)return false;return window.innerWidth>=1100}
-function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter,st=sd.scrollTop;var v=$('CM-VIEW');var tmp=document.createElement('div');tmp.id='CM-VIEW';if(v)v.id='CM-VIEW-OFF';sd.innerHTML='';sd.appendChild(tmp);try{cmRenderList()}finally{tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.scrollTop=st;cmMarkRow()}
+/* 왼쪽 목록은 있던 것을 고쳐 쓴다(새 글 · 읽음 때마다 통째로 새로 그리지 않게) */
+function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter,st=sd.scrollTop;var v=$('CM-VIEW');var tmp=$('CM-SIDE-IN');if(v)v.id='CM-VIEW-OFF';if(!tmp||tmp.parentNode!==sd){tmp=document.createElement('div');sd.innerHTML='';sd.appendChild(tmp)}tmp.id='CM-VIEW';try{cmRenderList()}finally{tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.scrollTop=st;cmMarkRow()}
 /* 지금 연 방을 목록에서 파랗게 (넓은 화면 왼쪽 목록 · 작게 보기 목록) */
 function cmMarkRow(){var on=cmOn('p-comm-room')?CM.rid:null;document.querySelectorAll('#CM-SIDE .cm-row,#p-comm .cm-row').forEach(function(r){r.classList.toggle('on',!!on&&r.getAttribute('data-rid')===on)})}
 window.addEventListener('resize',function(){if(cmOn('p-comm-room')&&(!!$('CM-SIDE'))!==cmWide()&&CM.rid){var rid=CM.rid;CM.rid=null;cmOpenRoom(rid)}});
@@ -9206,12 +9207,16 @@ function cmMsgHtml(list,opts){
     prev=m});
   return h}
 var CM_PENDING={};
+/* 보낸 글이 실시간으로 먼저 도착하면(서버 답보다 빠를 때가 많다) 같은 말풍선이 잠깐 두 개 보였다가 하나가 사라지며 화면이 튀었다.
+   보낸 뒤 새로 들어온 내 글 중 내용이 같은 것을 찾아 바로 바꿔 끼운다 */
+function cmMaxKey(src){var mx='';for(var k in src)if(k>mx)mx=k;return mx}
+function cmPendKey(p,src,used){if(p.key)return src[p.key]?p.key:null;var ks=Object.keys(src).sort();for(var i=0;i<ks.length;i++){var k=ks[i],m=src[k];if(used[k]||!m||k<=(p.since||'')||m.by!==p.m.by||m.k!==p.m.k||(m.x||'')!==(p.m.x||''))continue;return k}return null}
 function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.reply=CM._rpSaved||null}if(CM.rpRoot)setTimeout(cmRenderReplies,0);CM.rpN=cmRpCount(CM.msgs);var box=$('CM-MSGS');if(!box||!CM.room)return;
   var away=document.visibilityState!=='visible'||(!document.hasFocus()&&((typeof CM_DESK!=='undefined'&&CM_DESK)||!('ontouchstart' in window)));
    var near=box.scrollHeight-box.scrollTop-box.clientHeight<120||box.getAttribute('data-first')!=='1'||CM_AT_BOTTOM['CM-MSGS']!==false||away;if(away)CM._wantBottom=true;
   var keys=Object.keys(CM.msgs).sort();CM.firstKey=keys[0]||null;
   var list=keys.map(function(k){return {k:k,m:CM.msgs[k]}});
-  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root)return;if(p.key&&CM.msgs[p.key]){delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
+  var used={};Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root)return;var hk=cmPendKey(p,CM.msgs,used);if(hk){used[hk]=1;delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
   var more=(keys.length>=60&&!CM.older)||CM.older==='more'?'<button class="cm-more" onclick="cmLoadOlder()">이전 대화 더 보기</button>':'';
   var prevH=box.scrollHeight,prevT=box.scrollTop;
   if(CM.find.on){box.innerHTML=cmFindHtml();box.removeAttribute('data-first');return}
@@ -9273,7 +9278,7 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   if(boxId==='CM-TCOMP'&&CM.rpRoot&&!CM.reply)CM.reply=CM.rpQ0;
   var body={rid:CM.rid,k:'t',x:x,mn:mn,tg:tg};if(CM.reply&&!thread)body.rp=CM.reply;if(thread)body.root=CM.thRoot;
   var tmp='zz'+Date.now();var me=String(ME.phone);CM._sentAt=Date.now();
-  CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
+  CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,since:cmMaxKey(thread?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
   ta.value='';ta.style.height='auto';CM.reply=boxId==='CM-TCOMP'&&CM.rpRoot?CM.rpQ0:null;CM.mn=[];cmReplyBar(boxId);
   if(thread)cmRenderThread();else cmRenderMsgs();cmSendLog(_t0,tmp,thread);
   setTimeout(function(){if(CM_PENDING[tmp]){if(thread)cmRenderThread();else cmRenderMsgs()}},2100);
@@ -9372,7 +9377,7 @@ function cmCloseReplies(){CM.rpRoot=null;CM.reply=CM._rpSaved||null;CM._rpSaved=
 function cmCloseThread(){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;go('p-comm-room');cmRenderMsgs();cmVV()}
 function cmRenderThread(){var box=$('CM-TMSGS');if(!box||!CM.thRoot)return;var rootM=CM.msgs[CM.thRoot];
   var list=Object.keys(CM.thMsgs).sort().map(function(k){return {k:k,m:CM.thMsgs[k]}});
-  Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root!==CM.thRoot)return;if(p.key&&CM.thMsgs[p.key]){delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
+  var used={};Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root!==CM.thRoot)return;var hk=cmPendKey(p,CM.thMsgs,used);if(hk){used[hk]=1;delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
   var saveRoot=CM.thRoot;var head=rootM?cmMsgHtml([{k:CM.thRoot,m:rootM}],{thread:null}):'';
   box.innerHTML=head+'<div class="cm-sys">답장 '+Object.keys(CM.thMsgs).length+'개</div>'+cmMsgHtml(list,{thread:saveRoot,day:rootM?new Date(rootM.at).toDateString():''});
   cmBindPress(box);cmFillMedia(box);box.scrollTop=box.scrollHeight}
@@ -9540,7 +9545,7 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
   var tmp='zz'+Date.now();var me=String(ME.phone);var label=kind==='v'?'동영상':kind==='f'?'파일 '+files.length+'개':'사진 '+files.length+'장';
   /* 올리기 시작할 때의 스레드 · 답장 모아 보기를 기억(올리는 동안 화면을 옮겨도 그 자리로) — 답장 모아 보기에서는 원글을 인용해 보낸다 */
   var root0=thread?CM.thRoot:null,rp0=!thread&&CM.rpRoot?(CM.reply||CM.rpQ0):null;
-  CM_PENDING[tmp]={rid:rid,root:root0,m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:label+' 올리는 중…',rp:rp0||undefined}};
+  CM_PENDING[tmp]={rid:rid,root:root0,since:cmMaxKey(root0?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:label+' 올리는 중…',rp:rp0||undefined}};
   var paint=function(){if(thread)cmRenderThread();else cmRenderMsgs()};paint();
   var prog=function(t){CM_PENDING[tmp].m.x=label+' 올리는 중… '+Math.round(t*100)+'%';paint()};
   var done=0,md=[];
