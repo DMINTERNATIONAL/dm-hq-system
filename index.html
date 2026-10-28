@@ -7623,7 +7623,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-28-3',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-28-4',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -9954,10 +9954,10 @@ function cmDeskCheck(){if(!CM_DESK||DM_SOLO||!CM.inbox)return;var first=!CM_DESK
     cmDeskNotify(({must:'[필독] ',survey:'[설문] ',remind:'다시 알림 · '}[a.k]||'')+(a.rn||'DM'),(a.bn?a.bn+': ':'')+(a.x||''),hh)});
   CM_DESK_SEEN.ready=true}
 function cmPhoneW(){return window.innerWidth<1024&&!CM_DESK}
-/* 아이콘(독 · 작업 표시줄) 숫자. 10/28 '독에 숫자가 안 뜸' — 앱 자체로는 뜨는 것 확인(시험 앱에 7). 실패하면 라벨로 한 번 더, 대표 계정은 결과를 /debug/desk 에 */
+/* 아이콘(독 · 작업 표시줄) 숫자. 실패하면 라벨로 한 번 더.
+   10/28 '독에 숫자가 안 뜸' — 숫자는 들어갔는데 창이 뒤에 있어도 읽음 처리돼 곧장 0이 됐던 것(cmAway 로 해결) */
 function cmDeskBadge(n){if(typeof CM_DESK==='undefined'||!CM_DESK||DM_SOLO)return;var w=cmDeskWin();if(!w)return;
-  Promise.resolve().then(function(){return w.setBadgeCount(n>0?n:undefined)}).then(function(){cmDeskLog({badge:n,ok:1})},function(e){cmDeskLog({badge:n,err:String(e&&e.message||e).slice(0,200)});return w.setBadgeLabel&&w.setBadgeLabel(n>0?String(n>99?'99+':n):undefined)}).catch(function(){})}
-function cmDeskLog(o){try{if(!ME||String(ME.phone)!=='01082470187')return;var k=JSON.stringify(o);if(CM._dlog===k)return;CM._dlog=k;o.b=DM_BUILD;o.f=document.hasFocus()?1:0;o.v=document.visibilityState;dbToken().then(function(t){return fetch(fbUrl('/debug/desk/'+Date.now()+'.json',t),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})}).catch(function(){})}catch(e){}}
+  Promise.resolve().then(function(){return w.setBadgeCount(n>0?n:undefined)}).catch(function(){return w.setBadgeLabel&&w.setBadgeLabel(n>0?String(n>99?'99+':n):undefined)}).catch(function(){})}
 /* 파일 저장: 앱 v0.1.3 부터 다운로드 폴더에 바로(download 명령). 그 전 앱은 브라우저로 연다 */
 function cmDeskSave(blob,name){var T=window.__TAURI__;return Promise.resolve(blob.arrayBuffer()).then(function(b){return T.core.invoke('download',new Uint8Array(b),{headers:{'x-name':encodeURIComponent(name||'DM')}})})
   .then(function(p){toast('다운로드 폴더에 저장했어요');return p}).catch(function(){toast('맥 앱을 최신 버전으로 바꾸면 바로 저장돼요. 앱을 껐다 켜 주세요');throw new Error('old app')})}
@@ -10170,7 +10170,9 @@ function cmPendingNav(){if(!window.caches)return Promise.resolve();return caches
 function cmGoHash(h){if(!/^#(comm|board|survey)\//.test(h||''))return;CM_ROUTE=h;if(window.caches)caches.open('dm-nav').then(function(c){c.delete('/__nav')}).catch(function(){});cmRoute()}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&ME)cmPendingNav().then(cmRoute)});
 window.addEventListener('focus',function(){if(CM_DESK_LAST&&Date.now()-CM_DESK_LAST.at<120000){var h=CM_DESK_LAST.h;CM_DESK_LAST=null;cmGoHash(h)}});
-function cmRoute(){var h=CM_ROUTE||location.hash||'';if(!ME)return;var m=h.match(/^#comm\/(.+)$/),bm=h.match(/^#board\/([^/]+)\/(.+)$/),sm=h.match(/^#survey\/(.+)$/);if(!m&&!bm&&!sm)return;CM_ROUTE='';commBetaLoad().then(function(b){if(!b)return;cmBoot();if(m)cmOpenRoom(decodeURIComponent(m[1]));else if(bm)bdOpen(decodeURIComponent(bm[1]),bm[2]);else svAnswer(sm[1])})}
+function cmRoute(){var h=CM_ROUTE||location.hash||'';if(!ME)return;var m=h.match(/^#comm\/(.+)$/),bm=h.match(/^#board\/([^/]+)\/(.+)$/),sm=h.match(/^#survey\/(.+)$/);if(!m&&!bm&&!sm)return;CM_ROUTE='';commBetaLoad().then(function(b){if(!b)return;cmBoot();if(m){var rid=decodeURIComponent(m[1]);
+    /* 이미 그 방을 보고 있으면 다시 열지 않는다 — 맥 앱에서 알림이 뜬 뒤 창을 클릭하면 같은 방을 처음부터 다시 그려 한 번 깜빡였다(10/28) */
+    if(CM.rid===rid&&cmOn('p-comm-room')){cmBackToRoom();cmMarkRead();return}cmOpenRoom(rid)}else if(bm)bdOpen(decodeURIComponent(bm[1]),bm[2]);else svAnswer(sm[1])})}
 window.addEventListener('hashchange',cmRoute);
 
 </script>
