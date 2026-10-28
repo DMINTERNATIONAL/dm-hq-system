@@ -7623,7 +7623,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-28-4',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-28-5',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -9133,7 +9133,7 @@ function cmOpenRoom(rid,thRoot){
   CM.find={on:false,q:'',k:''};
   if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[];CM.rpRoot=null;CM.rpAll={}}
    if(CM._kbFx&&CM._kbFx.done)CM._kbFx.done();
-   var wasOn=cmOn('p-comm-room'),prevPg=document.querySelector('.pg.on');if(!wasOn)cmRoomLog();CM_AT_BOTTOM['CM-MSGS']=true;
+   var wasOn=cmOn('p-comm-room'),prevPg=document.querySelector('.pg.on');CM_AT_BOTTOM['CM-MSGS']=true;
    /* 작게 보기: 목록 페이지는 왼쪽에 그대로(스크롤 자리도) 두고 대화방을 그 오른쪽에 그린 뒤 창을 넓힌다 — 넓어지는 만큼 대화방이 드러난다.
       예전엔 창을 먼저 넓혀 목록이 가운데로 튀고, 폰용 밀려 들어오는 효과까지 겹쳤다(10/28) */
    var dock=DM_SMALL&&!DM_SOLO&&!wasOn,sy=window.scrollY;if(dock){var lp=$('p-comm');if(lp&&lp.classList.contains('on'))lp.classList.add('cm-dock')}
@@ -9268,13 +9268,7 @@ function cmMentionCheck(boxId){var ta=$(boxId+'-TA'),mp=$(boxId+'-MP');if(!ta||!
 function cmMentionPick(boxId,ph,n){var ta=$(boxId+'-TA');var pos=ta.selectionStart;var before=ta.value.slice(0,pos).replace(/@([^\s@]*)$/,'@'+n+' ');ta.value=before+ta.value.slice(pos);ta.focus();ta.setSelectionRange(before.length,before.length);
   if(ph==='*')CM.mn='*';else if(ph.indexOf('g:')===0){CM.mnG=CM.mnG||{};CM.mnG[n]=(CM._grp&&CM._grp[ph.slice(2)])||[]}else if(CM.mn!=='*'&&CM.mn.indexOf(ph)<0)CM.mn.push(ph);$(boxId+'-MP').innerHTML=''}
 function cmTagPick(boxId,t){var ta=$(boxId+'-TA');var pos=ta.selectionStart;var before=ta.value.slice(0,pos).replace(/#([^\s#]*)$/,'#'+t+' ');ta.value=before+ta.value.slice(pos);ta.focus();ta.setSelectionRange(before.length,before.length);$(boxId+'-MP').innerHTML=''}
-/* 임시 진단(대표 계정만, 맥 · 아이폰 모두): 보내기 단계별 시간 + 지금 쓰는 앱 버전을 /debug/send 에 남긴다 */
-function cmSendLog(t0,tmp,thread){try{if(!ME||String(ME.phone)!=='01082470187')return;var d={b:DM_BUILD,dev:(typeof CM_DESK!=='undefined'&&CM_DESK)?'mac':(pushIsIOS()?'ios':'web'),render:Math.round(performance.now()-t0)};
-  requestAnimationFrame(function(){requestAnimationFrame(function(){d.paint=Math.round(performance.now()-t0)})});
-  var iv=setInterval(function(){var p=CM_PENDING[tmp];if(p&&p.key&&!d.ack)d.ack=Math.round(performance.now()-t0);var src=thread?CM.thMsgs:CM.msgs;
-    if(!p||(p.key&&src[p.key])){d.arrive=Math.round(performance.now()-t0);if(!d.ack)d.ack=d.arrive;clearInterval(iv);fbP('/debug/send/'+Date.now()+'.json',d).catch(function(){})}
-    else if(performance.now()-t0>12000){d.timeout=1;clearInterval(iv);fbP('/debug/send/'+Date.now()+'.json',d).catch(function(){})}},20)}catch(_){}}
-function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();if(!x||!CM.rid)return;var _t0=performance.now();
+function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();if(!x||!CM.rid)return;
   /* 지운 @이름은 부르지 않는다 */
   var mn=CM.mn==='*'?(x.indexOf('@전체')>=0?'*':[]):CM.mn.filter(function(p){return x.indexOf('@'+cmName(p))>=0});
   if(mn!=='*'&&CM.mnG)Object.keys(CM.mnG).forEach(function(g){if(x.indexOf('@'+g)>=0)CM.mnG[g].forEach(function(p){if(mn.indexOf(p)<0)mn.push(p)})});CM.mnG={};
@@ -9285,7 +9279,7 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   var tmp='zz'+Date.now();var me=String(ME.phone);CM._sentAt=Date.now();
   CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,since:cmMaxKey(thread?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
   ta.value='';ta.style.height='auto';CM.reply=boxId==='CM-TCOMP'&&CM.rpRoot?CM.rpQ0:null;CM.mn=[];cmReplyBar(boxId);
-  if(thread)cmRenderThread();else cmRenderMsgs();cmSendLog(_t0,tmp,thread);
+  if(thread)cmRenderThread();else cmRenderMsgs();
   setTimeout(function(){if(CM_PENDING[tmp]){if(thread)cmRenderThread();else cmRenderMsgs()}},2100);
   /* 서버가 받았다고 답해도 실제 메시지가 실시간으로 들어올 때까지 보낸 말풍선을 그대로 둔다(사라졌다 다시 나타나던 것) */
   cmApi('send',body).then(function(r){var have=r&&r.key&&(thread?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp]},8000);if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;alert('보내지 못했어요\n\n'+e.message)})}
@@ -10039,17 +10033,6 @@ var CM_KBH=0;try{CM_KBH=+localStorage.getItem('cm_kbh')||0}catch(_){}
 var CM_AT_BOTTOM={};
 document.addEventListener('scroll',function(e){var t=e.target;if(t&&(t.id==='CM-MSGS'||t.id==='CM-TMSGS'))CM_AT_BOTTOM[t.id]=t.scrollHeight-t.scrollTop-t.clientHeight<80},true);
 document.addEventListener('load',function(e){var im=e.target;if(!im||im.tagName!=='IMG'||!im.closest)return;var m=im.closest('#CM-MSGS,#CM-TMSGS');if(!m||CM_AT_BOTTOM[m.id]===false||CM._kbAnim||CM._kbFx)return;m.scrollTop=m.scrollHeight},true);
-/* 임시 진단(대표 계정만): 키보드가 열리고 닫히는 1초 동안 아이폰이 알려 주는 값과 화면 위치를 프레임마다 /debug/kb 에 남긴다.
-   녹화로는 안 보이는 '아이폰이 화면을 밀었는지 · 언제 크기를 알려 주는지'를 숫자로 보려고. 원인을 찾으면 지운다 */
-function cmRoomLog(){try{if(!ME||String(ME.phone)!=='01082470187'||!pushIsIOS())return;var t0=performance.now(),rows=[],room=$('p-comm-room'),list=$('p-comm');
-  (function f(){var now=performance.now(),m=$('CM-MSGS'),lm=m&&m.querySelector('.cm-m:last-child'),tr=room?getComputedStyle(room).transform:'',x=tr&&tr!=='none'?Math.round(+tr.split(',')[4]):0,rt=$('CM-RT');
-    rows.push([Math.round(now-t0),x,room?room.className.replace(/\bpg\b|\bon\b/g,'').trim():'',list?getComputedStyle(list).display:'',list?list.querySelectorAll('.cm-row').length:-1,lm?Math.round(lm.getBoundingClientRect().bottom):-1,m?Math.round(m.scrollTop):-1,m?m.children.length:-1,rt?rt.textContent.slice(0,12):'']);
-    if(now-t0<1200)requestAnimationFrame(f);else fbP('/debug/room/'+Date.now()+'.json',{cols:'ms,roomX,roomCls,listDisplay,listRows,lastMsgBottom,scrollTop,msgNodes,title',rows:rows}).catch(function(){})})()}catch(_){}}
-function cmKbLog(ev){try{if(!ME||String(ME.phone)!=='01082470187'||!pushIsIOS())return;var vv=window.visualViewport,t0=performance.now(),rows=[];
-  var room=$(cmOn('p-comm-thread')?'p-comm-thread':'p-comm-room');if(!room)return;var m=room.querySelector('.cm-msgs'),c=$(cmOn('p-comm-thread')?'CM-TCOMP':'CM-COMP'),hd=room.querySelector('.cm-rhead');
-  (function f(){var now=performance.now(),lm=m&&m.querySelector('.cm-m:last-child');
-    rows.push([Math.round(now-t0),vv?Math.round(vv.offsetTop):-1,vv?Math.round(vv.height):-1,Math.round(window.scrollY),hd?Math.round(hd.getBoundingClientRect().top):-1,c?Math.round(c.getBoundingClientRect().top):-1,lm?Math.round(lm.getBoundingClientRect().bottom):-1,room.style.top||'',room.style.height||'',CM._kbFx?(CM._kbFx.close?'c':(CM._kbFx.started?'o':'p')):'']);
-    if(now-t0<1100)requestAnimationFrame(f);else fbP('/debug/kb/'+Date.now()+'.json',{ev:ev,ih:window.innerHeight,kbh:CM_KBH,cols:'ms,vvTop,vvH,scrollY,headTop,compTop,lastMsgBottom,roomTop,roomH,fx',rows:rows}).catch(function(){})})()}catch(_){}}
 /* 아이폰은 키보드가 움직이기 시작하는 바로 그 순간 보이는 영역 크기(visualViewport resize)를 알려 준다(진단 기록: 0.05~0.08초).
    그 신호에 맞춰 출발해야 키보드와 한 몸처럼 움직인다 — 프레임 수로 기다리면 키보드가 2프레임 먼저 출발해 입력창을 덮었다 */
 function cmOnKbMove(up,fn,fallback){var vv=window.visualViewport,done=false;var go=function(){if(done)return;done=true;if(vv)vv.removeEventListener('resize',h);fn()};
@@ -10131,9 +10114,9 @@ function cmKbPredict(open,ta){if(window.innerWidth>=1024||!pushIsIOS())return;va
   document.addEventListener('touchend',function(e){var ta=e.target;if(!ta||ta.tagName!=='TEXTAREA'||!/^CM-(COMP|TCOMP)-TA$/.test(ta.id||''))return;
     if(document.activeElement===ta||window.innerWidth>=1024||!pushIsIOS()||!CM_KBH)return;
     var t=e.changedTouches&&e.changedTouches[0];if(t&&(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10))return;
-    e.preventDefault();cmKbLog('open');cmKbPredict(true,ta);CM._kbPre=Date.now();try{ta.focus({preventScroll:true})}catch(_){ta.focus()}},{passive:false,capture:true})})();
+    e.preventDefault();cmKbPredict(true,ta);CM._kbPre=Date.now();try{ta.focus({preventScroll:true})}catch(_){ta.focus()}},{passive:false,capture:true})})();
 document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){if(!(CM._kbPre&&Date.now()-CM._kbPre<500))cmKbPredict(true,e.target);CM._kbPre=0;setTimeout(cmVV,50);setTimeout(cmVV,350)}});
-document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){var t=e.target;cmKbLog('close');setTimeout(function(){if(document.activeElement!==t)cmKbPredict(false,t)},0);setTimeout(cmVV,100)}});
+document.addEventListener('focusout',function(e){if(e.target&&e.target.tagName==='TEXTAREA'&&/^CM-/.test(e.target.id||'')){var t=e.target;setTimeout(function(){if(document.activeElement!==t)cmKbPredict(false,t)},0);setTimeout(cmVV,100)}});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',cmVV);window.visualViewport.addEventListener('scroll',cmVV)}
 /* 떠 있는 창(가운데 창 · 아래에서 올라온 시트)에서 글을 쓰면 아이폰 키보드가 창 아래쪽(입력칸 · 버튼)을 가린다.
    키보드가 떠 있는 동안 창 배경을 '보이는 화면'(visualViewport) 크기로 맞춰 창이 키보드 위로 오게 한다 */
