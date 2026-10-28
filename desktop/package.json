@@ -1,7 +1,7 @@
 {
   "name": "dm-desktop",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "DM 본사 앱 PC · 맥 설치판 (Tauri) — 화면은 GitHub Pages 의 웹앱을 그대로 연다",
   "scripts": { "tauri": "tauri" },
   "devDependencies": { "@tauri-apps/cli": "^2.0.0" }

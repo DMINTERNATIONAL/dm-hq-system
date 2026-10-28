@@ -6,12 +6,125 @@
 //   - 켤 때 새 버전이 있으면 받아서 다시 시작 (GitHub 릴리스의 latest.json)
 //   - 창 크기 · 위치를 기억해 다음에 그대로 연다 (웹앱의 '작게 보기 / 크게 보기'로 바꾼 크기 포함)
 //   - 채팅방을 새 창으로 여러 개 띄울 수 있다 (웹앱이 room-{방} 창을 만든다, ?solo=1#comm/{방})
-// 알림 · 아이콘 숫자는 웹앱이 window.__TAURI__ 로 직접 띄운다 (index.html 의 cmDesktop*).
+//   - 사진 · 파일 '저장'을 다운로드 폴더에 바로 (download 명령)
+//   - 컴퓨터를 쓰고 있는지 (idle 명령 — 웹앱이 PC 사용 중이면 휴대폰 알림을 쉬게 한다)
+// 알림 · 아이콘 숫자는 웹앱이 window.__TAURI__ 로 직접 띄운다 (index.html 의 cmDesk*).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
+
+/// 사진 · 파일 저장: 웹앱이 받아 둔 내용(바이트)과 이름(x-name, 주소 인코딩)을 넘기면
+/// '다운로드' 폴더에 같은 이름이 있으면 '이름 (1).jpg' 처럼 바꿔 저장하고 저장한 경로를 돌려준다.
+#[tauri::command]
+fn download(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("저장할 내용이 없어요".into());
+    };
+    let raw = request
+        .headers()
+        .get("x-name")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("DM");
+    let name = clean_name(&pct_decode(raw));
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    let path = unique_path(&dir, &name);
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+fn pct_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' && i + 2 < b.len() {
+            if let Some(v) = std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(v);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// 폴더 구분자 · 제어 문자 · 맨 앞 점을 빼고 120자로 자른다
+fn clean_name(s: &str) -> String {
+    let n: String = s
+        .chars()
+        .map(|c| if c.is_control() || "/\\:*?\"<>|".contains(c) { '_' } else { c })
+        .take(120)
+        .collect();
+    let n = n.trim().trim_start_matches('.').to_string();
+    if n.is_empty() { "DM".into() } else { n }
+}
+
+fn unique_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let p = dir.join(name);
+    if !p.exists() {
+        return p;
+    }
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    };
+    for n in 1..1000 {
+        let q = dir.join(format!("{stem} ({n}){ext}"));
+        if !q.exists() {
+            return q;
+        }
+    }
+    p
+}
+
+/// 컴퓨터(키보드 · 마우스)를 마지막으로 만진 뒤 지난 초 — 다른 프로그램을 쓰는 것도 센다
+#[tauri::command]
+fn idle() -> f64 {
+    idle_secs()
+}
+
+#[cfg(target_os = "macos")]
+fn idle_secs() -> f64 {
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGEventSourceSecondsSinceLastEventType(state: i32, event_type: u32) -> f64;
+    }
+    // kCGEventSourceStateCombinedSessionState = 0, kCGAnyInputEventType = ~0
+    unsafe { CGEventSourceSecondsSinceLastEventType(0, u32::MAX) }
+}
+
+#[cfg(target_os = "windows")]
+fn idle_secs() -> f64 {
+    #[repr(C)]
+    struct LastInputInfo {
+        cb_size: u32,
+        dw_time: u32,
+    }
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetLastInputInfo(plii: *mut LastInputInfo) -> i32;
+    }
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetTickCount() -> u32;
+    }
+    let mut li = LastInputInfo { cb_size: std::mem::size_of::<LastInputInfo>() as u32, dw_time: 0 };
+    unsafe {
+        if GetLastInputInfo(&mut li) == 0 {
+            return 0.0;
+        }
+        GetTickCount().wrapping_sub(li.dw_time) as f64 / 1000.0
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn idle_secs() -> f64 {
+    0.0
+}
 
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
@@ -32,6 +145,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .invoke_handler(tauri::generate_handler![download, idle])
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "DM 열기", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "DM 끝내기", true, None::<&str>)?;

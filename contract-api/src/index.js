@@ -322,9 +322,11 @@ async function pushToPhones(env, phones, payload, opts = {}) {
   for (const ph of [...new Set(phones.map(String))]) {
     const m = await dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null);
     const alive = aliveAll[ph] || null;
+    /* 맥 · PC 앱을 쓰는 중(30초 안에 /pushAlive/{폰}/pc — 컴퓨터를 3분 안에 만졌을 때만 남긴다)이면 그 사람 휴대폰으로는 채팅 알림을 보내지 않는다(카톡처럼, 10/28) */
+    const pcOn = !!(alive && +alive.pc > now - 30000);
     for (const [id, s] of Object.entries(m || {})) {
       if (!s || !s.endpoint) continue;
-      if (alive && +alive[id] > now - 15000) { skipped++; continue; }
+      if (pcOn || (alive && +alive[id] > now - 15000)) { skipped++; continue; }
       subs.push({ ph, id, s });
     }
   }
