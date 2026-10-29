@@ -8237,7 +8237,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-30-1',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-30-2',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10734,7 +10734,7 @@ function svSendPick(){var e=SV.ed;if(!e.sv.t.trim()){toast('설문 제목을 입
     cmConfirm(l.length+'명에게 보낼까요?',(e.sv.anon?'익명 설문입니다. ':'')+'받는 사람 모두에게 알림이 가요.'+(e.sv.end?' 마감 '+cmAgoFuture(e.sv.end):''),'보내기',false,function(){bdApi('/survey/send',{sid:e.sid,to:l}).then(function(r){e.st=e.st==='draft'?'open':e.st;e.tp=(e.tp||[]).concat(l);SV.list=null;toast(r.n+'명에게 보냈어요');svEdDraw()}).catch(function(er){toast(er.message)})})}})}).catch(function(){})}
 
 /* ── 응답하기 ── 미리보기도 같은 화면(mode 'pv') */
-function svAnswer(arg){var m=String(arg).split('/'),sid=m[0];if(m[1]==='r')return svEdit(sid,'r');go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
+function svAnswer(arg){var m=String(arg).split('/'),sid=m[0];if(m[1]==='r')return svEdit(sid,'r');if(m[1]==='v')return svSumOpen(sid);go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
   bdApi('/survey/mine',{sid:sid}).then(function(r){if(r.editor&&!r.target)return svEdit(sid);svFillStart({sid:sid,sv:r.sv,a:r.a||{},answered:r.answered,quiz:r.quiz,mode:'live'})})
   .catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
 /* 결과만 공개받은 사람 — 요약만 연다 */

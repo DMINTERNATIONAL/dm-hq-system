@@ -221,7 +221,7 @@ export function makeSurvey(deps) {
   const later = (job, ctx) => { if (ctx && ctx.waitUntil) ctx.waitUntil(job); else return job; };
 
   /* 만들기 · 고치기(자동 저장). sid 가 없으면 초안을 새로 만든다 */
-  async function save(env, me, body) {
+  async function save(env, ctx, me, body) {
     const u = await meUser(env, me); const ph = String(me.ph);
     let cur = null, sid = body.sid ? String(body.sid) : '';
     if (sid) { cur = (await load(env, sid)).raw; if (!isEditor(norm(cur), ph, u)) throw new Error('이 설문을 고칠 수 없습니다'); }
@@ -250,6 +250,11 @@ export function makeSurvey(deps) {
       await dbPatch(env, '/surveys/' + sid, up);
     }
     if (body.key !== undefined) await dbPut(env, `/surveyAns/${sid}/_key`, cleanKey(qs, body.key));
+    /* 보낸 뒤에 '결과 볼 사람'을 새로 넣으면 그 사람에게 알린다 (초안이면 보낼 때 알림) */
+    if (cur && cur.st !== 'draft') {
+      const old = (cur.set || {}).pv || {};
+      pvPush(env, ctx, u, sid, up.t || cur.t, Object.keys(up.set.pv || {}).filter((p) => !old[p] && p !== ph));
+    }
     return { sid, up: up.up };
   }
 
@@ -285,6 +290,7 @@ export function makeSurvey(deps) {
     if (raw.st === 'draft') { up[`surveys/${sid}/st`] = 'open'; up[`surveys/${sid}/sent`] = nowMs(); }
     await dbPatch(env, '/', up);
     const end = sv.end;
+    if (raw.st === 'draft') await pvPush(env, ctx, u, sid, sv.t, Object.keys((sv.set || {}).pv || {}).filter((p) => p !== ph && !add.includes(p) && !(sv.co || {})[p]));
     later(pushToPhones(env, add, { title: '[설문] ' + sv.t, body: nameOf(u) + (end ? ' · 마감 ' + new Date(end + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ') : ''), url: './#survey/' + sid, tag: 'survey-' + sid }, { urgency: 'high' }).catch(() => {}), ctx);
     return { n: add.length };
   }
@@ -389,6 +395,14 @@ export function makeSurvey(deps) {
     const { rows, who, us, key } = await rowsOf(env, sid, sv);
     const pending = Object.keys(sv.tp || {}).filter((p) => !who.includes(p)).map((p) => ({ ph: p, name: nameOf(us[p]) || p }));
     return { sv: { ...sv, tp: undefined, n: Object.keys(sv.tp || {}).length }, rows, answered: who.length, pending, key };
+  }
+
+  /* 결과 공유 알림 */
+  async function pvPush(env, ctx, u, sid, t, to) {
+    if (!to.length) return;
+    const { el } = await eligible(env);
+    to = to.filter((p) => el[p]);
+    if (to.length) later(pushToPhones(env, to, { title: '[설문 결과 공유] ' + t, body: nameOf(u) + '님이 결과 요약을 공유했어요', url: './#survey/' + sid + '/v', tag: 'svv-' + sid }).catch(() => {}), ctx);
   }
 
   /* 결과 요약을 볼 수 있나 — 편집할 수 있는 사람 · 따로 고른 사람 · 공개 범위(응답한 사람 | 전체 직원) */
@@ -546,7 +560,7 @@ export function makeSurvey(deps) {
   }
 
   const R = {
-    '/survey/save': (env, ctx, me, b) => save(env, me, b),
+    '/survey/save': (env, ctx, me, b) => save(env, ctx, me, b),
     '/survey/get': (env, ctx, me, b) => get(env, me, b),
     '/survey/send': (env, ctx, me, b) => send(env, ctx, me, b),
     '/survey/answer': (env, ctx, me, b) => answer(env, ctx, me, b),
