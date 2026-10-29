@@ -18,6 +18,7 @@ import { sendOne, subId } from './push.js';
 import { makeChat } from './chat.js';
 import { makeMedia, serveMedia, roomTag, signedUrl } from './media.js';
 import { makeBoard } from './board.js';
+import { makeCalendar } from './calendar.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -411,6 +412,7 @@ function stripSensitive(v, hit) {
 /* ═══ 라우팅 ═══ */
 const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b) => relayCall(env, p, b) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
+const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -424,10 +426,11 @@ async function revokedAt(env, ph) {
 }
 
 export default {
-  /* 5분마다: 채팅 '다시 알림' 보내기 */
+  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
     ctx.waitUntil(chatRoute.runScheduled(env, ctx).catch((e) => console.log('sched', e && e.message)));
+    ctx.waitUntil(calRoute.runReminders(env).catch((e) => console.log('cal', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
