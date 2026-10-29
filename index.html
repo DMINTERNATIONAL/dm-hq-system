@@ -8245,7 +8245,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-30-4',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-30-5',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -11242,7 +11242,7 @@ window.addEventListener('hashchange',cmRoute);
 var CAL={v:'month',d:'',mm:'',ev:{},inv:{},defs:[],off:{},users:{},reg:[],dir:0,miniOpen:false,edit:null,att:{},sel:null,tick:null};
 var CAL_WD='일월화수목금토',CAL_VIEWS=[['day','일'],['week','주'],['month','월'],['year','연도'],['sched','일정']];
 var CAL_RR={'':'반복 안 함',d:'매일',w:'매주',m:'매월',y:'매년'};
-var CAL_COL={me:'#039BE5',co:'#3F51B5',hq:'#8E24AA',des:['#D81B60','#E67C73'],int:['#0B8043','#33B679'],acad:['#F4511E','#EF6C00'],hol:'#D50000'};
+var CAL_COL={me:'#039BE5',co:'#3F51B5',hq:'#8E24AA',des:['#D81B60','#E67C73'],int:['#0B8043','#33B679'],acad:['#F4511E','#EF6C00'],hol:'#D50000',lv:'#616161'};
 /* 공휴일 — 정부가 대체공휴일 · 임시공휴일을 새로 정하면 여기 고친다 */
 var CAL_HOL={'2026-01-01':'신정','2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴','2026-03-01':'삼일절','2026-03-02':'대체공휴일','2026-05-05':'어린이날','2026-05-24':'부처님오신날','2026-05-25':'대체공휴일','2026-06-03':'지방선거','2026-06-06':'현충일','2026-08-15':'광복절','2026-08-17':'대체공휴일','2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴','2026-09-28':'대체공휴일','2026-10-03':'개천절','2026-10-05':'대체공휴일','2026-10-09':'한글날','2026-12-25':'성탄절',
   '2027-01-01':'신정','2027-02-06':'설날 연휴','2027-02-07':'설날','2027-02-08':'설날 연휴','2027-02-09':'대체공휴일','2027-03-01':'삼일절','2027-05-05':'어린이날','2027-05-13':'부처님오신날','2027-06-06':'현충일','2027-08-15':'광복절','2027-08-16':'대체공휴일','2027-09-14':'추석 연휴','2027-09-15':'추석','2027-09-16':'추석 연휴','2027-10-03':'개천절','2027-10-04':'대체공휴일','2027-10-09':'한글날','2027-10-11':'대체공휴일','2027-12-25':'성탄절','2027-12-27':'대체공휴일'};
@@ -11269,10 +11269,10 @@ function calCfg(k){var key=calColKey(k);if(CAL.sd&&CAL.sd.key===key)return CAL.s
 /* 저장된 설정(잠금 풀고 고치는 중이어도 고치기 전 것) */
 function calCfg0(k){var key=calColKey(k);if(CAL.sd&&CAL.sd.key===key)return CAL.sd.o||{};return (CAL.cfg||{})[key]||{}}
 function calAccess(k,ph){var u=CAL.users[ph]||(ME&&ph===ME.phone?ME:null);if(!calActive(u))return '';var kind=k.split('~')[0],cf=calCfg(k);
-  if(kind==='me'){if(k==='me~'+ph)return 'w';return (cf.mem||{})[ph]||''}if(kind==='hol')return 'r';
+  if(kind==='me'){if(k==='me~'+ph)return 'w';return (cf.mem||{})[ph]||''}if(kind==='hol'||kind==='lv')return 'r';
   if(kind==='x'){if(cf.by===ph||calIsHq(u))return 'w';return (cf.mem||{})[ph]||''}
   if(calIsHq(u))return 'w';var o=(cf.ov||{})[ph];if(o==='-')return '';if(o==='w'||o==='r')return o;return calAuto(k,u)}
-function calCanManage(k){var kind=k.split('~')[0];if(kind==='me')return k==='me~'+ME.phone;if(kind==='hol')return false;return calIsHq(ME)||(kind==='x'&&calCfg0(k).by===ME.phone)}
+function calCanManage(k){var kind=k.split('~')[0];if(kind==='me')return k==='me~'+ME.phone;if(kind==='hol'||kind==='lv')return false;return calIsHq(ME)||(kind==='x'&&calCfg0(k).by===ME.phone)}
 /* 내가 볼 수 있는 캘린더 { k, n 이름, c 색, w 쓰기 } — 브랜드 캘린더는 그 브랜드에 디자이너 · 인턴이 있을 때만 */
 function calDefs(users){var me=ME,hq=calIsHq(me),out=[],brands={};
   Object.keys(users||{}).forEach(function(ph){var u=users[ph];if(!calActive(u)||!u.brand||calIsHq(u))return;var b=brands[u.brand]||(brands[u.brand]={des:0,int:0});if(calIsDes(u))b.des=1;if(calIsIntern(u))b.int=1});
@@ -11283,7 +11283,7 @@ function calDefs(users){var me=ME,hq=calIsHq(me),out=[],brands={};
   Object.keys(CAL.cfg||{}).sort(function(a,b){return ((CAL.cfg[a]||{}).at||0)-((CAL.cfg[b]||{}).at||0)}).forEach(function(key){var cf=CAL.cfg[key];if(cf&&cf.x&&cf.n)add(cf.x,cf.n,cf.c||CAL_COL.me)});
   /* 남이 공유해 준 '내 일정' — 멤버로 넣어 준 사람만 본다(경영팀도 남의 개인 일정은 못 본다) */
   Object.keys(CAL.cfg||{}).forEach(function(key){var cf=CAL.cfg[key];if(key.indexOf('me~')!==0||key==='me~'+me.phone||!cf||!(cf.mem||{})[me.phone])return;var o=key.slice(3),u=users&&users[o];if(!calActive(u))return;add(key,(u.nick||u.name||o)+'의 일정',CAL_COL.me)});
-  out.push({k:'hol',n:'공휴일',c:CAL_COL.hol,w:false});return out}
+  out.push({k:'lv',n:'휴가',c:CAL_COL.lv,w:false});out.push({k:'hol',n:'공휴일',c:CAL_COL.hol,w:false});return out}
 function calDef(k){for(var i=0;i<CAL.defs.length;i++)if(CAL.defs[i].k===k)return CAL.defs[i];return null}
 function calPath(k){return '/calendar/ev/'+encodeURIComponent(k)}
 /* 참석자 묶음 — 전체 직원 · 경영팀 · 브랜드별 전체/디자이너/인턴/교육자/카운터 · 지점별 */
@@ -11314,7 +11314,7 @@ function calTimed(o){return !(o.ev.ad||!o.ev.st)&&o.d0===o.d1}
 
 /* ── 일정 펼치기 · 알림 ── */
 function calEach(cb){var seen={};
-  CAL.defs.forEach(function(df){if(CAL.off[df.k]||df.k==='hol')return;var evs=CAL.ev[df.k]||{};Object.keys(evs).forEach(function(id){seen[df.k+'~'+id]=1;if(evs[id])cb(df.k,id,evs[id],df.c,false)})});
+  CAL.defs.forEach(function(df){if(CAL.off[df.k]||df.k==='hol'||df.k==='lv')return;var evs=CAL.ev[df.k]||{};Object.keys(evs).forEach(function(id){seen[df.k+'~'+id]=1;if(evs[id])cb(df.k,id,evs[id],df.c,false)})});
   if(!CAL.off['me~'+ME.phone])Object.keys(CAL.inv).forEach(function(key){var o=CAL.inv[key];if(!seen[key]&&o&&o.ev)cb(o.k,o.id,o.ev,calColOf('me~'+ME.phone),true)})}
 /* from~to 에 걸치는 일정 [{k,c,id,ev,d0,d1,inv}] — 반복은 펼친다. 공휴일 포함 */
 function calOcc(from,to){var out=[];
@@ -11324,6 +11324,7 @@ function calOcc(from,to){var out=[];
     var step={d:1,w:7,m:31,y:366}[ev.rr]||1,n=Math.max(0,Math.floor((calDiff(ev.s,from)-len)/step)-2);
     for(var i=0;i<1500;i++,n++){var d0=calNth(ev.s,ev.rr,n);if(d0===null)continue;if(d0>to||(ev.ru&&d0>ev.ru))break;push(d0)}});
   if(!CAL.off.hol)Object.keys(CAL_HOL).forEach(function(d){if(d>=from&&d<=to)out.push({k:'hol',c:CAL_COL.hol,id:'h'+d,ev:{t:CAL_HOL[d],s:d,e:d,ad:1},d0:d,d1:d,hol:1})});
+  if(!CAL.off.lv)(CAL.lv||[]).forEach(function(o){if(o.d1>=from&&o.d0<=to)out.push({k:'lv',c:calColOf('lv'),id:o.id,ev:o.ev,d0:o.d0,d1:o.d1,hol:1,lv:o})});
   out.sort(function(a,b){if(a.d0!==b.d0)return a.d0<b.d0?-1:1;var ta=calTimed(a),tb=calTimed(b);if(ta!==tb)return ta?1:-1;if(!ta){var la=calDiff(a.d0,a.d1),lb=calDiff(b.d0,b.d1);if(la!==lb)return lb-la}return (a.ev.st||'')<(b.ev.st||'')?-1:1});return out}
 function calStartMs(date,ev){return Date.parse(date+'T'+(ev.ad||!ev.st?'09:00':ev.st)+':00+09:00')}
 function calNextRem(ev,after){if(!ev||ev.rem==null||ev.rem===''||+ev.rem<0)return 0;var rem=+ev.rem*60000;
@@ -11348,11 +11349,22 @@ function openCal(arg){if(!COMM_BETA){alert('캘린더는 아직 시험 중이에
   calLoad().then(function(){calRender();calGPull();if(m&&m[2]){var k=decodeURIComponent(m[2]),ev=(CAL.ev[k]||{})[m[3]]||((CAL.inv[k+'~'+m[3]]||{}).ev);if(ev)calShow({k:k,id:m[3],ev:ev,c:(calDef(k)||{c:CAL_COL.me}).c,d0:m[1],d1:calAdd(m[1],Math.max(0,calDiff(ev.s,ev.e||ev.s))),inv:!calDef(k)})}});
   clearInterval(CAL.tick);CAL.tick=setInterval(function(){if(!$('p-cal').classList.contains('on')){clearInterval(CAL.tick);return}if(CAL.v==='day'||CAL.v==='week')calNowLine()},60000)}
 function calLoad(){return Promise.all([fbG('/users.json',60000),fbG('/calendar/pref/'+ME.phone+'.json',3000).catch(function(){return null}),fbG('/calendar/cfg.json',3000).catch(function(){return null}),fbG('/calendar/gcal/on.json',3000).catch(function(){return null})]).then(function(r){var users=r[0];CAL.pref=r[1]||{};CAL.cfg=r[2]||{};CAL.gon=r[3]||{};CAL.users=users||{};CAL.defs=calDefs(CAL.users);calApplyCol();
-  var ps=CAL.defs.filter(function(df){return df.k!=='hol'}).map(function(df){return fbG(calPath(df.k)+'.json',3000).then(function(v){CAL.ev[df.k]=v||{}},function(){CAL.ev[df.k]=CAL.ev[df.k]||{}})});
+  var ps=CAL.defs.filter(function(df){return df.k!=='hol'&&df.k!=='lv'}).map(function(df){return fbG(calPath(df.k)+'.json',3000).then(function(v){CAL.ev[df.k]=v||{}},function(){CAL.ev[df.k]=CAL.ev[df.k]||{}})});
   ps.push(fbG('/calendar/inv/'+ME.phone+'.json',3000).then(function(inv){var keys=Object.keys(inv||{}),next={};
     return Promise.all(keys.map(function(key){var i=key.lastIndexOf('~'),k=key.slice(0,i),id=key.slice(i+1);if(calDef(k))return null;
       return fbG(calPath(k)+'/'+id+'.json',3000).then(function(ev){if(ev&&ev.att&&ev.att[ME.phone]!==undefined)next[key]={k:k,id:id,ev:ev}})})).then(function(){CAL.inv=next})}));
+  ps.push(fbG('/leave/requests.json',60000).then(function(v){CAL.lv=calLeaves(v||{},CAL.users)},function(){CAL.lv=CAL.lv||[]}));
   return Promise.all(ps)}).catch(function(){toast('캘린더를 불러오지 못했어요')})}
+/* 승인된 휴가 → '휴가' 캘린더(보기만). 휴가 달력과 같은 범위 — 경영팀은 전체, 그 외는 같은 브랜드.
+   한 번에 여러 날 낸 휴가(leaveGroupId)는 이어진 날끼리 한 줄로 묶는다 */
+function calLeaves(lvs,users){var hq=calIsHq(ME),grp={},out=[];
+  Object.keys(lvs).forEach(function(id){var r=lvs[id];if(!r||r.status!=='승인'||!r.date||!/^\d{4}-\d\d-\d\d$/.test(r.date))return;var u=users[r.userId];if(!u)return;if(!hq&&u.brand!==ME.brand)return;
+    var key=(r.leaveGroupId||id)+'|'+r.userId+'|'+(r.type||'')+'|'+(r.halfDay||'');(grp[key]||(grp[key]={u:u,r:r,id:id,ds:[]})).ds.push(r.date)});
+  Object.keys(grp).forEach(function(key){var g=grp[key],ds=g.ds.sort(),i=0;
+    while(i<ds.length){var a=ds[i],b=a;while(i+1<ds.length&&(ds[i+1]===b||ds[i+1]===calAdd(b,1))){i++;b=ds[i]}i++;
+      var ty=g.r.type||'연차',tl=ty+(ty==='반차'&&g.r.halfDay?'('+g.r.halfDay+')':'');
+      out.push({id:'lv'+g.id+a,d0:a,d1:b,ev:{t:dispNm(g.u)+' '+tl,s:a,e:b,ad:1},nm:dispNm(g.u),ty:tl,u:g.u,why:hq?(g.r.reason||''):''})}});
+  return out}
 function calFresh(k){try{delete FBG_SHARE['/calendar/cfg.json'];delete FBG_SHARE[calPath(k)+'.json'];delete FBG_SHARE['/calendar/inv/'+ME.phone+'.json']}catch(e){}}
 
 /* ── 이동 ── */
@@ -11398,7 +11410,7 @@ function calRender(keepScroll){var el=calShell();if(!el)return;CAL.reg=[];
   if(CAL.v==='day'||CAL.v==='week'){calFitGrid();var g=$('CV-TG');if(g){if(prevTop!=null)g.scrollTop=prevTop;else{var now=new Date(),H=calHourH(),inRange=g.querySelector('.col.now');g.scrollTop=Math.max(0,(inRange?now.getHours()+now.getMinutes()/60-1.5:7.5)*H)}}calNowLine()}}
 function calSide(){var s=$('CV-SIDE');if(!s)return;
   s.innerHTML='<button class="cv-create" onclick="calNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>만들기</button><div class="cv-mini">'+calMiniHtml()+'</div><div class="cv-sh-t">캘린더</div>'+calCalsList()}
-function calCalsList(){return '<div class="cv-cals">'+CAL.defs.map(function(df){var on=!CAL.off[df.k];return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calToggle(\''+df.k.replace(/'/g,"\\'")+'\');var l=this.closest(\'.cv-cal\');if(l)l.classList.toggle(\'on\',this.checked)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="nm">'+cmEsc(df.n)+'</span>'+(df.w||df.k==='hol'?'':'<em>보기만</em>')+'<button class="cv-cal-more" title="설정 · 색 · 멤버" aria-label="캘린더 설정" onclick="event.preventDefault();event.stopPropagation();calSettings(\''+df.k.replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></label>'}).join('')+'<button class="cv-newcal" onclick="calXNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 캘린더</button><button class="cv-newcal cv-gbtn" onclick="calGSheet()">'+CAL_GSVG+'구글 캘린더 연결</button></div>'}
+function calCalsList(){return '<div class="cv-cals">'+CAL.defs.map(function(df){var on=!CAL.off[df.k];return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calToggle(\''+df.k.replace(/'/g,"\\'")+'\');var l=this.closest(\'.cv-cal\');if(l)l.classList.toggle(\'on\',this.checked)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="nm">'+cmEsc(df.n)+'</span>'+(df.w||df.k==='hol'||df.k==='lv'?'':'<em>보기만</em>')+'<button class="cv-cal-more" title="설정 · 색 · 멤버" aria-label="캘린더 설정" onclick="event.preventDefault();event.stopPropagation();calSettings(\''+df.k.replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></label>'}).join('')+'<button class="cv-newcal" onclick="calXNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 캘린더</button><button class="cv-newcal cv-gbtn" onclick="calGSheet()">'+CAL_GSVG+'구글 캘린더 연결</button></div>'}
 /* 캘린더 색 — 구글 캘린더처럼 사람마다 자기 화면에서만 바꾼다. /calendar/pref/{폰}/col/{캘린더} (폰 · 컴퓨터 같이 따라옴) */
 var CAL_PAL=['#D50000','#E67C73','#F4511E','#EF6C00','#F09300','#F6BF26','#C0CA33','#7CB342','#33B679','#0B8043','#009688','#039BE5','#4285F4','#3F51B5','#7986CB','#B39DDB','#9E69AF','#8E24AA','#AD1457','#D81B60','#795548','#A79B8E','#616161','#F8BBD0','#FFCC80','#FFF59D','#C5E1A5','#80DEEA','#90CAF9','#CE93D8','#263238'];
 /* 색 고르기 판 — 31색 + 직접 고르기(8칸 4줄). act 는 고른 색을 @C 자리에 넣어 부를 코드 */
@@ -11422,7 +11434,7 @@ function calGLoad(){var hq=calIsHq(ME),start=function(kind){return ctFetch('/gca
   Promise.all([fbGRaw('/calendar/gcal/u/'+ME.phone+'.json'),fbGRaw('/calendar/gcal/owner.json'),start('me'),hq?start('owner'):null,fbGRaw('/calendar/gcal/sel/'+ME.phone+'.json').catch(function(){return null})]).then(function(r){
     CAL.gst={t:Date.now(),me:r[0],owner:r[1],uMe:r[2]&&r[2].ok?r[2].url:'',uOwn:r[3]&&r[3].ok?r[3].url:'',err:r[2]&&!r[2].ok?(r[2].error||'연결 준비를 못 했어요'):'',sel:r[4]||{}};calGRender()});calGOnRefresh()}
 /* 구글에 보낼 캘린더 고르기 — 기본은 전부 켜짐, 끈 것만 sel/{폰}/{캘린더}=0 */
-function calGSelList(g){var me='me~'+ME.phone,defs=CAL.defs.filter(function(df){return df.k!=='hol'});
+function calGSelList(g){var me='me~'+ME.phone,defs=CAL.defs.filter(function(df){return df.k!=='hol'&&df.k!=='lv'});
   defs.sort(function(a,b){return (b.k===me)-(a.k===me)});
   return '<div class="cv-sh-t">구글에 보낼 캘린더</div><div class="cv-gsel">'+defs.map(function(df){var mk=calColKey(df.k),on=g.sel[mk]!==0,q=df.k.replace(/'/g,"\\'"),
     why=!on||(CAL.gon&&CAL.gon[mk])?'':df.k.indexOf('me~')!==0?(g.owner&&!g.owner.err?'곧 생겨요':'회사 계정 연결 후'):df.k===me?'곧 생겨요':'만든 사람이 연결하면';
@@ -11545,7 +11557,10 @@ function calCloseAll(){[].forEach.call(document.querySelectorAll('.cv-sh-bg'),fu
 
 /* ── 일정 보기 ── */
 function calShowI(i){var o=CAL.reg[i];if(o)calShow(o)}
-function calShow(o,sheet){if(o.hol){calSheet('<div class="cv-dt"><div class="cv-dt-act"><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="cv-dt-t"><i style="background:'+o.c+'"></i><div><b>'+cmEsc(o.ev.t)+'</b><span>'+calDLabel(o.d0,1)+' · 공휴일</span></div></div></div>');return}
+function calShow(o,sheet){if(o.lv){var l=o.lv,where=[l.u.brand,l.u.branch].filter(Boolean).join(' · ');
+    calSheet('<div class="cv-dt"><div class="cv-dt-act"><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="cv-dt-t"><i style="background:'+o.c+'"></i><div><b>'+cmEsc(l.nm)+' · '+cmEsc(l.ty)+'</b><span>'+calDLabel(o.d0,1)+(o.d1!==o.d0?' ~ '+calDLabel(o.d1):'')+' · 휴가</span></div></div>'+
+      (where?'<div class="cv-set-note">'+cmEsc(where)+'</div>':'')+(l.why?'<div class="cv-set-note">사유: '+cmEsc(l.why)+'</div>':'')+'<div class="cv-set-note">휴가 신청 · 승인에서 바뀌어요. 여기서는 고칠 수 없어요.</div></div>');return}
+  if(o.hol){calSheet('<div class="cv-dt"><div class="cv-dt-act"><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="cv-dt-t"><i style="background:'+o.c+'"></i><div><b>'+cmEsc(o.ev.t)+'</b><span>'+calDLabel(o.d0,1)+' · 공휴일</span></div></div></div>');return}
   CAL.sel=o;var ev=o.ev,df=calDef(o.k),canW=!!(df&&df.w),att=ev.att||{},ap=Object.keys(att),mine=att[ME.phone];
   var cnt={y:0,n:0,m:0,'':0};ap.forEach(function(p){cnt[att[p]||'']=(cnt[att[p]||'']||0)+1});
   var X='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -11644,7 +11659,7 @@ function calSetRender(){var box=$('CS-BOX'),k=CAL.setK,df=calDef(k);if(!box||!df
     '<div class="cv-set-body'+(un?'':' locked')+'">';
   if(kind==='x'&&man)h+='<div class="cv-set-t">이름</div><div class="cv-set-row"><input id="CS-N" maxlength="30" value="'+cmEsc(CAL.sd&&CAL.sd.n!==null?CAL.sd.n:(cf0.n||df.n))+'"'+(un?'':' disabled')+' oninput="if(CAL.sd){CAL.sd.n=this.value;calSdUpd()}"></div>';
   h+='<div class="cv-set-t">색 <em>내 화면에만</em></div>'+calPalHtml(CAL.sd&&CAL.sd.col||df.c,"calColSet(@C,this)");
-  if(kind!=='me'&&kind!=='hol'){h+='<div class="cv-set-t">소유자</div><div id="CS-OWN"></div><div class="cv-set-t">멤버 <b id="CS-CNT"></b><span class="cv-sp"></span>'+(man?'<button class="cv-link" onclick="calMemAdd()">+ 멤버 추가</button>':'')+'</div>'+
+  if(kind!=='me'&&kind!=='hol'&&kind!=='lv'){h+='<div class="cv-set-t">소유자</div><div id="CS-OWN"></div><div class="cv-set-t">멤버 <b id="CS-CNT"></b><span class="cv-sp"></span>'+(man?'<button class="cv-link" onclick="calMemAdd()">+ 멤버 추가</button>':'')+'</div>'+
     (man?'':'<div class="cv-set-note">멤버는 '+(kind==='x'?'만든 사람과 경영팀':'경영팀')+'이 정해요</div>')+'<div id="CS-MEM"></div>';
     if(kind==='x'&&cf0.by===ME.phone)h+='<button class="cv-danger" onclick="calXDel(this)">캘린더 삭제</button>'}
   else if(kind==='me'&&man)h+='<div class="cv-set-t">공유 <b id="CS-CNT"></b><span class="cv-sp"></span><button class="cv-link" onclick="calMemAdd()">+ 사람 추가</button></div><div class="cv-set-note">넣은 사람은 내 일정 전체를 봐요(쓰기면 일정도 만들 수 있어요). 알림은 나에게만 가요</div><div id="CS-MEM"></div>';
