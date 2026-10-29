@@ -3452,10 +3452,12 @@ try{window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').addEven
 .cv-pk-s input{flex:1;min-width:0;border:0;background:none;padding:11px 0;font-size:15px;color:var(--text);font-family:inherit;outline:none}
 #PK-BODY{flex:1;overflow-y:auto;overscroll-behavior:contain;padding-bottom:10px}
 .cv-pk-t{font-size:12px;font-weight:800;color:var(--text-3);padding:12px 18px 7px}
-.cv-pk-dd{margin:10px 14px 2px;border:1px solid var(--border);border-radius:14px;background:var(--card);overflow:hidden}
+.cv-pk-dd{margin:0 14px 6px;border:1px solid var(--border);border-radius:14px;background:var(--card);overflow:hidden}
 .cv-pk-dd .hd{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:11px 12px;font-family:inherit;text-align:left;cursor:pointer}
 .cv-pk-dd .hd>span{flex:1;min-width:0}.cv-pk-dd .hd b{display:block;font-size:14px;font-weight:800;color:var(--text)}
 .cv-pk-dd .hd em{display:block;font-style:normal;font-size:12px;color:var(--text-3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-pk-dd .ct{flex:none;font-style:normal;min-width:20px;height:20px;padding:0 6px;box-sizing:border-box;border-radius:10px;background:var(--blue);color:#fff;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.cv-pk-dd.has{border-color:var(--blue)}
 .cv-pk-dd .ic{flex:none;width:20px;height:20px;fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round}
 .cv-pk-dd .cv{flex:none;width:18px;height:18px;fill:none;stroke:var(--text-3);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s cubic-bezier(.2,.85,.2,1)}
 .cv-pk-dd.open .cv{transform:rotate(180deg)}
@@ -8062,7 +8064,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-29-7',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-29-8',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10703,10 +10705,12 @@ function calPath(k){return '/calendar/ev/'+encodeURIComponent(k)}
 function calGroups(){var all=[],g={},order=[];function put(key,n,ph){if(!g[key]){g[key]={n:n,m:[]};order.push(key)}g[key].m.push(ph)}
   Object.keys(CAL.users).sort(function(a,b){return calName(a)<calName(b)?-1:1}).forEach(function(ph){var u=CAL.users[ph];if(!calActive(u))return;all.push(ph);
     if(calIsHq(u)){put('hq','경영팀',ph);return}var b=u.brand||'기타';put('b:'+b,b+' 전체',ph);
-    if(calIsDes(u))put('d:'+b,b+' 디자이너',ph);if(calIsIntern(u))put('i:'+b,b+' 인턴',ph);if(calIsEdu(u))put('e:'+b,b+' 교육자',ph);if(calHasRole(u,'카운터'))put('c:'+b,b+' 카운터',ph);
+    if(calIsDes(u))put('d:'+b,b+' 디자이너',ph);if(calIsIntern(u))put('i:'+b,b+' 인턴',ph);if(calIsEdu(u))put('e:'+b,b+' 교육자',ph);if(calIsEdu(u)||calIsIntern(u))put('a:'+b,b+' 아카데미 전체',ph);if(calHasRole(u,'카운터'))put('c:'+b,b+' 카운터',ph);
     if(u.branch&&u.branch!=='본사')put('br:'+b+'/'+u.branch,u.branch,ph)});
-  var key=function(k){if(k==='hq')return '0';var m=k.match(/^(br|b|d|i|e|c):([^/]*)/);return '1'+m[2]+'\u0001'+{b:1,d:2,i:3,e:4,c:5,br:6}[m[1]]+k};
-  return [{k:'all',n:'전체 직원',m:all}].concat(order.sort(function(a,b){return key(a)<key(b)?-1:1}).map(function(k){return {k:k,n:g[k].n,m:g[k].m}}))}
+  var key=function(k){if(k==='hq')return '0';var m=k.match(/^(br|b|d|i|e|c|a):([^/]*)/);return '1'+m[2]+'\u0001'+{b:1,d:2,i:3,c:4,a:5,e:6,br:7}[m[1]]+k};
+  /* cat: 사람 고르기 드롭다운 — brand 브랜드 · rank 직급 · acad 아카데미 · branch 지점 */
+  var cat=function(k){var t=k.split(':')[0];return t==='hq'||t==='b'?'brand':t==='a'||t==='e'?'acad':t==='br'?'branch':'rank'};
+  return [{k:'all',n:'전체 직원',m:all,cat:'brand'}].concat(order.sort(function(a,b){return key(a)<key(b)?-1:1}).map(function(k){return {k:k,n:g[k].n,m:g[k].m,cat:cat(k)}}))}
 
 /* ── 날짜 ── */
 function calPad(n){return (n<10?'0':'')+n}
@@ -10965,7 +10969,7 @@ function calStChange(){var s=$('CE-ST').value,e=$('CE-ET');if(s&&$('CE-S').value
 function calAttRender(){var el=$('CE-ATT');if(!el)return;var sel=Object.keys(CAL.att).filter(function(p){return p!==ME.phone});if(!sel.length){el.innerHTML='';return}
   var left={};sel.forEach(function(p){left[p]=1});var whole=[];
   calGroups().forEach(function(g){if(g.m.length<2)return;var all=g.m.every(function(p){return CAL.att[p]||p===ME.phone});var rest=g.m.filter(function(p){return left[p]});if(all&&rest.length>=2){whole.push(g);rest.forEach(function(p){delete left[p]})}});
-  el.innerHTML='<div class="cv-attsum">'+sel.length+'명 초대</div><div class="cv-chips">'+whole.map(function(g){return '<span class="cv-chip g">'+cmEsc(g.n)+' 전체 · '+g.m.filter(function(p){return p!==ME.phone}).length+'명<button onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\',0,1)" aria-label="빼기">×</button></span>'}).join('')+
+  el.innerHTML='<div class="cv-attsum">'+sel.length+'명 초대</div><div class="cv-chips">'+whole.map(function(g){return '<span class="cv-chip g">'+cmEsc(/전체$/.test(g.n)?g.n:g.n+' 전체')+' · '+g.m.filter(function(p){return p!==ME.phone}).length+'명<button onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\',0,1)" aria-label="빼기">×</button></span>'}).join('')+
     Object.keys(left).map(function(p){return '<span class="cv-chip">'+calAvatar(p,20)+cmEsc(calName(p))+'<button onclick="delete CAL.att[\''+p+'\'];calAttRender()" aria-label="빼기">×</button></span>'}).join('')+'</div>'}
 function calGroupSet(k,on,att){var g=calGroups().filter(function(x){return x.k===k})[0];if(!g)return;var pk=att||!CAL.pk?{sel:CAL.att,skip:{}}:CAL.pk;
   g.m.forEach(function(p){if(p===ME.phone||pk.skip[p])return;if(on)pk.sel[p]=1;else delete pk.sel[p]});if(att||!CAL.pk||CAL.pk.sel===CAL.att)calAttRender();calPickRefresh()}
@@ -10977,15 +10981,18 @@ function calPickTog(p){var sel=CAL.pk.sel;if(sel[p])delete sel[p];else sel[p]=1;
 function calPickRefresh(){var b=$('PK-BODY');if(!b||!CAL.pk)return;var q=($('PK-Q').value||'').trim().toLowerCase(),gs=calGroups(),sel=CAL.pk.sel,skip=CAL.pk.skip||{};
   var ok=function(p){return p!==ME.phone&&!skip[p]};
   var nn=Object.keys(sel).filter(ok).length;$('PK-N').textContent=nn?nn+'명 선택':'';
-  var h='';if(!q){var gg=gs.map(function(g){return {k:g.k,n:g.n,m:g.m.filter(ok)}}).filter(function(g){return g.m.length});
-    /* 그룹은 드롭다운 — 닫혀 있으면 한 줄(다 고른 그룹 이름), 열면 체크 목록 */
-    if(gg.length){var full=[],rows=gg.map(function(g){var n=g.m.filter(function(p){return sel[p]}).length,st=n===0?'':n===g.m.length?'all':'part';if(st==='all')full.push(g.n);
-      return '<button class="'+st+'" onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\','+(st==='all'?0:1)+')"><span class="bx"><svg viewBox="0 0 24 24"><path d="'+(st==='part'?'M6 12h12':'M5 12l5 5L20 7')+'"/></svg></span><span class="nm">'+cmEsc(g.n)+'</span><em>'+(n&&st!=='all'?n+'/':'')+g.m.length+'명</em></button>'}).join('');
-      h+='<div class="cv-pk-dd'+(CAL.pk.gOpen?' open':'')+'"><button class="hd" onclick="CAL.pk.gOpen=!CAL.pk.gOpen;CAL.pk.gAnim=CAL.pk.gOpen;calPickRefresh()"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 14.5c3 0 6 1.6 6 4.5"/></svg><span><b>그룹</b><em>'+(full.length?cmEsc(full.slice(0,2).join(', '))+(full.length>2?' 외 '+(full.length-2)+'개':'')+' 선택됨':'전체 직원 · 경영팀 · 브랜드별 디자이너 등')+'</em></span><svg class="cv" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>'+
-        (CAL.pk.gOpen?'<div class="ls'+(CAL.pk.gAnim?' anim':'')+'">'+rows+'</div>':'')+'</div>';CAL.pk.gAnim=false}}
+  var h='';if(!q){var gg=gs.map(function(g){return {k:g.k,n:g.n,cat:g.cat,m:g.m.filter(ok)}}).filter(function(g){return g.m.length});
+    /* 그룹은 드롭다운 4개(브랜드 · 직급 · 아카데미 · 지점) — 닫혀 있으면 한 줄(다 고른 그룹 이름), 열면 체크 목록 */
+    if(gg.length){var go=CAL.pk.gOpen=CAL.pk.gOpen||{};
+      h+='<div class="cv-pk-t">그룹</div>'+[['brand','브랜드','전체 직원 · 경영팀 · 브랜드 전체'],['rank','직급','디자이너 · 인턴 · 카운터'],['acad','아카데미','아카데미 전체 · 교육자'],['branch','지점','지점별']].map(function(c){
+        var list=gg.filter(function(g){return g.cat===c[0]});if(!list.length)return '';var full=[],rows=list.map(function(g){var n=g.m.filter(function(p){return sel[p]}).length,st=n===0?'':n===g.m.length?'all':'part';if(st==='all')full.push(g.n);
+          return '<button class="'+st+'" onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\','+(st==='all'?0:1)+')"><span class="bx"><svg viewBox="0 0 24 24"><path d="'+(st==='part'?'M6 12h12':'M5 12l5 5L20 7')+'"/></svg></span><span class="nm">'+cmEsc(g.n)+'</span><em>'+(n&&st!=='all'?n+'/':'')+g.m.length+'명</em></button>'}).join('');
+        return '<div class="cv-pk-dd'+(go[c[0]]?' open':'')+(full.length?' has':'')+'" data-c="'+c[0]+'"><button class="hd" onclick="var o=CAL.pk.gOpen;o[\''+c[0]+'\']=!o[\''+c[0]+'\'];CAL.pk.gAnim=o[\''+c[0]+'\']?\''+c[0]+'\':\'\';calPickRefresh()"><span><b>'+c[1]+'</b><em>'+(full.length?cmEsc(full.slice(0,2).join(', '))+(full.length>2?' 외 '+(full.length-2)+'개':'')+' 선택됨':c[2])+'</em></span>'+(full.length?'<i class="ct">'+full.length+'</i>':'')+'<svg class="cv" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>'+
+          (go[c[0]]?'<div class="ls'+(CAL.pk.gAnim===c[0]?' anim':'')+'">'+rows+'</div>':'')+'</div>'}).join('');CAL.pk.gAnim=''}}
   var ppl=Object.keys(CAL.users).filter(function(p){var u=CAL.users[p];if(!calActive(u)||!ok(p))return false;if(!q)return true;return [u.nick,u.name,u.branch,u.brand,calRoleOf(u)].join(' ').toLowerCase().indexOf(q)>=0}).sort(function(a,b){var ua=CAL.users[a],ub=CAL.users[b],r=function(u){return calIsHq(u)?0:calIsDes(u)?1:calHasRole(u,'카운터')?2:3};return (ua.brand||'')<(ub.brand||'')?-1:(ua.brand||'')>(ub.brand||'')?1:r(ua)-r(ub)||(calName(a)<calName(b)?-1:1)});
   h+='<div class="cv-pk-t">'+(q?'검색 결과 '+ppl.length+'명':'한 사람씩')+'</div>'+ppl.map(function(p){var u=CAL.users[p],on=!!sel[p];return '<button class="cv-pk-p'+(on?' on':'')+'" onclick="calPickTog(\''+p+'\')">'+calAvatar(p,34)+'<span><b>'+cmEsc(calName(p))+'</b><em>'+cmEsc([u.brand==='DM INTERNATIONAL'?'':u.brand,calRoleOf(u),u.branch&&u.branch!=='본사'?u.branch:''].filter(Boolean).join(' · '))+'</em></span><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span></button>'}).join('')+(ppl.length?'':'<div class="cv-empty sm">'+(q?'찾는 사람이 없어요':'더할 사람이 없어요')+'</div>');
-  var ls=b.querySelector('.cv-pk-dd .ls'),st=ls?ls.scrollTop:0;b.innerHTML=h;ls=b.querySelector('.cv-pk-dd .ls');if(ls&&st)ls.scrollTop=st}
+  var keep={};[].forEach.call(b.querySelectorAll('.cv-pk-dd .ls'),function(l){keep[l.parentNode.getAttribute('data-c')]=l.scrollTop});b.innerHTML=h;
+  [].forEach.call(b.querySelectorAll('.cv-pk-dd .ls'),function(l){var t=keep[l.parentNode.getAttribute('data-c')];if(t)l.scrollTop=t})}
 
 /* ── 캘린더 설정: 색(내 화면) · 멤버(경영팀 · 만든 사람) · 이름 · 삭제 ── */
 function calSettings(k,open){var df=calDef(k);if(!df)return;calSdDrop();CAL.setK=k;if(open)calSdStart();
