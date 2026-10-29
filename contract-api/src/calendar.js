@@ -171,3 +171,6 @@ export function makeCalendar(deps) {
   route.runReminders = runReminders;
   return route;
 }
+
+/* 구글 캘린더 연동(gcal.js)이 같은 판정을 쓴다 */
+export { isActive, hasRole, isHq, isDes, isIntern, isEdu, safeKey };

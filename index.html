@@ -2395,6 +2395,8 @@ html.dm-dark .cm-modal .bt .red{color:#EB8181}
 html.dm-dark .cv-mini-g .d.sun{color:#EB8181}
 html.dm-dark .cv-mini-g .d i{background:#48484A}
 html.dm-dark .cv-mini-g .d.now i{background:#1C1C1E}
+html.dm-dark .cv-gav.bad{color:#EB8181}
+html.dm-dark .cv-mem .nm em.bad{color:#EB8181}
 html.dm-dark .cv-lock.open{background:#443D23}
 html.dm-dark .cv-lock.open b{color:#F5BC99}
 html.dm-dark .cv-lock.open em{color:#F9BB8B}
@@ -3394,6 +3396,11 @@ try{window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').addEven
 .cv-perm button{border:0;background:none;border-radius:7px;padding:5px 9px;font-size:12px;font-weight:700;color:var(--text-3);font-family:inherit;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
 .cv-perm button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(15,23,42,.12)}
 .cv-mem .cv-btn{height:30px;padding:0 12px;font-size:12px}
+a.cv-btn{display:inline-flex;align-items:center;text-decoration:none;flex-shrink:0}
+.cv-gav{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--border-soft);color:var(--blue)}.cv-gav svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.cv-gav.bad{color:#DC2626}.cv-mem .nm em.wrap{white-space:normal}.cv-mem .nm em.bad{color:#DC2626}
+.cv-gtips{margin:0;padding:0 18px 12px 36px;font-size:12.5px;line-height:1.6;color:var(--text-2)}.cv-gtips li{margin:2px 0}.cv-gtips a{color:var(--blue)}
+.cv-gbtn{color:var(--text-2)}.cv-gbtn svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
 .cv-lock{display:flex;align-items:center;gap:10px;margin:0 14px 8px;padding:10px 10px 10px 12px;border-radius:14px;background:var(--border-soft);transition:background .25s}
 .cv-lock>i{flex:none;width:32px;height:32px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center}
 .cv-lock>i svg{width:17px;height:17px;fill:none;stroke:var(--text-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -8237,7 +8244,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-30-2',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-30-3',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -11322,7 +11329,12 @@ function calNextRem(ev,after){if(!ev||ev.rem==null||ev.rem===''||+ev.rem<0)retur
   if(!ev.rr){var at=calStartMs(ev.s,ev)-rem;return at>after?at:0}
   var step={d:1,w:7,m:31,y:366}[ev.rr]||1,n=Math.max(0,Math.floor((after-calStartMs(ev.s,ev))/(step*864e5))-2);
   for(var i=0;i<800;i++,n++){var d=calNth(ev.s,ev.rr,n);if(d===null)continue;if(ev.ru&&d>ev.ru)return 0;if(ev.ex&&ev.ex[d])continue;var t=calStartMs(d,ev)-rem;if(t>after)return t}return 0}
-function calQueue(k,id,ev){var p='/calendar/remq/'+encodeURIComponent(k+'~'+id)+'.json',at=ev?calNextRem(ev,Date.now()+30000):0;return (at?fbP(p,{at:at,cal:k,id:id}):fbD(p)).catch(function(){})}
+function calQueue(k,id,ev){var p='/calendar/remq/'+encodeURIComponent(k+'~'+id)+'.json',at=ev?calNextRem(ev,Date.now()+30000):0;
+  /* 구글 캘린더와 연동 중인 캘린더면 서버가 구글로 보내도록 적어 둔다(gcal.js — 1분 안에 나간다) */
+  if(CAL.gon&&CAL.gon[calColKey(k)])fbP('/calendar/gq/'+encodeURIComponent(k+'~'+id)+'.json',Date.now()).catch(function(){});
+  return (at?fbP(p,{at:at,cal:k,id:id}):fbD(p)).catch(function(){})}
+/* 캘린더 멤버 · 이름이 바뀜 → 서버가 구글 공유를 다시 맞춘다 */
+function calGAcl(){if(CAL.gon&&Object.keys(CAL.gon).length)fbP('/calendar/gq/_acl.json',Date.now()).catch(function(){})}
 /* 초대 목록 한꺼번에 고치기 — { '폰/cal~id': 1 | null } */
 function calInvPatch(map){if(!Object.keys(map).length)return Promise.resolve();var o={};Object.keys(map).forEach(function(p){o[p]=map[p]});return fbReq('/calendar/inv.json',{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)}).catch(function(){})}
 function calRemText(ev){var r=+ev.rem,ad=ev.ad||!ev.st;if(ad)return r>=1440?'하루 전 오전 9시':'당일 오전 9시';return r===0?'시작할 때':r<60?r+'분 전':r<1440?(r/60)+'시간 전':'하루 전'}
@@ -11332,9 +11344,9 @@ function openCal(arg){if(!COMM_BETA){alert('캘린더는 아직 시험 중이에
   try{CAL.off=JSON.parse(localStorage.getItem('cal_off_'+ME.phone)||'{}')||{};var v=localStorage.getItem('cal_view');if(v&&CAL_VIEWS.some(function(x){return x[0]===v}))CAL.v=v}catch(e){}
   var m=String(arg||'').match(/^(\d{4}-\d\d-\d\d)(?:\/([^/]+)\/([A-Za-z0-9_-]+))?$/);CAL.d=m?m[1]:(CAL.d||calYmd(new Date()));CAL.mm=CAL.d.slice(0,7);CAL.dir=0;
   go('p-cal');renderBotTab('p-cal');calRender();
-  calLoad().then(function(){calRender();if(m&&m[2]){var k=decodeURIComponent(m[2]),ev=(CAL.ev[k]||{})[m[3]]||((CAL.inv[k+'~'+m[3]]||{}).ev);if(ev)calShow({k:k,id:m[3],ev:ev,c:(calDef(k)||{c:CAL_COL.me}).c,d0:m[1],d1:calAdd(m[1],Math.max(0,calDiff(ev.s,ev.e||ev.s))),inv:!calDef(k)})}});
+  calLoad().then(function(){calRender();calGPull();if(m&&m[2]){var k=decodeURIComponent(m[2]),ev=(CAL.ev[k]||{})[m[3]]||((CAL.inv[k+'~'+m[3]]||{}).ev);if(ev)calShow({k:k,id:m[3],ev:ev,c:(calDef(k)||{c:CAL_COL.me}).c,d0:m[1],d1:calAdd(m[1],Math.max(0,calDiff(ev.s,ev.e||ev.s))),inv:!calDef(k)})}});
   clearInterval(CAL.tick);CAL.tick=setInterval(function(){if(!$('p-cal').classList.contains('on')){clearInterval(CAL.tick);return}if(CAL.v==='day'||CAL.v==='week')calNowLine()},60000)}
-function calLoad(){return Promise.all([fbG('/users.json',60000),fbG('/calendar/pref/'+ME.phone+'.json',3000).catch(function(){return null}),fbG('/calendar/cfg.json',3000).catch(function(){return null})]).then(function(r){var users=r[0];CAL.pref=r[1]||{};CAL.cfg=r[2]||{};CAL.users=users||{};CAL.defs=calDefs(CAL.users);calApplyCol();
+function calLoad(){return Promise.all([fbG('/users.json',60000),fbG('/calendar/pref/'+ME.phone+'.json',3000).catch(function(){return null}),fbG('/calendar/cfg.json',3000).catch(function(){return null}),fbG('/calendar/gcal/on.json',3000).catch(function(){return null})]).then(function(r){var users=r[0];CAL.pref=r[1]||{};CAL.cfg=r[2]||{};CAL.gon=r[3]||{};CAL.users=users||{};CAL.defs=calDefs(CAL.users);calApplyCol();
   var ps=CAL.defs.filter(function(df){return df.k!=='hol'}).map(function(df){return fbG(calPath(df.k)+'.json',3000).then(function(v){CAL.ev[df.k]=v||{}},function(){CAL.ev[df.k]=CAL.ev[df.k]||{}})});
   ps.push(fbG('/calendar/inv/'+ME.phone+'.json',3000).then(function(inv){var keys=Object.keys(inv||{}),next={};
     return Promise.all(keys.map(function(key){var i=key.lastIndexOf('~'),k=key.slice(0,i),id=key.slice(i+1);if(calDef(k))return null;
@@ -11385,7 +11397,7 @@ function calRender(keepScroll){var el=calShell();if(!el)return;CAL.reg=[];
   if(CAL.v==='day'||CAL.v==='week'){calFitGrid();var g=$('CV-TG');if(g){if(prevTop!=null)g.scrollTop=prevTop;else{var now=new Date(),H=calHourH(),inRange=g.querySelector('.col.now');g.scrollTop=Math.max(0,(inRange?now.getHours()+now.getMinutes()/60-1.5:7.5)*H)}}calNowLine()}}
 function calSide(){var s=$('CV-SIDE');if(!s)return;
   s.innerHTML='<button class="cv-create" onclick="calNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>만들기</button><div class="cv-mini">'+calMiniHtml()+'</div><div class="cv-sh-t">캘린더</div>'+calCalsList()}
-function calCalsList(){return '<div class="cv-cals">'+CAL.defs.map(function(df){var on=!CAL.off[df.k];return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calToggle(\''+df.k.replace(/'/g,"\\'")+'\');var l=this.closest(\'.cv-cal\');if(l)l.classList.toggle(\'on\',this.checked)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="nm">'+cmEsc(df.n)+'</span>'+(df.w||df.k==='hol'?'':'<em>보기만</em>')+'<button class="cv-cal-more" title="설정 · 색 · 멤버" aria-label="캘린더 설정" onclick="event.preventDefault();event.stopPropagation();calSettings(\''+df.k.replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></label>'}).join('')+'<button class="cv-newcal" onclick="calXNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 캘린더</button></div>'}
+function calCalsList(){return '<div class="cv-cals">'+CAL.defs.map(function(df){var on=!CAL.off[df.k];return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calToggle(\''+df.k.replace(/'/g,"\\'")+'\');var l=this.closest(\'.cv-cal\');if(l)l.classList.toggle(\'on\',this.checked)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="nm">'+cmEsc(df.n)+'</span>'+(df.w||df.k==='hol'?'':'<em>보기만</em>')+'<button class="cv-cal-more" title="설정 · 색 · 멤버" aria-label="캘린더 설정" onclick="event.preventDefault();event.stopPropagation();calSettings(\''+df.k.replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></label>'}).join('')+'<button class="cv-newcal" onclick="calXNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 캘린더</button><button class="cv-newcal cv-gbtn" onclick="calGSheet()">'+CAL_GSVG+'구글 캘린더 연결</button></div>'}
 /* 캘린더 색 — 구글 캘린더처럼 사람마다 자기 화면에서만 바꾼다. /calendar/pref/{폰}/col/{캘린더} (폰 · 컴퓨터 같이 따라옴) */
 var CAL_PAL=['#D50000','#E67C73','#F4511E','#EF6C00','#F09300','#F6BF26','#C0CA33','#7CB342','#33B679','#0B8043','#009688','#039BE5','#4285F4','#3F51B5','#7986CB','#B39DDB','#9E69AF','#8E24AA','#AD1457','#D81B60','#795548','#A79B8E','#616161','#F8BBD0','#FFCC80','#FFF59D','#C5E1A5','#80DEEA','#90CAF9','#CE93D8','#263238'];
 /* 색 고르기 판 — 31색 + 직접 고르기(8칸 4줄). act 는 고른 색을 @C 자리에 넣어 부를 코드 */
@@ -11399,6 +11411,42 @@ function calColOf(k){var c=CAL.pref&&CAL.pref.col&&CAL.pref.col[calColKey(k)];if
 function calApplyCol(){CAL.defs.forEach(function(df){var c=CAL.pref&&CAL.pref.col&&CAL.pref.col[calColKey(df.k)];if(c)df.c=c})}
 function calColPick(k){calSettings(k)}
 function calColSet(c,btn){if(!CAL.sd)return;CAL.sd.col=c;calPalMark(btn);calSdUpd()}
+/* ── 구글 캘린더 연결 (원하는 사람만) ──
+   연결하면 본인 구글 계정에 'DM 내 일정'이 생기고, 내가 볼 수 있는 공용 캘린더가 구글 목록에 들어간다. 어느 쪽에서 고쳐도 맞춰진다.
+   공용 캘린더는 회사 구글 계정(경영팀이 연결)이 만들어 공유한다. 서버 contract-api/src/gcal.js
+   연결 주소는 시트를 열 때 미리 받아 진짜 링크로 둔다 — 누른 뒤 받아서 열면 아이폰이 새 창을 막는다 */
+var CAL_GSVG='<svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 01-14.7 5.8M3.5 12A8.5 8.5 0 0118.2 6.2"/><path d="M19 3v4h-4M5 21v-4h4"/></svg>';
+function calGSheet(){calSheet('<div class="cv-sh-head"><b>구글 캘린더 연결</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div id="CG-BODY"><div class="cv-set-note">불러오는 중…</div></div>');calGLoad()}
+function calGLoad(){var hq=calIsHq(ME),start=function(kind){return ctFetch('/gcal/start',{method:'POST',body:JSON.stringify({kind:kind})}).catch(function(e){return {ok:false,error:e&&e.message}})};
+  Promise.all([fbGRaw('/calendar/gcal/u/'+ME.phone+'.json'),fbGRaw('/calendar/gcal/owner.json'),start('me'),hq?start('owner'):null]).then(function(r){
+    CAL.gst={t:Date.now(),me:r[0],owner:r[1],uMe:r[2]&&r[2].ok?r[2].url:'',uOwn:r[3]&&r[3].ok?r[3].url:'',err:r[2]&&!r[2].ok?(r[2].error||'연결 준비를 못 했어요'):''};calGRender()});calGOnRefresh()}
+function calGRender(){var el=$('CG-BODY'),g=CAL.gst;if(!el||!g)return;var me=g.me,ow=g.owner,hq=calIsHq(ME);
+  var lk=function(url,label,pri){return url?'<a class="cv-btn'+(pri?' pri':'')+'" href="'+cmEsc(url)+'" target="_blank" rel="noopener" onclick="return calGGo()">'+label+'</a>':'<button class="cv-btn" disabled>'+label+'</button>'};
+  var row=function(t,sub,act,bad){return '<div class="cv-mem"><span class="cv-gav'+(bad?' bad':'')+'">'+CAL_GSVG+'</span><span class="nm"><b>'+t+'</b><em class="wrap'+(bad?' bad':'')+'">'+sub+'</em></span>'+act+'</div>'};
+  var h='<div class="cv-set-note">연결하면 구글 캘린더(휴대폰 캘린더 앱 포함)에 DM 캘린더가 함께 보여요. 어느 쪽에서 만들거나 고쳐도 서로 맞춰져요 — 반영까지 1~5분 걸릴 수 있어요.</div>';
+  h+='<div class="cv-sh-t">내 구글 계정</div>'+(me?row(cmEsc(me.email),me.err?cmEsc(me.err):'\'DM 내 일정\'과 내가 볼 수 있는 공용 캘린더가 구글에 보여요',me.err?lk(g.uMe,'다시 연결',1):'<button class="cv-btn" onclick="calGStop(\'me\',this)">연결 끊기</button>',!!me.err)
+    :row('연결 안 됨','연결하면 구글에 \'DM 내 일정\'과 내가 볼 수 있는 공용 캘린더가 생겨요',lk(g.uMe,'연결하기',1)));
+  if(hq){h+='<div class="cv-sh-t">회사 구글 계정 · 경영팀만</div>'+(ow?row(cmEsc(ow.email),ow.err?cmEsc(ow.err):'공용 캘린더(전체 회사 · 경영팀 · 브랜드 · 새 캘린더)의 주인',lk(g.uOwn,ow.err?'다시 연결':'바꾸기',!!ow.err)+'<button class="cv-ib sm" onclick="calGStop(\'owner\',this)" aria-label="회사 계정 연결 끊기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>',!!ow.err)
+      :row('연결 안 됨','공용 캘린더를 만들어 직원들에게 공유할 회사 계정이에요',lk(g.uOwn,'연결하기',1)));
+    if(ow)h+='<div class="cv-set-note">다른 계정으로 바꾸면 예전 계정의 DM 공용 캘린더는 지워지고 새 계정에 다시 만들어져요. DM 일정은 그대로예요.</div>'}
+  else if(!ow)h+='<div class="cv-set-note warn">회사 구글 계정이 아직 연결되지 않아, 지금은 \'DM 내 일정\'만 구글에 보여요.</div>';
+  if(g.err)h+='<div class="cv-set-note warn">'+cmEsc(g.err)+'</div>';
+  h+='<div class="cv-sh-t">알아 두기</div><ul class="cv-gtips">'+
+    '<li>구글 화면에 <b>\'Google에서 확인하지 않은 앱\'</b>이 나오면 <b>고급 → DM 캘린더(으)로 이동</b>을 눌러 주세요. 회사에서 직접 만든 앱이라 나오는 안내예요.</li>'+
+    '<li>권한을 고르는 화면에서는 <b>Google 캘린더</b> 항목을 꼭 체크해 주세요.</li>'+
+    '<li>아이폰 캘린더 앱: 설정 → 캘린더 → 계정 → 계정 추가 → Google 에 같은 계정을 넣어 주세요. 공용 캘린더가 안 보이면 <a href="https://calendar.google.com/calendar/syncselect" target="_blank" rel="noopener">이 페이지</a>에서 체크해 주세요.</li>'+
+    '<li>알림은 DM 앱이 보내요(구글 쪽 알림은 꺼 둬요). 참석자 초대도 DM 에서만 돼요.</li>'+
+    '<li>구글에서 만든 \'격주\' · \'매월 넷째 목요일\' 같은 반복은 DM 에 첫 일정만 보여요.</li></ul>';
+  el.innerHTML=h}
+function calGGo(){if(CAL.gst&&Date.now()-CAL.gst.t>12*60000){calGLoad();toast('연결 준비를 새로 했어요. 한 번 더 눌러 주세요');return false}CAL.gwait=1;return true}
+function calGStop(kind,btn){if(!confirm(kind==='owner'?'회사 구글 계정 연결을 끊을까요?\n\n그 계정의 DM 공용 캘린더가 지워지고, 직원들 구글에서도 공용 캘린더가 사라져요. DM 일정은 그대로예요.':'구글 캘린더 연결을 끊을까요?\n\n내 구글의 \'DM 내 일정\' 캘린더가 지워지고 공용 캘린더 공유도 빠져요. DM 일정은 그대로예요.'))return;btn.disabled=true;
+  ctFetch('/gcal/stop',{method:'POST',body:JSON.stringify({kind:kind})}).then(function(j){if(!j||!j.ok)throw new Error(j&&j.error||'');toast('연결을 끊었어요');calGLoad()}).catch(function(e){btn.disabled=false;toast(e.message||'끊지 못했어요')})}
+function calGOnRefresh(){try{delete FBG_SHARE['/calendar/gcal/on.json']}catch(e){}fbG('/calendar/gcal/on.json').then(function(v){CAL.gon=v||{}}).catch(function(){})}
+/* 캘린더를 열 때 구글에서 바뀐 걸 바로 가져온다(서버가 1분마다도 가져오지만 몇 분 걸릴 수 있어서) */
+function calGPull(){if(!CAL.gon||!Object.keys(CAL.gon).length)return;ctFetch('/gcal/pull',{method:'POST',body:'{}'}).then(function(j){if(!j||!j.ok||!j.changed||!$('p-cal').classList.contains('on'))return;
+  CAL.defs.forEach(function(df){calFresh(df.k)});calLoad().then(function(){calRender(true)})}).catch(function(){})}
+/* 구글 창에서 돌아오면 연결 상태를 다시 읽는다 */
+document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='visible'||!CAL.gwait)return;CAL.gwait=0;if($('CG-BODY'))calGLoad();setTimeout(calGOnRefresh,8000)});
 function calCalsSheet(){calSheet('<div class="cv-sh-head"><b>표시할 캘린더</b><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+calCalsList())}
 function calMiniHtml(){var p=calParse(CAL.mm+'-01'),start=calAdd(calYmd(p),-p.getDay()),today=calYmd(new Date()),busy={};
   calOcc(start,calAdd(start,41)).forEach(function(o){if(!o.hol)busy[o.d0]=1});
@@ -11488,14 +11536,14 @@ function calShow(o,sheet){if(o.hol){calSheet('<div class="cv-dt"><div class="cv-
   var cnt={y:0,n:0,m:0,'':0};ap.forEach(function(p){cnt[att[p]||'']=(cnt[att[p]||'']||0)+1});
   var X='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   var h='<div class="cv-dt"><div class="cv-dt-act">'+(canW?'<button class="cv-ib" onclick="calEditSel()" aria-label="수정"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button><button class="cv-ib" onclick="calDelAsk(this)" aria-label="삭제"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>':'')+'<span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기">'+X+'</button></div>'+
-    '<div class="cv-dt-t"><i style="background:'+o.c+'"></i><div><b>'+cmEsc(ev.t)+'</b><span>'+cmEsc(calWhen(ev,o.d0,o.d1))+'</span>'+(ev.rr?'<span>'+CAL_RR[ev.rr]+(ev.ru?' · '+calDLabel(ev.ru,1)+'까지':'')+'</span>':'')+'</div></div>';
+    '<div class="cv-dt-t"><i style="background:'+o.c+'"></i><div><b>'+cmEsc(ev.t)+'</b><span>'+cmEsc(calWhen(ev,o.d0,o.d1))+'</span>'+(ev.rr?'<span>'+CAL_RR[ev.rr]+(ev.ru?' · '+calDLabel(ev.ru,1)+'까지':'')+'</span>':'')+(ev.grr?'<span>구글에서 만든 반복 일정 · DM 에는 첫 일정만 보여요</span>':'')+'</div></div>';
   if(ev.loc)h+='<div class="cv-dt-r"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><div>'+cmEsc(ev.loc)+'</div></div>';
   if(ap.length){h+='<div class="cv-dt-r"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 7M21.5 20a6.5 6.5 0 00-4-6"/></svg><div><b class="sm">참석자 '+ap.length+'명</b><span class="sub">참석 '+cnt.y+' · 불참 '+cnt.n+' · 미정 '+cnt.m+' · 응답 없음 '+cnt['']+'</span>'+
       '<div class="cv-ppl'+(ap.length>6?' fold':'')+'"><div class="p">'+calAvatar(ev.by)+'<span>'+cmEsc(calName(ev.by))+'<em>주최자</em></span></div>'+
       ap.sort(function(a,b){var r={y:0,m:1,'':2,n:3};return r[att[a]||'']-r[att[b]||'']}).map(function(p){var s=att[p]||'';return '<div class="p">'+calAvatar(p)+'<span>'+cmEsc(calName(p))+'</span><i class="st '+(s||'w')+'">'+{y:'참석',n:'불참',m:'미정','':'응답 없음'}[s]+'</i></div>'}).join('')+
       '</div>'+(ap.length>6?'<button class="cv-link" onclick="var f=this.previousElementSibling;f.classList.remove(\'fold\');this.remove()">모두 보기</button>':'')+'</div></div>'}
   if(ev.rem!=null&&ev.rem!=='')h+='<div class="cv-dt-r"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><div>'+calRemText(ev)+' 알림</div></div>';
-  h+='<div class="cv-dt-r"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><div>'+cmEsc(df?df.n:'초대받은 일정')+'<span class="sub">'+cmEsc(calName(ev.by))+' 만듦</span></div></div>';
+  h+='<div class="cv-dt-r"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><div>'+cmEsc(df?df.n:'초대받은 일정')+'<span class="sub">'+cmEsc(ev.by||!ev.bn?calName(ev.by):ev.bn)+' 만듦'+(ev.ub==='구글 캘린더'?' · 구글 캘린더에서 고침':'')+'</span></div></div>';
   if(ev.memo)h+='<div class="cv-dt-r"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><div class="memo">'+cmEsc(ev.memo).replace(/\n/g,'<br>')+'</div></div>';
   if(mine!==undefined)h+='<div class="cv-rsvp"><span>참석하나요?</span>'+[['y','예'],['n','아니요'],['m','미정']].map(function(x){return '<button class="'+(mine===x[0]?'on':'')+'" onclick="calRsvp(\''+x[0]+'\',this)">'+x[1]+'</button>'}).join('')+'</div>';
   if(sheet){sheet.innerHTML=h+'</div>';return}calSheet(h+'</div>','pop')}
@@ -11613,6 +11661,7 @@ function calSdCommit(btn){var sd=CAL.sd;if(!sd)return;var d=calSdDiff(),k=sd.k,j
   if(d.col)jobs.push(fbP('/calendar/pref/'+ME.phone+'/col/'+encodeURIComponent(sd.key)+'.json',d.col));
   Promise.all(jobs).then(function(){if(d.p.n)sd.c.n=d.p.n;if(Object.keys(d.p).length)CAL.cfg[sd.key]=sd.c;
     if(d.col){CAL.pref=CAL.pref||{};CAL.pref.col=CAL.pref.col||{};CAL.pref.col[sd.key]=d.col}
+    if(Object.keys(d.p).length)calGAcl();
     calSdDrop();calFresh(k);CAL.defs=calDefs(CAL.users);calApplyCol();[].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});CAL.dir=0;calRender(true);
     calSheetClose(btn);calSetRender();toast('저장했어요 · 다시 잠갔어요')}).catch(function(){btn.disabled=false;toast('저장하지 못했어요')})}
 /* 소유자 — 새로 만든 캘린더는 만든 사람. 캘린더 삭제 · 소유자 넘기기는 소유자만(경영팀도 못 지운다).
@@ -11651,12 +11700,12 @@ function calXNew(){calSheet('<div class="cv-sh-head"><b>새 캘린더</b><span c
   '<div class="cv-set-row"><button class="cv-btn pri" style="flex:1;height:44px" onclick="calXCreate(this)">만들고 멤버 고르기</button></div>');setTimeout(function(){var i=$('CX-N');if(i&&window.innerWidth>=700)i.focus()},250)}
 function calXCreate(btn){var n=($('CX-N').value||'').trim();if(!n){toast('이름을 입력해 주세요');$('CX-N').focus();return}var on=document.querySelector('#CX-PAL .on'),c=on?on.getAttribute('data-c'):CAL_COL.me;
   var id=Date.now().toString(36)+Math.random().toString(36).slice(2,6),k='x~'+id,cf={x:k,n:n,c:c,by:ME.phone,at:Date.now()};btn.disabled=true;
-  fbP('/calendar/cfg/'+encodeURIComponent(k)+'.json',cf).then(function(){CAL.cfg[k]=cf;CAL.ev[k]={};calFresh(k);CAL.defs=calDefs(CAL.users);calApplyCol();
+  fbP('/calendar/cfg/'+encodeURIComponent(k)+'.json',cf).then(function(){CAL.cfg[k]=cf;CAL.ev[k]={};calFresh(k);calGAcl();CAL.defs=calDefs(CAL.users);calApplyCol();
     [].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});calSheetClose(btn);CAL.dir=0;calRender(true);toast('\''+n+'\' 캘린더를 만들었어요');
     setTimeout(function(){calSettings(k,1);calMemAdd()},260)}).catch(function(){btn.disabled=false;toast('만들지 못했어요')})}
 function calXDel(btn){var k=CAL.setK,df=calDef(k);if(!df)return;if(calCfg0(k).by!==ME.phone){toast('캘린더는 소유자만 지울 수 있어요');return}if(CAL.sd&&calSdDiff().t.length){toast('바꾼 설정을 먼저 저장하거나 취소해 주세요');return}var n=Object.keys(CAL.ev[k]||{}).length;
   if(!confirm('\''+df.n+'\' 캘린더를 지울까요?\n\n'+(n?'안에 있는 일정 '+n+'개도 모두 지워지고 되돌릴 수 없어요.':'되돌릴 수 없어요.')))return;
-  Promise.all([fbD(calPath(k)+'.json'),fbD('/calendar/cfg/'+encodeURIComponent(calColKey(k))+'.json')]).then(function(){calSdDrop();Object.keys(CAL.ev[k]||{}).forEach(function(id){calQueue(k,id,null)});delete CAL.ev[k];delete CAL.cfg[calColKey(k)];calFresh(k);
+  Promise.all([fbD(calPath(k)+'.json'),fbD('/calendar/cfg/'+encodeURIComponent(calColKey(k))+'.json')]).then(function(){calSdDrop();Object.keys(CAL.ev[k]||{}).forEach(function(id){calQueue(k,id,null)});calGAcl();delete CAL.ev[k];delete CAL.cfg[calColKey(k)];calFresh(k);
     CAL.defs=calDefs(CAL.users);calApplyCol();calSheetClose(btn);[].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});calRender(true);toast('지웠어요')}).catch(function(){toast('지우지 못했어요')})}
 function calSave(btn){var t=$('CE-T').value.trim(),k=$('CE-K').value,ad=$('CE-AD').checked,s=$('CE-S').value,e=$('CE-E').value||s,st=$('CE-ST').value,et=$('CE-ET').value,rr=$('CE-RR').value,ru=rr?$('CE-RU').value:'',rem=$('CE-REM').value;
   if(!t){toast('제목을 입력해 주세요');$('CE-T').focus();return}if(!s){toast('시작 날짜를 골라 주세요');return}if(e<s){toast('끝 날짜가 시작보다 빨라요');return}
@@ -11665,7 +11714,7 @@ function calSave(btn){var t=$('CE-T').value.trim(),k=$('CE-K').value,ad=$('CE-AD
   var ok=CAL.edit&&CAL.edit.k,old=ok?(CAL.ev[CAL.edit.k]||{})[CAL.edit.id]:null,id=(CAL.edit&&CAL.edit.id)||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
   var att={},oldAtt=(old&&old.att)||{};Object.keys(CAL.att).forEach(function(p){if(p!==ME.phone)att[p]=oldAtt[p]||''});
   var ev={t:t,s:s,st:ad?'':st,e:e,et:ad?'':et,ad:ad?1:0,rr:rr,ru:ru,loc:$('CE-LOC').value.trim(),memo:$('CE-MEMO').value.trim(),by:old?old.by:ME.phone,bn:old?old.bn:(ME.nick||ME.name||''),at:old?old.at:Date.now(),up:Date.now(),ub:ME.nick||ME.name||''};
-  if(Object.keys(att).length)ev.att=att;if(rem!=='')ev.rem=+rem;if(old&&old.ex&&old.rr===rr&&old.s===s)ev.ex=old.ex;
+  if(Object.keys(att).length)ev.att=att;if(rem!=='')ev.rem=+rem;if(old&&old.ex&&old.rr===rr&&old.s===s)ev.ex=old.ex;if(old&&old.rr===rr&&old.s===s){if(old.gmod)ev.gmod=old.gmod;if(old.grr)ev.grr=old.grr}
   var moved=old&&CAL.edit.k!==k,inv={},added=[];
   Object.keys(oldAtt).forEach(function(p){if(!(p in att)||moved)inv[p+'/'+CAL.edit.k+'~'+id]=null});
   Object.keys(att).forEach(function(p){inv[p+'/'+k+'~'+id]=1;if(!(p in oldAtt)||moved)added.push(p)});

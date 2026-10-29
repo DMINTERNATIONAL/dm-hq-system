@@ -19,6 +19,7 @@ import { makeChat } from './chat.js';
 import { makeMedia, serveMedia, roomTag, signedUrl } from './media.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
+import { makeGcal } from './gcal.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -413,6 +414,7 @@ function stripSensitive(v, hit) {
 const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b) => relayCall(env, p, b) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
+const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -426,11 +428,12 @@ async function revokedAt(env, ph) {
 }
 
 export default {
-  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 */
+  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
     ctx.waitUntil(chatRoute.runScheduled(env, ctx).catch((e) => console.log('sched', e && e.message)));
     ctx.waitUntil(calRoute.runReminders(env).catch((e) => console.log('cal', e && e.message)));
+    ctx.waitUntil(gcalRoute.runSync(env).catch((e) => console.log('gcal', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
@@ -445,6 +448,9 @@ export default {
 
       /* 채팅 사진·동영상 — 로그인 대신 파일별 서명 주소로 받는다 (media.js) */
       if (path.startsWith('/m/') && (request.method === 'GET' || request.method === 'HEAD')) return serveMedia(request, env, path);
+
+      /* 구글 캘린더 연결 — 구글 로그인 창이 돌아오는 곳(브라우저가 바로 연다, 토큰 없음. state 서명으로 확인) */
+      if (path === '/gcal/callback' && request.method === 'GET') return gcalRoute.callback(request, env, ctx, url);
 
       /* 자체 점검 — 키·인증·DB 접근이 살아 있는지 (내용은 반환하지 않음) */
       if (path === '/selftest') {
@@ -733,6 +739,8 @@ export default {
       if (boardRes) return boardRes;
       const calRes = await calRoute(path, request, env, ctx, me, json, origin);
       if (calRes) return calRes;
+      const gcalRes = await gcalRoute(path, request, env, ctx, me, json, origin);
+      if (gcalRes) return gcalRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
