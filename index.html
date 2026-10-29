@@ -2224,6 +2224,7 @@ html.dm-dark .cm-modal .bt .red{color:#EB8181}
 html.dm-dark .cv-mini-g .d.sun{color:#EB8181}
 html.dm-dark .cv-mini-g .d i{background:#48484A}
 html.dm-dark .cv-mini-g .d.now i{background:#1C1C1E}
+html.dm-dark .cv-danger{color:#EB8181}
 html.dm-dark .cv-mhead .sun{color:#EB8181}
 html.dm-dark .cv-mhead .sat{color:#759CF2}
 html.dm-dark .cv-wk-bg .c.out{background:rgba(255,255,255,0.04)}
@@ -2382,6 +2383,7 @@ html.dm-dark [style^="color:#f4511e" i],html.dm-dark [style*=";color:#f4511e" i]
 html.dm-dark [style^="color:#f4f6f9" i],html.dm-dark [style*=";color:#f4f6f9" i],html.dm-dark [style*="; color:#f4f6f9" i]{color:#5E6978!important}
 html.dm-dark [style^="color:#f59e0b" i],html.dm-dark [style*=";color:#f59e0b" i],html.dm-dark [style*="; color:#f59e0b" i]{color:#F8C775!important}
 html.dm-dark [style^="color:#f5a623" i],html.dm-dark [style*=";color:#f5a623" i],html.dm-dark [style*="; color:#f5a623" i]{color:#F7C36D!important}
+html.dm-dark [style^="color:#f6bf26" i],html.dm-dark [style*=";color:#f6bf26" i],html.dm-dark [style*="; color:#f6bf26" i]{color:#F7D26C!important}
 html.dm-dark [style^="color:#f97316" i],html.dm-dark [style*=";color:#f97316" i],html.dm-dark [style*="; color:#f97316" i]{color:#F7A870!important}
 html.dm-dark [style^="color:#fcd34d" i],html.dm-dark [style*=";color:#fcd34d" i],html.dm-dark [style*="; color:#fcd34d" i]{color:#F6D25D!important}
 html.dm-dark [style^="color:#fee500" i],html.dm-dark [style*=";color:#fee500" i],html.dm-dark [style*="; color:#fee500" i]{color:#F8EB76!important}
@@ -2622,6 +2624,7 @@ html.dm-dark [style^="color: rgb(217, 130, 43)" i],html.dm-dark [style*=";color:
 html.dm-dark [style^="color: rgb(236, 72, 153)" i],html.dm-dark [style*=";color: rgb(236, 72, 153)" i],html.dm-dark [style*="; color: rgb(236, 72, 153)" i]{color:#F06BAC!important}
 html.dm-dark [style^="color: rgb(245, 158, 11)" i],html.dm-dark [style*=";color: rgb(245, 158, 11)" i],html.dm-dark [style*="; color: rgb(245, 158, 11)" i]{color:#F8C775!important}
 html.dm-dark [style^="color: rgb(245, 166, 35)" i],html.dm-dark [style*=";color: rgb(245, 166, 35)" i],html.dm-dark [style*="; color: rgb(245, 166, 35)" i]{color:#F7C36D!important}
+html.dm-dark [style^="color: rgb(246, 191, 38)" i],html.dm-dark [style*=";color: rgb(246, 191, 38)" i],html.dm-dark [style*="; color: rgb(246, 191, 38)" i]{color:#F7D26C!important}
 html.dm-dark [style^="color: rgb(249, 115, 22)" i],html.dm-dark [style*=";color: rgb(249, 115, 22)" i],html.dm-dark [style*="; color: rgb(249, 115, 22)" i]{color:#F7A870!important}
 html.dm-dark [style^="color: rgb(252, 211, 77)" i],html.dm-dark [style*=";color: rgb(252, 211, 77)" i],html.dm-dark [style*="; color: rgb(252, 211, 77)" i]{color:#F6D25D!important}
 html.dm-dark [style^="color: rgb(100, 116, 139)" i],html.dm-dark [style*=";color: rgb(100, 116, 139)" i],html.dm-dark [style*="; color: rgb(100, 116, 139)" i]{color:#798596!important}
@@ -3165,7 +3168,39 @@ try{window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').addEven
 .cv-cal .bx{width:18px;height:18px;border-radius:4px;border:2px solid var(--c);display:flex;align-items:center;justify-content:center;flex:none;transition:background .18s}
 .cv-cal .bx svg{width:13px;height:13px;stroke:#fff;stroke-width:3.2;transform:scale(0);transition:transform .18s cubic-bezier(.3,1.5,.5,1)}
 .cv-cal.on .bx{background:var(--c)}.cv-cal.on .bx svg{transform:scale(1)}
-.cv-cal em{margin-left:auto;font-style:normal;font-size:11px;color:var(--text-3)}
+.cv-cal .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-cal em{font-style:normal;font-size:11px;color:var(--text-3);flex:none}
+.cv-cal-more{flex:none;width:28px;height:28px;margin:-4px -6px -4px 0;border:0;border-radius:50%;background:none;color:var(--text-3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s}
+.cv-cal-more:hover{background:var(--border);color:var(--text)}
+.cv-cal-more svg{width:18px;height:18px;fill:currentColor;stroke:none}
+.cv-newcal{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;padding:9px 18px;font-size:14px;font-weight:700;color:var(--blue);font-family:inherit;cursor:pointer;border-radius:10px;transition:background .15s}
+.cv-newcal:hover{background:var(--border-soft)}.cv-newcal svg{width:18px;height:18px;stroke-width:2.4}.cv-side .cv-newcal{padding:8px}
+.cv-set-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:12px}
+.cv-set-t{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--text-3);padding:14px 18px 6px}
+.cv-set-t em{font-style:normal;font-weight:600}.cv-set-t b{color:var(--text-2)}.cv-set-t .cv-link{padding:0;font-size:13px}
+.cv-set-note{font-size:12px;color:var(--text-3);padding:0 18px 6px}
+.cv-set-row{display:flex;gap:8px;padding:2px 18px 8px}
+.cv-set-row input{flex:1;min-width:0;width:auto;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px;background:var(--card);color:var(--text);font-family:inherit;outline:none}
+.cv-set-row input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.cv-mem{display:flex;align-items:center;gap:10px;padding:6px 12px 6px 18px;animation:cvInF .2s}
+.cv-mem.out{opacity:.6}
+.cv-mem .nm{flex:1;min-width:0}.cv-mem .nm b{display:block;font-size:14px;font-weight:700;color:var(--text)}
+.cv-mem .nm em{display:block;font-style:normal;font-size:11.5px;color:var(--text-3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-mem .lbl{font-size:12px;font-weight:700;color:var(--text-3);padding-right:6px}
+.cv-perm{display:flex;flex:none;background:var(--border-soft);border-radius:9px;padding:2px}
+.cv-perm button{border:0;background:none;border-radius:7px;padding:5px 9px;font-size:12px;font-weight:700;color:var(--text-3);font-family:inherit;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.cv-perm button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.cv-mem .cv-btn{height:30px;padding:0 12px;font-size:12px}
+.cv-danger{display:block;margin:20px auto 4px;border:0;background:none;color:#DC2626;font-size:14px;font-weight:700;font-family:inherit;padding:10px 16px;border-radius:10px;cursor:pointer}
+.cv-danger:hover{background:var(--red-bg)}
+.cv-pal{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 4px;padding:4px 14px 10px}
+.cv-pal button{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;padding:8px 0;border-radius:12px;font-size:12px;color:var(--text-2);font-family:inherit;cursor:pointer;transition:background .15s}
+.cv-pal button:hover{background:var(--border-soft)}
+.cv-pal i{width:34px;height:34px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;transition:transform .18s cubic-bezier(.3,1.4,.5,1)}
+.cv-pal button:active i{transform:scale(.88)}
+.cv-pal i svg{width:18px;height:18px;stroke:#fff;stroke-width:3;transform:scale(0);transition:transform .2s cubic-bezier(.3,1.5,.5,1)}
+.cv-pal button.on i svg{transform:scale(1)}
+.cv-pal button.on span{color:var(--text);font-weight:700}
 .cv-calsbtn{color:var(--text-2)}
 .cv-body{position:relative}
 .cv-in-r{animation:cvInR .3s cubic-bezier(.2,.8,.2,1)}
@@ -7971,7 +8006,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-29-3',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-29-4',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10581,15 +10616,29 @@ function calActive(u){return !!u&&u.status!=='퇴사'&&u.status!=='대기'}
 function calName(ph){var u=CAL.users[ph];return u?(u.nick||u.name||ph):(ph===ME.phone?(ME.nick||ME.name):'알 수 없음')}
 function calRoleOf(u){if(!u)return '';return calIsHq(u)?'경영팀':calHasRole(u,'카운터')?'카운터':calIsIntern(u)?'인턴':calIsDes(u)?'디자이너':(u.role||'')}
 function calAvatar(ph,sz){var n=calName(ph),c=['#039BE5','#3F51B5','#8E24AA','#D81B60','#0B8043','#F4511E','#616161','#7986CB'][(+String(ph).slice(-2)||0)%8];return '<span class="cv-av" style="background:'+c+(sz?';width:'+sz+'px;height:'+sz+'px;font-size:'+Math.round(sz*.42)+'px':'')+'">'+cmEsc(n.charAt(0))+'</span>'}
+/* 자동 권한 — 직급 · 브랜드로 정해짐: 'w' 쓰기 · 'r' 보기만 · '' 없음 */
+function calAuto(k,u){if(!calActive(u))return '';var i=k.indexOf('~'),kind=i<0?k:k.slice(0,i),b=i<0?'':k.slice(i+1),hq=calIsHq(u);
+  if(kind==='co')return hq?'w':'r';if(kind==='x'||kind==='me')return '';if(hq)return 'w';if(kind==='hq'||u.brand!==b)return '';
+  if(kind==='des')return calIsDes(u)?'w':calHasRole(u,'카운터')?'r':'';
+  if(kind==='int')return calIsDes(u)?'w':calIsIntern(u)?'r':'';
+  if(kind==='acad')return calIsEdu(u)?'w':(calIsDes(u)||calIsIntern(u))?'r':'';return ''}
+/* 캘린더 설정 /calendar/cfg/{캘린더} — 기본 캘린더: ov{폰: 'w'|'r'|'-'(뺌)} 경영팀이 자동 멤버에 더하거나 뺀 것.
+   새로 만든 캘린더(x~{id}): { x 키, n 이름, c 색, by 만든 사람, mem{폰: 'w'|'r'} }. 경영팀은 모든 캘린더를 쓰고 관리한다 */
+function calCfg(k){return (CAL.cfg||{})[calColKey(k)]||{}}
+function calAccess(k,ph){var u=CAL.users[ph]||(ME&&ph===ME.phone?ME:null);if(!calActive(u))return '';var kind=k.split('~')[0],cf=calCfg(k);
+  if(kind==='me')return k==='me~'+ph?'w':'';if(kind==='hol')return 'r';
+  if(kind==='x'){if(cf.by===ph||calIsHq(u))return 'w';return (cf.mem||{})[ph]||''}
+  if(calIsHq(u))return 'w';var o=(cf.ov||{})[ph];if(o==='-')return '';if(o==='w'||o==='r')return o;return calAuto(k,u)}
+function calCanManage(k){var kind=k.split('~')[0];if(kind==='me'||kind==='hol')return false;return calIsHq(ME)||(kind==='x'&&calCfg(k).by===ME.phone)}
 /* 내가 볼 수 있는 캘린더 { k, n 이름, c 색, w 쓰기 } — 브랜드 캘린더는 그 브랜드에 디자이너 · 인턴이 있을 때만 */
 function calDefs(users){var me=ME,hq=calIsHq(me),out=[],brands={};
   Object.keys(users||{}).forEach(function(ph){var u=users[ph];if(!calActive(u)||!u.brand||calIsHq(u))return;var b=brands[u.brand]||(brands[u.brand]={des:0,int:0});if(calIsDes(u))b.des=1;if(calIsIntern(u))b.int=1});
-  function add(k,n,c,w){out.push({k:k,n:n,c:c,w:!!w})}
-  add('me~'+me.phone,'내 일정',CAL_COL.me,1);add('co','전체 회사',CAL_COL.co,hq);if(hq)add('hq','경영팀',CAL_COL.hq,1);
-  Object.keys(brands).sort().forEach(function(b,bi){var mine=me.brand===b,f=brands[b],tag=hq?' · '+b:'',v=bi%2;
-    if(f.des&&(hq||(mine&&(calIsDes(me)||calHasRole(me,'카운터')))))add('des~'+b,'디자이너'+tag,CAL_COL.des[v],hq||(mine&&calIsDes(me)));
-    if(f.int&&(hq||(mine&&(calIsDes(me)||calIsIntern(me))))){add('int~'+b,'인턴'+tag,CAL_COL.int[v],hq||(mine&&calIsDes(me)));add('acad~'+b,'아카데미'+tag,CAL_COL.acad[v],hq||(mine&&calIsEdu(me)))}});
-  add('hol','공휴일',CAL_COL.hol,0);return out}
+  function add(k,n,c){var a=calAccess(k,me.phone);if(a)out.push({k:k,n:n,c:c,w:a==='w'})}
+  add('me~'+me.phone,'내 일정',CAL_COL.me);add('co','전체 회사',CAL_COL.co);add('hq','경영팀',CAL_COL.hq);
+  Object.keys(brands).sort().forEach(function(b,bi){var f=brands[b],tag=hq||me.brand!==b?' · '+b:'',v=bi%2;
+    if(f.des)add('des~'+b,'디자이너'+tag,CAL_COL.des[v]);if(f.int){add('int~'+b,'인턴'+tag,CAL_COL.int[v]);add('acad~'+b,'아카데미'+tag,CAL_COL.acad[v])}});
+  Object.keys(CAL.cfg||{}).sort(function(a,b){return ((CAL.cfg[a]||{}).at||0)-((CAL.cfg[b]||{}).at||0)}).forEach(function(key){var cf=CAL.cfg[key];if(cf&&cf.x&&cf.n)add(cf.x,cf.n,cf.c||CAL_COL.me)});
+  out.push({k:'hol',n:'공휴일',c:CAL_COL.hol,w:false});return out}
 function calDef(k){for(var i=0;i<CAL.defs.length;i++)if(CAL.defs[i].k===k)return CAL.defs[i];return null}
 function calPath(k){return '/calendar/ev/'+encodeURIComponent(k)}
 /* 참석자 묶음 — 전체 직원 · 경영팀 · 브랜드별 전체/디자이너/인턴/교육자/카운터 · 지점별 */
@@ -10619,7 +10668,7 @@ function calTimed(o){return !(o.ev.ad||!o.ev.st)&&o.d0===o.d1}
 /* ── 일정 펼치기 · 알림 ── */
 function calEach(cb){var seen={};
   CAL.defs.forEach(function(df){if(CAL.off[df.k]||df.k==='hol')return;var evs=CAL.ev[df.k]||{};Object.keys(evs).forEach(function(id){seen[df.k+'~'+id]=1;if(evs[id])cb(df.k,id,evs[id],df.c,false)})});
-  if(!CAL.off['me~'+ME.phone])Object.keys(CAL.inv).forEach(function(key){var o=CAL.inv[key];if(!seen[key]&&o&&o.ev)cb(o.k,o.id,o.ev,CAL_COL.me,true)})}
+  if(!CAL.off['me~'+ME.phone])Object.keys(CAL.inv).forEach(function(key){var o=CAL.inv[key];if(!seen[key]&&o&&o.ev)cb(o.k,o.id,o.ev,calColOf('me~'+ME.phone),true)})}
 /* from~to 에 걸치는 일정 [{k,c,id,ev,d0,d1,inv}] — 반복은 펼친다. 공휴일 포함 */
 function calOcc(from,to){var out=[];
   calEach(function(k,id,ev,c,inv){if(!ev.s)return;var len=Math.max(0,calDiff(ev.s,ev.e||ev.s));
@@ -10646,13 +10695,13 @@ function openCal(arg){if(!COMM_BETA){alert('캘린더는 아직 시험 중이에
   go('p-cal');renderBotTab('p-cal');calRender();
   calLoad().then(function(){calRender();if(m&&m[2]){var k=decodeURIComponent(m[2]),ev=(CAL.ev[k]||{})[m[3]]||((CAL.inv[k+'~'+m[3]]||{}).ev);if(ev)calShow({k:k,id:m[3],ev:ev,c:(calDef(k)||{c:CAL_COL.me}).c,d0:m[1],d1:calAdd(m[1],Math.max(0,calDiff(ev.s,ev.e||ev.s))),inv:!calDef(k)})}});
   clearInterval(CAL.tick);CAL.tick=setInterval(function(){if(!$('p-cal').classList.contains('on')){clearInterval(CAL.tick);return}if(CAL.v==='day'||CAL.v==='week')calNowLine()},60000)}
-function calLoad(){return fbG('/users.json',60000).then(function(users){CAL.users=users||{};CAL.defs=calDefs(CAL.users);
+function calLoad(){return Promise.all([fbG('/users.json',60000),fbG('/calendar/pref/'+ME.phone+'.json',3000).catch(function(){return null}),fbG('/calendar/cfg.json',3000).catch(function(){return null})]).then(function(r){var users=r[0];CAL.pref=r[1]||{};CAL.cfg=r[2]||{};CAL.users=users||{};CAL.defs=calDefs(CAL.users);calApplyCol();
   var ps=CAL.defs.filter(function(df){return df.k!=='hol'}).map(function(df){return fbG(calPath(df.k)+'.json',3000).then(function(v){CAL.ev[df.k]=v||{}},function(){CAL.ev[df.k]=CAL.ev[df.k]||{}})});
   ps.push(fbG('/calendar/inv/'+ME.phone+'.json',3000).then(function(inv){var keys=Object.keys(inv||{}),next={};
     return Promise.all(keys.map(function(key){var i=key.lastIndexOf('~'),k=key.slice(0,i),id=key.slice(i+1);if(calDef(k))return null;
       return fbG(calPath(k)+'/'+id+'.json',3000).then(function(ev){if(ev&&ev.att&&ev.att[ME.phone]!==undefined)next[key]={k:k,id:id,ev:ev}})})).then(function(){CAL.inv=next})}));
   return Promise.all(ps)}).catch(function(){toast('캘린더를 불러오지 못했어요')})}
-function calFresh(k){try{delete FBG_SHARE[calPath(k)+'.json'];delete FBG_SHARE['/calendar/inv/'+ME.phone+'.json']}catch(e){}}
+function calFresh(k){try{delete FBG_SHARE['/calendar/cfg.json'];delete FBG_SHARE[calPath(k)+'.json'];delete FBG_SHARE['/calendar/inv/'+ME.phone+'.json']}catch(e){}}
 
 /* ── 이동 ── */
 function calTitle(){var p=calParse(CAL.d);if(CAL.v==='year')return p.getFullYear()+'년';if(CAL.v==='day')return (p.getMonth()+1)+'월 '+p.getDate()+'일';
@@ -10697,7 +10746,18 @@ function calRender(keepScroll){var el=calShell();if(!el)return;CAL.reg=[];
   if(CAL.v==='day'||CAL.v==='week'){calFitGrid();var g=$('CV-TG');if(g){if(prevTop!=null)g.scrollTop=prevTop;else{var now=new Date(),H=calHourH(),inRange=g.querySelector('.col.now');g.scrollTop=Math.max(0,(inRange?now.getHours()+now.getMinutes()/60-1.5:7.5)*H)}}calNowLine()}}
 function calSide(){var s=$('CV-SIDE');if(!s)return;
   s.innerHTML='<button class="cv-create" onclick="calNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>만들기</button><div class="cv-mini">'+calMiniHtml()+'</div><div class="cv-sh-t">캘린더</div>'+calCalsList()}
-function calCalsList(){return '<div class="cv-cals">'+CAL.defs.map(function(df){var on=!CAL.off[df.k];return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calToggle(\''+df.k.replace(/'/g,"\\'")+'\');var l=this.closest(\'.cv-cal\');if(l)l.classList.toggle(\'on\',this.checked)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>'+cmEsc(df.n)+(df.w||df.k==='hol'?'':'<em>보기만</em>')+'</label>'}).join('')+'</div>'}
+function calCalsList(){return '<div class="cv-cals">'+CAL.defs.map(function(df){var on=!CAL.off[df.k];return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calToggle(\''+df.k.replace(/'/g,"\\'")+'\');var l=this.closest(\'.cv-cal\');if(l)l.classList.toggle(\'on\',this.checked)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="nm">'+cmEsc(df.n)+'</span>'+(df.w||df.k==='hol'?'':'<em>보기만</em>')+'<button class="cv-cal-more" title="설정 · 색 · 멤버" aria-label="캘린더 설정" onclick="event.preventDefault();event.stopPropagation();calSettings(\''+df.k.replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></label>'}).join('')+'<button class="cv-newcal" onclick="calXNew()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 캘린더</button></div>'}
+/* 캘린더 색 — 구글 캘린더처럼 사람마다 자기 화면에서만 바꾼다. /calendar/pref/{폰}/col/{캘린더} (폰 · 컴퓨터 같이 따라옴) */
+var CAL_PAL=[['#D50000','토마토'],['#E67C73','플라밍고'],['#F4511E','귤'],['#F6BF26','바나나'],['#33B679','세이지'],['#0B8043','바질'],['#039BE5','공작'],['#3F51B5','블루베리'],['#7986CB','라벤더'],['#8E24AA','포도'],['#D81B60','자두'],['#616161','흑연']];
+function calColKey(k){return String(k).replace(/[.#$\[\]\/]/g,'_')}
+function calColOf(k){var c=CAL.pref&&CAL.pref.col&&CAL.pref.col[calColKey(k)];if(c)return c;var d=calDef(k);return d?d.c:CAL_COL.me}
+function calApplyCol(){CAL.defs.forEach(function(df){var c=CAL.pref&&CAL.pref.col&&CAL.pref.col[calColKey(df.k)];if(c)df.c=c})}
+function calColPick(k){var df=calDef(k);if(!df)return;calSheet('<div class="cv-sh-head"><b>'+cmEsc(df.n)+' 색</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="cv-pal">'+
+  CAL_PAL.map(function(p){return '<button class="'+(df.c.toUpperCase()===p[0]?'on':'')+'" style="--c:'+p[0]+'" onclick="calColSet(\''+k.replace(/'/g,"\\'")+'\',\''+p[0]+'\',this)"><i><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></i><span>'+p[1]+'</span></button>'}).join('')+'</div>')}
+function calColSet(k,c,btn,stay){var key=calColKey(k);CAL.pref=CAL.pref||{};CAL.pref.col=CAL.pref.col||{};CAL.pref.col[key]=c;
+  CAL.defs=calDefs(CAL.users);calApplyCol();[].forEach.call(btn.parentNode.querySelectorAll('button'),function(b){b.classList.toggle('on',b===btn)});
+  [].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});CAL.dir=0;calRender(true);if(!stay)setTimeout(function(){calSheetClose(btn)},180);
+  fbP('/calendar/pref/'+ME.phone+'/col/'+encodeURIComponent(key)+'.json',c).catch(function(){toast('색을 저장하지 못했어요')})}
 function calCalsSheet(){calSheet('<div class="cv-sh-head"><b>표시할 캘린더</b><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+calCalsList())}
 function calMiniHtml(){var p=calParse(CAL.mm+'-01'),start=calAdd(calYmd(p),-p.getDay()),today=calYmd(new Date()),busy={};
   calOcc(start,calAdd(start,41)).forEach(function(o){if(!o.hol)busy[o.d0]=1});
@@ -10845,19 +10905,83 @@ function calStChange(){var s=$('CE-ST').value,e=$('CE-ET');if(s&&$('CE-S').value
 function calAttRender(){var el=$('CE-ATT');if(!el)return;var sel=Object.keys(CAL.att).filter(function(p){return p!==ME.phone});if(!sel.length){el.innerHTML='';return}
   var left={};sel.forEach(function(p){left[p]=1});var whole=[];
   calGroups().forEach(function(g){if(g.m.length<2)return;var all=g.m.every(function(p){return CAL.att[p]||p===ME.phone});var rest=g.m.filter(function(p){return left[p]});if(all&&rest.length>=2){whole.push(g);rest.forEach(function(p){delete left[p]})}});
-  el.innerHTML='<div class="cv-attsum">'+sel.length+'명 초대</div><div class="cv-chips">'+whole.map(function(g){return '<span class="cv-chip g">'+cmEsc(g.n)+' 전체 · '+g.m.filter(function(p){return p!==ME.phone}).length+'명<button onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\',0)" aria-label="빼기">×</button></span>'}).join('')+
+  el.innerHTML='<div class="cv-attsum">'+sel.length+'명 초대</div><div class="cv-chips">'+whole.map(function(g){return '<span class="cv-chip g">'+cmEsc(g.n)+' 전체 · '+g.m.filter(function(p){return p!==ME.phone}).length+'명<button onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\',0,1)" aria-label="빼기">×</button></span>'}).join('')+
     Object.keys(left).map(function(p){return '<span class="cv-chip">'+calAvatar(p,20)+cmEsc(calName(p))+'<button onclick="delete CAL.att[\''+p+'\'];calAttRender()" aria-label="빼기">×</button></span>'}).join('')+'</div>'}
-function calGroupSet(k,on){var g=calGroups().filter(function(x){return x.k===k})[0];if(!g)return;g.m.forEach(function(p){if(p===ME.phone)return;if(on)CAL.att[p]=1;else delete CAL.att[p]});calAttRender();calPickRefresh()}
-/* 참석자 고르기 — 위에 묶음(전체 직원 · 경영팀 · 브랜드별 디자이너 등), 아래 한 사람씩 */
-function calPick(){calSheet('<div class="cv-pk"><div class="cv-sh-head"><b>참석자</b><span class="cv-pk-n" id="PK-N"></span><span class="cv-sp"></span><button class="cv-btn pri" onclick="calSheetClose(this);calAttRender()">완료</button></div>'+
+function calGroupSet(k,on,att){var g=calGroups().filter(function(x){return x.k===k})[0];if(!g)return;var pk=att||!CAL.pk?{sel:CAL.att,skip:{}}:CAL.pk;
+  g.m.forEach(function(p){if(p===ME.phone||pk.skip[p])return;if(on)pk.sel[p]=1;else delete pk.sel[p]});if(att||!CAL.pk||CAL.pk.sel===CAL.att)calAttRender();calPickRefresh()}
+/* 사람 고르기 — 위에 묶음(전체 직원 · 경영팀 · 브랜드별 디자이너 등), 아래 한 사람씩. 참석자 · 캘린더 멤버 추가에 같이 쓴다 */
+function calPick(opt){CAL.pk=opt||{sel:CAL.att,skip:{},t:'참석자',done:calAttRender};
+  calSheet('<div class="cv-pk"><div class="cv-sh-head"><b>'+cmEsc(CAL.pk.t)+'</b><span class="cv-pk-n" id="PK-N"></span><span class="cv-sp"></span><button class="cv-btn pri" onclick="calSheetClose(this);var pk=CAL.pk;CAL.pk=null;if(pk&&pk.done)pk.done()">'+(CAL.pk.ok||'완료')+'</button></div>'+
   '<div class="cv-pk-s"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="PK-Q" placeholder="이름 · 지점 · 직급 검색" oninput="calPickRefresh()"></div><div id="PK-BODY"></div></div>','tall');calPickRefresh()}
-function calPickRefresh(){var b=$('PK-BODY');if(!b)return;var q=($('PK-Q').value||'').trim().toLowerCase(),gs=calGroups();
-  var nn=Object.keys(CAL.att).filter(function(p){return p!==ME.phone}).length;$('PK-N').textContent=nn?nn+'명 선택':'';
-  var h='';if(!q){h+='<div class="cv-pk-t">묶음으로 한 번에</div><div class="cv-pk-g">'+gs.filter(function(g){return g.m.some(function(p){return p!==ME.phone})}).map(function(g){var m=g.m.filter(function(p){return p!==ME.phone}),n=m.filter(function(p){return CAL.att[p]}).length,st=n===0?'':n===m.length?'all':'part';
-    return '<button class="'+st+'" onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\','+(st==='all'?0:1)+')"><span class="bx"><svg viewBox="0 0 24 24"><path d="'+(st==='part'?'M6 12h12':'M5 12l5 5L20 7')+'"/></svg></span>'+cmEsc(g.n)+'<em>'+m.length+'</em></button>'}).join('')+'</div>'}
-  var ppl=Object.keys(CAL.users).filter(function(p){var u=CAL.users[p];if(!calActive(u)||p===ME.phone)return false;if(!q)return true;return [u.nick,u.name,u.branch,u.brand,calRoleOf(u)].join(' ').toLowerCase().indexOf(q)>=0}).sort(function(a,b){var ua=CAL.users[a],ub=CAL.users[b],r=function(u){return calIsHq(u)?0:calIsDes(u)?1:calHasRole(u,'카운터')?2:3};return (ua.brand||'')<(ub.brand||'')?-1:(ua.brand||'')>(ub.brand||'')?1:r(ua)-r(ub)||(calName(a)<calName(b)?-1:1)});
-  h+='<div class="cv-pk-t">'+(q?'검색 결과 '+ppl.length+'명':'한 사람씩')+'</div>'+ppl.map(function(p){var u=CAL.users[p],on=!!CAL.att[p];return '<button class="cv-pk-p'+(on?' on':'')+'" onclick="if(CAL.att[\''+p+'\'])delete CAL.att[\''+p+'\'];else CAL.att[\''+p+'\']=1;calPickRefresh()">'+calAvatar(p,34)+'<span><b>'+cmEsc(calName(p))+'</b><em>'+cmEsc([u.brand==='DM INTERNATIONAL'?'':u.brand,calRoleOf(u),u.branch&&u.branch!=='본사'?u.branch:''].filter(Boolean).join(' · '))+'</em></span><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span></button>'}).join('')+(ppl.length?'':'<div class="cv-empty sm">찾는 사람이 없어요</div>');
+function calPickTog(p){var sel=CAL.pk.sel;if(sel[p])delete sel[p];else sel[p]=1;calPickRefresh()}
+function calPickRefresh(){var b=$('PK-BODY');if(!b||!CAL.pk)return;var q=($('PK-Q').value||'').trim().toLowerCase(),gs=calGroups(),sel=CAL.pk.sel,skip=CAL.pk.skip||{};
+  var ok=function(p){return p!==ME.phone&&!skip[p]};
+  var nn=Object.keys(sel).filter(ok).length;$('PK-N').textContent=nn?nn+'명 선택':'';
+  var h='';if(!q){var gg=gs.map(function(g){return {k:g.k,n:g.n,m:g.m.filter(ok)}}).filter(function(g){return g.m.length});
+    if(gg.length)h+='<div class="cv-pk-t">묶음으로 한 번에</div><div class="cv-pk-g">'+gg.map(function(g){var n=g.m.filter(function(p){return sel[p]}).length,st=n===0?'':n===g.m.length?'all':'part';
+    return '<button class="'+st+'" onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\','+(st==='all'?0:1)+')"><span class="bx"><svg viewBox="0 0 24 24"><path d="'+(st==='part'?'M6 12h12':'M5 12l5 5L20 7')+'"/></svg></span>'+cmEsc(g.n)+'<em>'+g.m.length+'</em></button>'}).join('')+'</div>'}
+  var ppl=Object.keys(CAL.users).filter(function(p){var u=CAL.users[p];if(!calActive(u)||!ok(p))return false;if(!q)return true;return [u.nick,u.name,u.branch,u.brand,calRoleOf(u)].join(' ').toLowerCase().indexOf(q)>=0}).sort(function(a,b){var ua=CAL.users[a],ub=CAL.users[b],r=function(u){return calIsHq(u)?0:calIsDes(u)?1:calHasRole(u,'카운터')?2:3};return (ua.brand||'')<(ub.brand||'')?-1:(ua.brand||'')>(ub.brand||'')?1:r(ua)-r(ub)||(calName(a)<calName(b)?-1:1)});
+  h+='<div class="cv-pk-t">'+(q?'검색 결과 '+ppl.length+'명':'한 사람씩')+'</div>'+ppl.map(function(p){var u=CAL.users[p],on=!!sel[p];return '<button class="cv-pk-p'+(on?' on':'')+'" onclick="calPickTog(\''+p+'\')">'+calAvatar(p,34)+'<span><b>'+cmEsc(calName(p))+'</b><em>'+cmEsc([u.brand==='DM INTERNATIONAL'?'':u.brand,calRoleOf(u),u.branch&&u.branch!=='본사'?u.branch:''].filter(Boolean).join(' · '))+'</em></span><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span></button>'}).join('')+(ppl.length?'':'<div class="cv-empty sm">'+(q?'찾는 사람이 없어요':'더할 사람이 없어요')+'</div>');
   b.innerHTML=h}
+
+/* ── 캘린더 설정: 색(내 화면) · 멤버(경영팀 · 만든 사람) · 이름 · 삭제 ── */
+function calSettings(k){var df=calDef(k);if(!df)return;var man=calCanManage(k),kind=k.split('~')[0],ek=k.replace(/'/g,"\\'");CAL.setK=k;
+  var h='<div class="cv-sh-head"><b id="CS-T">'+cmEsc(df.n)+'</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="cv-set-body">';
+  if(kind==='x'&&man)h+='<div class="cv-set-t">이름</div><div class="cv-set-row"><input id="CS-N" maxlength="30" value="'+cmEsc(df.n)+'"><button class="cv-btn" onclick="calXRename()">저장</button></div>';
+  h+='<div class="cv-set-t">색 <em>내 화면에만</em></div><div class="cv-pal">'+CAL_PAL.map(function(p){return '<button class="'+(df.c.toUpperCase()===p[0]?'on':'')+'" style="--c:'+p[0]+'" onclick="calColSet(\''+ek+'\',\''+p[0]+'\',this,1)"><i><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></i><span>'+p[1]+'</span></button>'}).join('')+'</div>';
+  if(kind!=='me'&&kind!=='hol'){h+='<div class="cv-set-t">소유자</div><div id="CS-OWN"></div><div class="cv-set-t">멤버 <b id="CS-CNT"></b><span class="cv-sp"></span>'+(man?'<button class="cv-link" onclick="calMemAdd()">+ 멤버 추가</button>':'')+'</div>'+
+    (man?'':'<div class="cv-set-note">멤버는 '+(kind==='x'?'만든 사람과 경영팀':'경영팀')+'이 정해요</div>')+'<div id="CS-MEM"></div>';
+    if(kind==='x'&&calCfg(k).by===ME.phone)h+='<button class="cv-danger" onclick="calXDel(this)">캘린더 삭제</button>'}
+  calSheet(h+'</div>','tall');calMemRender()}
+/* 소유자 — 새로 만든 캘린더는 만든 사람. 캘린더 삭제 · 소유자 넘기기는 소유자만(경영팀도 못 지운다).
+   소유자가 퇴사했으면 경영팀이 소유자를 넘겨받을 수 있다. 기본 캘린더는 회사 소유라 아무도 못 지운다 */
+function calOwnRender(){var el=$('CS-OWN');if(!el)return;var k=CAL.setK,cf=calCfg(k);
+  if(k.split('~')[0]!=='x'){el.innerHTML='<div class="cv-mem"><span class="cv-av" style="background:#0F172A;width:32px;height:32px">DM</span><span class="nm"><b>DM INTERNATIONAL</b><em>회사 기본 캘린더 · 지울 수 없어요</em></span></div>';return}
+  var ow=cf.by,live=calActive(CAL.users[ow]),me=ow===ME.phone,take=!me&&!live&&calIsHq(ME);
+  el.innerHTML='<div class="cv-mem">'+calAvatar(ow,32)+'<span class="nm"><b>'+cmEsc(calName(ow))+(me?' (나)':'')+'</b><em>'+(live?'캘린더 삭제 · 소유자 넘기기는 소유자만 할 수 있어요':'퇴사한 소유자예요')+'</em></span>'+
+    (me?'<button class="cv-btn" onclick="calOwnPass()">넘기기</button>':take?'<button class="cv-btn" onclick="calOwnSet(\''+ME.phone+'\')">내가 맡기</button>':'')+'</div>'}
+function calOwnPass(){var k=CAL.setK,skip={},sel={};skip[ME.phone]=1;Object.keys(CAL.users).forEach(function(ph){if(!calActive(CAL.users[ph]))skip[ph]=1});
+  calPick({sel:sel,skip:skip,t:'소유자 넘기기',ok:'넘기기',done:function(){var l=Object.keys(sel).filter(function(p){return !skip[p]});if(l.length!==1){toast('넘겨받을 사람을 한 명만 골라 주세요');return}
+    if(confirm(calName(l[0])+'님에게 소유자를 넘길까요?\n\n넘기면 이 캘린더를 지우거나 소유자를 바꾸는 건 '+calName(l[0])+'님만 할 수 있어요. 나는 쓰기 멤버로 남아요.'))calOwnSet(l[0])}})}
+function calOwnSet(ph){var k=CAL.setK,key=calColKey(k),cf=calCfg(k),old=cf.by,patch={by:ph};patch['mem/'+ph]=null;if(old&&old!==ph&&calActive(CAL.users[old]))patch['mem/'+old]='w';
+  fbReq('/calendar/cfg/'+encodeURIComponent(key)+'.json',{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}).then(function(r){if(r&&r.ok===false)throw 0;
+    cf.by=ph;cf.mem=cf.mem||{};delete cf.mem[ph];if(patch['mem/'+old])cf.mem[old]='w';calFresh(k);CAL.defs=calDefs(CAL.users);calApplyCol();
+    var d=document.querySelector('.cv-danger');if(d&&ph!==ME.phone)d.remove();calOwnRender();calMemRender();toast(calName(ph)+'님이 소유자가 됐어요')}).catch(function(){toast('바꾸지 못했어요')})}
+function calMemRender(){calOwnRender();var el=$('CS-MEM');if(!el)return;var k=CAL.setK,man=calCanManage(k),kind=k.split('~')[0],cf=calCfg(k),ov=cf.ov||{},mem=[],gone=[];
+  Object.keys(CAL.users).forEach(function(ph){var u=CAL.users[ph];if(!calActive(u))return;var a=calAccess(k,ph);
+    if(a){var fix=calIsHq(u)||(kind==='x'&&cf.by===ph);mem.push({ph:ph,a:a,fix:fix,src:kind==='x'?(cf.by===ph?'소유자':calIsHq(u)?'관리':''):calIsHq(u)?'관리':ov[ph]&&!calAuto(k,u)?'직접 추가':ov[ph]?'직접 바꿈':'자동'})}
+    else if(kind!=='x'&&ov[ph]==='-')gone.push(ph)});
+  mem.sort(function(a,b){return (a.fix?0:1)-(b.fix?0:1)||(a.a===b.a?0:a.a==='w'?-1:1)||(calName(a.ph)<calName(b.ph)?-1:1)});
+  $('CS-CNT').textContent=mem.length+'명';
+  var sub=function(ph,src){var u=CAL.users[ph];return [u.brand==='DM INTERNATIONAL'?'':u.brand,calRoleOf(u),src].filter(Boolean).join(' · ')};
+  el.innerHTML=mem.map(function(m){return '<div class="cv-mem">'+calAvatar(m.ph,32)+'<span class="nm"><b>'+cmEsc(calName(m.ph))+'</b><em>'+cmEsc(sub(m.ph,m.src))+'</em></span>'+
+      (man&&!m.fix?'<span class="cv-perm"><button class="'+(m.a==='r'?'on':'')+'" onclick="calMemSet([\''+m.ph+'\'],\'r\')">보기만</button><button class="'+(m.a==='w'?'on':'')+'" onclick="calMemSet([\''+m.ph+'\'],\'w\')">쓰기</button></span><button class="cv-ib sm" onclick="calMemSet([\''+m.ph+'\'],\'-\')" aria-label="빼기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>':'<span class="lbl">'+(m.a==='w'?'쓰기':'보기만')+'</span>')+'</div>'}).join('')+
+    (gone.length&&man?'<div class="cv-set-t">뺀 사람</div>'+gone.map(function(ph){return '<div class="cv-mem out">'+calAvatar(ph,32)+'<span class="nm"><b>'+cmEsc(calName(ph))+'</b><em>'+cmEsc(sub(ph,''))+'</em></span><button class="cv-btn" onclick="calMemSet([\''+ph+'\'],\'del\')">다시 넣기</button></div>'}).join(''):'')}
+/* 멤버 바꾸기 — v: 'r' 보기만 · 'w' 쓰기 · '-' 빼기 · 'del' 자동으로 되돌리기. 한 번에 고쳐 쓴다(PATCH) */
+function calMemSet(list,v){var k=CAL.setK,kind=k.split('~')[0],key=calColKey(k),cf=CAL.cfg[key]=CAL.cfg[key]||{},patch={};
+  list.forEach(function(ph){var u=CAL.users[ph];if(!u||calIsHq(u)||(kind==='x'&&cf.by===ph))return;
+    if(kind==='x'){cf.mem=cf.mem||{};if(v==='-'||v==='del'){delete cf.mem[ph];patch['mem/'+ph]=null}else{cf.mem[ph]=v;patch['mem/'+ph]=v}return}
+    var auto=calAuto(k,u);cf.ov=cf.ov||{};if(v==='del'||v===auto||(v==='-'&&!auto)){delete cf.ov[ph];patch['ov/'+ph]=null}else{cf.ov[ph]=v;patch['ov/'+ph]=v}});
+  if(!Object.keys(patch).length)return;
+  fbReq('/calendar/cfg/'+encodeURIComponent(key)+'.json',{method:'PATCH',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}).then(function(r){if(r&&r.ok===false)throw 0;calFresh(k)}).catch(function(){toast('멤버를 저장하지 못했어요')});
+  CAL.defs=calDefs(CAL.users);calApplyCol();calMemRender();[].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});CAL.dir=0;calRender(true)}
+function calMemAdd(){var k=CAL.setK,skip={},sel={};Object.keys(CAL.users).forEach(function(ph){if(calAccess(k,ph))skip[ph]=1});
+  calPick({sel:sel,skip:skip,t:'멤버 추가',ok:'보기만으로 추가',done:function(){var l=Object.keys(sel).filter(function(p){return !skip[p]});if(l.length){calMemSet(l,'r');toast(l.length+'명을 넣었어요 · 쓰기 권한은 이름 옆에서 바꿔요')}}})}
+/* 새 캘린더 — 이름 · 색을 정하면 만들고 바로 멤버 고르기. 만든 사람이 관리(경영팀도) */
+function calXNew(){calSheet('<div class="cv-sh-head"><b>새 캘린더</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+
+  '<div class="cv-set-row"><input id="CX-N" maxlength="30" placeholder="이름 (예: 플래그십 지점, 송년회 준비)"></div><div class="cv-pal" id="CX-PAL">'+CAL_PAL.map(function(p,i){return '<button class="'+(i===6?'on':'')+'" style="--c:'+p[0]+'" data-c="'+p[0]+'" onclick="[].forEach.call(this.parentNode.children,function(b){b.classList.remove(\'on\')});this.classList.add(\'on\')"><i><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></i><span>'+p[1]+'</span></button>'}).join('')+'</div>'+
+  '<div class="cv-set-row"><button class="cv-btn pri" style="flex:1;height:44px" onclick="calXCreate(this)">만들고 멤버 고르기</button></div>');setTimeout(function(){var i=$('CX-N');if(i&&window.innerWidth>=700)i.focus()},250)}
+function calXCreate(btn){var n=($('CX-N').value||'').trim();if(!n){toast('이름을 입력해 주세요');$('CX-N').focus();return}var on=document.querySelector('#CX-PAL .on'),c=on?on.getAttribute('data-c'):CAL_COL.me;
+  var id=Date.now().toString(36)+Math.random().toString(36).slice(2,6),k='x~'+id,cf={x:k,n:n,c:c,by:ME.phone,at:Date.now()};btn.disabled=true;
+  fbP('/calendar/cfg/'+encodeURIComponent(k)+'.json',cf).then(function(){CAL.cfg[k]=cf;CAL.ev[k]={};calFresh(k);CAL.defs=calDefs(CAL.users);calApplyCol();
+    [].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});calSheetClose(btn);CAL.dir=0;calRender(true);toast('\''+n+'\' 캘린더를 만들었어요');
+    setTimeout(function(){calSettings(k);calMemAdd()},260)}).catch(function(){btn.disabled=false;toast('만들지 못했어요')})}
+function calXRename(){var k=CAL.setK,n=($('CS-N').value||'').trim();if(!n)return toast('이름을 입력해 주세요');fbP('/calendar/cfg/'+encodeURIComponent(calColKey(k))+'/n.json',n).then(function(){calCfg(k).n=n;calFresh(k);CAL.defs=calDefs(CAL.users);calApplyCol();$('CS-T').textContent=n;
+  [].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});calRender(true);toast('이름을 바꿨어요')}).catch(function(){toast('저장하지 못했어요')})}
+function calXDel(btn){var k=CAL.setK,df=calDef(k);if(!df)return;if(calCfg(k).by!==ME.phone){toast('캘린더는 소유자만 지울 수 있어요');return}var n=Object.keys(CAL.ev[k]||{}).length;
+  if(!confirm('\''+df.n+'\' 캘린더를 지울까요?\n\n'+(n?'안에 있는 일정 '+n+'개도 모두 지워지고 되돌릴 수 없어요.':'되돌릴 수 없어요.')))return;
+  Promise.all([fbD(calPath(k)+'.json'),fbD('/calendar/cfg/'+encodeURIComponent(calColKey(k))+'.json')]).then(function(){Object.keys(CAL.ev[k]||{}).forEach(function(id){calQueue(k,id,null)});delete CAL.ev[k];delete CAL.cfg[calColKey(k)];calFresh(k);
+    CAL.defs=calDefs(CAL.users);calApplyCol();calSheetClose(btn);[].forEach.call(document.querySelectorAll('.cv-cals'),function(el){el.outerHTML=calCalsList()});calRender(true);toast('지웠어요')}).catch(function(){toast('지우지 못했어요')})}
 function calSave(btn){var t=$('CE-T').value.trim(),k=$('CE-K').value,ad=$('CE-AD').checked,s=$('CE-S').value,e=$('CE-E').value||s,st=$('CE-ST').value,et=$('CE-ET').value,rr=$('CE-RR').value,ru=rr?$('CE-RU').value:'',rem=$('CE-REM').value;
   if(!t){toast('제목을 입력해 주세요');$('CE-T').focus();return}if(!s){toast('시작 날짜를 골라 주세요');return}if(e<s){toast('끝 날짜가 시작보다 빨라요');return}
   if(!ad&&(!st||!et)){toast('시간을 입력해 주세요');return}if(!ad&&e===s&&et<st){toast('끝 시간이 시작보다 빨라요');return}if(ru&&ru<s){toast('반복 끝 날짜가 시작보다 빨라요');return}

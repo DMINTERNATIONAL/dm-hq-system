@@ -7,7 +7,9 @@
  *                                 att:{폰: '' 응답 없음 | y 참석 | n 불참 | m 미정} 참석자
  *   /calendar/inv/{폰}/{cal}~{id} = 1   초대받은 일정 목록(그 캘린더를 못 보는 사람도 자기 일정으로 보게)
  *   /calendar/remq/{cal}~{id}   { at 보낼 시각(ms), cal, id }  — 일정마다 다음 알림 하나. 앱이 저장할 때 넣고, 보내면 서버가 다음 반복으로 바꾼다.
- * 캘린더 이름(cal): co 전체 회사 · hq 경영팀 · des~{브랜드} 디자이너 · int~{브랜드} 인턴 · acad~{브랜드} 아카데미 · me~{폰} 개인
+ *   /calendar/cfg/{cal}         캘린더 설정 — 기본 캘린더 ov{폰:'w'|'r'|'-'}, 새 캘린더 { x, n, c, by 소유자, mem{폰:'w'|'r'} }
+ *   /calendar/pref/{폰}/col/{cal}  사람마다 고른 캘린더 색(앱 화면만)
+ * 캘린더 이름(cal): co 전체 회사 · hq 경영팀 · des~{브랜드} 디자이너 · int~{브랜드} 인턴 · acad~{브랜드} 아카데미 · me~{폰} 개인 · x~{id} 새로 만든 캘린더
  * 받는 사람: 참석자를 정한 일정은 참석자(불참 뺌) + 만든 사람. 아니면 그 캘린더의 '구성원'(경영팀이 모든 브랜드 캘린더를 볼 수는 있어도
  * 알림까지 받지는 않는다). 앱의 calMembers 와 같은 규칙.
  */
@@ -20,20 +22,32 @@ const isDes = (u) => hasRole(u, '디자이너') || (u && u.academyRole === '교�
 const isIntern = (u) => hasRole(u, '인턴') || (u && u.academyRole === '인턴');
 const isEdu = (u) => u && u.academyRole === '교육자' && !isHq(u);
 
-/* 캘린더 구성원(알림 받는 사람) */
-export function calMembers(cal, users) {
-  const [kind, arg] = String(cal).split('~');
+/* 캘린더 구성원(알림 받는 사람) — 앱의 calAccess 와 같은 규칙에서 '경영팀은 다 본다'만 뺀 것.
+ * cfg = /calendar/cfg : 기본 캘린더는 ov{폰: 'w'|'r'|'-'} 로 경영팀이 자동 멤버에 더하거나 뺀다.
+ * 새로 만든 캘린더(x~{id})는 by(소유자) + mem{폰: 'w'|'r'} 만. */
+const safeKey = (k) => String(k).replace(/[.#$\[\]\/]/g, '_');
+export function calMembers(cal, users, cfg) {
+  const i = String(cal).indexOf('~');
+  const kind = i < 0 ? String(cal) : String(cal).slice(0, i), arg = i < 0 ? '' : String(cal).slice(i + 1);
+  const cf = ((cfg || {})[safeKey(cal)]) || {};
   const out = [];
   for (const [ph, u] of Object.entries(users || {})) {
     if (!isActive(u)) continue;
-    const sameBrand = u.brand === arg;
-    const ok = kind === 'co' ? true
-      : kind === 'hq' ? isHq(u)
-      : kind === 'des' ? sameBrand && isDes(u)
-      : kind === 'int' ? sameBrand && (isIntern(u) || isDes(u))
-      : kind === 'acad' ? sameBrand && (isIntern(u) || isEdu(u))
-      : kind === 'me' ? ph === arg
-      : false;
+    let ok;
+    if (kind === 'x') ok = cf.by === ph || !!(cf.mem && cf.mem[ph]);
+    else if (kind === 'me') ok = ph === arg;
+    else {
+      const sameBrand = u.brand === arg;
+      ok = kind === 'co' ? true
+        : kind === 'hq' ? isHq(u)
+        : kind === 'des' ? sameBrand && isDes(u)
+        : kind === 'int' ? sameBrand && (isIntern(u) || isDes(u))
+        : kind === 'acad' ? sameBrand && (isIntern(u) || isEdu(u))
+        : false;
+      const o = cf.ov && cf.ov[ph];
+      if (o === '-') ok = false;
+      else if (o === 'w' || o === 'r') ok = true;
+    }
     if (ok) out.push(ph);
   }
   return out;
@@ -86,9 +100,9 @@ const whenText = (ev, date) => {
 };
 
 /* 알림 받는 사람 */
-export function audience(cal, ev, users) {
+export function audience(cal, ev, users, cfg) {
   const att = ev && ev.att && typeof ev.att === 'object' ? Object.keys(ev.att) : [];
-  if (!att.length) return calMembers(cal, users);
+  if (!att.length) return calMembers(cal, users, cfg);
   return [...new Set(att.filter((ph) => ev.att[ph] !== 'n').concat(ev.by ? [String(ev.by)] : []))].filter((ph) => isActive(users[ph]));
 }
 
@@ -102,6 +116,7 @@ export function makeCalendar(deps) {
     const due = Object.entries(q).filter(([, v]) => v && +v.at <= now + 20 * 1000);
     if (!due.length) return 0;
     const users = (await dbGet(env, '/users').catch(() => null)) || {};
+    const cfg = (await dbGet(env, '/calendar/cfg').catch(() => null)) || {};
     for (const [key, v] of due) {
       await dbDelete(env, '/calendar/remq/' + key);          // 먼저 지운다 — 타이머가 겹쳐도 두 번 보내지 않게
       const ev = await dbGet(env, '/calendar/ev/' + v.cal + '/' + v.id).catch(() => null);
@@ -110,7 +125,7 @@ export function makeCalendar(deps) {
       const cur = nextReminder(ev, +v.at - 60 * 1000);
       if (!cur || Math.abs(cur.at - +v.at) > 60 * 1000) continue;
       if (now - +v.at < 30 * 60 * 1000) {                    // 서버가 오래 멈췄다 깨면 30분 넘게 지난 알림은 보내지 않는다
-        const to = audience(v.cal, ev, users);
+        const to = audience(v.cal, ev, users, cfg);
         await pushToPhones(env, to, {
           title: '일정 · ' + clip(ev.t, 40),
           body: whenText(ev, cur.date) + (ev.loc ? ' · ' + clip(ev.loc, 30) : ''),
