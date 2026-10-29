@@ -731,6 +731,8 @@ export default {
       if (chatRes) return chatRes;
       const boardRes = await boardRoute(path, request, env, ctx, me, json, origin);
       if (boardRes) return boardRes;
+      const calRes = await calRoute(path, request, env, ctx, me, json, origin);
+      if (calRes) return calRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.

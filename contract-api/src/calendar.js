@@ -4,9 +4,12 @@
  * 일정은 앱이 DB 에 바로 쓴다. 서버는 '알림 시각이 된 일정'을 휴대폰으로 보내기만 한다.
  *   /calendar/ev/{cal}/{id}     { t 제목, s 시작일, st 시작시각(HH:mm, 종일이면 ''), e 종료일, et, ad 종일, rr 반복(d|w|m|y), ru 반복 끝,
  *                                 ex:{날짜:1} 반복 중 뺀 날, rem 몇 분 전 알림(없으면 안 보냄), loc, memo, by, bn, at, up }
+ *                                 att:{폰: '' 응답 없음 | y 참석 | n 불참 | m 미정} 참석자
+ *   /calendar/inv/{폰}/{cal}~{id} = 1   초대받은 일정 목록(그 캘린더를 못 보는 사람도 자기 일정으로 보게)
  *   /calendar/remq/{cal}~{id}   { at 보낼 시각(ms), cal, id }  — 일정마다 다음 알림 하나. 앱이 저장할 때 넣고, 보내면 서버가 다음 반복으로 바꾼다.
  * 캘린더 이름(cal): co 전체 회사 · hq 경영팀 · des~{브랜드} 디자이너 · int~{브랜드} 인턴 · acad~{브랜드} 아카데미 · me~{폰} 개인
- * 받는 사람: 그 캘린더의 '구성원'만(경영팀이 모든 브랜드 캘린더를 볼 수는 있어도 알림까지 받지는 않는다). 앱의 calMembers 와 같은 규칙.
+ * 받는 사람: 참석자를 정한 일정은 참석자(불참 뺌) + 만든 사람. 아니면 그 캘린더의 '구성원'(경영팀이 모든 브랜드 캘린더를 볼 수는 있어도
+ * 알림까지 받지는 않는다). 앱의 calMembers 와 같은 규칙.
  */
 
 const clip = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; };
@@ -82,6 +85,13 @@ const whenText = (ev, date) => {
   return m + '월 ' + d + '일(' + wd + ')' + (ev.ad || !ev.st ? ' 종일' : ' ' + ev.st + (ev.et && ev.e === ev.s ? '~' + ev.et : ''));
 };
 
+/* 알림 받는 사람 */
+export function audience(cal, ev, users) {
+  const att = ev && ev.att && typeof ev.att === 'object' ? Object.keys(ev.att) : [];
+  if (!att.length) return calMembers(cal, users);
+  return [...new Set(att.filter((ph) => ev.att[ph] !== 'n').concat(ev.by ? [String(ev.by)] : []))].filter((ph) => isActive(users[ph]));
+}
+
 export function makeCalendar(deps) {
   const { dbGet, dbPut, dbDelete, pushToPhones } = deps;
 
@@ -100,7 +110,7 @@ export function makeCalendar(deps) {
       const cur = nextReminder(ev, +v.at - 60 * 1000);
       if (!cur || Math.abs(cur.at - +v.at) > 60 * 1000) continue;
       if (now - +v.at < 30 * 60 * 1000) {                    // 서버가 오래 멈췄다 깨면 30분 넘게 지난 알림은 보내지 않는다
-        const to = calMembers(v.cal, users);
+        const to = audience(v.cal, ev, users);
         await pushToPhones(env, to, {
           title: '일정 · ' + clip(ev.t, 40),
           body: whenText(ev, cur.date) + (ev.loc ? ' · ' + clip(ev.loc, 30) : ''),
@@ -114,5 +124,35 @@ export function makeCalendar(deps) {
     return due.length;
   }
 
-  return { runReminders };
+  /* 초대 알림 — 앱이 일정을 저장한 뒤 새로 넣은 참석자에게 보낸다. 일정에 실제로 들어 있는 참석자에게만. */
+  async function invite(env, me, body) {
+    const cal = String(body.cal || ''), id = String(body.id || '');
+    if (!/^[A-Za-z0-9_-]+$/.test(id) || !cal || /[.#$\[\]\/]/.test(cal)) throw new Error('잘못된 요청입니다');
+    const ev = await dbGet(env, '/calendar/ev/' + encodeURIComponent(cal) + '/' + id);
+    if (!ev) throw new Error('일정이 없습니다');
+    const att = ev.att || {};
+    const to = (Array.isArray(body.to) ? body.to : []).map(String).filter((ph) => ph in att && ph !== String(me.ph)).slice(0, 300);
+    if (!to.length) return { sent: 0 };
+    const who = clip(me.name || '', 12);
+    await pushToPhones(env, to, {
+      title: '일정 초대 · ' + clip(ev.t, 40),
+      body: whenText(ev, ev.s) + (who ? ' · ' + who + '님이 초대' : ''),
+      url: './#cal/' + ev.s + '/' + encodeURIComponent(cal) + '/' + id,
+      tag: 'calinv-' + id,
+    }).catch(() => {});
+    return { sent: to.length };
+  }
+
+  const route = async function route(path, request, env, ctx, me, json, origin) {
+    if (!path.startsWith('/cal/')) return null;
+    if (request.method !== 'POST') return json({ ok: false, error: 'POST 만 받습니다' }, 405, origin);
+    if (me.admin) return json({ ok: false, error: '본인 계정으로 로그인해 주세요' }, 403, origin);
+    const body = await request.json().catch(() => ({}));
+    try {
+      if (path === '/cal/invite') return json({ ok: true, ...(await invite(env, me, body)) }, 200, origin);
+      return json({ ok: false, error: '없는 주소입니다' }, 404, origin);
+    } catch (e) { return json({ ok: false, error: e.message }, 400, origin); }
+  };
+  route.runReminders = runReminders;
+  return route;
 }

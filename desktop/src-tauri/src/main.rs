@@ -7,6 +7,7 @@
 //   - 창 크기 · 위치를 기억해 다음에 그대로 연다 (웹앱의 '작게 보기 / 크게 보기'로 바꾼 크기 포함)
 //   - 채팅방을 새 창으로 여러 개 띄울 수 있다 (웹앱이 room-{방} 창을 만든다, ?solo=1#comm/{방})
 //   - 사진 · 파일 '저장'을 다운로드 폴더에 바로 (download 명령)
+//   - 파일을 창에 끌어다 놓으면 웹 화면이 받는다 (dragDropEnabled: false — 채팅방에 파일 보내기)
 //   - 컴퓨터를 쓰고 있는지 (idle 명령 — 웹앱이 PC 사용 중이면 휴대폰 알림을 쉬게 한다)
 // 알림 · 아이콘 숫자는 웹앱이 window.__TAURI__ 로 직접 띄운다 (index.html 의 cmDesk*).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -15,12 +16,23 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
 
-/// 사진 · 파일 저장: 웹앱이 받아 둔 내용(바이트)과 이름(x-name, 주소 인코딩)을 넘기면
+/// 사진 · 파일 저장: 웹앱이 받아 둔 내용과 이름(x-name, 주소 인코딩)을 넘기면
 /// '다운로드' 폴더에 같은 이름이 있으면 '이름 (1).jpg' 처럼 바꿔 저장하고 저장한 경로를 돌려준다.
+/// 내용은 { b64: "base64 글자" } 로 받는다 — 웹앱은 원격 주소(GitHub Pages)라 Tauri 가 바이트를 그대로 못 넘기고
+/// JSON 으로 바꿔 보내서(postMessage), v0.1.4 까지 '바이트만 받기'로는 늘 실패했다. 바이트 · 숫자 배열도 받는다.
 #[tauri::command]
 fn download(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
-    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
-        return Err("저장할 내용이 없어요".into());
+    let bytes: Vec<u8> = match request.body() {
+        tauri::ipc::InvokeBody::Raw(b) => b.clone(),
+        tauri::ipc::InvokeBody::Json(v) => {
+            if let Some(t) = v.get("b64").and_then(|x| x.as_str()) {
+                b64_decode(t).ok_or_else(|| "파일 내용이 올바르지 않아요".to_string())?
+            } else if let Some(a) = v.as_array() {
+                a.iter().map(|x| x.as_u64().unwrap_or(0) as u8).collect()
+            } else {
+                return Err("저장할 내용이 없어요".into());
+            }
+        }
     };
     let raw = request
         .headers()
@@ -30,8 +42,32 @@ fn download(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, 
     let name = clean_name(&pct_decode(raw));
     let dir = app.path().download_dir().map_err(|e| e.to_string())?;
     let path = unique_path(&dir, &name);
-    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
     Ok(path.to_string_lossy().into_owned())
+}
+
+fn b64_decode(s: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::with_capacity(s.len() / 4 * 3 + 3);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for c in s.bytes() {
+        let v: u32 = match c {
+            b'A'..=b'Z' => (c - b'A') as u32,
+            b'a'..=b'z' => (c - b'a') as u32 + 26,
+            b'0'..=b'9' => (c - b'0') as u32 + 52,
+            b'+' | b'-' => 62,
+            b'/' | b'_' => 63,
+            b'=' | b'\n' | b'\r' | b' ' => continue,
+            _ => return None,
+        };
+        acc = (acc << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1u32 << bits) - 1;
+        }
+    }
+    Some(out)
 }
 
 fn pct_decode(s: &str) -> String {
