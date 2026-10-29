@@ -18,6 +18,7 @@
  *   /calendar/gcal/u/{폰}              { email, name, at, err }   연결 상태
  *   /calendar/gcal/owner               { email, at, by, err }
  *   /calendar/gcal/on/{캘린더키} = 1   연동 중인 캘린더 — 앱은 이 캘린더 일정을 저장할 때 /calendar/gq 에도 적는다
+ *   /calendar/gcal/sel/{폰}/{캘린더키} = 0   그 사람이 구글에 안 보이게 끈 캘린더(기본은 전부 켜짐 — 새 캘린더도 자동으로 켜짐)
  *   /calendar/gq/{cal~id} = 시각       앱이 고친 일정(구글로 보낼 것).  _acl = 공유 다시 맞추기(캘린더 멤버를 바꿨을 때)
  *
  * 일정 id
@@ -299,7 +300,9 @@ async function gTok(env, S, who) {
 
 /* ═══ 공유 맞추기 — 있어야 할 캘린더 · 공유 · 목록을 실제 구글과 맞춘다. 다 못 하면 false(다음에 이어서) ═══ */
 const R = 2;   // 마지막 DB 쓰기 몫
-async function reconcile(env, S, users, cfg) {
+async function reconcile(env, S, users, cfg, sel) {
+  /* sel/{폰}/{캘린더키} = 0 — 그 사람이 구글에 안 보이게 끈 캘린더(연결 화면에서 하나씩). 없으면 켜짐 */
+  const off = (ph, mk) => !!(sel && sel[ph] && sel[ph][mk] === 0);
   const conn = {};   // 폰 → 이메일 (연결돼 있고 재직 중)
   for (const [who, s] of Object.entries(S.sec)) {
     if (who !== '_owner' && s && s.rt && s.email && !isBad(s) && isActive(users[who])) conn[who] = String(s.email).toLowerCase();
@@ -312,7 +315,7 @@ async function reconcile(env, S, users, cfg) {
       let any = false;
       for (const ph of Object.keys(conn)) {
         const a = access(d.k, ph, users, cfg);
-        if (!a) continue;
+        if (!a || off(ph, safeKey(d.k))) continue;
         any = true;
         if (conn[ph] !== ownMail) mem[ph] = a === 'w' ? 'writer' : 'reader';   // 회사 계정 본인은 이미 주인
       }
@@ -320,11 +323,12 @@ async function reconcile(env, S, users, cfg) {
     }
   }
   for (const ph of Object.keys(conn)) {
-    const k = 'me~' + ph, cf = cfg[safeKey(k)] || {}, mem = {};
+    const k = 'me~' + ph, mk = safeKey(k), cf = cfg[mk] || {}, mem = {};
     for (const [p2, a] of Object.entries(cf.mem || {})) {
-      if (p2 !== ph && conn[p2] && conn[p2] !== conn[ph] && (a === 'w' || a === 'r')) mem[p2] = a === 'w' ? 'writer' : 'reader';
+      if (p2 !== ph && conn[p2] && conn[p2] !== conn[ph] && (a === 'w' || a === 'r') && !off(p2, mk)) mem[p2] = a === 'w' ? 'writer' : 'reader';
     }
-    want[safeKey(k)] = { k, n: 'DM 내 일정', c: COL.me, own: ph, mem };
+    /* 본인이 '내 일정'을 껐어도 공유받은 사람이 켜 두었으면 캘린더는 남긴다(본인 목록에서만 숨김은 구글 쪽 일) */
+    if (!off(ph, mk) || Object.keys(mem).length) want[mk] = { k, n: 'DM 내 일정', c: COL.me, own: ph, mem };
   }
 
   /* 1) 필요 없어진 캘린더 — 지운 캘린더 · 퇴사 · 아무도 안 보는 캘린더. 주인 연결이 끊겼으면 그대로 둔다(다시 연결하면 이어서) */
@@ -565,7 +569,15 @@ async function flush(deps, env, S) {
 }
 
 export function makeGcal(deps) {
-  const { dbGet, dbPut, dbPatch, dbDelete } = deps;
+  const { dbGet, dbPut, dbPatch, dbDelete, dbCas } = deps;
+
+  async function takeLock(env, S) {
+    S.n -= 2;
+    const now = Date.now();
+    const ok = await dbCas(env, '/authSecrets/__gcalx/lock', (cur) => (cur && now - (+cur.t || 0) < 90000 ? undefined : { t: now })).catch(() => false);
+    if (ok) S.w['authSecrets/__gcalx/lock'] = null;
+    return ok;
+  }
 
   /* 1분마다(cron) · 앱이 캘린더를 열 때(pull). opts: { budget, acl 공유 맞추기 강제, noAcl, maxPoll, minAge } */
   async function runSync(env, opts = {}) {
@@ -580,9 +592,14 @@ export function makeGcal(deps) {
     for (const [who, s] of Object.entries(S.sec)) if (who !== '_owner' && s && s.email) S.mail[String(s.email).toLowerCase()] = { ph: who, name: s.name || '' };
     const now = Date.now();
     try {
-      if (!opts.noAcl && (S.q._acl || opts.acl || !g || !g.lastAcl || now - g.lastAcl > ACL_EVERY)) {
-        const [users, cfg] = await Promise.all([S.get('/users'), S.get('/calendar/cfg')]);
-        const done = await reconcile(env, S, users || {}, cfg || {});
+      /* 공유 맞추기는 한 번에 하나만 — 둘이 동시에 돌면 같은 캘린더를 구글에 두 개 만든다.
+         잠금은 '아무도 안 바꿨을 때만 쓰기'로 잡아서 동시에 와도 하나만 된다. 90초 지나면 풀린 걸로 본다 */
+      const lk = g && g.lock;
+      if (!opts.noAcl && (S.q._acl || opts.acl || !g || !g.lastAcl || now - g.lastAcl > ACL_EVERY) && !(lk && now - (+lk.t || 0) < 90000) && await takeLock(env, S)) {
+        /* 처음에 읽은 목록은 잠금 전 것 — 그 사이 앞 사람이 만든 캘린더를 모르고 또 만들지 않게 새로 읽는다 */
+        const [users, cfg, sel, map] = await Promise.all([S.get('/users'), S.get('/calendar/cfg'), S.get('/calendar/gcal/sel'), S.get('/authSecrets/__gcalx/map')]);
+        S.map = map || {};
+        const done = await reconcile(env, S, users || {}, cfg || {}, sel || {});
         if (done) {
           S.w['authSecrets/__gcalx/lastAcl'] = now;
           if (S.q._acl && +S.q._acl <= now && !('calendar/gq/_acl' in S.w)) S.w['calendar/gq/_acl'] = null;
@@ -731,6 +748,15 @@ export function makeGcal(deps) {
         return json({ ok: true, url: await startUrl(env, url, me, kind) }, 200, origin);
       }
       if (path === '/gcal/stop') { await stop(env, me, body.kind === 'owner' ? 'owner' : 'me'); return json({ ok: true }, 200, origin); }
+      /* 캘린더 하나 켜고 끄기 — 내 구글에 보일지. 바로 한 번 맞춘다 */
+      if (path === '/gcal/sel') {
+        const k = String(body.k || '');
+        if (!k || k.length > 120 || k === 'hol') throw new Error('잘못된 캘린더예요');
+        const mk = safeKey(k);
+        await dbPatch(env, '/', { ['calendar/gcal/sel/' + me.ph + '/' + mk]: body.on ? null : 0, 'calendar/gq/_acl': Date.now() });
+        ctx.waitUntil(runSync(env, { budget: 30, acl: true }).catch((e) => console.log('gcal sel', e && e.message)));
+        return json({ ok: true }, 200, origin);
+      }
       /* 앱이 캘린더를 열 때 — 구글에서 바뀐 걸 바로 가져온다(여럿이 한꺼번에 열어도 15초에 한 번) */
       if (path === '/gcal/pull') {
         if (Date.now() - lastPull < 15000) return json({ ok: true, changed: 0 }, 200, origin);

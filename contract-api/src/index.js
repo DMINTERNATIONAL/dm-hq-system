@@ -114,6 +114,21 @@ async function dbPatch(env, path, obj) {
   if (!r.ok) throw new Error('DB 일괄쓰기 실패 ' + r.status);
   return r.json();
 }
+/* 바뀌지 않았을 때만 쓰기(ETag). fn(지금 값) 이 undefined 를 돌려주면 안 쓴다.
+   그 사이 누가 먼저 바꿨으면 false — 둘이 동시에 잡으려 해도 하나만 된다. */
+async function dbCas(env, path, fn) {
+  const t = await accessToken(env);
+  const url = `${env.FIREBASE_URL}${path}.json?access_token=${t}`;
+  const r = await fetch(url, { cache: 'no-store', headers: { 'X-Firebase-ETag': 'true' } });
+  if (!r.ok) throw new Error('DB 읽기 실패 ' + r.status);
+  const tag = r.headers.get('ETag');
+  const v = fn(await r.json());
+  if (v === undefined || !tag) return false;
+  const w = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'if-match': tag }, body: JSON.stringify(v) });
+  if (w.status === 412) return false;
+  if (!w.ok) throw new Error('DB 쓰기 실패 ' + w.status);
+  return true;
+}
 /* 키 목록만 받아온다. 계정마다 따로 조회하면 요청 수가 계정 수만큼 늘어난다. */
 async function dbKeys(env, path) {
   const t = await accessToken(env);
@@ -414,7 +429,7 @@ function stripSensitive(v, hit) {
 const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b) => relayCall(env, p, b) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
-const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete });
+const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.

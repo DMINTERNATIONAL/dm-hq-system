@@ -3399,6 +3399,7 @@ try{window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').addEven
 a.cv-btn{display:inline-flex;align-items:center;text-decoration:none;flex-shrink:0}
 .cv-gav{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--border-soft);color:var(--blue)}.cv-gav svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .cv-gav.bad{color:#DC2626}.cv-mem .nm em.wrap{white-space:normal}.cv-mem .nm em.bad{color:#DC2626}
+.cv-gsel .cv-cal{cursor:pointer}.cv-gsel .cv-cal input:disabled+.bx{opacity:.5}
 .cv-gtips{margin:0;padding:0 18px 12px 36px;font-size:12.5px;line-height:1.6;color:var(--text-2)}.cv-gtips li{margin:2px 0}.cv-gtips a{color:var(--blue)}
 .cv-gbtn{color:var(--text-2)}.cv-gbtn svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
 .cv-lock{display:flex;align-items:center;gap:10px;margin:0 14px 8px;padding:10px 10px 10px 12px;border-radius:14px;background:var(--border-soft);transition:background .25s}
@@ -8244,7 +8245,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-30-3',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-30-4',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -11418,14 +11419,27 @@ function calColSet(c,btn){if(!CAL.sd)return;CAL.sd.col=c;calPalMark(btn);calSdUp
 var CAL_GSVG='<svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 01-14.7 5.8M3.5 12A8.5 8.5 0 0118.2 6.2"/><path d="M19 3v4h-4M5 21v-4h4"/></svg>';
 function calGSheet(){calSheet('<div class="cv-sh-head"><b>구글 캘린더 연결</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div id="CG-BODY"><div class="cv-set-note">불러오는 중…</div></div>');calGLoad()}
 function calGLoad(){var hq=calIsHq(ME),start=function(kind){return ctFetch('/gcal/start',{method:'POST',body:JSON.stringify({kind:kind})}).catch(function(e){return {ok:false,error:e&&e.message}})};
-  Promise.all([fbGRaw('/calendar/gcal/u/'+ME.phone+'.json'),fbGRaw('/calendar/gcal/owner.json'),start('me'),hq?start('owner'):null]).then(function(r){
-    CAL.gst={t:Date.now(),me:r[0],owner:r[1],uMe:r[2]&&r[2].ok?r[2].url:'',uOwn:r[3]&&r[3].ok?r[3].url:'',err:r[2]&&!r[2].ok?(r[2].error||'연결 준비를 못 했어요'):''};calGRender()});calGOnRefresh()}
+  Promise.all([fbGRaw('/calendar/gcal/u/'+ME.phone+'.json'),fbGRaw('/calendar/gcal/owner.json'),start('me'),hq?start('owner'):null,fbGRaw('/calendar/gcal/sel/'+ME.phone+'.json').catch(function(){return null})]).then(function(r){
+    CAL.gst={t:Date.now(),me:r[0],owner:r[1],uMe:r[2]&&r[2].ok?r[2].url:'',uOwn:r[3]&&r[3].ok?r[3].url:'',err:r[2]&&!r[2].ok?(r[2].error||'연결 준비를 못 했어요'):'',sel:r[4]||{}};calGRender()});calGOnRefresh()}
+/* 구글에 보낼 캘린더 고르기 — 기본은 전부 켜짐, 끈 것만 sel/{폰}/{캘린더}=0 */
+function calGSelList(g){var me='me~'+ME.phone,defs=CAL.defs.filter(function(df){return df.k!=='hol'});
+  defs.sort(function(a,b){return (b.k===me)-(a.k===me)});
+  return '<div class="cv-sh-t">구글에 보낼 캘린더</div><div class="cv-gsel">'+defs.map(function(df){var mk=calColKey(df.k),on=g.sel[mk]!==0,q=df.k.replace(/'/g,"\\'"),
+    why=!on||(CAL.gon&&CAL.gon[mk])?'':df.k.indexOf('me~')!==0?(g.owner&&!g.owner.err?'곧 생겨요':'회사 계정 연결 후'):df.k===me?'곧 생겨요':'만든 사람이 연결하면';
+    return '<label class="cv-cal'+(on?' on':'')+'" style="--c:'+df.c+'"><input type="checkbox"'+(on?' checked':'')+' onchange="calGSel(\''+q+'\',this)"><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="nm">'+cmEsc(df.n)+'</span>'+(why?'<em>'+why+'</em>':'')+'</label>'}).join('')+
+    '</div><div class="cv-set-note">끈 캘린더는 내 구글에서만 빠져요. DM 일정은 그대로고, 다시 켜면 다시 들어와요.</div>'}
+function calGSel(k,inp){var g=CAL.gst,mk=calColKey(k),on=inp.checked,l=inp.closest('.cv-cal');if(!g)return;
+  if(on)delete g.sel[mk];else g.sel[mk]=0;if(l)l.classList.toggle('on',on);inp.disabled=true;
+  ctFetch('/gcal/sel',{method:'POST',body:JSON.stringify({k:k,on:on})}).then(function(j){if(!j||!j.ok)throw new Error(j&&j.error||'');toast(on?'구글에 다시 넣을게요 · 1~2분 걸려요':'구글에서 뺄게요 · 1~2분 걸려요')})
+    .catch(function(e){if(on)g.sel[mk]=0;else delete g.sel[mk];inp.checked=!on;if(l)l.classList.toggle('on',!on);toast(e.message||'바꾸지 못했어요')})
+    .then(function(){inp.disabled=false})}
 function calGRender(){var el=$('CG-BODY'),g=CAL.gst;if(!el||!g)return;var me=g.me,ow=g.owner,hq=calIsHq(ME);
   var lk=function(url,label,pri){return url?'<a class="cv-btn'+(pri?' pri':'')+'" href="'+cmEsc(url)+'" target="_blank" rel="noopener" onclick="return calGGo()">'+label+'</a>':'<button class="cv-btn" disabled>'+label+'</button>'};
   var row=function(t,sub,act,bad){return '<div class="cv-mem"><span class="cv-gav'+(bad?' bad':'')+'">'+CAL_GSVG+'</span><span class="nm"><b>'+t+'</b><em class="wrap'+(bad?' bad':'')+'">'+sub+'</em></span>'+act+'</div>'};
   var h='<div class="cv-set-note">연결하면 구글 캘린더(휴대폰 캘린더 앱 포함)에 DM 캘린더가 함께 보여요. 어느 쪽에서 만들거나 고쳐도 서로 맞춰져요 — 반영까지 1~5분 걸릴 수 있어요.</div>';
   h+='<div class="cv-sh-t">내 구글 계정</div>'+(me?row(cmEsc(me.email),me.err?cmEsc(me.err):'\'DM 내 일정\'과 내가 볼 수 있는 공용 캘린더가 구글에 보여요',me.err?lk(g.uMe,'다시 연결',1):'<button class="cv-btn" onclick="calGStop(\'me\',this)">연결 끊기</button>',!!me.err)
     :row('연결 안 됨','연결하면 구글에 \'DM 내 일정\'과 내가 볼 수 있는 공용 캘린더가 생겨요',lk(g.uMe,'연결하기',1)));
+  if(me&&!me.err)h+=calGSelList(g);
   if(hq){h+='<div class="cv-sh-t">회사 구글 계정 · 경영팀만</div>'+(ow?row(cmEsc(ow.email),ow.err?cmEsc(ow.err):'공용 캘린더(전체 회사 · 경영팀 · 브랜드 · 새 캘린더)의 주인',lk(g.uOwn,ow.err?'다시 연결':'바꾸기',!!ow.err)+'<button class="cv-ib sm" onclick="calGStop(\'owner\',this)" aria-label="회사 계정 연결 끊기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>',!!ow.err)
       :row('연결 안 됨','공용 캘린더를 만들어 직원들에게 공유할 회사 계정이에요',lk(g.uOwn,'연결하기',1)));
     if(ow)h+='<div class="cv-set-note">다른 계정으로 바꾸면 예전 계정의 DM 공용 캘린더는 지워지고 새 계정에 다시 만들어져요. DM 일정은 그대로예요.</div>'}
