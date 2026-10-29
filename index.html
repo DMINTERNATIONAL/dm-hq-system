@@ -2036,6 +2036,171 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-track button{position:relative;width:18px;height:18px;border-radius:50%;border:2px solid #CBD5E1;background:#fff;padding:0;cursor:pointer}
 .cm-track button.on{width:28px;height:28px;border-color:var(--cm-blue);background:var(--cm-blue)}
 .cm-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+/* ── 설문 (구글 폼처럼) ── --svc 는 설문 테마 색 */
+.sv-li{display:flex;gap:12px;padding:12px 14px;border-top:1px solid var(--border);cursor:pointer;align-items:stretch}
+.sv-li:first-of-type{border-top:0}.sv-li:hover{background:var(--border-soft)}
+.sv-li .bar{flex:none;width:4px;border-radius:4px;background:var(--svc)}
+.sv-li .m{flex:1;min-width:0}.sv-li .tp{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-3)}
+.sv-li .t{font-weight:700;font-size:14.5px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sv-li .sub{font-size:11.5px;color:var(--text-3)}
+.sv-li .st{font-weight:800;color:var(--text-3)}.sv-li .st.red{color:var(--red)}.sv-li .st.blue{color:var(--blue)}.sv-li .st.gray{color:var(--text-2)}
+.sv-tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;padding:8px 18px 6px}
+.sv-tpl{position:relative}.sv-tpl>button:first-child,.sv-tpl.blank{width:100%;height:100%;min-height:96px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;border:1px solid var(--border);background:var(--card);border-radius:12px;padding:0 12px 12px;cursor:pointer;font-family:inherit;color:var(--text);text-align:left;overflow:hidden}
+.sv-tpl .bar{display:block;align-self:stretch;height:8px;margin:0 -12px 8px;background:var(--svc)}
+.sv-tpl b{font-size:13.5px;line-height:1.35}.sv-tpl em{font-style:normal;font-size:11.5px;color:var(--text-3)}
+.sv-tpl.blank{align-items:center;justify-content:center;padding:12px;color:var(--blue)}.sv-tpl.blank i{display:flex}
+.sv-tpl .x{position:absolute;top:12px;right:4px;border:0;background:none;color:var(--text-3);cursor:pointer;padding:4px;display:flex}
+
+.sv-ed{--svc:#673AB7;margin:-8px -6px 0}
+.sv-top{display:flex;align-items:center;gap:6px;padding:8px 4px;background:var(--bg-page)}
+.sv-top .nm{flex:1;min-width:0;display:flex;flex-direction:column}.sv-top .nm b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sv-top .nm em{font-style:normal;font-size:11.5px;color:var(--text-3)}
+.sv-top .cv-btn.sv-send{background:var(--svc);border-color:var(--svc)}
+.sv-tabs{display:flex;justify-content:center;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.sv-ed select{padding-top:4px;padding-bottom:4px;line-height:1.3}
+.sv-tabs button{border:0;background:none;font-family:inherit;font-size:14px;font-weight:700;color:var(--text-2);padding:10px 16px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.sv-tabs button.on{color:var(--svc);border-bottom-color:var(--svc)}
+.sv-card{position:relative;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.sv-card.on{border-left:6px solid var(--blue);padding-left:14px;box-shadow:var(--shadow-md)}
+.sv-hd{border-top:10px solid var(--svc);padding-top:16px}.sv-hd.on{border-left:6px solid var(--blue)}
+.sv-hdimg{display:block;width:calc(100% + 36px);margin:-16px -18px 14px;max-height:180px;object-fit:cover;border-radius:2px 2px 0 0}
+.sv-card.on .sv-hdimg{width:calc(100% + 32px);margin-left:-14px}
+.sv-in{width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:14.5px;padding:8px 2px;outline:none;resize:none;border-radius:0;transition:border-color .15s}
+.sv-in:focus{border-bottom:2px solid var(--svc);padding-bottom:7px}
+.sv-title{font-size:26px;font-weight:700;line-height:1.3}.sv-desc{font-size:14px;color:var(--text-2);margin-top:4px}
+.sv-sectag{position:absolute;top:-1px;left:-1px;transform:translateY(-100%);background:var(--svc);color:#fff;font-size:12px;font-weight:700;padding:5px 12px;border-radius:8px 8px 0 0}
+.sv-hd .sv-sectag{top:-11px}.sv-card:has(>.sv-sectag){margin-top:36px}
+.sv-secgap{height:22px}
+.sv-card.sec{border-top:6px solid var(--svc)}
+.sv-drag{display:flex;justify-content:center;margin:-14px 0 2px;color:var(--text-3);cursor:grab;touch-action:none;opacity:0;height:16px;transition:opacity .15s}
+.sv-card:hover .sv-drag,.sv-card.on .sv-drag{opacity:1}@media(hover:none){.sv-drag{opacity:.55}}
+.sv-ghost{opacity:.4}
+.sv-qtop{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.sv-qt{flex:1 1 220px;font-size:16px;background:var(--border-soft);padding:12px 10px;border-radius:6px 6px 0 0}.sv-qt:focus{padding-bottom:11px}
+.sv-kind{flex:0 0 auto;min-width:150px;height:46px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:14px;padding:0 10px}
+.sv-kn{font-size:12px;color:var(--text-3);padding-top:14px}
+.sv-qd{font-size:13.5px;color:var(--text-2);margin-top:6px}
+.sv-ph{font-size:13.5px;color:var(--text-3);padding:12px 2px 4px;border-bottom:1px dotted var(--border);width:60%}
+.sv-opts{margin-top:10px}
+.sv-orow{display:flex;align-items:center;gap:10px;min-height:42px}
+.sv-orow .sv-oin{flex:1;padding:8px 2px;border-bottom-color:transparent}.sv-orow .sv-oin:hover{border-bottom-color:var(--border)}
+.sv-orow .cv-ib.sm{flex:none}
+.sv-orow.add{color:var(--text-3)}.sv-orow .or{font-size:13.5px}
+.sv-oth{flex:1;font-size:14px;color:var(--text-3);border-bottom:1px dotted var(--border);padding:8px 2px}
+.sv-go{max-width:44%;height:34px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font-family:inherit;font-size:12.5px}
+.mk{flex:none;width:18px;height:18px;border:2px solid var(--text-3);box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-2)}
+.mk.one{border-radius:50%}.mk.many{border-radius:3px}.mk.drop{border:0;width:auto;min-width:18px}
+.sv-lnk{border:0;background:none;font-family:inherit;font-size:13.5px;color:var(--text-2);cursor:pointer;padding:6px 2px}.sv-lnk:hover{text-decoration:underline}.sv-lnk.blue{color:var(--blue);font-weight:700}.sv-lnk.sm{font-size:12.5px;margin-top:4px}
+.sv-grided{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:10px}@media(max-width:600px){.sv-grided{grid-template-columns:1fr}}
+.sv-gcol>b{font-size:13px;color:var(--text-2)}
+.sv-scaleed{display:flex;align-items:center;gap:12px;margin-top:12px}.sv-scaleed select{height:38px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font-family:inherit;padding:0 8px}
+.sv-sclbl{display:flex;align-items:center;gap:12px;margin-top:6px;max-width:320px}.sv-sclbl span{width:20px;color:var(--text-3)}
+.sv-stars{display:flex;gap:2px;color:var(--text-3)}
+.sv-fileed{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13.5px;color:var(--text-2)}.sv-fileed select{margin-left:6px;height:32px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)}
+.sv-imged{margin-top:10px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}.sv-imged img,.sv-bimg{max-width:100%;border-radius:8px;display:block}
+.sv-url{margin-top:8px}.sv-yt{margin-top:10px;max-width:360px}.sv-yt img{width:100%;border-radius:8px;display:block}
+.sv-vid{position:relative;padding-top:56.25%;margin-top:10px}.sv-vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:8px}
+.sv-val{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+.sv-val select{height:36px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font-family:inherit;padding:0 6px}.sv-val .sv-in{width:auto;flex:1 1 90px}.sv-val .sv-in.msg{flex-basis:100%}
+.sv-qfoot{display:flex;align-items:center;gap:2px;margin-top:14px;padding-top:10px;border-top:1px solid var(--border)}
+.sv-vr{width:1px;height:26px;background:var(--border);margin:0 8px}
+.sv-req{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-2);cursor:pointer;margin-right:4px}
+.sv-sw{position:relative;display:inline-flex;flex:none}.sv-sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.sv-sw i{width:36px;height:20px;border-radius:20px;background:var(--border);position:relative;transition:background .15s}.sv-sw i:after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
+.sv-sw input:checked+i{background:var(--svc,var(--blue))}.sv-sw input:checked+i:after{transform:translateX(16px)}.sv-sw input:disabled+i{opacity:.45}
+.sv-keybtn{display:flex;align-items:center;gap:6px;border:0;background:none;color:var(--blue);font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;padding:6px 4px}
+.sv-key{margin-top:10px}.sv-keyhd{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:6px}.sv-keyhd .pt{width:64px;text-align:right}
+.sv-kopt{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:10px 8px;border-radius:6px;font-family:inherit;font-size:14px;color:var(--text);cursor:pointer;text-align:left}
+.sv-kopt:hover{background:var(--border-soft)}.sv-kopt.on{background:var(--green-bg);color:#047857}.sv-kopt i{margin-left:auto;display:flex;color:#047857}
+.sv-fb{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.sv-after{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);margin:-2px 2px 4px;flex-wrap:wrap}
+.sv-after select{height:32px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font-family:inherit;font-size:13px;max-width:100%}
+.sv-addbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--sab));z-index:60;display:flex;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:6px;box-shadow:0 8px 28px rgba(15,23,42,.16)}
+.sv-addbar button{white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;color:var(--text-2);font-family:inherit;font-size:10.5px;padding:6px 10px;border-radius:10px;cursor:pointer;min-width:52px}
+.sv-addbar button:hover{background:var(--border-soft);color:var(--svc)}
+#p-comm-sv{padding-bottom:calc(110px + var(--sab))}
+.sv-menu{display:flex;flex-direction:column;padding:4px 8px}
+.sv-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;background:none;font-family:inherit;font-size:15px;color:var(--text);padding:14px 12px;border-radius:10px;cursor:pointer;text-align:left}
+.sv-menu button:hover{background:var(--border-soft)}.sv-menu button.red{color:var(--red)}
+.sv-menu i{display:flex;width:22px;height:22px;border-radius:6px;border:2px solid var(--border);align-items:center;justify-content:center;color:transparent}.sv-menu i.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+.sv-set{padding:6px 18px 10px}
+.sv-sh{display:flex;align-items:center;font-size:12.5px;font-weight:800;color:var(--text-3);padding:14px 0 4px}
+.sv-sh2{font-size:12.5px;font-weight:700;color:var(--text-2);padding:10px 0 0}
+.sv-srow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--border-soft);cursor:pointer}
+.sv-srow>span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}.sv-srow b{font-size:14.5px;font-weight:600}.sv-srow em{font-style:normal;font-size:12px;color:var(--text-3)}
+.sv-srow.col{flex-direction:column;align-items:stretch;cursor:default}.sv-srow.dis{opacity:.6}
+.sv-end{display:flex;align-items:center;gap:4px}.sv-end input{height:36px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;padding:0 8px}
+.sv-seg{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}.sv-seg button{flex:1;border:0;background:none;padding:10px;font-family:inherit;font-size:13.5px;color:var(--text-2);cursor:pointer}.sv-seg button.on{background:var(--svc);color:#fff;font-weight:700}
+.sv-note{font-size:12.5px;color:var(--text-3);line-height:1.5;padding:4px 0}
+.sv-btns{display:flex;gap:8px}
+.sv-set .sv-hdimg{width:100%;margin:6px 0;border-radius:8px}
+.sv-act{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;border:0;border-top:1px solid var(--border-soft);background:none;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--text);padding:12px 0;cursor:pointer;text-align:left}
+.sv-act em{font-style:normal;font-weight:400;font-size:12px;color:var(--text-3)}.sv-act.red{color:var(--red)}
+
+/* 응답하는 화면 */
+.sv-fill .sv-fbody{max-width:680px;margin:0 auto}
+.sv-hd.fill{padding-top:20px}.sv-ftitle{font-size:26px;font-weight:700;line-height:1.3;word-break:keep-all}.sv-fdesc{font-size:14px;color:var(--text-2);white-space:pre-wrap;margin-top:8px;line-height:1.6}
+.sv-fmeta{font-size:12px;color:var(--text-3);margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}.sv-freq{font-size:12.5px;color:var(--red);margin-top:6px}
+.sv-sechd{border-top:0;padding:0;overflow:hidden}.sv-sechd .t{background:var(--svc);color:#fff;font-weight:700;font-size:16px;padding:12px 18px}.sv-sechd .d{padding:12px 18px;font-size:14px;color:var(--text-2);white-space:pre-wrap}
+.sv-qtt{font-size:15.5px;font-weight:600;line-height:1.45;display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap;word-break:keep-all}.sv-qtt.big{font-size:18px;font-weight:700}
+.sv-star{color:var(--red)}.sv-pt{margin-left:auto;font-size:12px;font-weight:700;color:var(--text-3);white-space:nowrap}
+.sv-qdd{font-size:13px;color:var(--text-2);white-space:pre-wrap;margin-top:4px;line-height:1.5}
+.sv-card.fq .sv-ans,.sv-card.fq .sv-dt{margin-top:12px;max-width:100%}.sv-card.fq .sv-dt{width:auto;min-width:180px}
+.sv-card.err{border-color:var(--red)}.sv-errm{display:flex;align-items:center;gap:6px;color:var(--red);font-size:12.5px;margin-top:10px}
+.sv-fopts{display:flex;flex-direction:column;margin-top:8px}
+.sv-fo{display:flex;align-items:center;gap:12px;padding:9px 4px;cursor:pointer;border-radius:8px;font-size:14.5px}.sv-fo:hover{background:var(--border-soft)}
+.sv-fo .tx{flex:none}.sv-fo .oth{flex:1;width:auto;padding:4px 2px}
+.sv-fo .mk,.sv-sc .mk,.sv-gc .mk,.sv-kopt .mk{width:20px;height:20px;transition:border-color .12s,background .12s}
+.sv-fo.on .mk,.sv-sc.on .mk,.sv-gc.on .mk{border-color:var(--svc)}
+.sv-fo.on .mk.one,.sv-sc.on .mk.one,.sv-gc.on .mk.one{box-shadow:inset 0 0 0 3px var(--card);background:var(--svc)}
+.sv-fo.on .mk.many,.sv-gc.on .mk.many{background:var(--svc)}
+.sv-fo.on .mk.many:after,.sv-gc.on .mk.many:after{content:'';width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translate(0,-1px) rotate(45deg)}
+.sv-fo.right{background:var(--green-bg)}.sv-card.wrong .sv-fo.on:not(.right){background:var(--red-bg)}
+.sv-sel{margin-top:12px;min-width:200px;max-width:100%;height:44px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:14.5px;padding:0 10px}
+.sv-scale{display:flex;align-items:flex-end;gap:10px;margin-top:12px;overflow-x:auto;padding-bottom:4px}.sv-scale .lb{font-size:12.5px;color:var(--text-2);padding-bottom:4px;max-width:90px;flex:none}
+.sv-scale .pts{display:flex;gap:2px;flex:1;justify-content:space-around}
+.sv-sc{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:8px;min-width:30px}.sv-sc b{font-size:13px;font-weight:500}.sv-sc:hover{background:var(--border-soft)}
+.sv-rate{display:flex;align-items:center;gap:4px;margin-top:10px;flex-wrap:wrap}.sv-rate button{border:0;background:none;padding:2px;cursor:pointer;color:var(--text-3);display:flex}.sv-rate button.on{color:#F4B400}.sv-rate button.on svg{fill:#F4B400}.sv-rate span{font-size:13px;color:var(--text-2);margin-left:8px}
+.sv-gwrap{overflow-x:auto;margin-top:12px}
+.sv-grid{border-collapse:collapse;font-size:13.5px;min-width:100%}.sv-grid th{font-weight:500;color:var(--text-2);padding:6px 8px;font-size:12.5px;text-align:center}
+.sv-grid td{padding:8px;text-align:center;border-top:1px solid var(--border-soft)}.sv-grid td:first-child{text-align:left;min-width:90px}.sv-grid tr:nth-child(even) td{background:var(--border-soft)}
+.sv-gc{display:inline-flex;padding:4px;cursor:pointer}
+.sv-grid.sum td{padding:4px}.hc{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:30px;border-radius:6px;font-weight:700;font-size:12.5px;background:color-mix(in srgb,var(--svc) calc(var(--a) * 85%),transparent);color:var(--text)}
+.sv-files{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}.sv-file{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:6px 8px;font-size:13px;max-width:100%}
+.sv-file img{width:44px;height:44px;object-fit:cover;border-radius:6px}.sv-file a{cursor:pointer;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}.sv-file .fi{display:flex;color:var(--text-3)}
+.sv-fnav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 20px}.sv-fnav .cv-btn{height:42px;padding:0 22px}.sv-fnav .cv-btn.pri{background:var(--svc);border-color:var(--svc)}
+.sv-prog{width:120px;height:8px;border-radius:8px;background:var(--border);overflow:hidden}.sv-prog i{display:block;height:100%;background:var(--svc);border-radius:8px}.sv-pgn{font-size:12px;color:var(--text-3)}
+.sv-donemsg{font-size:15px;line-height:1.6;white-space:pre-wrap}.sv-donebtns{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px}
+.sv-score{font-size:15px;color:var(--text-2)}.sv-score b{font-size:32px;color:var(--text);font-weight:800}.sv-score.sm b{font-size:22px}
+.sv-card.good{border-left:4px solid var(--green)}.sv-card.wrong{border-left:4px solid var(--red)}
+.sv-ans-ok{margin-top:8px;font-size:13px;color:#047857;font-weight:600}.sv-fbk{margin-top:8px;font-size:13px;color:var(--text-2);background:var(--border-soft);border-radius:8px;padding:8px 10px;white-space:pre-wrap}
+.sv-ro{margin-top:10px;font-size:14px}.sv-ro-wrap{pointer-events:none}
+.sv-card .sv-fo[disabled],.sv-ed input:disabled{opacity:1}
+
+/* 응답 탭 */
+.sv-rhd{display:flex;align-items:center;gap:6px}.sv-rhd .n{font-size:22px;font-weight:800}
+.sv-rmeta{font-size:12px;color:var(--text-3);margin-top:4px}
+.sv-pend{margin-top:10px;font-size:13px;color:var(--text-2)}.sv-pend summary{cursor:pointer;font-weight:600}.sv-pend div{margin:6px 0;line-height:1.6}
+.sv-wide{width:100%;height:44px;margin-top:10px}
+.sv-sub{display:flex;gap:6px;margin:0 0 12px}.sv-sub button{flex:1;height:38px;border:1px solid var(--border);background:var(--card);border-radius:10px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--text-2);cursor:pointer}.sv-sub button.on{background:var(--svc);border-color:var(--svc);color:#fff}
+.sv-bars{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.sv-bars .b{display:grid;grid-template-columns:minmax(70px,32%) 1fr auto;align-items:center;gap:10px;font-size:13px}
+.sv-bars .l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}.sv-bars .tr{height:22px;background:var(--border-soft);border-radius:4px;overflow:hidden}
+.sv-bars .tr i{display:block;height:100%;background:var(--svc);border-radius:0 4px 4px 0}.sv-bars .v{font-weight:700;min-width:64px;text-align:right}.sv-bars .v em{font-style:normal;font-weight:400;color:var(--text-3)}
+.sv-cols{display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:14px;padding-bottom:20px;position:relative;border-bottom:1px solid var(--border)}
+.sv-cols .c{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;min-width:0}
+.sv-cols .c i{display:block;width:min(70%,44px);background:var(--svc);border-radius:4px 4px 0 0}.sv-cols .c .v{font-size:12px;font-weight:700;margin-bottom:3px}.sv-cols .c .l{position:absolute;bottom:-20px;font-size:12px;color:var(--text-2)}
+.sv-avg{font-size:13px;color:var(--text-2);margin-top:6px}.sv-avg b{font-size:18px;color:var(--text)}
+.sv-scl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);margin-top:24px}
+.sv-cap{font-size:12.5px;font-weight:700;color:var(--text-2);margin:16px 0 4px}
+.sv-tl{display:flex;flex-direction:column;margin-top:8px;max-height:360px;overflow:auto}.sv-tl div{display:flex;gap:10px;justify-content:space-between;background:var(--border-soft);border-radius:6px;padding:8px 10px;margin-bottom:4px;font-size:13.5px;white-space:pre-wrap;word-break:break-word}.sv-tl b{flex:none;color:var(--text-2)}
+.sv-sumsec{font-size:13px;font-weight:800;color:var(--svc);margin:18px 4px 8px}
+.sv-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.sv-stats div{background:var(--border-soft);border-radius:10px;padding:10px}.sv-stats em{display:block;font-style:normal;font-size:11.5px;color:var(--text-3)}.sv-stats b{font-size:20px;font-weight:800}.sv-stats span{font-size:12px;color:var(--text-3);margin-left:3px}
+.sv-miss{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border-soft);font-size:13.5px}.sv-miss b{flex:none;font-size:12.5px;color:var(--red)}
+.sv-pager{display:flex;align-items:center;gap:6px}.sv-pager select{flex:1;min-width:0;height:38px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:13.5px;padding:0 8px}
+.sv-pager .cv-ib:disabled{opacity:.3}
+.sv-qa{font-size:14.5px;white-space:pre-wrap;word-break:break-word}
+.sv-grade{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13.5px;color:var(--text-2)}.sv-grade input{width:64px;height:34px;border:1px solid var(--border);border-radius:6px;text-align:right;padding:0 6px;font-family:inherit;background:var(--card);color:var(--text)}.sv-grade em{font-style:normal;font-size:11.5px;color:var(--text-3)}
+@media(min-width:900px){.sv-ed{max-width:780px;margin:-8px auto 0}#p-comm-sv{max-width:820px}}
 .cm-modal{background:#fff;border-radius:18px;max-width:340px;width:100%;padding:20px 18px 0;text-align:center}
 .cm-modal b{font-size:16px}
 .cm-modal p{font-size:13.5px;color:var(--cm-ink2);margin:8px 0 16px;line-height:1.6}
@@ -2219,6 +2384,12 @@ html.dm-dark .cm-sw::after{background:#1C1C1E}
 html.dm-dark .cm-fsprev{background:#2C2C2E}
 html.dm-dark .cm-track::before{background:#2C2C2E}
 html.dm-dark .cm-track button{border:2px solid #2C2C2E;background:#1C1C1E}
+html.dm-dark .sv-sw i:after{background:#1C1C1E}
+html.dm-dark .sv-kopt.on{color:#A1FAE1}
+html.dm-dark .sv-kopt i{color:#A1FAE1}
+html.dm-dark .sv-fo.on .mk.many:after,html.dm-dark .sv-gc.on .mk.many:after{border:solid #2C2C2E}
+html.dm-dark .sv-rate button.on{color:#F8D779}
+html.dm-dark .sv-ans-ok{color:#A1FAE1}
 html.dm-dark .cm-modal{background:#1C1C1E}
 html.dm-dark .cm-modal .bt .red{color:#EB8181}
 html.dm-dark .cv-mini-g .d.sun{color:#EB8181}
@@ -2355,6 +2526,7 @@ html.dm-dark [style^="color:#4a3122" i],html.dm-dark [style*=";color:#4a3122" i]
 html.dm-dark [style^="color:#5a3b26" i],html.dm-dark [style*=";color:#5a3b26" i],html.dm-dark [style*="; color:#5a3b26" i]{color:#E1C9B8!important}
 html.dm-dark [style^="color:#5b3b83" i],html.dm-dark [style*=";color:#5b3b83" i],html.dm-dark [style*="; color:#5b3b83" i]{color:#BFABD9!important}
 html.dm-dark [style^="color:#616161" i],html.dm-dark [style*=";color:#616161" i],html.dm-dark [style*="; color:#616161" i]{color:#9E9E9E!important}
+html.dm-dark [style^="color:#673ab7" i],html.dm-dark [style*=";color:#673ab7" i],html.dm-dark [style*="; color:#673ab7" i]{color:#AF95DD!important}
 html.dm-dark [style^="color:#6b7280" i],html.dm-dark [style*=";color:#6b7280" i],html.dm-dark [style*="; color:#6b7280" i]{color:#7F8694!important}
 html.dm-dark [style^="color:#6f6155" i],html.dm-dark [style*=";color:#6f6155" i],html.dm-dark [style*="; color:#6f6155" i]{color:#A99C91!important}
 html.dm-dark [style^="color:#795548" i],html.dm-dark [style*=";color:#795548" i],html.dm-dark [style*="; color:#795548" i]{color:#AA9993!important}
@@ -2635,6 +2807,7 @@ html.dm-dark [style^="color: rgb(14, 116, 144)" i],html.dm-dark [style*=";color:
 html.dm-dark [style^="color: rgb(20, 184, 166)" i],html.dm-dark [style*=";color: rgb(20, 184, 166)" i],html.dm-dark [style*="; color: rgb(20, 184, 166)" i]{color:#8CF3E7!important}
 html.dm-dark [style^="color: rgb(51, 182, 121)" i],html.dm-dark [style*=";color: rgb(51, 182, 121)" i],html.dm-dark [style*="; color: rgb(51, 182, 121)" i]{color:#94E1BD!important}
 html.dm-dark [style^="color: rgb(66, 133, 244)" i],html.dm-dark [style*=";color: rgb(66, 133, 244)" i],html.dm-dark [style*="; color: rgb(66, 133, 244)" i]{color:#649BF6!important}
+html.dm-dark [style^="color: rgb(103, 58, 183)" i],html.dm-dark [style*=";color: rgb(103, 58, 183)" i],html.dm-dark [style*="; color: rgb(103, 58, 183)" i]{color:#AF95DD!important}
 html.dm-dark [style^="color: rgb(122, 63, 134)" i],html.dm-dark [style*=";color: rgb(122, 63, 134)" i],html.dm-dark [style*="; color: rgb(122, 63, 134)" i]{color:#D0AAD7!important}
 html.dm-dark [style^="color: rgb(124, 179, 66)" i],html.dm-dark [style*=";color: rgb(124, 179, 66)" i],html.dm-dark [style*="; color: rgb(124, 179, 66)" i]{color:#B9D998!important}
 html.dm-dark [style^="color: rgb(142, 36, 170)" i],html.dm-dark [style*=";color: rgb(142, 36, 170)" i],html.dm-dark [style*="; color: rgb(142, 36, 170)" i]{color:#D796E9!important}
@@ -4425,7 +4598,7 @@ function rejectOrd(el){if(!can('order.cancel')){customAlert('발주 취소 권�
 function deliverSupOrd(el){if(!can('order.deliver')){customAlert('배송완료 처리 권한이 없어요');return}var br=el.getAttribute('data-br'),bn=el.getAttribute('data-bn'),id=el.getAttribute('data-id'),sup=el.getAttribute('data-sup');var today=todayStrKR();var supEsc=sup.replace(/'/g,"\\'").replace(/"/g,'&quot;');var h='<div style="background:#dbeafe;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#1e40af;line-height:1.55"><b>['+sup+']</b> 거래처의 배송완료를 처리합니다.<br>실제 배송된 날짜를 입력해주세요 (며칠 지나서 처리한 경우 과거 날짜 선택 가능).</div>'+'<div class="fg"><label class="flbl">배송완료일</label><input type="date" id="DV-SUP-DATE" value="'+today+'" max="'+today+'"></div>'+'<button class="gbtn pri" onclick="confirmDeliverSup(\''+br+'\',\''+bn+'\',\''+id+'\',\''+supEsc+'\')" style="width:100%">✅ 배송완료 처리</button>';$('UM-TITLE').textContent='['+sup+'] 배송완료';$('UM-BODY').innerHTML=h;$('used-modal').style.display='flex'}
 function confirmDeliverSup(br,bn,id,sup){var dt=$('DV-SUP-DATE').value||todayStrKR();var today=todayStrKR();if(dt>today)return alert('미래 날짜는 선택할 수 없습니다');fbG('/orders/'+br+'/'+bn+'/'+id+'.json').then(function(o){if(!o)return;var delivered=o.deliveredSups||{};delivered[sup]=dt;var oSups={};if(o.items)Object.keys(o.items).forEach(function(k){oSups[o.items[k].supplier||'기타']=1});var allDone=true;Object.keys(oSups).forEach(function(s){if(!delivered[s])allDone=false});fbP('/orders/'+br+'/'+bn+'/'+id+'/deliveredSups.json',delivered).then(function(){if(allDone)return fbP('/orders/'+br+'/'+bn+'/'+id+'/status.json','배송완료')}).then(function(){toast(allDone?'모든 거래처 배송완료':'['+sup+'] 배송완료 ('+dt+')');$('used-modal').style.display='none';loadAdmOrd()})})}
 function deliverOrd(el){var br=el.getAttribute('data-br'),bn=el.getAttribute('data-bn'),id=el.getAttribute('data-id');fbP('/orders/'+br+'/'+bn+'/'+id+'/status.json','배송완료').then(function(){toast('배송완료 처리');loadAdmOrd()})}
-function exportXls(){if(!aoCache.length)return alert('데이터가 없습니다');var rows=[['날짜','시간','브랜드','지점','주문자','구분','거래처','제품명','수량','상태','배송일','비고']];aoCache.forEach(function(o){if(o.items)Object.keys(o.items).forEach(function(k){var it=o.items[k];rows.push([o.date,o.time||'',o._brand,o._branch,o.orderedBy,o.type||'제품',it.supplier||'',it.name||k,it.qty,o.status,o.deliveryDate||'',o.note||''])})});var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'발주내역');XLSX.writeFile(wb,'DM발주_'+$('AO-FROM').value+'_'+$('AO-TO').value+'.xlsx');toast('엑셀 다운로드 완료')}
+function exportXls(){if(!aoCache.length)return alert('데이터가 없습니다');if(!window.XLSX)return svXlsxLib(exportXls);var rows=[['날짜','시간','브랜드','지점','주문자','구분','거래처','제품명','수량','상태','배송일','비고']];aoCache.forEach(function(o){if(o.items)Object.keys(o.items).forEach(function(k){var it=o.items[k];rows.push([o.date,o.time||'',o._brand,o._branch,o.orderedBy,o.type||'제품',it.supplier||'',it.name||k,it.qty,o.status,o.deliveryDate||'',o.note||''])})});var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'발주내역');XLSX.writeFile(wb,'DM발주_'+$('AO-FROM').value+'_'+$('AO-TO').value+'.xlsx');toast('엑셀 다운로드 완료')}
 function downloadFullBackup(){toast('백업 준비 중...');fbG('/.json').then(function(d){if(!d)return alert('데이터가 없습니다');var today=todayStrKR();var sizes={};Object.keys(d).forEach(function(k){try{sizes[k]=JSON.stringify(d[k]||{}).length}catch(e){sizes[k]=0}});var meta={_backup:{exportedAt:new Date().toISOString(),exportedBy:ME?dispNm(ME):'',version:'1.0',sizes:sizes}};var payload=Object.assign({},meta,d);var json=JSON.stringify(payload,null,2);var blob=new Blob([json],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='DM_백업_'+today+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},2000);var sizeKB=Math.round(json.length/1024);toast('백업 다운로드 완료 ('+sizeKB.toLocaleString()+' KB)')}).catch(function(e){alert('백업 실패: '+(e&&e.message||e))})}
 /* ═══ 역할 미리보기 모드 (본사 관리자 전용) ═══ */
 function isHQAdmin(){return ME&&(ME.role==='경영팀'||ME.role==='본사경영팀'||ME.brand==='DM INTERNATIONAL')}
@@ -8064,7 +8237,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-29-9',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-29-10',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10316,74 +10489,459 @@ function bdSave(pid){var bid=$('BD-B').value,t=$('BD-T').value.trim(),x=$('BD-X'
   if($('BD-MUST')){if($('BD-MUST').checked){var d=parseInt($('BD-DUE').value,10);body.must={due:d?Date.now()+d:0}}body.pin=$('BD-PIN').checked}
   var btn=$('BD-SAVE');btn.disabled=true;bdApi('/board/post',body).then(function(r){BD.boards=null;toast(pid?'고쳤어요':'올렸어요');bdOpen(bid,r.pid)}).catch(function(e){btn.disabled=false;alert(e.message)})}
 
-/* ── 설문 ── */
-var SV={list:null,cur:null,draft:null,from:null};
+/* ── 설문 (구글 폼처럼) ──
+   서버 contract-api/src/survey.js. 항목 q = { id, k 종류, t, d 설명, req, o 선택지, oth 기타, shuf, go 선택지별 이동, r 행, lo hi ll hl, mx, img, url, nx, val, g1, pt }
+   질문 종류 SV_K 의 앞 12개, 질문 아닌 칸 text · img · video · sec(여기부터 새 섹션). 답은 {질문 id: 값}.
+   정답(퀴즈)은 직원이 읽을 수 있는 /surveys 가 아니라 잠긴 /surveyAns/{sid}/_key 에 — 편집 화면은 /survey/get 으로 받는다. */
+var SV={list:null,from:null,tpls:null,ed:null,rs:null,res:null};
+var SV_K=[['short','단답형'],['long','장문형'],['one','객관식 질문'],['many','체크박스'],['drop','드롭다운'],['file','파일 업로드'],['scale','선형 배율'],['rating','평점'],['grid','객관식 그리드'],['cgrid','체크박스 그리드'],['date','날짜'],['time','시간']];
+var SV_KN={text:'제목 · 설명',img:'이미지',video:'동영상',sec:'섹션'};SV_K.forEach(function(k){SV_KN[k[0]]=k[1]});
+var SV_COL='#673AB7';
+function svIsQ(q){return !!q&&['short','long','one','many','drop','file','scale','rating','grid','cgrid','date','time'].indexOf(q.k)>=0}
+function svChoice(k){return k==='one'||k==='many'||k==='drop'}
 function svCanCreate(){return cmIsManager()||bdIsEdu()}
-function svLoad(){return fbG('/surveys.json?orderBy=%22$key%22&limitToLast=100').then(function(d){SV.list=d||{}})}
+function svNewId(){return 'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function svClosed(x){return x.st!=='open'||(x.end&&Date.now()>x.end)}
+function svIc(p,sz){return '<svg viewBox="0 0 24 24" width="'+(sz||20)+'" height="'+(sz||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'}
+var SVI={back:'<path d="M15 18l-6-6 6-6"/>',eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',dup:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>',del:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',more:'<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
+  plus:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',tt:'<path d="M4 7V5h16v2M12 5v14M9 19h6"/>',img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',vid:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',sec:'<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',ck:'<path d="M5 12l5 5L20 7"/>',dl:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',up:'<path d="M12 19V5M5 12l7-7 7 7"/>',down:'<path d="M12 5v14M19 12l-7 7-7-7"/>',star:'<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/>',print:'<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/>',key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',send:'<path d="M4 12l16-8-6 16-3-7z"/>',drag:'<circle cx="8" cy="9" r="1.2"/><circle cx="12" cy="9" r="1.2"/><circle cx="16" cy="9" r="1.2"/><circle cx="8" cy="15" r="1.2"/><circle cx="12" cy="15" r="1.2"/><circle cx="16" cy="15" r="1.2"/>'};
+function svBot(on){var b=$('BOT-TAB');if(!b)return;if(on)renderBotTab('p-comm');else b.style.display='none'}
+function svUsers(){if(!CAL.users||!Object.keys(CAL.users).length)CAL.users=CM.users||{};return CAL.users}
+function svXlsxLib(cb){if(window.XLSX)return cb();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=function(){cb()};s.onerror=function(){toast('엑셀 도구를 불러오지 못했어요')};document.head.appendChild(s)}
+
+/* ── 목록 ── */
+function svLoad(){return fbG('/surveys.json?orderBy=%22$key%22&limitToLast=150').then(function(d){SV.list=d||{}})}
 function svRender(){var v=$('CM-VIEW');if(!v)return;if(!SV.list){v.innerHTML='<div class="cm-head"><span class="t">설문</span></div><div class="sk"></div>';svLoad().then(function(){if(CM.tab==='survey')svRender()});return}
   var me=String(ME.phone);var ids=Object.keys(SV.list).reverse();
-  var recv=ids.filter(function(s){var x=SV.list[s];return x&&x.tp&&x.tp[me]});var made=ids.filter(function(s){var x=SV.list[s];return x&&(x.by===me||cmIsHq())&&!(x.tp&&x.tp[me])});
+  var mine=function(x){return x.by===me||!!(x.co&&x.co[me])};
+  var recv=ids.filter(function(s){var x=SV.list[s];return x&&x.st!=='draft'&&x.tp&&x.tp[me]});
+  var made=ids.filter(function(s){var x=SV.list[s];return x&&(mine(x)||(cmIsHq()&&x.st!=='draft'))&&!(x.tp&&x.tp[me])});
   var done=function(s){var a=(CM.act||{})['s_'+s];return a&&a.done};
-  var row=function(s,mode){var x=SV.list[s];var closed=x.st!=='open'||(x.end&&Date.now()>x.end);var st=mode==='made'?(closed?'마감':'진행 중'):(done(s)?'응답함':closed?'마감':'미응답');
-    return '<div class="cm-row" style="flex-direction:column;align-items:stretch;gap:2px" onclick="'+(mode==='made'?'svResult':'svAnswer')+'(\''+s+'\')"><div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--cm-ink3)"><span>'+cmEsc(x.bn)+' · '+cmAgo(x.at)+(x.anon?' · 익명':'')+'</span><span style="font-weight:800;color:'+(st==='미응답'?'#DC2626':st==='진행 중'?'var(--cm-blue)':'var(--cm-ink3)')+'">'+st+'</span></div><div style="font-weight:700;font-size:14.5px">'+cmEsc(x.t)+'</div><div style="font-size:11.5px;color:var(--cm-ink3)">질문 '+(x.qs||[]).length+'개'+(x.end?' · 마감 '+cmAgoFuture(x.end):'')+'</div></div>'};
-  var h='<div class="cm-head"><span class="t">설문</span>'+(svCanCreate()?'<button class="cm-tb" onclick="svCreate()">설문 만들기</button>':'')+'</div>';
+  var row=function(s,mode){var x=SV.list[s];var c=x.th&&x.th.c||SV_COL;var st=mode==='made'?(x.st==='draft'?'초안':svClosed(x)?'마감':'응답 받는 중'):(done(s)?'응답함':svClosed(x)?'마감':'미응답');
+    var nq=(x.qs||[]).filter(function(q){return !q.k||svIsQ(q)||q.k==='score'||q.k==='photo'}).length;
+    return '<div class="sv-li" style="--svc:'+c+'" onclick="'+(mode==='made'?'svEdit':'svAnswer')+'(\''+s+'\')"><i class="bar"></i><div class="m"><div class="tp"><span>'+cmEsc(x.bn||'')+' · '+cmAgo(x.at)+(x.anon?' · 익명':'')+(x.set&&x.set.quiz?' · 퀴즈':'')+(x.by!==me&&x.co&&x.co[me]?' · 공동 작업':'')+'</span><b class="st '+(st==='미응답'?'red':st==='응답 받는 중'?'blue':st==='초안'?'gray':'')+'">'+st+'</b></div><div class="t">'+cmEsc(x.t||'제목 없는 설문')+'</div><div class="sub">질문 '+nq+'개'+(x.end?' · 마감 '+cmAgoFuture(x.end):'')+'</div></div></div>'};
+  var h='<div class="cm-head"><span class="t">설문</span>'+(svCanCreate()?'<button class="cm-tb" onclick="svNew()">＋ 새 설문</button>':'')+'</div>';
   h+='<div class="cm-grp"><div class="ttl">받은 설문 '+recv.length+'</div>'+(recv.length?recv.map(function(s){return row(s,'recv')}).join(''):'<div class="cm-it" style="color:var(--cm-ink3)">받은 설문이 없어요</div>')+'</div>';
-  if(made.length)h+='<div class="cm-grp"><div class="ttl">'+(cmIsHq()?'만든 · 전체 설문 결과':'내가 만든 설문')+'</div>'+made.map(function(s){return row(s,'made')}).join('')+'</div>';
+  if(made.length)h+='<div class="cm-grp"><div class="ttl">'+(cmIsHq()?'내가 만든 · 전체 설문':'내가 만든 설문')+'</div>'+made.map(function(s){return row(s,'made')}).join('')+'</div>';
   v.innerHTML=h}
-function svAnswer(sid){go('p-comm-sv');var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
-  Promise.all([fbG('/surveys/'+sid+'.json'),bdApi('/survey/mine',{sid:sid})]).then(function(R){var x=R[0],mine=R[1];if(!x){p.innerHTML='<div class="cm-empty">없는 설문이에요</div>';return}SV.cur={sid:sid,x:x,a:(mine.a||[]).slice()};
-    var closed=x.st!=='open'||(x.end&&Date.now()>x.end);var locked=closed||(x.anon&&mine.answered);
-    var h='<div class="cm-head"><button class="cm-tb" onclick="openComm(SV.from===\'act\'?\'act\':\'survey\')">‹ '+(SV.from==='act'?'내 활동':'')+'</button><span class="t">설문</span></div><div class="cm-grp" style="padding:14px 16px"><div style="font-size:18px;font-weight:800">'+cmEsc(x.t)+'</div><div style="font-size:12px;color:var(--cm-ink3);margin-top:4px">'+cmEsc(x.bn)+(x.anon?' · 익명 (누가 답했는지 만든 사람도 볼 수 없어요)':' · 실명')+(x.end?' · 마감 '+cmAgoFuture(x.end):'')+'</div>'+(x.desc?'<div style="white-space:pre-wrap;margin-top:10px;font-size:14px;color:var(--cm-ink2)">'+cmEsc(x.desc)+'</div>':'')+(mine.answered?'<div class="cm-ask" style="margin-top:10px">'+(x.anon?'응답했어요. 익명 설문은 고칠 수 없어요':'응답했어요. 마감 전까지 고칠 수 있어요')+'</div>':'')+(closed?'<div class="cm-ask" style="margin-top:10px">마감된 설문이에요</div>':'')+'</div>';
-    (x.qs||[]).forEach(function(q,i){h+='<div class="cm-grp" style="padding:12px 16px"><div style="font-weight:700;margin-bottom:8px">'+(i+1)+'. '+cmEsc(q.t)+(q.req?' <span style="color:#DC2626">*</span>':'')+'</div>'+svInput(q,i,locked)+'</div>'});
-    if(!locked)h+='<button class="cm-cbtn" style="width:100%;padding:13px" onclick="svSubmit()">'+(mine.answered?'고쳐서 내기':'제출')+'</button>';
-    p.innerHTML=h}).catch(function(e){p.innerHTML='<div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
-function svInput(q,i,locked){var a=SV.cur.a[i];var dis=locked?' disabled':'';
-  if(q.k==='one')return q.o.map(function(o,j){return '<label class="cm-opt'+(a===j?' on':'')+'" style="margin-bottom:6px"><span><input type="radio" name="q'+i+'" '+(a===j?'checked':'')+dis+' onchange="SV.cur.a['+i+']='+j+';svRepaint('+i+')" style="width:auto;margin-right:8px">'+cmEsc(o)+'</span></label>'}).join('');
-  if(q.k==='many')return q.o.map(function(o,j){var on=Array.isArray(a)&&a.indexOf(j)>=0;return '<label class="cm-opt'+(on?' on':'')+'" style="margin-bottom:6px"><span><input type="checkbox" '+(on?'checked':'')+dis+' onchange="svToggle('+i+','+j+',this.checked)" style="width:auto;margin-right:8px">'+cmEsc(o)+'</span></label>'}).join('');
-  if(q.k==='score')return '<div style="display:flex;gap:6px">'+[1,2,3,4,5].map(function(n){return '<button class="cm-chip'+(a===n?' on':'')+'" style="flex:1;padding:10px 0"'+dis+' onclick="SV.cur.a['+i+']='+n+';svRepaint('+i+')">'+n+'</button>'}).join('')+'</div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--cm-ink3);margin-top:4px"><span>전혀 아니다</span><span>매우 그렇다</span></div>';
-  if(q.k==='long')return '<textarea rows="4"'+dis+' oninput="SV.cur.a['+i+']=this.value" style="width:100%;border:1px solid var(--cm-line);border-radius:10px;padding:10px;font-family:inherit;font-size:14px">'+cmEsc(a||'')+'</textarea>';
-  if(q.k==='date')return '<input type="date"'+dis+' value="'+cmEsc(a||'')+'" onchange="SV.cur.a['+i+']=this.value" style="border:1px solid var(--cm-line);border-radius:10px;padding:9px;font-family:inherit">';
-  if(q.k==='photo')return (a?'<div id="SVP'+i+'"><img data-mk="'+cmEsc(a)+'" style="max-width:100%;border-radius:10px"></div>':'')+(locked?'':'<button class="cm-cbtn sec" onclick="svPhoto('+i+')">'+(a?'다른 사진으로':'사진 올리기')+'</button>');
-  if(q.k==='grid')return '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;width:100%"><tr><th></th>'+q.o.map(function(o){return '<th style="padding:4px 6px;font-weight:600;color:var(--cm-ink2)">'+cmEsc(o)+'</th>'}).join('')+'</tr>'+(q.r||[]).map(function(r,ri){var cur=Array.isArray(a)?a[ri]:null;return '<tr><td style="padding:6px 4px">'+cmEsc(r)+'</td>'+q.o.map(function(o,j){return '<td style="text-align:center"><input type="radio" name="g'+i+'_'+ri+'" '+(cur===j?'checked':'')+dis+' onchange="svGrid('+i+','+ri+','+j+')" style="width:auto"></td>'}).join('')+'</tr>'}).join('')+'</table></div>';
-  return '<input'+dis+' value="'+cmEsc(a||'')+'" oninput="SV.cur.a['+i+']=this.value" maxlength="300" style="width:100%;border:1px solid var(--cm-line);border-radius:10px;padding:10px;font-family:inherit;font-size:14px">'}
-function svRepaint(i){var q=SV.cur.x.qs[i];var box=document.querySelectorAll('#p-comm-sv .cm-grp')[i+1];if(box)box.lastChild.outerHTML='<div>'+svInput(q,i,false)+'</div>'}
-function svToggle(i,j,on){var a=Array.isArray(SV.cur.a[i])?SV.cur.a[i]:[];a=a.filter(function(x){return x!==j});if(on)a.push(j);SV.cur.a[i]=a}
-function svGrid(i,ri,j){var a=Array.isArray(SV.cur.a[i])?SV.cur.a[i]:[];a[ri]=j;SV.cur.a[i]=a}
-function svPhoto(i){cmFileInput('image/*',false,null,function(fs){var f=fs[0];if(!f)return;toast('사진 올리는 중…');cmShrink(f,2048,.82).then(function(s){return cmUpload('survey:'+SV.cur.sid,s.blob,'p','photo.jpg')}).then(function(k){SV.cur.a[i]=k;svRepaint(i);cmFillMedia($('p-comm-sv'),'survey:'+SV.cur.sid)}).catch(function(e){alert(e.message)})})}
-function svSubmit(){bdApi('/survey/answer',{sid:SV.cur.sid,a:SV.cur.a}).then(function(){toast('제출했어요');openComm('survey')}).catch(function(e){alert(e.message)})}
-function svResult(sid){go('p-comm-sv');var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';bdApi('/survey/result',{sid:sid}).then(function(r){var x=r.sv;var rows=r.rows||[];
-  var closed=x.st!=='open'||(x.end&&Date.now()>x.end);
-  var h='<div class="cm-head"><button class="cm-tb" onclick="openComm(\'survey\')">‹</button><span class="t">결과</span><button class="cm-tb" onclick="svCsv(\''+sid+'\')">엑셀</button></div><div class="cm-grp" style="padding:14px 16px"><div style="font-size:17px;font-weight:800">'+cmEsc(x.t)+'</div><div style="font-size:12px;color:var(--cm-ink3);margin-top:4px">'+(x.anon?'익명':'실명')+' · 응답 '+r.answered+' / '+x.n+(closed?' · 마감':'')+'</div>'+(r.pending.length&&!closed?'<button class="cm-cbtn sec" style="width:100%;margin-top:10px" onclick="bdApi(\'/survey/nudge\',{sid:\''+sid+'\'}).then(function(o){toast(o.sent+\'명에게 다시 알렸어요\')}).catch(function(e){alert(e.message)})">안 한 '+r.pending.length+'명에게 다시 알림</button>':'')+(!closed?'<button class="cm-cbtn sec" style="width:100%;margin-top:6px" onclick="cmConfirm(\'설문을 마감할까요?\',\'더 이상 응답을 받지 않습니다.\',\'마감\',false,function(){bdApi(\'/survey/close\',{sid:\''+sid+'\'}).then(function(){svResult(\''+sid+'\')})})">지금 마감</button>':'')+(r.pending.length?'<details style="margin-top:8px;font-size:12.5px;color:var(--cm-ink2)"><summary>아직 안 한 사람 '+r.pending.length+'</summary>'+r.pending.map(cmEsc).join(', ')+'</details>':'')+'</div>';
-  (x.qs||[]).forEach(function(q,i){var vals=rows.map(function(rw){return rw.a&&rw.a[i]}).filter(function(v){return v!=null&&v!==''});h+='<div class="cm-grp" style="padding:12px 16px"><div style="font-weight:700;margin-bottom:8px">'+(i+1)+'. '+cmEsc(q.t)+' <span style="font-weight:500;color:var(--cm-ink3);font-size:12px">응답 '+vals.length+'</span></div>';
-    if(q.k==='one'||q.k==='many'){var cnt=q.o.map(function(){return 0});vals.forEach(function(v){(Array.isArray(v)?v:[v]).forEach(function(j){if(cnt[j]!=null)cnt[j]++})});var mx=Math.max.apply(null,cnt.concat([1]));h+=q.o.map(function(o,j){return '<div class="cm-opt" style="margin-bottom:5px;cursor:default"><i style="width:'+Math.round(cnt[j]/mx*100)+'%"></i><span>'+cmEsc(o)+'</span><b>'+cnt[j]+'</b></div>'}).join('')}
-    else if(q.k==='score'){var avg=vals.length?(vals.reduce(function(a,b){return a+b},0)/vals.length):0;h+='<div style="font-size:26px;font-weight:800">'+avg.toFixed(1)+'<span style="font-size:13px;color:var(--cm-ink3);font-weight:600"> / 5</span></div><div style="display:flex;gap:4px;margin-top:6px">'+[1,2,3,4,5].map(function(n){return '<span class="cm-tag" style="flex:1;text-align:center">'+n+'점 '+vals.filter(function(v){return v===n}).length+'</span>'}).join('')+'</div>'}
-    else if(q.k==='grid'){h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12.5px;width:100%"><tr><th></th>'+q.o.map(function(o){return '<th style="padding:3px 5px">'+cmEsc(o)+'</th>'}).join('')+'</tr>'+(q.r||[]).map(function(rr,ri){return '<tr><td style="padding:4px">'+cmEsc(rr)+'</td>'+q.o.map(function(o,j){return '<td style="text-align:center">'+vals.filter(function(v){return Array.isArray(v)&&v[ri]===j}).length+'</td>'}).join('')+'</tr>'}).join('')+'</table></div>'}
-    else if(q.k==='photo'){h+='<div class="cm-pics three" id="SVR'+i+'">'+rows.filter(function(rw){return rw.a&&rw.a[i]}).map(function(rw){return '<img data-mk="'+cmEsc(rw.a[i])+'" title="'+cmEsc(rw.name||'')+'">'}).join('')+'</div>'}
-    else h+=rows.filter(function(rw){return rw.a&&rw.a[i]}).map(function(rw){return '<div style="border-top:1px solid var(--cm-line);padding:7px 0;font-size:14px;white-space:pre-wrap">'+(rw.name?'<b style="font-size:12px;color:var(--cm-ink3)">'+cmEsc(rw.name)+'</b><br>':'')+cmEsc(rw.a[i])+'</div>'}).join('')||'<div style="color:var(--cm-ink3)">응답 없음</div>';
-    h+='</div>'});
-  p.innerHTML=h;SV.res={x:x,rows:rows};cmFillMedia(p,'survey:'+sid)}).catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="openComm(\'survey\')">‹</button><span class="t">결과</span></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
-function svCsv(sid){var R=SV.res;if(!R)return;var q=R.x.qs||[];var esc=function(v){v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  var head=(R.x.anon?[]:['이름']).concat(q.map(function(x){return x.t}));
-  var lines=[head.map(esc).join(',')].concat(R.rows.map(function(rw){return (R.x.anon?[]:[rw.name]).concat(q.map(function(x,i){var v=rw.a&&rw.a[i];if(v==null)return '';if(x.k==='one')return x.o[v];if(x.k==='many')return (v||[]).map(function(j){return x.o[j]}).join(' / ');if(x.k==='grid')return (x.r||[]).map(function(r,ri){return r+':'+(v[ri]!=null?x.o[v[ri]]:'')}).join(' / ');if(x.k==='photo')return '(사진)';return v})).map(esc).join(',')}));
-  var blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=R.x.t+'_결과.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000)}
-var SV_KINDS=[['one','객관식 (하나)'],['many','여러 개 선택'],['score','점수 1~5'],['short','단답'],['long','서술'],['date','날짜'],['photo','사진'],['grid','표 (행마다 고르기)']];
-function svCreate(tpl){go('p-comm-sv');SV.draft=tpl?JSON.parse(JSON.stringify(tpl)):{t:'',desc:'',anon:false,qs:[{k:'one',t:'',o:['',''],req:true}],to:{all:false,branches:[],roles:[],phones:[]},end:604800000,tpl:false};svDraw();
-  if(!tpl)fbG('/surveyTpl.json').then(function(d){SV.tpls=d||{};var e=$('SV-TPL');if(e&&Object.keys(SV.tpls).length)e.innerHTML='<select onchange="if(this.value)svCreate(SV.tpls[this.value])" style="width:100%;border:1px solid var(--cm-line);border-radius:10px;padding:9px;font-family:inherit"><option value="">저장해 둔 양식 불러오기</option>'+Object.keys(SV.tpls).map(function(k){return '<option value="'+k+'">'+cmEsc(SV.tpls[k].t)+'</option>'}).join('')+'</select>'})}
-function svDraw(){var p=$('p-comm-sv'),d=SV.draft;d.to=d.to||{all:false,branches:[],roles:[],phones:[]};var us=CM.users||{};var brs={};Object.keys(us).forEach(function(k){var u=us[k];if(u&&u.branch&&u.status!=='퇴사')brs[u.branch]=1});
-  var chip=function(on,label,click){return '<button class="cm-chip'+(on?' on':'')+'" onclick="'+click+'">'+cmEsc(label)+'</button>'};
-  var h='<div class="cm-head"><button class="cm-tb" onclick="openComm(\'survey\')">취소</button><span class="t">설문 만들기</span><button class="cm-tb" onclick="svSend()">보내기</button></div><div id="SV-TPL" style="margin-bottom:10px"></div>';
-  h+='<div class="cm-grp" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px"><input value="'+cmEsc(d.t)+'" oninput="SV.draft.t=this.value" placeholder="제목 (예: 11월 교육 만족도 조사)" style="border:1px solid var(--cm-line);border-radius:10px;padding:10px;font-size:15px;font-weight:700;font-family:inherit"><textarea rows="2" oninput="SV.draft.desc=this.value" placeholder="안내 (선택)" style="border:1px solid var(--cm-line);border-radius:10px;padding:10px;font-family:inherit">'+cmEsc(d.desc||'')+'</textarea></div>';
-  h+='<div class="cm-grp" style="padding:12px 14px"><div class="ttl" style="padding:0 0 6px">보낼 사람</div><div class="cm-chips" style="flex-wrap:wrap">'+chip(d.to.all,'전체',"SV.draft.to.all=!SV.draft.to.all;svDraw()")+Object.keys(brs).sort().map(function(b){var on=d.to.branches.indexOf(b)>=0;return chip(on,b,"svToggleTo('branches','"+b+"')")}).join('')+['디자이너','인턴','관리자','카운터','경영팀'].map(function(r){return chip(d.to.roles.indexOf(r)>=0,r,"svToggleTo('roles','"+r+"')")}).join('')+'</div>'+
-    '<label class="cm-it" style="padding:8px 0 0;border:0">익명으로 받기<input type="checkbox" '+(d.anon?'checked':'')+' onchange="SV.draft.anon=this.checked" style="width:20px;height:20px"></label><label class="cm-it" style="padding:8px 0 0;border:0">마감<select onchange="SV.draft.end=parseInt(this.value,10)" style="border:1px solid var(--cm-line);border-radius:8px;padding:6px;font-family:inherit">'+[[0,'없음'],[86400000,'하루 뒤'],[259200000,'3일 뒤'],[604800000,'일주일 뒤'],[1209600000,'2주 뒤']].map(function(o){return '<option value="'+o[0]+'"'+(d.end===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label><label class="cm-it" style="padding:8px 0 0;border:0">이 설문을 양식으로 저장<input type="checkbox" '+(d.tpl?'checked':'')+' onchange="SV.draft.tpl=this.checked" style="width:20px;height:20px"></label></div>';
-  d.qs.forEach(function(q,i){var opt=q.k==='one'||q.k==='many'||q.k==='grid';h+='<div class="cm-grp" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:6px"><select onchange="SV.draft.qs['+i+'].k=this.value;if((this.value===\'one\'||this.value===\'many\'||this.value===\'grid\')&&!SV.draft.qs['+i+'].o)SV.draft.qs['+i+'].o=[\'\',\'\'];svDraw()" style="flex:1;border:1px solid var(--cm-line);border-radius:8px;padding:8px;font-family:inherit">'+SV_KINDS.map(function(k){return '<option value="'+k[0]+'"'+(q.k===k[0]?' selected':'')+'>'+k[1]+'</option>'}).join('')+'</select><button class="cm-kick" onclick="SV.draft.qs.splice('+i+',1);svDraw()">빼기</button></div><input value="'+cmEsc(q.t)+'" oninput="SV.draft.qs['+i+'].t=this.value" placeholder="질문 '+(i+1)+'" style="border:1px solid var(--cm-line);border-radius:8px;padding:9px;font-family:inherit">'+
-    (opt?'<textarea rows="3" oninput="SV.draft.qs['+i+'].o=this.value.split(\'\\n\')" placeholder="'+(q.k==='grid'?'열 (한 줄에 하나) 예: 매우 그렇다':'선택지 (한 줄에 하나)')+'" style="border:1px solid var(--cm-line);border-radius:8px;padding:9px;font-family:inherit">'+cmEsc((q.o||[]).join('\n'))+'</textarea>':'')+
-    (q.k==='grid'?'<textarea rows="3" oninput="SV.draft.qs['+i+'].r=this.value.split(\'\\n\')" placeholder="행 (한 줄에 하나) 예: 강사 설명" style="border:1px solid var(--cm-line);border-radius:8px;padding:9px;font-family:inherit">'+cmEsc((q.r||[]).join('\n'))+'</textarea>':'')+
-    '<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" '+(q.req?'checked':'')+' onchange="SV.draft.qs['+i+'].req=this.checked" style="width:auto">꼭 답해야 함</label></div>'});
-  h+='<button class="cm-cbtn sec" style="width:100%" onclick="SV.draft.qs.push({k:\'short\',t:\'\',req:false});svDraw()">＋ 질문 추가</button>';
-  p.innerHTML=h}
-function svToggleTo(k,v){var a=SV.draft.to[k];var i=a.indexOf(v);if(i>=0)a.splice(i,1);else a.push(v);svDraw()}
-function svSend(){var d=SV.draft;var body={t:d.t,desc:d.desc,anon:d.anon,to:d.to,end:d.end?Date.now()+d.end:0,tpl:d.tpl,qs:d.qs.map(function(q){return {k:q.k,t:q.t,o:(q.o||[]).map(function(x){return String(x).trim()}).filter(Boolean),r:(q.r||[]).map(function(x){return String(x).trim()}).filter(Boolean),req:!!q.req}})};
-  cmConfirm('설문을 보낼까요?',(d.anon?'익명 설문입니다. ':'')+'보내면 받는 사람 모두에게 알림이 갑니다.','보내기',false,function(){bdApi('/survey/create',body).then(function(){SV.list=null;toast('보냈어요');openComm('survey')}).catch(function(e){alert(e.message)})})}
+
+/* ── 새 설문: 빈 설문 또는 양식 ── */
+function svNew(){fbG('/surveyTpl.json').then(function(d){SV.tpls=d||{};var ks=Object.keys(SV.tpls).reverse();
+  var h='<div class="cv-sh-head"><b>새 설문</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기">'+svIc(SVI.x)+'</button></div><div class="sv-tpls"><button class="sv-tpl blank" onclick="calSheetClose(this);svStart()"><i>'+svIc(SVI.plus,28)+'</i><b>빈 설문</b></button>'+
+    ks.map(function(k){var t=SV.tpls[k];return '<div class="sv-tpl" style="--svc:'+(t.th&&t.th.c||SV_COL)+'"><button onclick="calSheetClose(this);svFromTpl(\''+k+'\')"><i class="bar"></i><b>'+cmEsc(t.t||'제목 없음')+'</b><em>질문 '+(t.qs||[]).filter(function(q){return svIsQ(q)||q.k==='score'||q.k==='photo'}).length+'개</em></button>'+(t.by===ME.phone||cmIsHq()?'<button class="x" onclick="svTplDel(\''+k+'\',this)" aria-label="양식 지우기">'+svIc(SVI.x,16)+'</button>':'')+'</div>'}).join('')+'</div>';
+  calSheet(h)}).catch(function(){svStart()})}
+function svTplDel(k,btn){cmConfirm('양식을 지울까요?','이 양식으로 만든 설문은 그대로 남아요.','지우기',true,function(){bdApi('/survey/tpldel',{tid:k}).then(function(){var e=btn.closest('.sv-tpl');if(e)e.remove();toast('양식을 지웠어요')}).catch(function(e){toast(e.message)})})}
+function svFromTpl(k){toast('양식으로 만드는 중…');bdApi('/survey/copy',{tid:k}).then(function(r){SV.list=null;svEdit(r.sid)}).catch(function(e){toast(e.message)})}
+function svStart(){SV.ed={sid:null,sv:{t:'',desc:'',qs:[{id:svNewId(),k:'one',t:'',o:['옵션 1'],req:false}],set:{edit:true,show:{miss:true,pt:true}},th:{c:SV_COL},anon:false,end:0,co:{}},key:{},tab:'q',act:null,st:'draft',tp:[],n:0,owner:true,saved:'',km:{}};SV.ed.act=SV.ed.sv.qs[0].id;svEdOpen()}
+function svEdit(sid,tab){go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
+  bdApi('/survey/get',{sid:sid}).then(function(r){var x=r.sv;SV.ed={sid:sid,sv:{t:x.t||'',desc:x.desc||'',qs:x.qs||[],set:x.set||{},th:x.th||{},anon:!!x.anon,end:x.end||0,co:x.co||{}},key:r.key||{},tab:tab||'q',act:null,st:x.st,tp:r.tp||[],n:x.n||0,owner:r.owner,by:x.by,bn:x.bn,rel:x.rel,saved:'저장됨',km:{}};SV.res=null;svEdOpen()})
+  .catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
+function svEdOpen(){go('p-comm-sv');svBot(false);svEdDraw()}
+function svLeave(){var go2=function(){SV.ed=null;SV.rs=null;SV.list=null;svBot(true);openComm(SV.from==='act'?'act':'survey');SV.from=null};if(SV.ed&&SV.ed.dirty)svSaveNow().then(go2,go2);else go2()}
+
+/* ── 자동 저장 ── */
+function svDirty(){var e=SV.ed;if(!e)return;e.dirty=1;svSavedLbl('저장 중…');clearTimeout(e.tm);e.tm=setTimeout(svSaveNow,900)}
+function svSavedLbl(t){if(SV.ed)SV.ed.saved=t;var el=$('SV-SAVED');if(el)el.textContent=t}
+function svSaveNow(){var e=SV.ed;if(!e)return Promise.resolve();clearTimeout(e.tm);if(e.saving)return e.saving.then(function(){return e.dirty?svSaveNow():null});
+  e.dirty=0;var body={sid:e.sid,sv:e.sv,key:e.key};
+  e.saving=bdApi('/survey/save',body).then(function(r){var first=!e.sid;e.sid=r.sid;e.saving=null;if(!e.dirty)svSavedLbl('저장됨');if(first){SV.list=null}return e.dirty?svSaveNow():null}).catch(function(er){e.saving=null;e.dirty=1;svSavedLbl('저장 안 됨');toast(er.message);throw er});
+  return e.saving}
+function svNeedSid(){var e=SV.ed;if(e.sid)return Promise.resolve(e.sid);e.dirty=1;return svSaveNow().then(function(){return e.sid})}
+
+/* ── 편집 화면 ── */
+function svQ(id){var qs=SV.ed.sv.qs;for(var i=0;i<qs.length;i++)if(qs[i].id===id)return qs[i];return null}
+function svQi(id){var qs=SV.ed.sv.qs;for(var i=0;i<qs.length;i++)if(qs[i].id===id)return i;return -1}
+function svSecs(sv){var out=[{id:'_0',t:'',items:[]}];(sv.qs||[]).forEach(function(q){if(q.k==='sec')out.push({id:q.id,t:q.t,q:q,items:[]});else out[out.length-1].items.push(q)});return out}
+function svEdDraw(){var e=SV.ed,p=$('p-comm-sv');if(!e||!p)return;var c=e.sv.th.c||SV_COL;var nAns=SV.res?SV.res.rows.length:null;
+  var h='<div class="sv-ed" style="--svc:'+c+'"><div class="sv-top"><button class="cv-ib" onclick="svLeave()" aria-label="뒤로">'+svIc(SVI.back)+'</button><div class="nm"><b>'+cmEsc(e.sv.t||'제목 없는 설문')+'</b><em id="SV-SAVED">'+cmEsc(e.saved||(e.st==='draft'?'초안':''))+'</em></div>'+
+    '<button class="cv-ib" onclick="svPreview()" title="미리보기" aria-label="미리보기">'+svIc(SVI.eye)+'</button><button class="cv-btn pri sv-send" onclick="svSendPick()">'+(e.st==='draft'?'보내기':'더 보내기')+'</button></div>'+
+    '<div class="sv-tabs">'+[['q','질문'],['r','응답'+(e.st!=='draft'?' '+(nAns!=null?nAns:''):'')],['s','설정']].map(function(t){return '<button class="'+(e.tab===t[0]?'on':'')+'" onclick="svTab(\''+t[0]+'\')">'+t[1]+'</button>'}).join('')+'</div><div id="SV-BODY"></div></div>';
+  p.innerHTML=h;if(e.tab==='q')svQDraw();else if(e.tab==='r')svResDraw();else svSetDraw()}
+function svTab(t){var e=SV.ed;if(t==='r'&&e.st==='draft'){toast('보낸 뒤에 응답을 볼 수 있어요');return}e.tab=t;var go2=function(){svEdDraw();window.scrollTo(0,0)};if(e.dirty)svSaveNow().then(go2,go2);else go2()}
+
+/* 질문 탭 */
+function svQDraw(){var e=SV.ed,b=$('SV-BODY');if(!b)return;var sv=e.sv,secs=svSecs(sv),many=secs.length>1;
+  var h='<div class="sv-card sv-hd'+(e.act==='_hd'?' on':'')+'" onclick="svAct(\'_hd\',event)">'+(sv.th.img?'<img class="sv-hdimg" data-mk="'+cmEsc(sv.th.img)+'">':'')+(many?'<div class="sv-sectag">섹션 1/'+secs.length+'</div>':'')+
+    '<textarea class="sv-in sv-title" rows="1" placeholder="설문 제목" oninput="SV.ed.sv.t=this.value;svGrow(this);svDirty()">'+cmEsc(sv.t)+'</textarea><textarea class="sv-in sv-desc" rows="1" placeholder="설문 설명" oninput="SV.ed.sv.desc=this.value;svGrow(this);svDirty()">'+cmEsc(sv.desc)+'</textarea></div>';
+  secs.forEach(function(s,si){
+    if(si>0)h+='<div class="sv-secgap"></div>';
+    if(s.q)h+=svCardHtml(s.q,'섹션 '+(si+1)+'/'+secs.length);
+    s.items.forEach(function(q){h+=svCardHtml(q)});
+    if(many)h+='<div class="sv-after">섹션 '+(si+1)+' 이후 <select onchange="svSecNx(\''+s.id+'\',this.value)">'+svDestOpts(si===0?(sv.set.nx0||''):(s.q.nx||''),si)+'</select></div>'});
+  h+='<div class="sv-addbar">'+[['svAdd(\'q\')',SVI.plus,'질문'],['svAdd(\'text\')',SVI.tt,'제목·설명'],['svAdd(\'img\')',SVI.img,'이미지'],['svAdd(\'video\')',SVI.vid,'동영상'],['svAdd(\'sec\')',SVI.sec,'섹션']].map(function(a){return '<button onclick="'+a[0]+'">'+svIc(a[1])+'<span>'+a[2]+'</span></button>'}).join('')+'</div>';
+  b.innerHTML=h;b.querySelectorAll('textarea.sv-in').forEach(svGrow);if(e.sid)cmFillMedia(b,'survey:'+e.sid);svDragInit()}
+function svGrow(t){t.style.height='auto';t.style.height=t.scrollHeight+'px'}
+/* 섹션 이동 고르기 — '' 다음 섹션 · 섹션 id · _end 제출 */
+function svDestOpts(cur,si){var secs=svSecs(SV.ed.sv);return '<option value="">다음 섹션으로 계속</option>'+secs.map(function(s,i){return '<option value="'+s.id+'"'+(cur===s.id?' selected':'')+'>섹션 '+(i+1)+(s.t?' ('+cmEsc(s.t.slice(0,20))+')':'')+'(으)로 이동</option>'}).join('')+'<option value="_end"'+(cur==='_end'?' selected':'')+'>설문 제출</option>'}
+function svSecNx(id,v){var e=SV.ed;if(id==='_0')e.sv.set.nx0=v;else svQ(id).nx=v;svDirty()}
+function svAct(id,ev){var e=SV.ed;if(e.act===id)return;if(ev&&ev.target&&ev.target.closest&&ev.target.closest('button,select,input[type=checkbox],a'))return;e.act=id;svQDraw();var el=document.querySelector('.sv-card[data-id="'+id+'"] .sv-qt')||(id==='_hd'?document.querySelector('.sv-title'):null);if(el&&ev){el.focus();try{var n=el.value.length;el.setSelectionRange(n,n)}catch(_){}}}
+
+/* 카드 하나 — 고르는 중이면 편집, 아니면 응답 화면처럼 보이기 */
+function svCardHtml(q,tag){var e=SV.ed,on=e.act===q.id,id=q.id;
+  var h='<div class="sv-card'+(on?' on':'')+(q.k==='sec'?' sec':'')+'" data-id="'+id+'" onclick="svAct(\''+id+'\',event)">'+(tag?'<div class="sv-sectag">'+tag+'</div>':'')+'<div class="sv-drag" title="끌어서 옮기기">'+svIc(SVI.drag,18)+'</div>';
+  if(!on){h+=svViewHtml(q)+'</div>';return h}
+  var isq=svIsQ(q);
+  h+='<div class="sv-qtop"><textarea class="sv-in sv-qt" rows="1" placeholder="'+(q.k==='sec'?'섹션 제목':isq?'질문':'제목')+'" oninput="svQ(\''+id+'\').t=this.value;svGrow(this);svDirty()">'+cmEsc(q.t||'')+'</textarea>'+
+    (isq?'<select class="sv-kind" onchange="svKind(\''+id+'\',this.value)">'+SV_K.map(function(k){return '<option value="'+k[0]+'"'+(q.k===k[0]?' selected':'')+'>'+k[1]+'</option>'}).join('')+'</select>':'<span class="sv-kn">'+SV_KN[q.k]+'</span>')+'</div>';
+  if(q.d!=null||!isq)h+='<textarea class="sv-in sv-qd" rows="1" placeholder="설명" oninput="svQ(\''+id+'\').d=this.value;svGrow(this);svDirty()">'+cmEsc(q.d||'')+'</textarea>';
+  if(e.km[id]&&isq)h+=svKeyHtml(q);else h+=svBodyEd(q);
+  if(q.val)h+=svValHtml(q);
+  h+='<div class="sv-qfoot">'+(isq&&e.sv.set.quiz?'<button class="sv-keybtn" onclick="svKeyMode(\''+id+'\')">'+svIc(SVI.key,18)+(e.km[id]?'완료':'정답 · '+(q.pt||0)+'점')+'</button>':'')+'<span class="cv-sp"></span>'+
+    '<button class="cv-ib" onclick="svDup(\''+id+'\')" title="복제" aria-label="복제">'+svIc(SVI.dup)+'</button><button class="cv-ib" onclick="svDel(\''+id+'\')" title="삭제" aria-label="삭제">'+svIc(SVI.del)+'</button>'+
+    (isq?'<i class="sv-vr"></i><label class="sv-req">필수<span class="sv-sw"><input type="checkbox"'+(q.req?' checked':'')+' onchange="svQ(\''+id+'\').req=this.checked;svDirty()"><i></i></span></label>':'')+
+    '<button class="cv-ib" onclick="svMenu(\''+id+'\')" aria-label="더 보기">'+svIc(SVI.more)+'</button></div></div>';
+  return h}
+
+/* 종류마다 편집 칸 */
+function svBodyEd(q){var id=q.id,h='';
+  if(svChoice(q.k)){var go=Array.isArray(q.go),secs=go?svSecs(SV.ed.sv):null;
+    h+='<div class="sv-opts">'+(q.o||[]).map(function(o,j){return '<div class="sv-orow"><span class="mk '+q.k+'">'+(q.k==='drop'?(j+1)+'.':'')+'</span><input class="sv-in sv-oin" value="'+cmEsc(o)+'" placeholder="옵션 '+(j+1)+'" oninput="svQ(\''+id+'\').o['+j+']=this.value;svDirty()" onkeydown="svOptKey(event,\''+id+'\','+j+')" onpaste="svOptPaste(event,\''+id+'\','+j+')">'+
+        (go?'<select class="sv-go" onchange="svQ(\''+id+'\').go['+j+']=this.value;svDirty()">'+svDestOpts((q.go||[])[j]||'',-1)+'</select>':'')+((q.o||[]).length>1?'<button class="cv-ib sm" onclick="svOptDel(\''+id+'\','+j+')" aria-label="옵션 빼기">'+svIc(SVI.x,16)+'</button>':'')+'</div>'}).join('')+
+      (q.oth?'<div class="sv-orow"><span class="mk '+q.k+'"></span><span class="sv-oth">기타…</span><button class="cv-ib sm" onclick="svQ(\''+id+'\').oth=0;svDirty();svQDraw()" aria-label="기타 빼기">'+svIc(SVI.x,16)+'</button></div>':'')+
+      '<div class="sv-orow add"><span class="mk '+q.k+'"></span><button class="sv-lnk" onclick="svOptAdd(\''+id+'\')">옵션 추가</button>'+(q.k!=='drop'&&!q.oth?'<span class="or">또는</span><button class="sv-lnk blue" onclick="svQ(\''+id+'\').oth=1;svDirty();svQDraw()">\'기타\' 추가</button>':'')+'</div></div>';
+    return h}
+  if(q.k==='grid'||q.k==='cgrid'){var col=function(f,lbl){return '<div class="sv-gcol"><b>'+lbl+'</b>'+(q[f]||[]).map(function(o,j){return '<div class="sv-orow"><span class="mk '+(f==='r'?'drop':q.k==='grid'?'one':'many')+'">'+(f==='r'?(j+1)+'.':'')+'</span><input class="sv-in sv-oin" value="'+cmEsc(o)+'" placeholder="'+lbl+' '+(j+1)+'" oninput="svQ(\''+id+'\').'+f+'['+j+']=this.value;svDirty()" onkeydown="svOptKey(event,\''+id+'\','+j+',\''+f+'\')" onpaste="svOptPaste(event,\''+id+'\','+j+',\''+f+'\')">'+((q[f]||[]).length>1?'<button class="cv-ib sm" onclick="svOptDel(\''+id+'\','+j+',\''+f+'\')" aria-label="빼기">'+svIc(SVI.x,16)+'</button>':'')+'</div>'}).join('')+'<div class="sv-orow add"><span class="mk '+(f==='r'?'drop':q.k==='grid'?'one':'many')+'"></span><button class="sv-lnk" onclick="svOptAdd(\''+id+'\',\''+f+'\')">'+lbl+' 추가</button></div></div>'};
+    return '<div class="sv-grided">'+col('r','행')+col('o','열')+'</div>'}
+  if(q.k==='scale'){var n=function(a,b,cur,f){var s='';for(var i=a;i<=b;i++)s+='<option'+(cur===i?' selected':'')+'>'+i+'</option>';return '<select onchange="svQ(\''+id+'\').'+f+'=+this.value;svDirty();svQDraw()">'+s+'</select>'};
+    return '<div class="sv-scaleed">'+n(0,1,q.lo==null?1:q.lo,'lo')+'<span>~</span>'+n(2,10,q.hi||5,'hi')+'</div><div class="sv-sclbl"><span>'+(q.lo==null?1:q.lo)+'</span><input class="sv-in" value="'+cmEsc(q.ll||'')+'" placeholder="라벨(선택사항)" oninput="svQ(\''+id+'\').ll=this.value;svDirty()"></div><div class="sv-sclbl"><span>'+(q.hi||5)+'</span><input class="sv-in" value="'+cmEsc(q.hl||'')+'" placeholder="라벨(선택사항)" oninput="svQ(\''+id+'\').hl=this.value;svDirty()"></div>'}
+  if(q.k==='rating'){var s='';for(var i=3;i<=10;i++)s+='<option'+((q.hi||5)===i?' selected':'')+'>'+i+'</option>';return '<div class="sv-scaleed"><select onchange="svQ(\''+id+'\').hi=+this.value;svDirty();svQDraw()">'+s+'</select><span class="sv-stars">'+Array(q.hi||5).join(',').split(',').map(function(){return svIc(SVI.star,22)}).join('')+'</span></div>'}
+  if(q.k==='file')return '<div class="sv-fileed"><label>최대 파일 수 <select onchange="svQ(\''+id+'\').mx=+this.value;svDirty()">'+[1,5,10].map(function(n){return '<option'+((q.mx||1)===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></label><label><input type="checkbox"'+(q.img?' checked':'')+' onchange="svQ(\''+id+'\').img=this.checked?1:0;svDirty()"> 사진만 받기</label></div>';
+  if(q.k==='img'){var e=SV.ed;return '<div class="sv-imged">'+(q.img?'<img data-mk="'+cmEsc(q.img)+'">':'')+'<button class="cv-btn" onclick="svImgPick(\''+id+'\')">'+(q.img?'다른 이미지로':'이미지 올리기')+'</button></div>'}
+  if(q.k==='video'){var yt=svYt(q.url);return '<input class="sv-in sv-url" value="'+cmEsc(q.url||'')+'" placeholder="유튜브 주소 붙여 넣기" oninput="svQ(\''+id+'\').url=this.value.trim();svDirty()" onchange="svQDraw()">'+(yt?'<div class="sv-yt"><img src="https://i.ytimg.com/vi/'+yt+'/hqdefault.jpg" alt=""></div>':'')}
+  if(q.k==='sec'||q.k==='text')return '';
+  return '<div class="sv-ph">'+({short:'단답형 텍스트',long:'장문형 텍스트',date:'연도 · 월 · 일',time:'시간'}[q.k]||'')+'</div>'}
+function svYt(u){var m=String(u||'').match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{11})/);return m?m[1]:''}
+function svOptAdd(id,f,at){var q=svQ(id);f=f||'o';q[f]=q[f]||[];var n=at==null?q[f].length:at;q[f].splice(n,0,(f==='r'?'행 ':f==='o'&&(q.k==='grid'||q.k==='cgrid')?'열 ':'옵션 ')+(q[f].length+1));if(f==='o'&&Array.isArray(q.go))q.go.splice(n,0,'');svDirty();svQDraw();var ins=document.querySelectorAll('.sv-card[data-id="'+id+'"] '+(q.k==='grid'||q.k==='cgrid'?'.sv-gcol:'+(f==='r'?'first-child':'last-child')+' ':'')+'.sv-oin');var el=ins[n];if(el){el.focus();el.select()}}
+function svOptDel(id,j,f){var q=svQ(id);f=f||'o';q[f].splice(j,1);if(f==='o'&&Array.isArray(q.go))q.go.splice(j,1);var k=SV.ed.key[id];if(k&&f==='o'){if(k.ans===j)delete k.ans;else if(typeof k.ans==='number'&&k.ans>j)k.ans--;if(Array.isArray(k.ans))k.ans=k.ans.filter(function(x){return x!==j}).map(function(x){return x>j?x-1:x})}svDirty();svQDraw()}
+function svOptKey(ev,id,j,f){if(ev.key==='Enter'&&!ev.isComposing){ev.preventDefault();svOptAdd(id,f,j+1)}else if(ev.key==='Backspace'&&!ev.target.value&&svQ(id)[f||'o'].length>1){ev.preventDefault();svOptDel(id,j,f);var ins=document.querySelectorAll('.sv-card[data-id="'+id+'"] .sv-oin');if(ins[Math.max(0,j-1)])ins[Math.max(0,j-1)].focus()}}
+/* 여러 줄을 붙여 넣으면 줄마다 옵션 하나 (구글 폼처럼) */
+function svOptPaste(ev,id,j,f){var t=(ev.clipboardData||window.clipboardData).getData('text');var ls=String(t||'').split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean);if(ls.length<2)return;ev.preventDefault();var q=svQ(id);f=f||'o';q[f].splice.apply(q[f],[j,1].concat(ls));if(f==='o'&&Array.isArray(q.go))q.go.splice.apply(q.go,[j,1].concat(ls.map(function(){return ''})));svDirty();svQDraw()}
+function svKind(id,k){var q=svQ(id),was=q.k;q.k=k;
+  if(svChoice(k)||k==='grid'||k==='cgrid'){if(!q.o||!q.o.length||(was==='grid'||was==='cgrid')!==(k==='grid'||k==='cgrid'))q.o=k==='grid'||k==='cgrid'?['열 1','열 2']:['옵션 1']}else{delete q.o}
+  if(k==='grid'||k==='cgrid'){if(!q.r||!q.r.length)q.r=['행 1','행 2']}else delete q.r;
+  if(k!=='one'&&k!=='many')delete q.oth;if(k!=='one'&&k!=='drop')delete q.go;if(k!=='grid')delete q.g1;
+  if(k==='scale'){if(q.lo==null)q.lo=1;q.hi=q.hi&&q.hi>=2?q.hi:5}if(k==='rating')q.hi=Math.max(3,q.hi||5);
+  if(q.val&&!svValKinds(k).length)delete q.val;delete SV.ed.key[id];svDirty();svQDraw()}
+function svNewQ(k){var e=SV.ed,q={id:svNewId(),k:k,t:''};if(svIsQ(q))q.req=!!e.sv.set.req;if(k==='one')q.o=['옵션 1'];return q}
+function svAdd(kind){var e=SV.ed,qs=e.sv.qs,q=svNewQ(kind==='q'?'one':kind);if(kind==='q'){var a=svQ(e.act);if(a&&svIsQ(a)&&a.k!=='one'){q.k=a.k;svKindInit(q,a)}}
+  var i=svQi(e.act);qs.splice(i<0?qs.length:i+1,0,q);e.act=q.id;svDirty();svQDraw();
+  var el=document.querySelector('.sv-card[data-id="'+q.id+'"]');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});var t=el.querySelector('.sv-qt');if(t)setTimeout(function(){t.focus()},250)}
+  if(kind==='img')svImgPick(q.id)}
+/* 바로 앞 질문과 같은 종류로 새 질문(구글 폼처럼) */
+function svKindInit(q,a){if(svChoice(q.k))q.o=['옵션 1'];if(q.k==='grid'||q.k==='cgrid'){q.o=['열 1','열 2'];q.r=['행 1','행 2']}if(q.k==='scale'){q.lo=1;q.hi=5}if(q.k==='rating')q.hi=5;if(q.k==='file')q.mx=1}
+function svDup(id){var e=SV.ed,i=svQi(id),q=JSON.parse(JSON.stringify(e.sv.qs[i]));q.id=svNewId();e.sv.qs.splice(i+1,0,q);if(e.key[id])e.key[q.id]=JSON.parse(JSON.stringify(e.key[id]));e.act=q.id;svDirty();svQDraw()}
+function svDel(id){var e=SV.ed,i=svQi(id);if(i<0)return;e.sv.qs.splice(i,1);delete e.key[id];
+  e.sv.qs.forEach(function(q){if(Array.isArray(q.go))q.go=q.go.map(function(g){return g===id?'':g});if(q.nx===id)q.nx=''});if(e.sv.set.nx0===id)e.sv.set.nx0='';
+  var n=e.sv.qs[Math.max(0,i-1)];e.act=n?n.id:'_hd';svDirty();svQDraw()}
+function svMove(id,d){var qs=SV.ed.sv.qs,i=svQi(id),j=i+d;if(j<0||j>=qs.length)return;var t=qs[i];qs[i]=qs[j];qs[j]=t;svDirty();svQDraw()}
+/* ⋮ 메뉴 */
+function svMenu(id){var q=svQ(id),secs=svSecs(SV.ed.sv),items=[];
+  if(svIsQ(q))items.push(['svMenuDo(\''+id+'\',\'d\')',q.d!=null?'설명 숨기기':'설명 추가',q.d!=null]);
+  if((q.k==='one'||q.k==='drop')&&secs.length>1)items.push(['svMenuDo(\''+id+'\',\'go\')','답변을 기준으로 섹션 이동',Array.isArray(q.go)]);
+  if(svChoice(q.k)||q.k==='grid'||q.k==='cgrid')items.push(['svMenuDo(\''+id+'\',\'shuf\')','옵션 순서 무작위로 섞기',!!q.shuf]);
+  if(svValKinds(q.k).length)items.push(['svMenuDo(\''+id+'\',\'val\')','응답 확인',!!q.val]);
+  if(q.k==='grid')items.push(['svMenuDo(\''+id+'\',\'g1\')','열당 하나의 응답으로 제한',!!q.g1]);
+  items.push(['svMove(\''+id+'\',-1)','위로 옮기기',null],['svMove(\''+id+'\',1)','아래로 옮기기',null]);
+  calSheet('<div class="cv-sh-head"><b>'+cmEsc(q.t||SV_KN[q.k])+'</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기">'+svIc(SVI.x)+'</button></div><div class="sv-menu">'+items.map(function(m){return '<button onclick="calSheetClose(this);'+m[0]+'"><span>'+m[1]+'</span>'+(m[2]===null?'':'<i class="'+(m[2]?'on':'')+'">'+svIc(SVI.ck,16)+'</i>')+'</button>'}).join('')+'</div>')}
+function svMenuDo(id,w){var q=svQ(id);
+  if(w==='d'){if(q.d!=null)delete q.d;else q.d=''}
+  if(w==='go'){if(Array.isArray(q.go))delete q.go;else q.go=(q.o||[]).map(function(){return ''})}
+  if(w==='shuf')q.shuf=q.shuf?0:1;if(w==='g1')q.g1=q.g1?0:1;
+  if(w==='val'){if(q.val)delete q.val;else{var vk=svValKinds(q.k);q.val={t:vk[0][0],op:vk[0][1][0][0],a:'',b:'',msg:''}}}
+  svDirty();svQDraw()}
+/* 응답 확인 — 단답: 숫자 · 텍스트 · 길이 · 정규 표현식, 장문: 길이 · 정규 표현식, 체크박스: 선택 수 */
+var SV_VAL={num:['숫자',[['gt','초과'],['ge','이상'],['lt','미만'],['le','이하'],['eq','같음'],['ne','같지 않음'],['bt','사이'],['nb','사이 아님'],['num','숫자인지'],['int','정수인지']]],txt:['텍스트',[['has','포함'],['not','포함하지 않음'],['email','이메일'],['url','URL']]],len:['길이',[['max','최대 글자 수'],['min','최소 글자 수']]],re:['정규 표현식',[['has','포함'],['not','포함하지 않음'],['match','일치'],['nomatch','일치하지 않음']]],cnt:['선택 수',[['ge','최소 선택'],['le','최대 선택'],['eq','정확히 선택']]]};
+function svValKinds(k){var t=k==='short'?['num','txt','len','re']:k==='long'?['len','re']:k==='many'?['cnt']:[];return t.map(function(x){return [x,SV_VAL[x][1]]})}
+function svValHtml(q){var v=q.val,id=q.id,ks=svValKinds(q.k);if(!ks.length)return '';var ops=SV_VAL[v.t]?SV_VAL[v.t][1]:[];
+  var noA=v.t==='num'&&(v.op==='num'||v.op==='int')||v.t==='txt'&&(v.op==='email'||v.op==='url'),two=v.t==='num'&&(v.op==='bt'||v.op==='nb');
+  return '<div class="sv-val">'+(ks.length>1?'<select onchange="var v=svQ(\''+id+'\').val;v.t=this.value;v.op=SV_VAL[v.t][1][0][0];svDirty();svQDraw()">'+ks.map(function(k){return '<option value="'+k[0]+'"'+(v.t===k[0]?' selected':'')+'>'+SV_VAL[k[0]][0]+'</option>'}).join('')+'</select>':'')+
+    '<select onchange="svQ(\''+id+'\').val.op=this.value;svDirty();svQDraw()">'+ops.map(function(o){return '<option value="'+o[0]+'"'+(v.op===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+
+    (noA?'':'<input class="sv-in" value="'+cmEsc(v.a==null?'':v.a)+'" placeholder="'+(v.t==='re'?'패턴':v.t==='txt'?'텍스트':'숫자')+'" oninput="svQ(\''+id+'\').val.a=this.value;svDirty()">')+(two?'<span>~</span><input class="sv-in" value="'+cmEsc(v.b==null?'':v.b)+'" placeholder="숫자" oninput="svQ(\''+id+'\').val.b=this.value;svDirty()">':'')+
+    '<input class="sv-in msg" value="'+cmEsc(v.msg||'')+'" placeholder="맞춤 오류 메시지" oninput="svQ(\''+id+'\').val.msg=this.value;svDirty()"></div>'}
+/* 퀴즈 정답 · 배점 · 피드백 */
+function svKeyMode(id){var e=SV.ed;e.km[id]=!e.km[id];svQDraw()}
+function svKeyHtml(q){var e=SV.ed,id=q.id,k=e.key[id]||{},h='<div class="sv-key"><div class="sv-keyhd">'+svIc(SVI.key,18)+'<b>정답 선택</b><span class="cv-sp"></span><input class="sv-in pt" type="number" min="0" value="'+(q.pt||0)+'" oninput="svQ(\''+id+'\').pt=Math.max(0,parseInt(this.value,10)||0);svDirty()"> 점</div>';
+  if(svChoice(q.k))h+=(q.o||[]).map(function(o,j){var on=q.k==='many'?Array.isArray(k.ans)&&k.ans.indexOf(j)>=0:k.ans===j;return '<button class="sv-kopt'+(on?' on':'')+'" onclick="svKeySet(\''+id+'\','+j+')"><span class="mk '+q.k+'"></span><span>'+cmEsc(o)+'</span>'+(on?'<i>'+svIc(SVI.ck,18)+'</i>':'')+'</button>'}).join('');
+  else if(q.k==='short')h+='<textarea class="sv-in sv-kshort" rows="2" placeholder="정답 (여러 개면 한 줄에 하나 · 대소문자 구분 안 함)" oninput="svKeyShort(\''+id+'\',this.value)">'+cmEsc((Array.isArray(k.ans)?k.ans:[]).join('\n'))+'</textarea>';
+  else h+='<div class="sv-ph">이 질문은 응답을 보고 직접 점수를 줘요 (응답 › 개별 보기)</div>';
+  if(svChoice(q.k)||q.k==='short')h+='<div class="sv-fb"><input class="sv-in" value="'+cmEsc((k.fb||{}).ok||'')+'" placeholder="정답일 때 보여 줄 말 (선택)" oninput="svKeyFb(\''+id+'\',\'ok\',this.value)"><input class="sv-in" value="'+cmEsc((k.fb||{}).no||'')+'" placeholder="오답일 때 보여 줄 말 (선택)" oninput="svKeyFb(\''+id+'\',\'no\',this.value)"></div>';
+  return h+'</div>'}
+function svKeySet(id,j){var q=svQ(id),k=SV.ed.key[id]=SV.ed.key[id]||{};if(q.k==='many'){var a=Array.isArray(k.ans)?k.ans:[];k.ans=a.indexOf(j)>=0?a.filter(function(x){return x!==j}):a.concat([j])}else k.ans=k.ans===j?null:j;if(!q.pt)q.pt=1;svDirty();svQDraw()}
+function svKeyShort(id,v){var k=SV.ed.key[id]=SV.ed.key[id]||{};k.ans=v.split('\n').map(function(s){return s.trim()}).filter(Boolean);svDirty()}
+function svKeyFb(id,w,v){var k=SV.ed.key[id]=SV.ed.key[id]||{};k.fb=k.fb||{};k.fb[w]=v;svDirty()}
+/* 이미지 · 머리글 사진 올리기 — 설문이 저장돼 있어야 해서 먼저 저장 */
+function svImgPick(id){cmFileInput('image/*',false,null,function(fs){var f=fs[0];if(!f)return;toast('이미지 올리는 중…');svNeedSid().then(function(sid){return cmShrink(f,2048,.85).then(function(s){return cmUpload('survey:'+sid,s.blob,'p','image.jpg')})}).then(function(k){if(id==='_hd')SV.ed.sv.th.img=k;else svQ(id).img=k;svDirty();if(SV.ed.tab==='q')svQDraw();else svSetDraw()}).catch(function(e){toast(e.message||'올리지 못했어요')})})}
+/* 끌어서 순서 바꾸기 — 손잡이(⋮⋮)를 잡고 */
+function svSortLib(cb){if(window.Sortable)return cb();var sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js';sc.onload=cb;document.head.appendChild(sc)}
+function svDragInit(){var b=$('SV-BODY');if(!b)return;svSortLib(function(){if(!window.Sortable||!$('SV-BODY'))return;if(SV.ed.sortable)try{SV.ed.sortable.destroy()}catch(_){}
+  SV.ed.sortable=Sortable.create($('SV-BODY'),{handle:'.sv-drag',draggable:'.sv-card[data-id]',animation:160,ghostClass:'sv-ghost',onEnd:function(){var ids=[].map.call($('SV-BODY').querySelectorAll('.sv-card[data-id]'),function(el){return el.getAttribute('data-id')});var m={};SV.ed.sv.qs.forEach(function(q){m[q.id]=q});SV.ed.sv.qs=ids.map(function(i){return m[i]}).filter(Boolean);svDirty();svQDraw()}})})}
+
+/* 설정 탭 */
+function svSetDraw(){var e=SV.ed,b=$('SV-BODY');if(!b)return;var s=e.sv.set,show=s.show||(s.show={miss:true,pt:true});
+  var sw=function(on,act,lbl,sub,dis){return '<label class="sv-srow'+(dis?' dis':'')+'"><span><b>'+lbl+'</b>'+(sub?'<em>'+sub+'</em>':'')+'</span><span class="sv-sw"><input type="checkbox"'+(on?' checked':'')+(dis?' disabled':'')+' onchange="'+act+';svDirty();svSetDraw()"><i></i></span></label>'};
+  var sent=e.st!=='draft';
+  var endV=e.sv.end?(function(d){d=new Date(d-d.getTimezoneOffset()*60000);return d.toISOString().slice(0,16)})(new Date(e.sv.end)):'';
+  var h='<div class="sv-card sv-set"><div class="sv-sh">응답</div>'+
+    sw(e.sv.anon,'SV.ed.sv.anon=this.checked','익명으로 받기','누가 답했는지 만든 사람도 볼 수 없어요'+(sent?' · 보낸 뒤에는 바꿀 수 없어요':''),sent)+
+    sw(s.edit&&!e.sv.anon,'SV.ed.sv.set.edit=this.checked','제출 후 수정 허용','응답 받는 동안 고쳐서 다시 낼 수 있어요'+(e.sv.anon?' (익명은 안 돼요)':''),e.sv.anon)+
+    (sent?'<label class="sv-srow"><span><b>응답 받기</b><em>'+(svClosed({st:e.stLive||e.st,end:e.sv.end})?'지금은 응답을 받지 않아요':'응답을 받는 중이에요')+'</em></span><span class="sv-sw"><input type="checkbox"'+(svClosed({st:e.stLive||e.st,end:e.sv.end})?'':' checked')+' onchange="svOpenSet(this.checked)"><i></i></span></label>':'')+
+    '<div class="sv-srow"><span><b>마감 일시</b><em>지나면 자동으로 응답을 받지 않아요</em></span><span class="sv-end"><input type="datetime-local" value="'+endV+'" onchange="svEndSet(this.value)">'+(e.sv.end?'<button class="cv-ib sm" onclick="svEndSet(\'\')" aria-label="마감 없애기">'+svIc(SVI.x,16)+'</button>':'')+'</span></div>'+
+    sw(s.notify,'SV.ed.sv.set.notify=this.checked','새 응답 알림','응답이 들어올 때마다 나와 공동 작업자에게 알려요')+
+    '<div class="sv-sh">보기</div>'+
+    sw(s.prog,'SV.ed.sv.set.prog=this.checked','진행률 표시줄','섹션이 여러 개일 때 몇 페이지째인지 보여 줘요')+
+    sw(s.shuf,'SV.ed.sv.set.shuf=this.checked','질문 순서 섞기','섹션 안에서 사람마다 질문 순서가 달라져요')+
+    sw(s.pub,'SV.ed.sv.set.pub=this.checked','응답자에게 결과 요약 보여 주기','제출한 사람이 차트 · 응답 모음을 볼 수 있어요 (이름은 안 보여요)')+
+    '<div class="sv-srow col"><span><b>확인 메시지</b><em>제출한 뒤 보이는 말</em></span><textarea class="sv-in" rows="2" placeholder="응답이 기록되었습니다." oninput="SV.ed.sv.set.msg=this.value;svDirty()">'+cmEsc(s.msg||'')+'</textarea></div>'+
+    '<div class="sv-sh">퀴즈</div>'+
+    sw(s.quiz,'SV.ed.sv.set.quiz=this.checked','퀴즈로 만들기','질문마다 배점 · 정답을 정하고 자동으로 채점해요');
+  if(s.quiz)h+='<div class="sv-srow col"><span><b>점수 공개</b></span><div class="sv-seg">'+[['now','제출 즉시'],['later','나중에 직접 공개']].map(function(o){return '<button class="'+((s.rel||'now')===o[0]?'on':'')+'" onclick="SV.ed.sv.set.rel=\''+o[0]+'\';svDirty();svSetDraw()">'+o[1]+'</button>'}).join('')+'</div></div>'+
+    '<div class="sv-sh2">응답자가 볼 수 있는 것</div>'+sw(show.miss!==false,'SV.ed.sv.set.show.miss=this.checked','틀린 질문')+sw(!!show.ans,'SV.ed.sv.set.show.ans=this.checked','정답','점수가 공개된 뒤에 보여요')+sw(show.pt!==false,'SV.ed.sv.set.show.pt=this.checked','점수 · 배점');
+  h+='<div class="sv-sh">기본값</div>'+sw(s.req,'SV.ed.sv.set.req=this.checked','새 질문을 필수로')+'</div>';
+  h+='<div class="sv-card sv-set"><div class="sv-sh">테마</div><div class="sv-srow col"><span><b>색</b></span>'+calPalHtml(e.sv.th.c||SV_COL,"svColSet(@C)")+'</div>'+
+    '<div class="sv-srow col"><span><b>머리글 이미지</b></span>'+(e.sv.th.img?'<img class="sv-hdimg" data-mk="'+cmEsc(e.sv.th.img)+'">':'')+'<span class="sv-btns"><button class="cv-btn" onclick="svImgPick(\'_hd\')">'+(e.sv.th.img?'다른 이미지로':'이미지 올리기')+'</button>'+(e.sv.th.img?'<button class="cv-btn" onclick="SV.ed.sv.th.img=\'\';svDirty();svSetDraw()">빼기</button>':'')+'</span></div></div>';
+  if(e.owner)h+='<div class="sv-card sv-set"><div class="sv-sh">공동 작업자 <span class="cv-sp"></span><button class="sv-lnk blue" onclick="svCoAdd()">+ 추가</button></div><div class="sv-note">함께 질문을 고치고 응답을 볼 수 있어요. 설문 삭제는 만든 사람만 할 수 있어요</div>'+
+    Object.keys(e.sv.co||{}).map(function(ph){return '<div class="cv-mem">'+calAvatar(ph,32)+'<span class="nm"><b>'+cmEsc(calName(ph))+'</b></span><button class="cv-ib sm" onclick="delete SV.ed.sv.co[\''+ph+'\'];svDirty();svSetDraw()" aria-label="빼기">'+svIc(SVI.x,16)+'</button></div>'}).join('')+'</div>';
+  h+='<div class="sv-card sv-set"><div class="sv-sh">관리</div><button class="sv-act" onclick="svTplSave()">양식으로 저장 <em>다음에 \'새 설문\'에서 골라 쓸 수 있어요</em></button><button class="sv-act" onclick="svCopy()">사본 만들기 <em>응답 없이 질문만 복사해요</em></button>'+(e.owner&&e.sid?'<button class="sv-act red" onclick="svDelSurvey()">설문 삭제 <em>응답도 모두 지워져요</em></button>':'')+'</div>';
+  b.innerHTML=h;svUsers();if(e.sid)cmFillMedia(b,'survey:'+e.sid);b.querySelectorAll('textarea.sv-in').forEach(svGrow)}
+function svColSet(c){SV.ed.sv.th.c=c;svDirty();svEdDraw()}
+function svEndSet(v){var e=SV.ed,t=v?new Date(v).getTime():0;if(t&&t<Date.now()){toast('지난 시각이에요');svSetDraw();return}e.sv.end=t;svDirty();
+  if(e.st!=='draft')svSaveNow().then(function(){return bdApi('/survey/state',{sid:e.sid,open:!svClosed({st:e.stLive||e.st,end:0}),end:t})}).catch(function(){});svSetDraw()}
+function svOpenSet(on){var e=SV.ed;svSaveNow().then(function(){return bdApi('/survey/state',{sid:e.sid,open:on})}).then(function(r){e.st=e.stLive=r.st;if(r.end!==undefined)e.sv.end=r.end;SV.list=null;toast(on?'응답을 다시 받아요':'응답 받기를 멈췄어요');if(e.tab==='s')svSetDraw();else svResDraw()}).catch(function(er){toast(er.message)})}
+function svCoAdd(){var e=SV.ed,sel={},skip={};skip[e.by||ME.phone]=1;Object.keys(e.sv.co||{}).forEach(function(p){skip[p]=1});svUsers();
+  calPick({sel:sel,skip:skip,t:'공동 작업자',ok:'추가',done:function(){var l=Object.keys(sel).filter(function(p){return !skip[p]});if(!l.length)return;e.sv.co=e.sv.co||{};l.forEach(function(p){e.sv.co[p]=1});svDirty();svSetDraw();toast(l.length+'명을 공동 작업자로 넣었어요')}})}
+function svTplSave(){svNeedSid().then(function(sid){return bdApi('/survey/tpl',{sid:sid})}).then(function(){toast('양식으로 저장했어요')}).catch(function(e){toast(e.message)})}
+function svCopy(){svNeedSid().then(function(sid){return bdApi('/survey/copy',{sid:sid})}).then(function(r){SV.list=null;toast('사본을 만들었어요');svEdit(r.sid)}).catch(function(e){toast(e.message)})}
+function svDelSurvey(){var e=SV.ed;cmConfirm('설문을 지울까요?','질문과 응답이 모두 지워지고 되돌릴 수 없어요.','지우기',true,function(){bdApi('/survey/delete',{sid:e.sid}).then(function(){e.dirty=0;toast('설문을 지웠어요');svLeave()}).catch(function(er){toast(er.message)})})}
+
+/* 보내기 — 사람 고르기(캘린더와 같은 그룹 드롭다운). 이미 받은 사람은 빼고 보여 준다 */
+function svSendPick(){var e=SV.ed;if(!e.sv.t.trim()){toast('설문 제목을 입력해 주세요');e.tab='q';e.act='_hd';svEdDraw();return}if(!e.sv.qs.some(svIsQ)){toast('질문을 하나 이상 넣어 주세요');return}
+  svUsers();var sel={},skip={};(e.tp||[]).forEach(function(p){skip[p]=1});
+  svSaveNow().then(function(){calPick({sel:sel,skip:skip,t:e.st==='draft'?'보낼 사람':'더 보낼 사람',ok:'다음',done:function(){var l=Object.keys(sel).filter(function(p){return p!==ME.phone&&!skip[p]});if(!l.length){toast('보낼 사람을 골라 주세요');return}
+    cmConfirm(l.length+'명에게 보낼까요?',(e.sv.anon?'익명 설문입니다. ':'')+'받는 사람 모두에게 알림이 가요.'+(e.sv.end?' 마감 '+cmAgoFuture(e.sv.end):''),'보내기',false,function(){bdApi('/survey/send',{sid:e.sid,to:l}).then(function(r){e.st=e.st==='draft'?'open':e.st;e.tp=(e.tp||[]).concat(l);SV.list=null;toast(r.n+'명에게 보냈어요');svEdDraw()}).catch(function(er){toast(er.message)})})}})}).catch(function(){})}
+
+/* ── 응답하기 ── 미리보기도 같은 화면(mode 'pv') */
+function svAnswer(arg){var m=String(arg).split('/'),sid=m[0];if(m[1]==='r')return svEdit(sid,'r');go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
+  bdApi('/survey/mine',{sid:sid}).then(function(r){if(r.editor&&!r.target)return svEdit(sid);svFillStart({sid:sid,sv:r.sv,a:r.a||{},answered:r.answered,quiz:r.quiz,mode:'live'})})
+  .catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
+function svPreview(){var e=SV.ed;svFillStart({sid:e.sid,sv:JSON.parse(JSON.stringify(e.sv)),a:{},answered:false,mode:'pv'})}
+function svLsKey(sid){return 'sv_ans_'+sid+'_'+ME.phone}
+function svFillStart(o){var rs=SV.rs=o;var sv=rs.sv;sv.set=sv.set||{};rs.secs=svSecs(sv);rs.stack=[0];rs.err={};rs.ord={};
+  /* 질문 · 옵션 섞기는 처음 열 때 한 번만 — 다시 그려도 순서가 그대로 */
+  var mix=function(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a};
+  rs.secs.forEach(function(s){if(sv.set.shuf){var qs=s.items.filter(svIsQ),k=0,mixed=mix(qs);s.items=s.items.map(function(q){return svIsQ(q)?mixed[k++]:q})}s.items.forEach(function(q){if(q.shuf&&q.o)rs.ord[q.id]=mix(q.o.map(function(_,j){return j}))})});
+  if(rs.mode==='live'&&!rs.answered){try{var d=JSON.parse(localStorage.getItem(svLsKey(rs.sid))||'null');if(d&&d.a)rs.a=d.a}catch(_){}}
+  rs.view=rs.answered&&rs.mode==='live'?'done':'fill';go('p-comm-sv');svBot(false);svFillDraw()}
+function svFillDraw(){var rs=SV.rs,p=$('p-comm-sv');if(!rs||!p)return;var sv=rs.sv,c=(sv.th&&sv.th.c)||SV_COL;
+  var top='<div class="sv-top">'+(rs.mode==='pv'?'<button class="cv-ib" onclick="svEdOpen()" aria-label="편집으로">'+svIc(SVI.back)+'</button><div class="nm"><b>미리보기</b><em>응답은 저장되지 않아요</em></div>':'<button class="cv-ib" onclick="svLeave()" aria-label="뒤로">'+svIc(SVI.back)+'</button><div class="nm"><b>설문</b></div>')+'</div>';
+  var hd='<div class="sv-card sv-hd fill">'+(sv.th&&sv.th.img?'<img class="sv-hdimg" data-mk="'+cmEsc(sv.th.img)+'">':'')+'<div class="sv-ftitle">'+cmEsc(sv.t||'제목 없는 설문')+'</div>'+(sv.desc?'<div class="sv-fdesc">'+svLink(sv.desc)+'</div>':'')+
+    '<div class="sv-fmeta">'+cmEsc(sv.bn||'')+(sv.anon?' · 익명 (누가 답했는지 만든 사람도 볼 수 없어요)':' · 실명 (응답에 내 이름이 함께 기록돼요)')+(sv.end?' · 마감 '+cmAgoFuture(sv.end):'')+'</div>'+(rs.view==='fill'&&sv.qs.some(function(q){return q.req})?'<div class="sv-freq">* 표시는 필수 질문</div>':'')+'</div>';
+  var h='<div class="sv-ed sv-fill" style="--svc:'+c+'">'+top+'<div class="sv-fbody">'+hd;
+  if(rs.view==='done')h+=svDoneHtml();
+  else if(rs.view==='sum')h+='<div id="SV-SUM"><div class="sk"></div></div>';
+  else{var si=rs.stack[rs.stack.length-1],s=rs.secs[si],closed=rs.mode==='live'&&svClosed(sv);
+    if(closed)h+='<div class="sv-card"><b>응답을 받지 않는 설문이에요</b><div class="sv-note">만든 사람에게 문의해 주세요</div></div>';
+    else{if(s.q)h+='<div class="sv-card sv-sechd"><div class="t">'+cmEsc(s.q.t||'')+'</div>'+(s.q.d?'<div class="d">'+svLink(s.q.d)+'</div>':'')+'</div>';
+      s.items.forEach(function(q){h+=svFillCard(q)});
+      var last=svNextSec(si)<0;
+      h+='<div class="sv-fnav">'+(rs.stack.length>1?'<button class="cv-btn" onclick="svPrev()">이전</button>':'')+'<button class="cv-btn pri" onclick="svNext()">'+(last?(rs.answered?'고쳐서 제출':'제출'):'다음')+'</button>'+
+        (sv.set.prog&&rs.secs.length>1?'<span class="sv-prog"><i style="width:'+Math.round(rs.stack.length/(rs.stack.length+svLeft(si))*100)+'%"></i></span><span class="sv-pgn">'+rs.stack.length+'/'+(rs.stack.length+svLeft(si))+' 페이지</span>':'')+'<span class="cv-sp"></span><button class="sv-lnk" onclick="svClear()">양식 지우기</button></div>'}}
+  h+='</div></div>';p.innerHTML=h;p.querySelectorAll('textarea.sv-in').forEach(svGrow);if(rs.sid)cmFillMedia(p,'survey:'+rs.sid);if(rs.view==='sum')svSumLoad()}
+/* 지금 섹션 다음 — 답으로 정해지는 섹션 번호, 끝이면 -1 (서버 path() 와 같은 규칙) */
+function svNextSec(si){var rs=SV.rs,s=rs.secs[si],dest=si===0?(rs.sv.set.nx0||''):(s.q.nx||'');
+  s.items.forEach(function(q){if((q.k==='one'||q.k==='drop')&&Array.isArray(q.go)&&typeof rs.a[q.id]==='number'&&q.go[rs.a[q.id]])dest=q.go[rs.a[q.id]]});
+  if(dest==='_end')return -1;if(dest){for(var j=0;j<rs.secs.length;j++)if(rs.secs[j].id===dest)return rs.stack.indexOf(j)>=0?-1:j}return si+1<rs.secs.length?si+1:-1}
+function svLeft(si){var n=0,i=si,seen={};seen[si]=1;while(n<50){var rs=SV.rs,save=rs.stack;var j=svNextSec(i);if(j<0||seen[j])break;seen[j]=1;n++;i=j}return n}
+function svFillCard(q){var rs=SV.rs,id=q.id,err=rs.err[id];
+  if(q.k==='text')return '<div class="sv-card"><div class="sv-qtt">'+cmEsc(q.t||'')+'</div>'+(q.d?'<div class="sv-qdd">'+svLink(q.d)+'</div>':'')+'</div>';
+  if(q.k==='img')return '<div class="sv-card">'+(q.t?'<div class="sv-qtt">'+cmEsc(q.t)+'</div>':'')+(q.img?'<img class="sv-bimg" data-mk="'+cmEsc(q.img)+'">':'')+(q.d?'<div class="sv-qdd">'+cmEsc(q.d)+'</div>':'')+'</div>';
+  if(q.k==='video'){var yt=svYt(q.url);return '<div class="sv-card">'+(q.t?'<div class="sv-qtt">'+cmEsc(q.t)+'</div>':'')+(yt?'<div class="sv-vid"><iframe src="https://www.youtube-nocookie.com/embed/'+yt+'" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe></div>':'')+(q.d?'<div class="sv-qdd">'+cmEsc(q.d)+'</div>':'')+'</div>'}
+  return '<div class="sv-card fq'+(err?' err':'')+'" data-q="'+id+'"><div class="sv-qtt">'+cmEsc(q.t||'')+(q.req?' <span class="sv-star">*</span>':'')+(rs.sv.set.quiz&&q.pt&&(rs.sv.set.show||{}).pt!==false?'<span class="sv-pt">'+q.pt+'점</span>':'')+'</div>'+(q.d?'<div class="sv-qdd">'+svLink(q.d)+'</div>':'')+svInputHtml(q,rs.a[id],false)+(err?'<div class="sv-errm">'+svIc('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',16)+cmEsc(err)+'</div>':'')+'</div>'}
+/* 질문 칸 — ro: 읽기만(결과 · 내 응답 보기) */
+function svInputHtml(q,a,ro,qr){var id=q.id,dis=ro?' disabled':'',rs=SV.rs,ord=(!ro&&rs&&rs.ord[id])||(q.o||[]).map(function(_,j){return j});
+  var set=function(js){return ro?'':' onclick="'+js+'"'};
+  if(q.k==='short')return '<input class="sv-in sv-ans" value="'+cmEsc(a||'')+'" placeholder="내 답변"'+dis+' oninput="svSetA(\''+id+'\',this.value)">';
+  if(q.k==='long')return '<textarea class="sv-in sv-ans" rows="1" placeholder="내 답변"'+dis+' oninput="svSetA(\''+id+'\',this.value);svGrow(this)">'+cmEsc(a||'')+'</textarea>';
+  if(q.k==='one'||q.k==='many'){var arr=q.k==='many'?(Array.isArray(a)?a:[]):[a],oth=arr.filter(function(x){return typeof x==='string'})[0];
+    return '<div class="sv-fopts">'+ord.map(function(j){var on=arr.indexOf(j)>=0,mark=qr?qr(j):'';return '<label class="sv-fo'+(on?' on':'')+mark+'"'+(ro?'':' onclick="svPick(\''+id+'\','+j+',event)"')+'><span class="mk '+q.k+'"></span><span class="tx">'+cmEsc(q.o[j])+'</span></label>'}).join('')+
+      (q.oth?'<label class="sv-fo'+(oth!=null?' on':'')+'"'+(ro?'':' onclick="svPickOth(\''+id+'\',event)"')+'><span class="mk '+q.k+'"></span><span class="tx">기타:</span><input class="sv-in oth" value="'+cmEsc(oth||'')+'"'+dis+' oninput="svOthSet(\''+id+'\',this.value)"></label>':'')+'</div>'+
+      (!ro&&q.k==='one'&&!q.req&&a!=null&&a!==''?'<button class="sv-lnk sm" onclick="svSetA(\''+id+'\',null,1)">선택 해제</button>':'')}
+  if(q.k==='drop')return ro?'<div class="sv-ro">'+(typeof a==='number'?cmEsc(q.o[a]):'—')+'</div>':'<select class="sv-sel" onchange="svSetA(\''+id+'\',this.value===\'\'?null:+this.value,1)"><option value="">선택</option>'+ord.map(function(j){return '<option value="'+j+'"'+(a===j?' selected':'')+'>'+cmEsc(q.o[j])+'</option>'}).join('')+'</select>';
+  if(q.k==='scale'){var lo=q.lo==null?1:q.lo,hi=q.hi||5,s='';for(var i=lo;i<=hi;i++)s+='<label class="sv-sc'+(a===i?' on':'')+'"'+set('svSetA(\''+id+'\','+i+',1)')+'><b>'+i+'</b><span class="mk one"></span></label>';return '<div class="sv-scale"><span class="lb">'+cmEsc(q.ll||'')+'</span><div class="pts">'+s+'</div><span class="lb">'+cmEsc(q.hl||'')+'</span></div>'}
+  if(q.k==='rating'){var s2='';for(var r=1;r<=(q.hi||5);r++)s2+='<button class="'+(a>=r?'on':'')+'"'+dis+set('svSetA(\''+id+'\','+r+',1)')+' aria-label="'+r+'점">'+svIc(SVI.star,30)+'</button>';return '<div class="sv-rate">'+s2+(a?'<span>'+a+' / '+(q.hi||5)+'</span>':'')+'</div>'}
+  if(q.k==='grid'||q.k==='cgrid'){var A=Array.isArray(a)?a:[];return '<div class="sv-gwrap"><table class="sv-grid"><tr><th></th>'+ord.map(function(j){return '<th>'+cmEsc(q.o[j])+'</th>'}).join('')+'</tr>'+(q.r||[]).map(function(rr,ri){return '<tr><td>'+cmEsc(rr)+'</td>'+ord.map(function(j){var on=q.k==='grid'?A[ri]===j:Array.isArray(A[ri])&&A[ri].indexOf(j)>=0;return '<td><span class="sv-gc'+(on?' on':'')+'"'+set('svGridSet(\''+id+'\','+ri+','+j+')')+'><span class="mk '+(q.k==='grid'?'one':'many')+'"></span></span></td>'}).join('')+'</tr>'}).join('')+'</table></div>'}
+  if(q.k==='date')return '<input type="date" class="sv-in sv-dt" value="'+cmEsc(a||'')+'"'+dis+' onchange="svSetA(\''+id+'\',this.value||null)">';
+  if(q.k==='time')return '<input type="time" class="sv-in sv-dt" value="'+cmEsc(a||'')+'"'+dis+' onchange="svSetA(\''+id+'\',this.value||null)">';
+  if(q.k==='file'){var F=Array.isArray(a)?a:[];return '<div class="sv-files">'+F.map(function(f,i){var im=/^p\//.test(f.k);return '<div class="sv-file">'+(im?'<img data-mk="'+cmEsc(f.k)+'">':'<span class="fi">'+svIc('<path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/>',18)+'</span>')+'<a onclick="svFileOpen(\''+cmEsc(f.k)+'\')">'+cmEsc(f.n||'파일')+'</a>'+(ro?'':'<button class="cv-ib sm" onclick="svFileDel(\''+id+'\','+i+')" aria-label="빼기">'+svIc(SVI.x,16)+'</button>')+'</div>'}).join('')+(ro||F.length>=(q.mx||1)?'':'<button class="cv-btn" onclick="svFileAdd(\''+id+'\')">'+svIc(SVI.up,16)+' '+(q.img?'사진':'파일')+' 추가</button><span class="sv-note">최대 '+(q.mx||1)+'개</span>')+'</div>'}
+  return ''}
+function svSetA(id,v,redraw){var rs=SV.rs;if(v===null||v===''||v==null)delete rs.a[id];else rs.a[id]=v;if(rs.err[id]){delete rs.err[id];redraw=1}svLsSave();if(redraw)svFillKeep()}
+function svFillKeep(){var y=window.scrollY;svFillDraw();window.scrollTo(0,y)}
+function svLsSave(){var rs=SV.rs;if(rs.mode!=='live')return;try{localStorage.setItem(svLsKey(rs.sid),JSON.stringify({a:rs.a,at:Date.now()}))}catch(_){}}
+function svPick(id,j,ev){if(ev&&ev.target&&ev.target.tagName==='INPUT')return;var rs=SV.rs,q=svFq(id);if(q.k==='one'){svSetA(id,j,1);return}var a=Array.isArray(rs.a[id])?rs.a[id].slice():[];var i=a.indexOf(j);if(i>=0)a.splice(i,1);else a.push(j);svSetA(id,a.length?a:null,1)}
+function svPickOth(id,ev){var rs=SV.rs,q=svFq(id),tx=ev.target.tagName==='INPUT';var cur=q.k==='one'?rs.a[id]:(rs.a[id]||[]).filter(function(x){return typeof x==='string'})[0];
+  if(cur!=null&&!tx){if(q.k==='one')svSetA(id,null,1);else svSetA(id,(rs.a[id]||[]).filter(function(x){return typeof x!=='string'}),1);return}
+  if(cur==null){svOthSet(id,' ');svFillKeep();var el=document.querySelector('.sv-card[data-q="'+id+'"] input.oth');if(el){el.value='';el.focus()}}}
+function svOthSet(id,v){var rs=SV.rs,q=svFq(id);if(q.k==='one')rs.a[id]=v;else{var a=(rs.a[id]||[]).filter(function(x){return typeof x!=='string'});a.push(v);rs.a[id]=a}svLsSave()}
+function svGridSet(id,ri,j){var rs=SV.rs,q=svFq(id),A=Array.isArray(rs.a[id])?rs.a[id].slice():[];while(A.length<(q.r||[]).length)A.push(q.k==='grid'?null:[]);
+  if(q.k==='grid'){A[ri]=A[ri]===j?null:j;if(q.g1&&A[ri]===j)A.forEach(function(x,k){if(k!==ri&&x===j)A[k]=null})}else{var c=Array.isArray(A[ri])?A[ri].slice():[];var i=c.indexOf(j);if(i>=0)c.splice(i,1);else c.push(j);A[ri]=c}
+  svSetA(id,A,1)}
+function svFq(id){var qs=SV.rs.sv.qs;for(var i=0;i<qs.length;i++)if(qs[i].id===id)return qs[i];return null}
+function svFileAdd(id){var rs=SV.rs,q=svFq(id);if(rs.mode==='pv'){toast('미리보기에서는 올리지 않아요');return}var room=(q.mx||1)-((rs.a[id]||[]).length);
+  cmFileInput(q.img?'image/*':(CM_FILE_ACCEPT+',image/*'),room>1,null,function(fs){fs=fs.slice(0,room);toast('올리는 중…');Promise.all(fs.map(function(f){var im=/^image\//.test(f.type);return (im?cmShrink(f,2048,.85).then(function(s){return cmUpload('survey:'+rs.sid,s.blob,'p',f.name||'photo.jpg')}):cmUpload('survey:'+rs.sid,f,'f',f.name)).then(function(k){return {k:k,n:f.name||'사진'}})}))
+    .then(function(list){svSetA(id,(rs.a[id]||[]).concat(list),1);toast('올렸어요')}).catch(function(e){toast(e.message||'올리지 못했어요')})})}
+function svFileDel(id,i){var a=(SV.rs.a[id]||[]).slice();a.splice(i,1);svSetA(id,a.length?a:null,1)}
+function svFileOpen(k){var sid=(SV.rs&&SV.rs.sid)||(SV.ed&&SV.ed.sid);cmApi('media-urls',{rid:'survey:'+sid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(u)window.open(u,'_blank');else toast('파일을 열 수 없어요')}).catch(function(e){toast(e.message)})}
+function svClear(){cmConfirm('양식을 지울까요?','이 설문에 적은 답이 모두 지워져요.','양식 지우기',true,function(){var rs=SV.rs;rs.a={};rs.err={};rs.stack=[0];try{localStorage.removeItem(svLsKey(rs.sid))}catch(_){}svFillDraw();window.scrollTo(0,0)})}
+/* 응답 확인 — 서버 checkVal 과 같은 규칙 */
+function svEmpty(q,v){return v==null||v===''||(Array.isArray(v)&&(!v.length||((q.k==='grid'||q.k==='cgrid')&&v.every(function(x){return x==null||(Array.isArray(x)&&!x.length)}))))}
+function svNumMsg(op,a,b){return ({gt:a+'보다 큰',ge:a+' 이상인',lt:a+'보다 작은',le:a+' 이하인',eq:a+'와(과) 같은',ne:a+'이(가) 아닌',bt:a+'~'+b+' 사이의',nb:a+'~'+b+' 밖의',int:'정수를'}[op]||'')+(op==='int'?' ':' 숫자를 ')+'입력해 주세요'}
+function svCheck(q,v){if(typeof v==='string'&&(q.k==='one'||q.k==='many')&&!v.trim())v=null;
+  if(q.req&&svEmpty(q,v))return '필수 질문입니다';
+  if(q.req&&(q.k==='grid'||q.k==='cgrid')){var A=Array.isArray(v)?v:[];for(var i=0;i<(q.r||[]).length;i++)if(A[i]==null||(Array.isArray(A[i])&&!A[i].length))return '행마다 하나씩 골라 주세요'}
+  var val=q.val;if(!val||svEmpty(q,v))return '';var a=val.a,b=val.b,msg=val.msg||'';
+  if(val.t==='num'){var s=String(v).trim(),n=Number(s);if(!s||isNaN(n))return msg||'숫자를 입력해 주세요';a=+a;b=+b;var ok={gt:n>a,ge:n>=a,lt:n<a,le:n<=a,eq:n===a,ne:n!==a,bt:n>=a&&n<=b,nb:n<a||n>b,int:Math.floor(n)===n,num:true}[val.op];return ok?'':(msg||svNumMsg(val.op,a,b))}
+  if(val.t==='txt'){var t=String(v),ok2={has:t.indexOf(a||'')>=0,not:t.indexOf(a||'')<0,email:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t),url:/^https?:\/\/\S+\.\S+/.test(t)}[val.op];return ok2?'':(msg||'형식에 맞게 입력해 주세요')}
+  if(val.t==='len'){var L=String(v).length,ok3=val.op==='max'?L<=+a:L>=+a;return ok3?'':(msg||(val.op==='max'?a+'자 이하로 입력해 주세요':a+'자 이상 입력해 주세요'))}
+  if(val.t==='re'){try{var R=new RegExp(String(a||'')),F=new RegExp('^(?:'+a+')$'),t2=String(v);var ok4={has:R.test(t2),not:!R.test(t2),match:F.test(t2),nomatch:!F.test(t2)}[val.op];return ok4?'':(msg||'형식에 맞게 입력해 주세요')}catch(_){return ''}}
+  if(val.t==='cnt'){var c=(v||[]).length,ok5={ge:c>=+a,le:c<=+a,eq:c===+a}[val.op];return ok5?'':(msg||{ge:a+'개 이상 골라 주세요',le:a+'개 이하로 골라 주세요',eq:a+'개를 골라 주세요'}[val.op])}
+  return ''}
+function svNext(){var rs=SV.rs,si=rs.stack[rs.stack.length-1],bad=null;rs.err={};
+  rs.secs[si].items.forEach(function(q){if(!svIsQ(q))return;var m=svCheck(q,rs.a[q.id]);if(m){rs.err[q.id]=m;if(!bad)bad=q.id}});
+  if(bad){svFillKeep();var el=document.querySelector('.sv-card[data-q="'+bad+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});return}
+  var j=svNextSec(si);if(j>=0){rs.stack.push(j);svFillDraw();window.scrollTo(0,0);return}svSubmit()}
+function svPrev(){var rs=SV.rs;if(rs.stack.length>1)rs.stack.pop();rs.err={};svFillDraw();window.scrollTo(0,0)}
+function svSubmit(){var rs=SV.rs;if(rs.mode==='pv'){rs.view='done';rs.done={pv:1};svFillDraw();window.scrollTo(0,0);return}
+  /* 지나온 섹션의 답만 보낸다 */
+  var live={};rs.stack.forEach(function(si){rs.secs[si].items.forEach(function(q){live[q.id]=1})});var a={};Object.keys(rs.a).forEach(function(k){if(live[k])a[k]=typeof rs.a[k]==='string'?rs.a[k].trim():rs.a[k]});
+  var btn=document.querySelector('.sv-fnav .pri');if(btn)btn.disabled=true;
+  bdApi('/survey/answer',{sid:rs.sid,a:a}).then(function(r){try{localStorage.removeItem(svLsKey(rs.sid))}catch(_){}rs.answered=true;rs.a=a;rs.quiz=r.quiz;rs.view='done';rs.done={now:1};var ac=(CM.act||{})['s_'+rs.sid];if(ac)ac.done=1;SV.list=null;svFillDraw();window.scrollTo(0,0)})
+    .catch(function(e){if(btn)btn.disabled=false;toast(e.message)})}
+function svDoneHtml(){var rs=SV.rs,sv=rs.sv,set=sv.set||{},closed=svClosed(sv);var h='<div class="sv-card"><div class="sv-donemsg">'+svLink(set.msg||'응답이 기록되었습니다.')+'</div>';
+  if(rs.mode==='pv')h+='<div class="sv-note">미리보기라 저장되지 않았어요</div>';
+  h+='<div class="sv-donebtns">';
+  if(rs.mode==='pv')h+='<button class="sv-lnk blue" onclick="svPreview()">다시 해 보기</button>';
+  else{if(set.edit&&!sv.anon&&!closed)h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'fill\';SV.rs.stack=[0];svFillDraw()">응답 수정</button>';
+    if(!sv.anon&&rs.a&&Object.keys(rs.a).length)h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'mine\';svMineDraw()">내 응답 보기</button>';
+    if(set.pub)h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'sum\';svFillDraw()">결과 요약 보기</button>'}
+  h+='</div></div>';
+  if(rs.quiz)h+=svQuizCard(rs.quiz);else if(set.quiz&&!sv.anon&&rs.mode==='live'&&set.rel==='later')h+='<div class="sv-card"><div class="sv-note">점수는 만든 사람이 공개하면 볼 수 있어요</div></div>';
+  return h}
+function svQuizCard(z){var h='<div class="sv-card sv-quizres"><div class="sv-score"><b>'+z.got+'</b> / '+z.max+'점</div>'+(z.pending?'<div class="sv-note">직접 채점할 질문 '+z.pending+'개는 아직 점수가 없어요</div>':'')+'<button class="sv-lnk blue" onclick="SV.rs.view=\'mine\';svMineDraw()">질문별로 보기</button></div>';return h}
+/* 내 응답 보기(읽기만) — 퀴즈면 맞음 · 틀림 · 정답 · 피드백 */
+function svMineDraw(){var rs=SV.rs,p=$('p-comm-sv');var sv=rs.sv,z=rs.quiz,c=(sv.th&&sv.th.c)||SV_COL;
+  var h='<div class="sv-ed sv-fill" style="--svc:'+c+'"><div class="sv-top"><button class="cv-ib" onclick="SV.rs.view=\'done\';svFillDraw()" aria-label="뒤로">'+svIc(SVI.back)+'</button><div class="nm"><b>내 응답</b><em>'+cmEsc(sv.t)+'</em></div></div><div class="sv-fbody">'+(z?svQuizCard(z).replace(/<button[^]*?<\/button>/,''):'');
+  sv.qs.forEach(function(q){if(!svIsQ(q))return;var per=z&&z.per&&z.per[q.id],ans=per&&per.ans;
+    var mark=ans!=null&&(q.k==='one'||q.k==='many'||q.k==='drop')?function(j){var ok=Array.isArray(ans)?ans.indexOf(j)>=0:ans===j;return ok?' right':''}:null;
+    h+='<div class="sv-card fq'+(per&&per.ok===false?' wrong':per&&per.ok?' good':'')+'"><div class="sv-qtt">'+cmEsc(q.t)+(per&&per.pt!=null?'<span class="sv-pt">'+(per.got==null?'-':per.got)+' / '+per.pt+'점</span>':'')+'</div>'+svInputHtml(q,rs.a[q.id],true,mark)+
+      (q.k==='short'&&Array.isArray(ans)?'<div class="sv-ans-ok">정답: '+cmEsc(ans.join(', '))+'</div>':q.k==='drop'&&typeof ans==='number'?'<div class="sv-ans-ok">정답: '+cmEsc(q.o[ans])+'</div>':'')+(per&&per.fb?'<div class="sv-fbk">'+cmEsc(per.fb)+'</div>':'')+'</div>'});
+  p.innerHTML=h+'</div></div>';cmFillMedia(p,'survey:'+rs.sid);window.scrollTo(0,0)}
+function svSumLoad(){var rs=SV.rs;bdApi('/survey/summary',{sid:rs.sid}).then(function(r){var el=$('SV-SUM');if(!el)return;el.innerHTML='<div class="sv-card"><b>응답 '+r.rows.length+'개</b> <button class="sv-lnk blue" onclick="SV.rs.view=\'done\';svFillDraw()">돌아가기</button></div>'+svSummaryHtml(r.sv,r.rows,true);cmFillMedia(el,'survey:'+rs.sid)}).catch(function(e){var el=$('SV-SUM');if(el)el.innerHTML='<div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
+
+function svLink(s){return cmEsc(s||'').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>')}
+/* 편집 화면에서 고르지 않은 카드 — 응답 화면처럼 보이기 */
+function svViewHtml(q){
+  if(q.k==='sec')return '<div class="sv-qtt big">'+(q.t?cmEsc(q.t):'<span class="sv-ph">제목 없는 섹션</span>')+'</div>'+(q.d?'<div class="sv-qdd">'+cmEsc(q.d)+'</div>':'');
+  if(q.k==='text')return '<div class="sv-qtt">'+(q.t?cmEsc(q.t):'<span class="sv-ph">제목 없음</span>')+'</div>'+(q.d?'<div class="sv-qdd">'+cmEsc(q.d)+'</div>':'');
+  if(q.k==='img')return (q.t?'<div class="sv-qtt">'+cmEsc(q.t)+'</div>':'')+(q.img?'<img class="sv-bimg" data-mk="'+cmEsc(q.img)+'">':'<div class="sv-ph">이미지 없음</div>');
+  if(q.k==='video'){var yt=svYt(q.url);return (q.t?'<div class="sv-qtt">'+cmEsc(q.t)+'</div>':'')+(yt?'<div class="sv-yt"><img src="https://i.ytimg.com/vi/'+yt+'/hqdefault.jpg" alt=""></div>':'<div class="sv-ph">동영상 주소 없음</div>')}
+  var e=SV.ed;return '<div class="sv-qtt">'+(q.t?cmEsc(q.t):'<span class="sv-ph">질문</span>')+(q.req?' <span class="sv-star">*</span>':'')+(e&&e.sv.set.quiz&&q.pt?'<span class="sv-pt">'+q.pt+'점</span>':'')+'</div>'+(q.d?'<div class="sv-qdd">'+cmEsc(q.d)+'</div>':'')+'<div class="sv-ro-wrap">'+svInputHtml(q,null,true)+'</div>'}
+
+/* ── 응답 탭 ── 요약 · 질문별 · 개별 보기 */
+function svResDraw(force){var e=SV.ed,b=$('SV-BODY');if(!b)return;if(!SV.res||force||SV.res.sid!==e.sid){b.innerHTML='<div class="sk"></div>';
+    bdApi('/survey/result',{sid:e.sid}).then(function(r){SV.res={sid:e.sid,sv:r.sv,rows:r.rows||[],pending:r.pending||[],key:r.key||{},sub:SV.res&&SV.res.sid===e.sid?SV.res.sub:'sum',qi:0,ri:0,man:{}};e.st=e.stLive=r.sv.st;e.sv.end=r.sv.end||0;e.rel=r.sv.rel;
+      var t=document.querySelector('.sv-tabs button:nth-child(2)');if(t)t.textContent='응답 '+SV.res.rows.length;svResDraw()}).catch(function(er){b.innerHTML='<div class="cm-empty">'+cmEsc(er.message)+'</div>'});return}
+  var R=SV.res,sv=R.sv,n=R.rows.length,closed=svClosed(sv),quiz=sv.set&&sv.set.quiz;
+  var h='<div class="sv-card sv-rtop"><div class="sv-rhd"><b class="n">응답 '+n+'개</b><span class="cv-sp"></span><button class="cv-btn" onclick="svXlsx()" title="엑셀로 받기">'+svIc(SVI.dl,16)+' 엑셀</button><button class="cv-ib" onclick="svResMenu()" aria-label="더 보기">'+svIc(SVI.more)+'</button></div>'+
+    '<label class="sv-srow"><span><b>응답 받기</b><em>'+(closed?(sv.end&&Date.now()>sv.end?'마감 시각이 지났어요':'지금은 응답을 받지 않아요'):sv.end?'마감 '+cmAgoFuture(sv.end):'응답을 받는 중이에요')+'</em></span><span class="sv-sw"><input type="checkbox"'+(closed?'':' checked')+' onchange="svOpenSet(this.checked)"><i></i></span></label>'+
+    '<div class="sv-rmeta">보낸 사람 '+(sv.n||0)+'명 · 응답 '+n+(sv.anon?' · 익명':'')+'</div>'+
+    (R.pending.length?'<details class="sv-pend"><summary>아직 안 한 사람 '+R.pending.length+'명</summary><div>'+R.pending.map(function(x){return cmEsc(x.name)}).join(', ')+'</div>'+(closed?'':'<button class="cv-btn" onclick="svNudge()">다시 알림 보내기</button>')+'</details>':'')+
+    (quiz&&sv.set.rel==='later'?(sv.rel?'<div class="sv-note">점수를 공개했어요</div>':'<button class="cv-btn pri sv-wide" onclick="svRelease()">점수 공개</button>'):'')+'</div>';
+  if(!n){b.innerHTML=h+'<div class="sv-card"><div class="sv-note">아직 응답이 없어요</div></div>';return}
+  h+='<div class="sv-sub">'+[['sum','요약'],['q','질문'],['one','개별 보기']].map(function(t){return '<button class="'+(R.sub===t[0]?'on':'')+'" onclick="SV.res.sub=\''+t[0]+'\';svResDraw()">'+t[1]+'</button>'}).join('')+'</div>';
+  if(R.sub==='sum')h+=(quiz?svQuizStats():'')+svSummaryHtml(sv,R.rows,false);else if(R.sub==='q')h+=svByQHtml();else h+=svOneHtml();
+  b.innerHTML=h;cmFillMedia(b,'survey:'+e.sid);b.querySelectorAll('textarea.sv-in').forEach(svGrow)}
+function svResMenu(){calSheet('<div class="cv-sh-head"><b>응답</b><span class="cv-sp"></span><button class="cv-ib" onclick="calSheetClose(this)" aria-label="닫기">'+svIc(SVI.x)+'</button></div><div class="sv-menu"><button onclick="calSheetClose(this);svResDraw(1)"><span>새로 고침</span></button><button onclick="calSheetClose(this);svXlsx()"><span>엑셀로 받기 (.xlsx)</span></button><button onclick="calSheetClose(this);svPrint()"><span>인쇄</span></button><button class="red" onclick="calSheetClose(this);svDelAll()"><span>모든 응답 삭제</span></button></div>')}
+function svNudge(){bdApi('/survey/nudge',{sid:SV.ed.sid}).then(function(o){toast(o.sent+'명에게 다시 알렸어요')}).catch(function(e){toast(e.message)})}
+function svRelease(){cmConfirm('점수를 공개할까요?','응답한 사람에게 알림이 가고, 설정한 범위대로 점수 · 정답을 볼 수 있어요.','공개',false,function(){bdApi('/survey/release',{sid:SV.ed.sid}).then(function(r){SV.res.sv.rel=1;SV.ed.rel=1;toast('점수를 공개했어요');svResDraw()}).catch(function(e){toast(e.message)})})}
+function svDelAll(){cmConfirm('모든 응답을 지울까요?','응답 '+SV.res.rows.length+'개가 모두 지워지고 되돌릴 수 없어요.','모두 지우기',true,function(){bdApi('/survey/delans',{sid:SV.ed.sid,all:true}).then(function(){toast('응답을 모두 지웠어요');svResDraw(1)}).catch(function(e){toast(e.message)})})}
+function svDelOne(id){cmConfirm('이 응답을 지울까요?','되돌릴 수 없어요.','지우기',true,function(){bdApi('/survey/delans',{sid:SV.ed.sid,ids:[id]}).then(function(){toast('응답을 지웠어요');SV.res.ri=Math.max(0,SV.res.ri-1);svResDraw(1)}).catch(function(e){toast(e.message)})})}
+
+/* 점수 — 직접 준 점수가 있으면 그것, 없으면 자동 점수 */
+function svScore(sv,r){var got=0,max=0,per={};(sv.qs||[]).forEach(function(q){if(!svIsQ(q)||!q.pt)return;max+=q.pt;var m=r.man&&r.man[q.id],s=r.sc&&r.sc[q.id],g=m!=null?+m:s!=null?+s:null;per[q.id]=g;if(g!=null)got+=g});return {got:got,max:max,per:per}}
+function svQuizStats(){var R=SV.res,sv=R.sv,sc=R.rows.map(function(r){return svScore(sv,r)}),max=sc.length?sc[0].max:0,v=sc.map(function(s){return s.got}).sort(function(a,b){return a-b});
+  var avg=v.reduce(function(a,b){return a+b},0)/v.length,med=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;
+  var cnt={};v.forEach(function(x){cnt[x]=(cnt[x]||0)+1});var ks=Object.keys(cnt).map(Number).sort(function(a,b){return a-b}),top=Math.max.apply(null,ks.map(function(k){return cnt[k]}));
+  var miss=(sv.qs||[]).filter(function(q){return svIsQ(q)&&q.pt}).map(function(q){var ok=0,tot=0;sc.forEach(function(s){if(s.per[q.id]!=null){tot++;if(s.per[q.id]>=q.pt)ok++}});return {q:q,ok:ok,tot:tot}}).filter(function(x){return x.tot}).sort(function(a,b){return a.ok/a.tot-b.ok/b.tot}).slice(0,5);
+  var h='<div class="sv-card"><div class="sv-qtt">퀴즈 통계</div><div class="sv-stats"><div><em>평균</em><b>'+(Math.round(avg*10)/10)+'</b><span>/ '+max+'점</span></div><div><em>중앙값</em><b>'+med+'</b><span>/ '+max+'점</span></div><div><em>범위</em><b>'+v[0]+' – '+v[v.length-1]+'</b><span>점</span></div></div>'+
+    '<div class="sv-cap">점수 분포</div><div class="sv-cols">'+ks.map(function(k){return '<div class="c" title="'+k+'점: '+cnt[k]+'명"><span class="v">'+cnt[k]+'</span><i style="height:'+Math.max(4,Math.round(cnt[k]/top*100))+'%"></i><span class="l">'+k+'</span></div>'}).join('')+'</div>';
+  if(miss.length)h+='<div class="sv-cap">자주 틀린 질문</div>'+miss.map(function(x){return '<div class="sv-miss"><span>'+cmEsc(x.q.t)+'</span><b>정답 '+x.ok+' / '+x.tot+'명</b></div>'}).join('');
+  return h+'</div>'}
+
+/* 질문마다 요약 차트 — 한 가지 색 가로 막대(개수 · % 직접 표시), 배율 · 평점은 세로 막대, 그리드는 칸 색 진하기 */
+function svBars(rows,tot){var mx=Math.max.apply(null,rows.map(function(r){return r[1]}).concat([1]));return '<div class="sv-bars">'+rows.map(function(r){var pc=tot?Math.round(r[1]/tot*100):0;return '<div class="b" title="'+cmEsc(r[0])+': '+r[1]+'명 ('+pc+'%)"><span class="l">'+cmEsc(r[0])+'</span><span class="tr"><i style="width:'+(r[1]?Math.max(1.5,r[1]/mx*100):0)+'%"></i></span><span class="v">'+r[1]+' <em>('+pc+'%)</em></span></div>'}).join('')+'</div>'}
+function svTally(list){var m={},o=[];list.forEach(function(v){v=String(v).trim();if(!v)return;if(!m[v]){m[v]=0;o.push(v)}m[v]++});o.sort(function(a,b){return m[b]-m[a]});return o.map(function(v){return [v,m[v]]})}
+function svSummaryHtml(sv,rows,pub){var h='';(sv.qs||[]).forEach(function(q){
+    if(q.k==='sec'){h+='<div class="sv-sumsec">'+cmEsc(q.t||'섹션')+'</div>';return}if(!svIsQ(q))return;
+    var vals=rows.map(function(r){return r.a&&r.a[q.id]}).filter(function(v){return !svEmpty(q,v)}),n=vals.length;
+    h+='<div class="sv-card"><div class="sv-qtt">'+cmEsc(q.t)+'</div><div class="sv-rmeta">응답 '+n+'개</div>';
+    if(!n){h+='<div class="sv-note">아직 이 질문에 대한 응답이 없어요</div></div>';return}
+    if(svChoice(q.k)){var c=q.o.map(function(){return 0}),oth=[];vals.forEach(function(v){(Array.isArray(v)?v:[v]).forEach(function(j){if(typeof j==='string')oth.push(j);else if(c[j]!=null)c[j]++})});
+      var rr=q.o.map(function(o,j){return [o,c[j]]});if(q.oth)rr.push(['기타',oth.length]);h+=svBars(rr,n);
+      if(oth.length)h+='<div class="sv-cap">기타 응답</div>'+svTextList(svTally(oth))}
+    else if(q.k==='scale'||q.k==='rating'){var lo=q.k==='scale'?(q.lo==null?1:q.lo):1,hi=q.hi||5,cc={},sum=0,top=1;vals.forEach(function(v){cc[v]=(cc[v]||0)+1;sum+=v});for(var i=lo;i<=hi;i++)top=Math.max(top,cc[i]||0);
+      h+='<div class="sv-avg">평균 <b>'+(Math.round(sum/n*100)/100)+'</b> / '+hi+'</div><div class="sv-cols">';for(var k=lo;k<=hi;k++){var x=cc[k]||0;h+='<div class="c" title="'+k+': '+x+'명 ('+Math.round(x/n*100)+'%)"><span class="v">'+x+'</span><i style="height:'+(x?Math.max(4,Math.round(x/top*100)):0)+'%"></i><span class="l">'+k+'</span></div>'}
+      h+='</div>'+(q.ll||q.hl?'<div class="sv-scl"><span>'+cmEsc(q.ll||'')+'</span><span>'+cmEsc(q.hl||'')+'</span></div>':'')}
+    else if(q.k==='grid'||q.k==='cgrid'){var g=(q.r||[]).map(function(){return q.o.map(function(){return 0})}),gm=1;vals.forEach(function(v){(v||[]).forEach(function(x,ri){if(!g[ri])return;(Array.isArray(x)?x:[x]).forEach(function(j){if(j!=null&&g[ri][j]!=null){g[ri][j]++;gm=Math.max(gm,g[ri][j])}})})});
+      h+='<div class="sv-gwrap"><table class="sv-grid sum"><tr><th></th>'+q.o.map(function(o){return '<th>'+cmEsc(o)+'</th>'}).join('')+'</tr>'+(q.r||[]).map(function(r,ri){return '<tr><td>'+cmEsc(r)+'</td>'+q.o.map(function(o,j){var x=g[ri][j];return '<td title="'+cmEsc(r)+' · '+cmEsc(o)+': '+x+'명"><span class="hc" style="--a:'+(x/gm).toFixed(2)+(x/gm>.55?';color:#fff':'')+'">'+x+'</span></td>'}).join('')+'</tr>'}).join('')+'</table></div>'}
+    else if(q.k==='file'){var fs=[];vals.forEach(function(v){(v||[]).forEach(function(f){fs.push(f)})});h+='<div class="sv-files">'+fs.slice(0,60).map(function(f){return '<div class="sv-file">'+(/^p\//.test(f.k)?'<img data-mk="'+cmEsc(f.k)+'">':'')+'<a onclick="svFileOpen(\''+cmEsc(f.k)+'\')">'+cmEsc(f.n||'파일')+'</a></div>'}).join('')+'</div>'}
+    else h+=svTextList(svTally(vals));
+    h+='</div>'});return h}
+function svTextList(t){var more=t.length>40;return '<div class="sv-tl">'+t.slice(0,40).map(function(x){return '<div><span>'+svLink(x[0])+'</span>'+(x[1]>1?'<b>'+x[1]+'</b>':'')+'</div>'}).join('')+'</div>'+(more?'<div class="sv-note">외 '+(t.length-40)+'개 — 엑셀로 받아 모두 볼 수 있어요</div>':'')}
+/* 응답을 글로 — 엑셀 · 질문별 보기 */
+function svAnsText(q,v){if(svEmpty(q,v))return '';
+  if(q.k==='one'||q.k==='drop')return typeof v==='number'?(q.o[v]||''):'기타: '+v;
+  if(q.k==='many')return v.map(function(j){return typeof j==='number'?q.o[j]:'기타: '+j}).join(', ');
+  if(q.k==='file')return v.map(function(f){return f.n||'파일'}).join(', ');
+  if(q.k==='grid'||q.k==='cgrid')return (q.r||[]).map(function(r,ri){var x=v[ri];return r+': '+(Array.isArray(x)?x.map(function(j){return q.o[j]}).join('/'):x!=null?q.o[x]:'')}).join(' · ');
+  return String(v)}
+/* 질문별 보기 — 답마다 몇 명 · 누가 */
+function svByQHtml(){var R=SV.res,qs=R.sv.qs.filter(svIsQ),i=Math.min(R.qi,qs.length-1),q=qs[i];
+  var h='<div class="sv-card"><div class="sv-pager"><button class="cv-ib" onclick="SV.res.qi=Math.max(0,SV.res.qi-1);svResDraw()" aria-label="이전"'+(i?'':' disabled')+'>'+svIc(SVI.back)+'</button><select onchange="SV.res.qi=+this.value;svResDraw()">'+qs.map(function(x,j){return '<option value="'+j+'"'+(j===i?' selected':'')+'>'+(j+1)+'. '+cmEsc((x.t||'').slice(0,40))+'</option>'}).join('')+'</select><button class="cv-ib" onclick="SV.res.qi=Math.min('+(qs.length-1)+',SV.res.qi+1);svResDraw()" aria-label="다음"'+(i<qs.length-1?'':' disabled')+'><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div></div>';
+  var g={},o=[];R.rows.forEach(function(r){var t=svAnsText(q,r.a&&r.a[q.id])||'(응답 없음)';if(!g[t]){g[t]=[];o.push(t)}g[t].push(r)});o.sort(function(a,b){return g[b].length-g[a].length});
+  return h+o.map(function(t){return '<div class="sv-card"><div class="sv-qa">'+svLink(t)+'</div><div class="sv-rmeta">응답 '+g[t].length+'개'+(R.sv.anon?'':' · '+g[t].map(function(r){return cmEsc(r.name)}).join(', '))+'</div></div>'}).join('')}
+/* 개별 보기 — 한 사람 응답을 설문 모양 그대로, 퀴즈면 점수 직접 주기 */
+function svOneHtml(){var R=SV.res,sv=R.sv,rows=R.rows,i=Math.min(R.ri,rows.length-1),r=rows[i],quiz=sv.set&&sv.set.quiz,sc=svScore(sv,r);
+  var h='<div class="sv-card"><div class="sv-pager"><button class="cv-ib" onclick="SV.res.ri=Math.max(0,SV.res.ri-1);svResDraw()" aria-label="이전"'+(i?'':' disabled')+'>'+svIc(SVI.back)+'</button><select onchange="SV.res.ri=+this.value;svResDraw()">'+rows.map(function(x,j){return '<option value="'+j+'"'+(j===i?' selected':'')+'>'+(j+1)+' / '+rows.length+(sv.anon?'':' · '+cmEsc(x.name))+'</option>'}).join('')+'</select><button class="cv-ib" onclick="SV.res.ri=Math.min('+(rows.length-1)+',SV.res.ri+1);svResDraw()" aria-label="다음"'+(i<rows.length-1?'':' disabled')+'><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button><span class="cv-sp"></span><button class="cv-ib" onclick="svDelOne(\''+r.id+'\')" title="이 응답 삭제" aria-label="이 응답 삭제">'+svIc(SVI.del)+'</button></div>'+
+    (sv.anon?'':'<div class="sv-rmeta">'+cmEsc(r.name)+' · '+(r.at?cmAgoFuture(r.at):'')+(r.ed?' · 고친 시각 '+cmAgoFuture(r.ed):'')+'</div>')+(quiz?'<div class="sv-score sm"><b>'+sc.got+'</b> / '+sc.max+'점</div>':'')+'</div>';
+  (sv.qs||[]).forEach(function(q){if(q.k==='sec'){h+='<div class="sv-sumsec">'+cmEsc(q.t||'섹션')+'</div>';return}if(!svIsQ(q))return;var key=R.key[q.id]||{},ans=key.ans;
+    var mark=ans!=null&&(q.k==='one'||q.k==='many'||q.k==='drop')?function(j){return (Array.isArray(ans)?ans.indexOf(j)>=0:ans===j)?' right':''}:null;var g=sc.per[q.id];
+    h+='<div class="sv-card fq'+(quiz&&q.pt&&g!=null?(g>=q.pt?' good':' wrong'):'')+'"><div class="sv-qtt">'+cmEsc(q.t)+'</div>'+svInputHtml(q,r.a&&r.a[q.id],true,mark)+
+      (quiz&&q.pt?'<div class="sv-grade">점수 <input type="number" min="0" max="'+q.pt+'" value="'+(g==null?'':g)+'" placeholder="-" oninput="SV.res.man[\''+q.id+'\']=this.value"> / '+q.pt+(r.man&&r.man[q.id]!=null?' <em>직접 준 점수</em>':r.sc&&r.sc[q.id]!=null?' <em>자동 채점</em>':'')+'</div>':'')+'</div>'});
+  if(quiz)h+='<button class="cv-btn pri sv-wide" onclick="svGradeSave(\''+r.id+'\')">점수 저장</button>';
+  return h}
+function svGradeSave(id){var R=SV.res,pts={};Object.keys(R.man).forEach(function(k){pts[k]=R.man[k]===''?null:+R.man[k]});if(!Object.keys(pts).length){toast('바꾼 점수가 없어요');return}
+  bdApi('/survey/grade',{sid:SV.ed.sid,id:id,pts:pts}).then(function(){R.man={};toast('점수를 저장했어요');svResDraw(1)}).catch(function(e){toast(e.message)})}
+
+/* 엑셀 — 응답 시트(한 사람 한 줄, 그리드는 행마다 열) + 요약 시트 */
+function svXlsx(){var R=SV.res;if(!R)return;svXlsxLib(function(){var sv=R.sv,qs=sv.qs.filter(svIsQ),quiz=sv.set&&sv.set.quiz;
+  var head=(sv.anon?[]:['타임스탬프','이름']).concat(quiz?['점수']:[]);qs.forEach(function(q){if(q.k==='grid'||q.k==='cgrid')(q.r||[]).forEach(function(r){head.push(q.t+' ['+r+']')});else head.push(q.t)});
+  var pad=function(n){return (n<10?'0':'')+n},ts=function(t){if(!t)return '';var d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())};
+  var rows=[head].concat(R.rows.map(function(r){var line=(sv.anon?[]:[ts(r.at),r.name]);if(quiz){var s=svScore(sv,r);line.push(s.got+' / '+s.max)}
+    qs.forEach(function(q){var v=r.a&&r.a[q.id];if(q.k==='grid'||q.k==='cgrid')(q.r||[]).forEach(function(_,ri){var x=Array.isArray(v)?v[ri]:null;line.push(Array.isArray(x)?x.map(function(j){return q.o[j]}).join(', '):x!=null?q.o[x]:'')});
+      else if((q.k==='scale'||q.k==='rating')&&typeof v==='number')line.push(v);else line.push(svAnsText(q,v))});return line}));
+  var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=head.map(function(h,i){return {wch:Math.min(40,Math.max(10,String(h).length*1.6))}});
+  var sum=[['질문','항목','응답 수','비율']];qs.forEach(function(q){var vals=R.rows.map(function(r){return r.a&&r.a[q.id]}).filter(function(v){return !svEmpty(q,v)}),n=vals.length;
+    if(svChoice(q.k)){var c=q.o.map(function(){return 0}),oth=0;vals.forEach(function(v){(Array.isArray(v)?v:[v]).forEach(function(j){if(typeof j==='string')oth++;else if(c[j]!=null)c[j]++})});q.o.forEach(function(o,j){sum.push([q.t,o,c[j],n?Math.round(c[j]/n*1000)/10+'%':''])});if(q.oth)sum.push([q.t,'기타',oth,n?Math.round(oth/n*1000)/10+'%':''])}
+    else if(q.k==='scale'||q.k==='rating'){var lo=q.k==='scale'?(q.lo==null?1:q.lo):1;for(var i=lo;i<=(q.hi||5);i++){var x=vals.filter(function(v){return v===i}).length;sum.push([q.t,String(i),x,n?Math.round(x/n*1000)/10+'%':''])}sum.push([q.t,'평균',n?Math.round(vals.reduce(function(a,b){return a+b},0)/n*100)/100:'',''])}
+    else if(q.k==='grid'||q.k==='cgrid')(q.r||[]).forEach(function(r,ri){q.o.forEach(function(o,j){sum.push([q.t+' ['+r+']',o,vals.filter(function(v){var x=v[ri];return Array.isArray(x)?x.indexOf(j)>=0:x===j}).length,''])})});
+    else sum.push([q.t,'(글 응답)',n,''])});
+  var ws2=XLSX.utils.aoa_to_sheet(sum);ws2['!cols']=[{wch:36},{wch:24},{wch:10},{wch:10}];
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'응답');XLSX.utils.book_append_sheet(wb,ws2,'요약');
+  XLSX.writeFile(wb,String(sv.t||'설문').replace(/[\\\/:*?"<>|]/g,'_').slice(0,60)+'_응답.xlsx');toast('엑셀로 받았어요')})}
+/* 인쇄 — 요약을 새 창에 */
+function svPrint(){var R=SV.res;if(!R)return;var w=window.open('','_blank');if(!w){toast('팝업이 막혀 있어요');return}var sub=R.sub;R.sub='sum';svResDraw();var cl=$('SV-BODY').cloneNode(true);cl.querySelectorAll('.sv-rtop,.sv-sub,button,select').forEach(function(x){x.remove()});R.sub=sub;svResDraw();
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+cmEsc(R.sv.t)+'</title><style>body{font-family:-apple-system,"Pretendard",sans-serif;color:#111;margin:24px;--svc:'+(R.sv.th&&R.sv.th.c||SV_COL)+';--card:#fff;--text:#111;--text-2:#444;--text-3:#888;--border:#ddd;--border-soft:#f3f3f3}'+svPrintCss()+'</style></head><body><h1>'+cmEsc(R.sv.t)+'</h1><p>응답 '+R.rows.length+'개</p>'+cl.innerHTML+'</body></html>');w.document.close();setTimeout(function(){w.print()},600)}
+function svPrintCss(){var out='';try{[].forEach.call(document.styleSheets,function(s){try{[].forEach.call(s.cssRules,function(r){if(r.selectorText&&/\.sv-/.test(r.selectorText))out+=r.cssText})}catch(_){}})}catch(_){}return out+'button,.sv-pager,select{display:none!important}.sv-card{break-inside:avoid;border:1px solid #ddd}'}
 
 /* ── 업무 댓글: 발주 · 연차 · 상담 건 아래 대화 ──
    쓰는 곳: wcMount(상자 id, {kind:'order'|'leave'|'consult', wid:건 id, label:'10/23 플래그십 발주', owner:건 올린 사람 폰, url:'./#p-hist'}) */

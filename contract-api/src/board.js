@@ -6,13 +6,12 @@
  *   /board/posts/{bid}/{pid}     { t 제목, x 본문, by, bn, at, ed, must:{due} 필독, pin, md 첨부, cc 댓글 수 }
  *   /board/reads/{bid}/{pid}/{폰}  읽은(확인한) 시각
  *   /board/cmt/{bid}/{pid}/{cid}   { by, bn, at, x, mn }
- * 설문 — 응답은 잠긴 /surveyAns 에만 두고 결과는 서버가 모아서 준다(익명 설문은 사람과 답을 따로 저장)
- *   /surveys/{sid}               { t, by, bn, at, end, anon, tp:{폰:1} 받는 사람, qs:[{k,t,o,req}], st open|closed }
- *   /surveyAns/{sid}/{폰}         실명 응답 { a:[...], at }
- *   /surveyAns/{sid}/_anon/{id}   익명 응답 { a, at }  ·  /surveyAns/{sid}/_who/{폰} = 1 (응답 여부만)
+ * 설문 — survey.js (여기엔 예전 앱이 부르는 /survey/create 만 남김)
  * 업무 댓글 — 발주 · 연차 · 상담 건 아래 대화
  *   /workCmt/{kind}/{id}/{cid}   { by, bn, at, x, mn }   ·  /workCmt/{kind}/{id}/_who/{폰} 참여자
  */
+
+import { makeSurvey } from './survey.js';
 
 const MANAGER_GRADES = ['경영팀', '관리자'];
 const OWNER_PHONES = ['01042885562', '01082470187'];
@@ -35,6 +34,7 @@ export const DEFAULT_BOARDS = {
 
 export function makeBoard(deps) {
   const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible } = deps;
+  const survey = makeSurvey(deps);
 
   async function meUser(env, me) {
     if (me.admin) throw new Error('본사 관리자 입구는 쓸 수 없습니다. 본인 계정으로 로그인해 주세요');
@@ -200,89 +200,11 @@ export function makeBoard(deps) {
     return { sid };
   }
 
-  async function surveyAnswer(env, me, body) {
-    await meUser(env, me); const ph = String(me.ph);
-    const sid = String(body.sid || ''); if (!okId(sid)) throw new Error('설문 정보가 올바르지 않습니다');
-    const sv = await dbGet(env, '/surveys/' + sid);
-    if (!sv) throw new Error('없는 설문입니다');
-    if (!sv.tp || !sv.tp[ph]) throw new Error('이 설문 대상이 아닙니다');
-    if (sv.st !== 'open' || (sv.end && nowMs() > sv.end)) throw new Error('마감된 설문입니다');
-    const a = Array.isArray(body.a) ? body.a : [];
-    const out = sv.qs.map((q, i) => {
-      const v = a[i];
-      if (q.k === 'one') return Number.isInteger(v) && v >= 0 && v < q.o.length ? v : null;
-      if (q.k === 'many') return Array.isArray(v) ? [...new Set(v.filter((n) => Number.isInteger(n) && n >= 0 && n < q.o.length))] : null;
-      if (q.k === 'score') return Number.isInteger(v) && v >= 1 && v <= 5 ? v : null;
-      if (q.k === 'grid') return Array.isArray(v) ? v.slice(0, (q.r || []).length).map((n) => (Number.isInteger(n) && n >= 0 && n < q.o.length ? n : null)) : null;
-      if (q.k === 'photo') return /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || '')) ? String(v) : null;
-      return v == null ? null : clip(v, q.k === 'long' ? 3000 : 300);
-    });
-    sv.qs.forEach((q, i) => { const v = out[i]; if (q.req && (v == null || v === '' || (Array.isArray(v) && !v.length))) throw new Error(`'${q.t}' 에 답해 주세요`); });
-    const rec = { a: out, at: nowMs() };
-    if (sv.anon) {
-      const done = await dbGet(env, `/surveyAns/${sid}/_who/${ph}`).catch(() => null);
-      if (done) throw new Error('이미 응답했습니다 (익명 설문은 고칠 수 없습니다)');
-      /* 익명: 시각을 남기지 않고 키도 무작위로 — 응답 시각으로 사람을 맞춰 볼 수 없게 */
-      const rid = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(36).padStart(2, '0')).join('');
-      await dbPatch(env, '/', { [`surveyAns/${sid}/_anon/${rid}`]: { a: out }, [`surveyAns/${sid}/_who/${ph}`]: 1, [`chat/act/${ph}/s_${sid}/done`]: 1 });
-    } else {
-      await dbPatch(env, '/', { [`surveyAns/${sid}/${ph}`]: rec, [`chat/act/${ph}/s_${sid}/done`]: 1 });
-    }
-    return {};
-  }
-
-  async function surveyMine(env, me, body) {
-    await meUser(env, me);
-    const sid = String(body.sid || ''); if (!okId(sid)) throw new Error('설문 정보가 올바르지 않습니다');
-    const sv = await dbGet(env, '/surveys/' + sid);
-    if (!sv) throw new Error('없는 설문입니다');
-    if (sv.anon) return { answered: !!(await dbGet(env, `/surveyAns/${sid}/_who/${me.ph}`).catch(() => null)), anon: true };
-    const a = await dbGet(env, `/surveyAns/${sid}/${me.ph}`).catch(() => null);
-    return { answered: !!a, a: a ? a.a : null };
-  }
-
-  /* 결과 — 만든 사람 · 경영팀. 익명이면 누가 무엇을 답했는지는 주지 않는다 */
-  async function surveyResult(env, me, body) {
-    const u = await meUser(env, me); const ph = String(me.ph);
-    const sid = String(body.sid || ''); if (!okId(sid)) throw new Error('설문 정보가 올바르지 않습니다');
-    const sv = await dbGet(env, '/surveys/' + sid);
-    if (!sv) throw new Error('없는 설문입니다');
-    if (sv.by !== ph && !isHq(ph, u)) throw new Error('결과는 만든 사람과 경영팀만 볼 수 있습니다');
-    const all = (await dbGet(env, '/surveyAns/' + sid).catch(() => null)) || {};
-    const { us } = await eligible(env);
-    let rows, who;
-    if (sv.anon) { rows = Object.values(all._anon || {}).map((r) => ({ a: r.a })); who = Object.keys(all._who || {}); }
-    else { rows = Object.entries(all).filter(([k]) => !k.startsWith('_')).map(([p, r]) => ({ ph: p, name: nameOf(us[p]), a: r.a, at: r.at })); who = rows.map((r) => r.ph); }
-    const pending = Object.keys(sv.tp || {}).filter((p) => !who.includes(p)).map((p) => nameOf(us[p]) || p);
-    return { sv: { ...sv, tp: undefined, n: Object.keys(sv.tp || {}).length }, rows, answered: who.length, pending };
-  }
-
-  async function surveyNudge(env, me, body) {
-    const u = await meUser(env, me); const ph = String(me.ph);
-    const sid = String(body.sid || ''); const sv = await dbGet(env, '/surveys/' + sid);
-    if (!sv) throw new Error('없는 설문입니다');
-    if (sv.by !== ph && !isHq(ph, u)) throw new Error('만든 사람 · 경영팀만 다시 알릴 수 있습니다');
-    const all = (await dbGet(env, '/surveyAns/' + sid).catch(() => null)) || {};
-    const done = sv.anon ? (all._who || {}) : all;
-    const rest = Object.keys(sv.tp || {}).filter((p) => !done[p]);
-    if (rest.length) await pushToPhones(env, rest, { title: '[설문 다시 알림] ' + sv.t, body: '아직 응답하지 않으셨어요', url: './#survey/' + sid, tag: 'survey-' + sid }, { urgency: 'high' });
-    return { sent: rest.length };
-  }
-
-  async function surveyClose(env, me, body) {
-    const u = await meUser(env, me); const ph = String(me.ph);
-    const sid = String(body.sid || ''); const sv = await dbGet(env, '/surveys/' + sid);
-    if (!sv) throw new Error('없는 설문입니다');
-    if (sv.by !== ph && !isHq(ph, u)) throw new Error('만든 사람 · 경영팀만 마감할 수 있습니다');
-    await dbPut(env, `/surveys/${sid}/st`, 'closed');
-    return {};
-  }
-
   /* 미디어 열람 범위 확인용 — board:{bid} 는 그 게시판을 볼 수 있는 사람, survey:{sid} 는 만든 사람 · 경영팀 · 대상자 */
   async function canSeeScope(env, me, scope) {
     const u = await meUser(env, me); const ph = String(me.ph);
     if (scope.startsWith('board:')) { const b = await boardOf(env, scope.slice(6)); return canSee(b, ph, u); }
-    if (scope.startsWith('survey:')) { const sv = await dbGet(env, '/surveys/' + scope.slice(7)); return !!sv && (sv.by === ph || isHq(ph, u) || !!(sv.tp && sv.tp[ph])); }
+    if (scope.startsWith('survey:')) return survey.canSee(env, me, scope.slice(7));
     return false;
   }
 
@@ -301,12 +223,9 @@ export function makeBoard(deps) {
         case '/board/mute': out = await boardMute(env, me, body); break;
         case '/work/comment': out = await comment(env, ctx, me, { ...body, bid: null }); break;
         case '/survey/create': out = await surveyCreate(env, ctx, me, body); break;
-        case '/survey/answer': out = await surveyAnswer(env, me, body); break;
-        case '/survey/mine': out = await surveyMine(env, me, body); break;
-        case '/survey/result': out = await surveyResult(env, me, body); break;
-        case '/survey/nudge': out = await surveyNudge(env, me, body); break;
-        case '/survey/close': out = await surveyClose(env, me, body); break;
-        default: return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
+        default:
+          if (survey.R[path]) { out = await survey.R[path](env, ctx, me, body); break; }
+          return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
       }
       return json({ ok: true, ...(out || {}) }, 200, origin);
     } catch (e) {
