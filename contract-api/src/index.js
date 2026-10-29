@@ -537,6 +537,19 @@ export default {
             for (const k of ['title', 'enName', 'bio', 'naver', 'insta', 'photo']) {
               if (typeof pi[k] === 'string' && pi[k]) pf[k] = pi[k];
             }
+            /* 디자인(디자이너 개인 작업물) 갤러리 — 손님 보라고 올린 사진. 사진 주소와 필터용 칸만 내보낸다.
+               이게 빠져 있어서 10/1 부터 QR 상담 화면의 디자이너 '디자인' 갤러리가 비어 있었다. */
+            if (Array.isArray(pi.lookbook)) {
+              const lb = [];
+              for (const it of pi.lookbook) {
+                if (!it || typeof it.u !== 'string' || !/^https:\/\//.test(it.u)) continue;
+                const o = { u: it.u };
+                for (const k of ['g', 's', 'c', 'l', 't']) if (typeof it[k] === 'string' && it[k]) o[k] = it[k].slice(0, 40);
+                lb.push(o);
+                if (lb.length >= 300) break;
+              }
+              if (lb.length) pf.lookbook = lb;
+            }
             d.profile = pf;
           }
           list.push(d);
