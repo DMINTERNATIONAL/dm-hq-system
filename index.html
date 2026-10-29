@@ -8062,7 +8062,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-29-6',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-29-7',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10978,10 +10978,10 @@ function calPickRefresh(){var b=$('PK-BODY');if(!b||!CAL.pk)return;var q=($('PK-
   var ok=function(p){return p!==ME.phone&&!skip[p]};
   var nn=Object.keys(sel).filter(ok).length;$('PK-N').textContent=nn?nn+'명 선택':'';
   var h='';if(!q){var gg=gs.map(function(g){return {k:g.k,n:g.n,m:g.m.filter(ok)}}).filter(function(g){return g.m.length});
-    /* 묶음은 드롭다운 — 닫혀 있으면 한 줄(다 고른 묶음 이름), 열면 체크 목록 */
+    /* 그룹은 드롭다운 — 닫혀 있으면 한 줄(다 고른 그룹 이름), 열면 체크 목록 */
     if(gg.length){var full=[],rows=gg.map(function(g){var n=g.m.filter(function(p){return sel[p]}).length,st=n===0?'':n===g.m.length?'all':'part';if(st==='all')full.push(g.n);
       return '<button class="'+st+'" onclick="calGroupSet(\''+g.k.replace(/'/g,"\\'")+'\','+(st==='all'?0:1)+')"><span class="bx"><svg viewBox="0 0 24 24"><path d="'+(st==='part'?'M6 12h12':'M5 12l5 5L20 7')+'"/></svg></span><span class="nm">'+cmEsc(g.n)+'</span><em>'+(n&&st!=='all'?n+'/':'')+g.m.length+'명</em></button>'}).join('');
-      h+='<div class="cv-pk-dd'+(CAL.pk.gOpen?' open':'')+'"><button class="hd" onclick="CAL.pk.gOpen=!CAL.pk.gOpen;CAL.pk.gAnim=CAL.pk.gOpen;calPickRefresh()"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 14.5c3 0 6 1.6 6 4.5"/></svg><span><b>묶음으로 한 번에 고르기</b><em>'+(full.length?cmEsc(full.slice(0,2).join(', '))+(full.length>2?' 외 '+(full.length-2)+'개':'')+' 선택됨':'전체 직원 · 경영팀 · 브랜드별 디자이너 등')+'</em></span><svg class="cv" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>'+
+      h+='<div class="cv-pk-dd'+(CAL.pk.gOpen?' open':'')+'"><button class="hd" onclick="CAL.pk.gOpen=!CAL.pk.gOpen;CAL.pk.gAnim=CAL.pk.gOpen;calPickRefresh()"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 14.5c3 0 6 1.6 6 4.5"/></svg><span><b>그룹</b><em>'+(full.length?cmEsc(full.slice(0,2).join(', '))+(full.length>2?' 외 '+(full.length-2)+'개':'')+' 선택됨':'전체 직원 · 경영팀 · 브랜드별 디자이너 등')+'</em></span><svg class="cv" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>'+
         (CAL.pk.gOpen?'<div class="ls'+(CAL.pk.gAnim?' anim':'')+'">'+rows+'</div>':'')+'</div>';CAL.pk.gAnim=false}}
   var ppl=Object.keys(CAL.users).filter(function(p){var u=CAL.users[p];if(!calActive(u)||!ok(p))return false;if(!q)return true;return [u.nick,u.name,u.branch,u.brand,calRoleOf(u)].join(' ').toLowerCase().indexOf(q)>=0}).sort(function(a,b){var ua=CAL.users[a],ub=CAL.users[b],r=function(u){return calIsHq(u)?0:calIsDes(u)?1:calHasRole(u,'카운터')?2:3};return (ua.brand||'')<(ub.brand||'')?-1:(ua.brand||'')>(ub.brand||'')?1:r(ua)-r(ub)||(calName(a)<calName(b)?-1:1)});
   h+='<div class="cv-pk-t">'+(q?'검색 결과 '+ppl.length+'명':'한 사람씩')+'</div>'+ppl.map(function(p){var u=CAL.users[p],on=!!sel[p];return '<button class="cv-pk-p'+(on?' on':'')+'" onclick="calPickTog(\''+p+'\')">'+calAvatar(p,34)+'<span><b>'+cmEsc(calName(p))+'</b><em>'+cmEsc([u.brand==='DM INTERNATIONAL'?'':u.brand,calRoleOf(u),u.branch&&u.branch!=='본사'?u.branch:''].filter(Boolean).join(' · '))+'</em></span><span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span></button>'}).join('')+(ppl.length?'':'<div class="cv-empty sm">'+(q?'찾는 사람이 없어요':'더할 사람이 없어요')+'</div>');
