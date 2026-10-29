@@ -8237,7 +8237,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-10-29-10',DM_UPDATE_READY=false;
+var DM_BUILD='2026-10-30-1',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10517,12 +10517,14 @@ function svRender(){var v=$('CM-VIEW');if(!v)return;if(!SV.list){v.innerHTML='<d
   var mine=function(x){return x.by===me||!!(x.co&&x.co[me])};
   var recv=ids.filter(function(s){var x=SV.list[s];return x&&x.st!=='draft'&&x.tp&&x.tp[me]});
   var made=ids.filter(function(s){var x=SV.list[s];return x&&(mine(x)||(cmIsHq()&&x.st!=='draft'))&&!(x.tp&&x.tp[me])});
+  var pub=ids.filter(function(s){var x=SV.list[s];if(!x||x.st==='draft'||mine(x)||(x.tp&&x.tp[me])||cmIsHq())return false;var st=x.set||{};return !!(st.pv&&st.pv[me])||st.pub==='all'});
   var done=function(s){var a=(CM.act||{})['s_'+s];return a&&a.done};
-  var row=function(s,mode){var x=SV.list[s];var c=x.th&&x.th.c||SV_COL;var st=mode==='made'?(x.st==='draft'?'초안':svClosed(x)?'마감':'응답 받는 중'):(done(s)?'응답함':svClosed(x)?'마감':'미응답');
+  var row=function(s,mode){var x=SV.list[s];var c=x.th&&x.th.c||SV_COL;var st=mode==='made'?(x.st==='draft'?'초안':svClosed(x)?'마감':'응답 받는 중'):mode==='pub'?'결과 보기':(done(s)?'응답함':svClosed(x)?'마감':'미응답');
     var nq=(x.qs||[]).filter(function(q){return !q.k||svIsQ(q)||q.k==='score'||q.k==='photo'}).length;
-    return '<div class="sv-li" style="--svc:'+c+'" onclick="'+(mode==='made'?'svEdit':'svAnswer')+'(\''+s+'\')"><i class="bar"></i><div class="m"><div class="tp"><span>'+cmEsc(x.bn||'')+' · '+cmAgo(x.at)+(x.anon?' · 익명':'')+(x.set&&x.set.quiz?' · 퀴즈':'')+(x.by!==me&&x.co&&x.co[me]?' · 공동 작업':'')+'</span><b class="st '+(st==='미응답'?'red':st==='응답 받는 중'?'blue':st==='초안'?'gray':'')+'">'+st+'</b></div><div class="t">'+cmEsc(x.t||'제목 없는 설문')+'</div><div class="sub">질문 '+nq+'개'+(x.end?' · 마감 '+cmAgoFuture(x.end):'')+'</div></div></div>'};
+    return '<div class="sv-li" style="--svc:'+c+'" onclick="'+(mode==='made'?'svEdit':mode==='pub'?'svSumOpen':'svAnswer')+'(\''+s+'\')"><i class="bar"></i><div class="m"><div class="tp"><span>'+cmEsc(x.bn||'')+' · '+cmAgo(x.at)+(x.anon?' · 익명':'')+(x.set&&x.set.quiz?' · 퀴즈':'')+(x.by!==me&&x.co&&x.co[me]?' · 공동 작업':'')+'</span><b class="st '+(st==='미응답'?'red':st==='응답 받는 중'?'blue':st==='초안'?'gray':'')+'">'+st+'</b></div><div class="t">'+cmEsc(x.t||'제목 없는 설문')+'</div><div class="sub">질문 '+nq+'개'+(x.end?' · 마감 '+cmAgoFuture(x.end):'')+'</div></div></div>'};
   var h='<div class="cm-head"><span class="t">설문</span>'+(svCanCreate()?'<button class="cm-tb" onclick="svNew()">＋ 새 설문</button>':'')+'</div>';
   h+='<div class="cm-grp"><div class="ttl">받은 설문 '+recv.length+'</div>'+(recv.length?recv.map(function(s){return row(s,'recv')}).join(''):'<div class="cm-it" style="color:var(--cm-ink3)">받은 설문이 없어요</div>')+'</div>';
+  if(pub.length)h+='<div class="cm-grp"><div class="ttl">결과가 공개된 설문</div>'+pub.map(function(s){return row(s,'pub')}).join('')+'</div>';
   if(made.length)h+='<div class="cm-grp"><div class="ttl">'+(cmIsHq()?'내가 만든 · 전체 설문':'내가 만든 설문')+'</div>'+made.map(function(s){return row(s,'made')}).join('')+'</div>';
   v.innerHTML=h}
 
@@ -10691,7 +10693,6 @@ function svSetDraw(){var e=SV.ed,b=$('SV-BODY');if(!b)return;var s=e.sv.set,show
     '<div class="sv-sh">보기</div>'+
     sw(s.prog,'SV.ed.sv.set.prog=this.checked','진행률 표시줄','섹션이 여러 개일 때 몇 페이지째인지 보여 줘요')+
     sw(s.shuf,'SV.ed.sv.set.shuf=this.checked','질문 순서 섞기','섹션 안에서 사람마다 질문 순서가 달라져요')+
-    sw(s.pub,'SV.ed.sv.set.pub=this.checked','응답자에게 결과 요약 보여 주기','제출한 사람이 차트 · 응답 모음을 볼 수 있어요 (이름은 안 보여요)')+
     '<div class="sv-srow col"><span><b>확인 메시지</b><em>제출한 뒤 보이는 말</em></span><textarea class="sv-in" rows="2" placeholder="응답이 기록되었습니다." oninput="SV.ed.sv.set.msg=this.value;svDirty()">'+cmEsc(s.msg||'')+'</textarea></div>'+
     '<div class="sv-sh">퀴즈</div>'+
     sw(s.quiz,'SV.ed.sv.set.quiz=this.checked','퀴즈로 만들기','질문마다 배점 · 정답을 정하고 자동으로 채점해요');
@@ -10700,10 +10701,22 @@ function svSetDraw(){var e=SV.ed,b=$('SV-BODY');if(!b)return;var s=e.sv.set,show
   h+='<div class="sv-sh">기본값</div>'+sw(s.req,'SV.ed.sv.set.req=this.checked','새 질문을 필수로')+'</div>';
   h+='<div class="sv-card sv-set"><div class="sv-sh">테마</div><div class="sv-srow col"><span><b>색</b></span>'+calPalHtml(e.sv.th.c||SV_COL,"svColSet(@C)")+'</div>'+
     '<div class="sv-srow col"><span><b>머리글 이미지</b></span>'+(e.sv.th.img?'<img class="sv-hdimg" data-mk="'+cmEsc(e.sv.th.img)+'">':'')+'<span class="sv-btns"><button class="cv-btn" onclick="svImgPick(\'_hd\')">'+(e.sv.th.img?'다른 이미지로':'이미지 올리기')+'</button>'+(e.sv.th.img?'<button class="cv-btn" onclick="SV.ed.sv.th.img=\'\';svDirty();svSetDraw()">빼기</button>':'')+'</span></div></div>';
-  if(e.owner)h+='<div class="sv-card sv-set"><div class="sv-sh">공동 작업자 <span class="cv-sp"></span><button class="sv-lnk blue" onclick="svCoAdd()">+ 추가</button></div><div class="sv-note">함께 질문을 고치고 응답을 볼 수 있어요. 설문 삭제는 만든 사람만 할 수 있어요</div>'+
-    Object.keys(e.sv.co||{}).map(function(ph){return '<div class="cv-mem">'+calAvatar(ph,32)+'<span class="nm"><b>'+cmEsc(calName(ph))+'</b></span><button class="cv-ib sm" onclick="delete SV.ed.sv.co[\''+ph+'\'];svDirty();svSetDraw()" aria-label="빼기">'+svIc(SVI.x,16)+'</button></div>'}).join('')+'</div>';
   h+='<div class="sv-card sv-set"><div class="sv-sh">관리</div><button class="sv-act" onclick="svTplSave()">양식으로 저장 <em>다음에 \'새 설문\'에서 골라 쓸 수 있어요</em></button><button class="sv-act" onclick="svCopy()">사본 만들기 <em>응답 없이 질문만 복사해요</em></button>'+(e.owner&&e.sid?'<button class="sv-act red" onclick="svDelSurvey()">설문 삭제 <em>응답도 모두 지워져요</em></button>':'')+'</div>';
-  b.innerHTML=h;svUsers();if(e.sid)cmFillMedia(b,'survey:'+e.sid);b.querySelectorAll('textarea.sv-in').forEach(svGrow)}
+  b.innerHTML=svShareHtml()+h;svUsers();if(e.sid)cmFillMedia(b,'survey:'+e.sid);b.querySelectorAll('textarea.sv-in').forEach(svGrow)}
+/* 공유 — 누가 설문을 받고, 누가 결과를 보는지 한곳에서 */
+function svShareHtml(){var e=SV.ed,s=e.sv.set,pm=s.pub===true?'resp':(s.pub||''),n=(e.tp||[]).length;
+  var mem=function(ph,del){return '<div class="cv-mem">'+calAvatar(ph,32)+'<span class="nm"><b>'+cmEsc(calName(ph))+'</b></span>'+(del?'<button class="cv-ib sm" onclick="'+del+';svDirty();svSetDraw()" aria-label="빼기">'+svIc(SVI.x,16)+'</button>':'')+'</div>'};
+  var h='<div class="sv-card sv-set"><div class="sv-sh">공유</div>'+
+    '<div class="sv-srow"><span><b>설문 받는 사람</b><em>'+(n?n+'명 · 고른 사람만 설문을 보고 답할 수 있어요':'아직 아무에게도 보내지 않았어요')+'</em></span><button class="cv-btn" onclick="svSendPick()">'+(e.st==='draft'?'보내기':'더 보내기')+'</button></div>'+
+    '<div class="sv-srow col"><span><b>결과 공개</b><em>'+(pm==='resp'?'응답을 제출한 사람이 결과 요약을 볼 수 있어요':pm==='all'?'직원 누구나 소통 › 설문에서 결과 요약을 볼 수 있어요':'아래 \'결과 볼 사람\'과 만든 사람 쪽만 볼 수 있어요')+'</em></span><div class="sv-seg">'+
+      [['','공개 안 함'],['resp','응답한 사람'],['all','전체 직원']].map(function(o){return '<button class="'+(pm===o[0]?'on':'')+'" onclick="SV.ed.sv.set.pub=\''+o[0]+'\';svDirty();svSetDraw()">'+o[1]+'</button>'}).join('')+'</div></div>'+
+    '<div class="sv-srow col"><span><b>결과 볼 사람</b><em>위 설정과 상관없이 이 사람들은 결과 요약을 볼 수 있어요</em></span>'+Object.keys(s.pv||{}).map(function(ph){return mem(ph,'delete SV.ed.sv.set.pv[\''+ph+'\']')}).join('')+'<button class="sv-lnk blue" onclick="svPvAdd()">+ 사람 추가</button></div>'+
+    '<div class="sv-note">결과 요약은 차트와 응답 모음만 보여요. 누가 뭐라고 답했는지(이름 · 개별 응답 · 엑셀)는 만든 사람 · 공동 작업자 · 경영팀만 볼 수 있어요</div>';
+  if(e.owner)h+='<div class="sv-sh2" style="display:flex;align-items:center">공동 작업자 <span class="cv-sp"></span><button class="sv-lnk blue" onclick="svCoAdd()">+ 추가</button></div><div class="sv-note">함께 질문을 고치고 전체 응답을 볼 수 있어요. 설문 삭제는 만든 사람만 할 수 있어요</div>'+
+    Object.keys(e.sv.co||{}).map(function(ph){return mem(ph,'delete SV.ed.sv.co[\''+ph+'\']')}).join('');
+  return h+'</div>'}
+function svPvAdd(){var e=SV.ed,s=e.sv.set,sel={},skip={};skip[e.by||ME.phone]=1;Object.keys(e.sv.co||{}).concat(Object.keys(s.pv||{})).forEach(function(p){skip[p]=1});svUsers();
+  calPick({sel:sel,skip:skip,t:'결과 볼 사람',ok:'추가',done:function(){var l=Object.keys(sel).filter(function(p){return !skip[p]});if(!l.length)return;s.pv=s.pv||{};l.forEach(function(p){s.pv[p]=1});svDirty();svSetDraw();toast(l.length+'명이 결과 요약을 볼 수 있어요')}})}
 function svColSet(c){SV.ed.sv.th.c=c;svDirty();svEdDraw()}
 function svEndSet(v){var e=SV.ed,t=v?new Date(v).getTime():0;if(t&&t<Date.now()){toast('지난 시각이에요');svSetDraw();return}e.sv.end=t;svDirty();
   if(e.st!=='draft')svSaveNow().then(function(){return bdApi('/survey/state',{sid:e.sid,open:!svClosed({st:e.stLive||e.st,end:0}),end:t})}).catch(function(){});svSetDraw()}
@@ -10724,6 +10737,10 @@ function svSendPick(){var e=SV.ed;if(!e.sv.t.trim()){toast('설문 제목을 입
 function svAnswer(arg){var m=String(arg).split('/'),sid=m[0];if(m[1]==='r')return svEdit(sid,'r');go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
   bdApi('/survey/mine',{sid:sid}).then(function(r){if(r.editor&&!r.target)return svEdit(sid);svFillStart({sid:sid,sv:r.sv,a:r.a||{},answered:r.answered,quiz:r.quiz,mode:'live'})})
   .catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
+/* 결과만 공개받은 사람 — 요약만 연다 */
+function svSumOpen(sid){go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
+  bdApi('/survey/summary',{sid:sid}).then(function(r){r.sv.set=r.sv.set||{};SV.rs={sid:sid,sv:r.sv,a:{},mode:'view',view:'sum',sum:r};svFillDraw()})
+  .catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
 function svPreview(){var e=SV.ed;svFillStart({sid:e.sid,sv:JSON.parse(JSON.stringify(e.sv)),a:{},answered:false,mode:'pv'})}
 function svLsKey(sid){return 'sv_ans_'+sid+'_'+ME.phone}
 function svFillStart(o){var rs=SV.rs=o;var sv=rs.sv;sv.set=sv.set||{};rs.secs=svSecs(sv);rs.stack=[0];rs.err={};rs.ord={};
@@ -10733,9 +10750,9 @@ function svFillStart(o){var rs=SV.rs=o;var sv=rs.sv;sv.set=sv.set||{};rs.secs=sv
   if(rs.mode==='live'&&!rs.answered){try{var d=JSON.parse(localStorage.getItem(svLsKey(rs.sid))||'null');if(d&&d.a)rs.a=d.a}catch(_){}}
   rs.view=rs.answered&&rs.mode==='live'?'done':'fill';go('p-comm-sv');svBot(false);svFillDraw()}
 function svFillDraw(){var rs=SV.rs,p=$('p-comm-sv');if(!rs||!p)return;var sv=rs.sv,c=(sv.th&&sv.th.c)||SV_COL;
-  var top='<div class="sv-top">'+(rs.mode==='pv'?'<button class="cv-ib" onclick="svEdOpen()" aria-label="편집으로">'+svIc(SVI.back)+'</button><div class="nm"><b>미리보기</b><em>응답은 저장되지 않아요</em></div>':'<button class="cv-ib" onclick="svLeave()" aria-label="뒤로">'+svIc(SVI.back)+'</button><div class="nm"><b>설문</b></div>')+'</div>';
+  var top='<div class="sv-top">'+(rs.mode==='pv'?'<button class="cv-ib" onclick="svEdOpen()" aria-label="편집으로">'+svIc(SVI.back)+'</button><div class="nm"><b>미리보기</b><em>응답은 저장되지 않아요</em></div>':'<button class="cv-ib" onclick="svLeave()" aria-label="뒤로">'+svIc(SVI.back)+'</button><div class="nm"><b>'+(rs.mode==='view'?'결과 요약':'설문')+'</b></div>')+'</div>';
   var hd='<div class="sv-card sv-hd fill">'+(sv.th&&sv.th.img?'<img class="sv-hdimg" data-mk="'+cmEsc(sv.th.img)+'">':'')+'<div class="sv-ftitle">'+cmEsc(sv.t||'제목 없는 설문')+'</div>'+(sv.desc?'<div class="sv-fdesc">'+svLink(sv.desc)+'</div>':'')+
-    '<div class="sv-fmeta">'+cmEsc(sv.bn||'')+(sv.anon?' · 익명 (누가 답했는지 만든 사람도 볼 수 없어요)':' · 실명 (응답에 내 이름이 함께 기록돼요)')+(sv.end?' · 마감 '+cmAgoFuture(sv.end):'')+'</div>'+(rs.view==='fill'&&sv.qs.some(function(q){return q.req})?'<div class="sv-freq">* 표시는 필수 질문</div>':'')+'</div>';
+    '<div class="sv-fmeta">'+cmEsc(sv.bn||'')+(rs.mode==='view'?' · 결과 요약':sv.anon?' · 익명 (누가 답했는지 만든 사람도 볼 수 없어요)':' · 실명 (응답에 내 이름이 함께 기록돼요)')+(sv.end?' · 마감 '+cmAgoFuture(sv.end):'')+'</div>'+(rs.view==='fill'&&sv.qs.some(function(q){return q.req})?'<div class="sv-freq">* 표시는 필수 질문</div>':'')+'</div>';
   var h='<div class="sv-ed sv-fill" style="--svc:'+c+'">'+top+'<div class="sv-fbody">'+hd;
   if(rs.view==='done')h+=svDoneHtml();
   else if(rs.view==='sum')h+='<div id="SV-SUM"><div class="sk"></div></div>';
@@ -10822,7 +10839,7 @@ function svDoneHtml(){var rs=SV.rs,sv=rs.sv,set=sv.set||{},closed=svClosed(sv);v
   if(rs.mode==='pv')h+='<button class="sv-lnk blue" onclick="svPreview()">다시 해 보기</button>';
   else{if(set.edit&&!sv.anon&&!closed)h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'fill\';SV.rs.stack=[0];svFillDraw()">응답 수정</button>';
     if(!sv.anon&&rs.a&&Object.keys(rs.a).length)h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'mine\';svMineDraw()">내 응답 보기</button>';
-    if(set.pub)h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'sum\';svFillDraw()">결과 요약 보기</button>'}
+    if(set.pub||(set.pv&&set.pv[ME.phone]))h+='<button class="sv-lnk blue" onclick="SV.rs.view=\'sum\';svFillDraw()">결과 요약 보기</button>'}
   h+='</div></div>';
   if(rs.quiz)h+=svQuizCard(rs.quiz);else if(set.quiz&&!sv.anon&&rs.mode==='live'&&set.rel==='later')h+='<div class="sv-card"><div class="sv-note">점수는 만든 사람이 공개하면 볼 수 있어요</div></div>';
   return h}
@@ -10835,7 +10852,7 @@ function svMineDraw(){var rs=SV.rs,p=$('p-comm-sv');var sv=rs.sv,z=rs.quiz,c=(sv
     h+='<div class="sv-card fq'+(per&&per.ok===false?' wrong':per&&per.ok?' good':'')+'"><div class="sv-qtt">'+cmEsc(q.t)+(per&&per.pt!=null?'<span class="sv-pt">'+(per.got==null?'-':per.got)+' / '+per.pt+'점</span>':'')+'</div>'+svInputHtml(q,rs.a[q.id],true,mark)+
       (q.k==='short'&&Array.isArray(ans)?'<div class="sv-ans-ok">정답: '+cmEsc(ans.join(', '))+'</div>':q.k==='drop'&&typeof ans==='number'?'<div class="sv-ans-ok">정답: '+cmEsc(q.o[ans])+'</div>':'')+(per&&per.fb?'<div class="sv-fbk">'+cmEsc(per.fb)+'</div>':'')+'</div>'});
   p.innerHTML=h+'</div></div>';cmFillMedia(p,'survey:'+rs.sid);window.scrollTo(0,0)}
-function svSumLoad(){var rs=SV.rs;bdApi('/survey/summary',{sid:rs.sid}).then(function(r){var el=$('SV-SUM');if(!el)return;el.innerHTML='<div class="sv-card"><b>응답 '+r.rows.length+'개</b> <button class="sv-lnk blue" onclick="SV.rs.view=\'done\';svFillDraw()">돌아가기</button></div>'+svSummaryHtml(r.sv,r.rows,true);cmFillMedia(el,'survey:'+rs.sid)}).catch(function(e){var el=$('SV-SUM');if(el)el.innerHTML='<div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
+function svSumLoad(){var rs=SV.rs;(rs.sum?Promise.resolve(rs.sum):bdApi('/survey/summary',{sid:rs.sid})).then(function(r){var el=$('SV-SUM');if(!el)return;el.innerHTML='<div class="sv-card"><b>응답 '+r.rows.length+'개</b>'+(rs.mode==='view'?'':' <button class="sv-lnk blue" onclick="SV.rs.view=\'done\';svFillDraw()">돌아가기</button>')+'</div>'+svSummaryHtml(r.sv,r.rows,true);cmFillMedia(el,'survey:'+rs.sid)}).catch(function(e){var el=$('SV-SUM');if(el)el.innerHTML='<div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
 
 function svLink(s){return cmEsc(s||'').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>')}
 /* 편집 화면에서 고르지 않은 카드 — 응답 화면처럼 보이기 */

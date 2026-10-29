@@ -6,7 +6,7 @@
  *     항목  { id, k, t, d 설명, req, o 선택지, oth '기타', shuf 선택지 섞기, go[선택지별 이동할 섹션 id | '_end'], r 행,
  *             lo hi ll hl 배율, mx 파일 수, val 응답 확인, g1 열마다 하나, pt 배점, img, url, nx 이 섹션 다음 }
  *     종류  질문 short long one many drop file scale rating grid cgrid date time  ·  질문 아님 text img video sec(섹션 시작)
- *     설정  edit 제출 후 수정 · prog 진행률 · shuf 질문 순서 섞기 · msg 확인 메시지 · pub 응답자에게 요약 공개 · notify 새 응답 알림 ·
+ *     설정  edit 제출 후 수정 · prog 진행률 · shuf 질문 순서 섞기 · msg 확인 메시지 · pub 결과 요약 공개 ''|resp 응답한 사람|all 전체 직원 · pv{폰:1} 결과를 따로 볼 사람 · notify 새 응답 알림 ·
  *           quiz 퀴즈 · rel now|later · show{miss,ans,pt} · req 새 질문 기본 필수 · nx0 첫 섹션 다음
  *   /surveyAns/{sid}/{폰}          실명 응답 { a:{qid:값}, at, sc:{qid:자동 점수}, man:{qid:직접 준 점수} }
  *   /surveyAns/{sid}/_anon/{rid}   익명 응답 (시각 · 사람 없음)  ·  /surveyAns/{sid}/_who/{폰}=1 응답 여부만
@@ -184,11 +184,18 @@ function cleanKey(qs, key) {
   }
   return out;
 }
+/* 결과 공개 — 예전 값 true 는 '응답한 사람' */
+export const pubMode = (s) => { const p = (s || {}).pub; return p === true || p === 'resp' ? 'resp' : p === 'all' ? 'all' : ''; };
+function cleanPv(pv) {
+  const o = {};
+  if (pv && typeof pv === 'object') for (const p of Object.keys(pv).slice(0, 100)) if (/^\d{9,12}$/.test(p)) o[p] = 1;
+  return Object.keys(o).length ? o : null;
+}
 function cleanSet(s) {
   s = s || {};
   const show = s.show || {};
   return {
-    edit: !!s.edit, prog: !!s.prog, shuf: !!s.shuf, msg: clip(s.msg, 1000), pub: !!s.pub, notify: !!s.notify,
+    edit: !!s.edit, prog: !!s.prog, shuf: !!s.shuf, msg: clip(s.msg, 1000), pub: pubMode(s), pv: cleanPv(s.pv), notify: !!s.notify,
     quiz: !!s.quiz, rel: s.rel === 'later' ? 'later' : 'now', show: { miss: show.miss !== false, ans: !!show.ans, pt: show.pt !== false },
     req: !!s.req, nx0: clip(s.nx0, 40),
   };
@@ -384,16 +391,27 @@ export function makeSurvey(deps) {
     return { sv: { ...sv, tp: undefined, n: Object.keys(sv.tp || {}).length }, rows, answered: who.length, pending, key };
   }
 
-  /* 응답자에게 공개하는 요약 — 이름 · 시각 없이 답만, 섞어서 */
+  /* 결과 요약을 볼 수 있나 — 편집할 수 있는 사람 · 따로 고른 사람 · 공개 범위(응답한 사람 | 전체 직원) */
+  async function canSum(env, sid, sv, ph, u) {
+    if (isEditor(sv, ph, u)) return true;
+    const set = sv.set || {};
+    if (set.pv && set.pv[ph]) return true;
+    if (sv.st === 'draft') return false;
+    const pub = pubMode(set);
+    if (pub === 'all') return isActive(u);
+    if (pub === 'resp') return !!(await dbGet(env, sv.anon ? `/surveyAns/${sid}/_who/${ph}` : `/surveyAns/${sid}/${ph}`).catch(() => null));
+    return false;
+  }
+
+  /* 공개하는 요약 — 이름 · 시각 없이 답만, 섞어서 */
   async function summary(env, me, body) {
     const u = await meUser(env, me); const ph = String(me.ph);
     const sid = String(body.sid || ''); const { sv } = await load(env, sid);
-    const ed = isEditor(sv, ph, u);
-    if (!ed && !(sv.set && sv.set.pub && sv.tp && sv.tp[ph])) throw new Error('결과 요약을 볼 수 없는 설문입니다');
+    if (!(await canSum(env, sid, sv, ph, u))) throw new Error('결과 요약을 볼 수 없는 설문입니다');
     const { rows } = await rowsOf(env, sid, sv);
     const out = rows.map((r) => ({ a: r.a }));
     for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
-    return { sv: { ...sv, tp: undefined, co: undefined }, rows: out };
+    return { sv: { ...sv, tp: undefined, co: undefined, set: { ...(sv.set || {}), pv: undefined } }, rows: out };
   }
 
   async function mustEditor(env, me, sid) {
@@ -487,7 +505,7 @@ export function makeSurvey(deps) {
   async function saveTpl(env, me, body) {
     const sid = String(body.sid || ''); const { ph, sv } = await mustEditor(env, me, sid);
     const tid = 't' + id36();
-    await dbPut(env, '/surveyTpl/' + tid, { v: 2, t: sv.t, desc: sv.desc || '', qs: sv.qs, set: sv.set || {}, th: sv.th || {}, anon: !!sv.anon, by: ph, at: nowMs() });
+    await dbPut(env, '/surveyTpl/' + tid, { v: 2, t: sv.t, desc: sv.desc || '', qs: sv.qs, set: { ...(sv.set || {}), pv: null }, th: sv.th || {}, anon: !!sv.anon, by: ph, at: nowMs() });
     const key = await dbGet(env, `/surveyAns/${sid}/_key`).catch(() => null);
     if (key) await dbPut(env, `/surveyAns/_tplkey/${tid}`, key);
     return { tid };
@@ -505,7 +523,7 @@ export function makeSurvey(deps) {
       key = await dbGet(env, `/surveyAns/${sid}/_key`).catch(() => null);
     }
     const nsid = 's' + id36();
-    await dbPut(env, '/surveys/' + nsid, { v: 2, t: body.tid ? src.t : clip(src.t + ' 사본', 120), desc: src.desc || '', qs: src.qs || [], set: src.set || {}, th: src.th || {}, anon: !!src.anon, by: ph, bn: nameOf(u), at: nowMs(), up: nowMs(), st: 'draft', end: 0 });
+    await dbPut(env, '/surveys/' + nsid, { v: 2, t: body.tid ? src.t : clip(src.t + ' 사본', 120), desc: src.desc || '', qs: src.qs || [], set: { ...(src.set || {}), pv: null }, th: src.th || {}, anon: !!src.anon, by: ph, bn: nameOf(u), at: nowMs(), up: nowMs(), st: 'draft', end: 0 });
     if (key) await dbPut(env, `/surveyAns/${nsid}/_key`, key);
     return { sid: nsid };
   }
@@ -518,11 +536,13 @@ export function makeSurvey(deps) {
     return {};
   }
 
-  /* 미디어 열람 — 만든 사람 · 공동 작업자 · 경영팀 · 받는 사람 */
+  /* 미디어 열람 — 만든 사람 · 공동 작업자 · 경영팀 · 받는 사람 · 결과 요약을 볼 수 있는 사람 */
   async function canSee(env, me, sid) {
     const u = await meUser(env, me); const ph = String(me.ph);
-    const sv = await dbGet(env, '/surveys/' + sid).catch(() => null);
-    return !!sv && (isEditor(sv, ph, u) || !!(sv.tp && sv.tp[ph]));
+    const raw = await dbGet(env, '/surveys/' + sid).catch(() => null);
+    if (!raw) return false;
+    const sv = norm(raw);
+    return isEditor(sv, ph, u) || !!(sv.tp && sv.tp[ph]) || canSum(env, sid, sv, ph, u);
   }
 
   const R = {
