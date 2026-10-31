@@ -223,13 +223,16 @@ async function main() {
       console.log(`[backfill] ${d}`);
       console.log(JSON.stringify(await collectSales(d, dry), null, 2));
     }
+    console.log('[salesfix]', JSON.stringify(await reconcileSales(dateRange(opt.from, opt.to), dry)));
     return;
   }
   const errors = [];
+  const fixDates = [];
   if (mode === 'sales' || mode === 'both') {
     // 매출·방문구분 모두 사후 수정·환불 반영을 위해 여러 나이(D-1,D-2,D-7,D-30)로 재수집(멱등, 변화 시 revisions 기록).
     if (opt.date) {
       // --date 지정 시엔 그 한 날짜만 (매출+방문 1회씩)
+      fixDates.push(opt.date);
       try { console.log('[sales]', opt.date, JSON.stringify(await collectSales(opt.date, dry))); }
       catch (e) { errors.push('sales ' + opt.date + ': ' + e.message); await notify('[Hermes] 매출 수집 실패 ' + opt.date + ': ' + e.message); }
       try { console.log('[visits]', opt.date, JSON.stringify(await collectVisits(opt.date, dry))); }
@@ -237,6 +240,8 @@ async function main() {
     } else {
       const offs = refreshOffsets();
       const d1 = kstDateString(-1);
+      // 수집을 건너뛰어도 맞추기는 한다 — 디자이너가 수집 뒤에 수기 매출을 넣거나 고칠 수 있다
+      fixDates.push(d1, ...offs.map(n => kstDateString(-n)));
       const force = args.includes('--force');
       if (!dry && !force && await salesFreshFor(d1)) {
         // 이미 오늘 다른 크론이 수집함 → 핸드SOS 프록시 재조회 생략(데이터 절약). SNS는 아래에서 계속 갱신.
@@ -259,8 +264,14 @@ async function main() {
   if (mode === 'month') {
     // 명세서 발행 전 그 달 전체 재수집·확정. --ym=YYYY-MM, 없으면 지난달
     const ym = opt.ym || prevMonthKst();
+    fixDates.push(...dateRange(ym + '-01', ym + '-' + pad(new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).getUTCDate())));
     try { console.log('[month]', ym, opt.shop || '전지점', JSON.stringify(await verifyMonth(ym, dry, opt.shop), null, 1)); }
     catch (e) { errors.push('month ' + ym + ': ' + e.message); await notify('[Hermes] 월 확정 재수집 실패 ' + ym + ': ' + e.message); }
+  }
+  if (mode === 'salesfix') fixDates.push(...(opt.date ? [opt.date] : Array.from({ length: 30 }, (_, i) => kstDateString(-(i + 1)))));
+  if (fixDates.length) {
+    try { console.log('[salesfix]', JSON.stringify(await reconcileSales(fixDates, dry))); }
+    catch (e) { errors.push('salesfix: ' + e.message); await notify('[Hermes] 수기 매출 맞추기 실패: ' + e.message); }
   }
   if (mode === 'retail') {
     // 월별 점판 수익 (명세서 점판수당 계산용). --ym=YYYY-MM, 없으면 지난달
@@ -433,6 +444,102 @@ async function collectVisits(date, dry) {
 }
 
 /* ═══ D-1 정합성 확인(재수집) ═══ */
+/* ═══ 수기 매출 ↔ 핸드SOS 맞추기 (10/31) ═══
+   디자이너가 앱에 직접 넣은 일매출(/dailySales/{폰}/{날짜})을 그날 핸드SOS 값과 결제수단별로 맞춰 본다.
+   핸드SOS 가 기준이다. 다르면 수기 매출을 핸드SOS 값으로 고치고(원래 입력은 orig 에 남김),
+   /salesFix/{폰}/{날짜} 에 무엇이 얼마에서 얼마로 바뀌었는지 적고, /salesFixQ 에 넣으면 Worker 가 디자이너에게 알림을 보낸다.
+   짝: 현금↔현금 · 카드+알리페이↔카드(알리페이는 핸드SOS에서 카드로 통일) · 계좌이체↔통장 · 네이버페이↔Pay · 기타↔기타.
+   비교 금액은 시술+점판 결제 전부(pay). 정액권 '사용'분은 돈을 받은 게 아니라 결제수단에 안 잡힌다.
+   /config/salesFix.auto 가 true 일 때만 실제로 고친다. 아니면 다른 것만 적어 둔다(경영팀 목록에서 보임).
+   핸드SOS 에 그 디자이너가 아예 없으면(이름이 안 맞을 수 있음) 고치지 않고 '확인 필요'로만 남긴다. */
+export const FIX_KEYS = ['cash', 'card', 'transfer', 'naverpay', 'etc'];
+export function manualGroups(s) {
+  s = s || {};
+  return { cash: +s.cash || 0, card: (+s.card || 0) + (+s.alipay || 0), transfer: +s.transfer || 0, naverpay: +s.naverpay || 0, etc: +s.etc || 0 };
+}
+export function hsGroups(recs) {
+  const g = { cash: 0, card: 0, transfer: 0, naverpay: 0, etc: 0 };
+  for (const r of recs) {
+    const p = (r && r.pay) || {};
+    g.cash += +p['현금'] || 0; g.card += +p['카드'] || 0; g.transfer += +p['통장'] || 0; g.naverpay += +p['Pay'] || 0; g.etc += +p['기타'] || 0;
+  }
+  return g;
+}
+export function diffGroups(m, h) { return FIX_KEYS.filter(k => (m[k] || 0) !== (h[k] || 0)).map(k => ({ k, from: m[k] || 0, to: h[k] || 0 })); }
+const hasManual = (s) => !!(s && (s.completed || +s.total > 0 || +s.cash > 0 || +s.card > 0 || +s.transfer > 0 || +s.naverpay > 0 || +s.alipay > 0));
+const SALES_FIX_FROM = '2026-05-13'; // 앱 매출 입력 시작일(index.html SALES_START_DATE)
+
+async function reconcileSales(dates, dry) {
+  dates = [...new Set(dates)].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= SALES_FIX_FROM).sort();
+  if (!dates.length) return { dates: 0 };
+  const cfg = (await fbGET('/config/salesFix.json')) || {};
+  const auto = cfg.auto === true;
+  const users = (await fbGET('/users.json')) || {};
+  // 핸드SOS 직원명(닉네임 우선, 실명 폴백) → 폰. 같은 이름이 둘이면 누군지 몰라 뺀다.
+  const byName = new Map(), dup = new Set();
+  const put = (k, ph) => { if (!k) return; if (byName.has(k) && byName.get(k) !== ph) dup.add(k); else byName.set(k, ph); };
+  for (const [ph, u] of Object.entries(users)) if (u && u.nick) put(normName(u.nick), ph);
+  for (const [ph, u] of Object.entries(users)) if (u && u.name && !byName.has(normName(u.name))) put(normName(u.name), ph);
+  for (const k of dup) byName.delete(k);
+  const phones = Object.keys((await fbGET('/dailySales.json?shallow=true')) || {});
+  const out = { auto, dates: dates.length, fixed: 0, flagged: 0, cleared: 0 };
+  // 사람마다 그 기간만 한 번에 받는다(날짜 × 사람으로 부르면 월 확정 때 수천 번)
+  const rq = `?orderBy=%22%24key%22&startAt=%22${dates[0]}%22&endAt=%22${dates[dates.length - 1]}%22`;
+  const manBy = {}, fixBy = {};
+  for (const ph of phones) {
+    manBy[ph] = (await fbGET(`/dailySales/${enc(ph)}.json${rq}`)) || {};
+    fixBy[ph] = (await fbGET(`/salesFix/${enc(ph)}.json${rq}`)) || {};
+  }
+  for (const date of dates) {
+    const hsBy = {}, collected = new Set();
+    for (const shop of CONFIG.shops) {
+      const ds = await fbGET(`/stores/${enc(shop.shop)}/daily/${enc(date)}/designers.json`);
+      if (!ds) continue;
+      collected.add(shop.shop);
+      for (const [nm, rec] of Object.entries(ds)) {
+        const ph = byName.get(normName(nm));
+        if (ph) (hsBy[ph] || (hsBy[ph] = [])).push(rec);
+      }
+    }
+    if (!collected.size) continue;           // 그날 수집분이 없으면(휴무·미수집) 볼 게 없다
+    for (const ph of phones) {
+      const s = manBy[ph][date], prev = fixBy[ph][date];
+      const fixPath = `/salesFix/${enc(ph)}/${enc(date)}`;
+      if (!hasManual(s)) { if (prev && !prev.applied && !dry) { await rtdbPut(fixPath, null); out.cleared++; } continue; }
+      const u = users[ph] || {};
+      let recs = hsBy[ph], missing = false;
+      if (!recs) {
+        // 핸드SOS 에 이 사람이 없다 — 그 사람 지점이 그날 수집됐으면 '핸드SOS 매출 0' 이지만 이름이 안 맞았을 수도 있다
+        if (!collected.has(BRANCH_TO_SHOP[u.branch])) continue;
+        recs = []; missing = true;
+      }
+      if (!missing && !recs.some(r => r && r.pay)) continue; // 결제수단이 없는 옛 수집분은 비교 불가
+      const m = manualGroups(s), h = hsGroups(recs), diffs = diffGroups(m, h);
+      if (!diffs.length) {
+        if (prev && !prev.applied && !dry) { await rtdbPut(fixPath, null); out.cleared++; }
+        continue;
+      }
+      const before = { cash: +s.cash || 0, card: +s.card || 0, alipay: +s.alipay || 0, transfer: +s.transfer || 0, naverpay: +s.naverpay || 0, etc: +s.etc || 0, total: +s.total || 0 };
+      const hsTotal = FIX_KEYS.reduce((a, k) => a + h[k], 0);
+      const apply = auto && !missing;
+      const sig = JSON.stringify(diffs);
+      if (!apply && prev && !prev.applied && JSON.stringify(prev.diffs || []) === sig) continue; // 같은 내용이면 다시 안 씀
+      const rec = { date, ph, name: u.nick || u.name || '', branch: u.branch || '', at: nowIso(), before, hs: { ...h, total: hsTotal }, diffs, applied: apply ? 1 : 0, seen: 0 };
+      if (missing) rec.missing = 1;
+      if (dry) { console.log('[salesfix][dry]', ph, date, sig, apply ? '→ 수정' : '→ 기록만'); continue; }
+      if (apply) {
+        const fixed = { cash: h.cash, card: h.card, alipay: 0, transfer: h.transfer, naverpay: h.naverpay, etc: h.etc || null, total: hsTotal, hsFixAt: rec.at };
+        if (!s.orig) fixed.orig = before;      // 처음 입력값은 한 번만 남긴다
+        await rtdbPatch(`/dailySales/${enc(ph)}/${enc(date)}`, fixed);
+        await rtdbPut(fixPath, rec);
+        await rtdbPut(`/salesFixQ/${enc(ph + '_' + date)}`, { ph, date, at: rec.at });
+        out.fixed++;
+      } else { await rtdbPut(fixPath, rec); out.flagged++; }
+    }
+  }
+  return out;
+}
+
 // 4시 실행 시 어제(D-1) 매출+방문을 5분 간격 최대 N회 dry로 재조회해 값이 안정(연속 2회 동일·무오류)인지 확인 후 저장.
 function sigOf(sRes, vRes) {
   const s = ((sRes && sRes.shops) || []).map(x => x.shop + ':' + (x.ok === false ? 'ERR' : (x.closed ? 'closed' : (x.net_sales || 0) + '/' + (x.designers || 0)))).join('|');
@@ -1169,6 +1276,10 @@ async function rtdbPut(path, value) {
   if (String(path).startsWith('/stores/')) STORES_TOUCHED = true;
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
   if (!resp.ok) throw new Error(`RTDB PUT ${path} → ${resp.status}`);
+}
+async function rtdbPatch(path, value) {
+  const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+  if (!resp.ok) throw new Error(`RTDB PATCH ${path} → ${resp.status}`);
 }
 async function fbGET(path) {
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}`), { cache: 'no-store' });

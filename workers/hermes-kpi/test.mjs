@@ -2,7 +2,7 @@
 // 실행: node test.mjs   (codepage 설치 불필요 — 순수 파서만 검증)
 // 합성 리포트 HTML(스펙 컬럼 레이아웃)로 급여/성과 분리·접객 분모·소계버그 회피를 확인한다.
 
-import { parseReportA, parseReportB, computeSnsMetrics, canonMenu, safeKey } from './collect.mjs';
+import { parseReportA, parseReportB, computeSnsMetrics, canonMenu, safeKey, manualGroups, hsGroups, diffGroups } from './collect.mjs';
 
 let pass = 0, fail = 0;
 function eq(name, got, want) {
@@ -118,6 +118,23 @@ eq('window_days', sns.window_days, 7);
 console.log('\nFirebase 키 금지문자 치환');
 eq('safeKey 금지문자 → ·', safeKey('a/b.c#d$e[f]g'), 'a·b·c·d·e·f·g');
 eq('canonMenu 클리닉→크리닉', canonMenu('클리닉(두피)'), '크리닉');
+
+/* ══ 수기 매출 ↔ 핸드SOS 맞추기 ══ */
+console.log('\n수기 매출 ↔ 핸드SOS 결제수단 맞추기');
+const man = { cash: 0, card: 330000, alipay: 55000, transfer: 20000, naverpay: 0, total: 405000 };
+eq('알리페이는 카드로 합쳐 본다', manualGroups(man), { cash: 0, card: 385000, transfer: 20000, naverpay: 0, etc: 0 });
+const hsRecs = [
+  { pay: { '현금': 0, '카드': 300000, '통장': 20000, 'Pay': 0, '기타': 0 } },
+  { pay: { '현금': 0, '카드': 85000, '통장': 0, 'Pay': 0, '기타': 0 } },
+];
+eq('지점 여러 곳이면 합친다', hsGroups(hsRecs), { cash: 0, card: 385000, transfer: 20000, naverpay: 0, etc: 0 });
+eq('같으면 차이 없음', diffGroups(manualGroups(man), hsGroups(hsRecs)), []);
+eq('카드·네이버페이가 다르면 둘 다 알려 준다',
+  diffGroups(manualGroups({ card: 385000, naverpay: 0 }), hsGroups([{ pay: { '카드': 330000, 'Pay': 55000 } }])),
+  [{ k: 'card', from: 385000, to: 330000 }, { k: 'naverpay', from: 0, to: 55000 }]);
+eq('핸드SOS에 없으면 0 과 비교', diffGroups(manualGroups({ cash: 50000 }), hsGroups([])), [{ k: 'cash', from: 50000, to: 0 }]);
+eq('결제수단만 바뀐 것도 다름', diffGroups(manualGroups({ card: 100000 }), hsGroups([{ pay: { '통장': 100000 } }])),
+  [{ k: 'card', from: 100000, to: 0 }, { k: 'transfer', from: 0, to: 100000 }]);
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

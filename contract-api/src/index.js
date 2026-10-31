@@ -442,13 +442,46 @@ async function revokedAt(env, ph) {
   return revokeCache.map[String(ph)] || 0;
 }
 
+/* ═══ 수기 매출 수정 알림 (10/31) ═══
+   핸드SOS 수집기(GitHub Actions)는 알림을 못 보낸다. 수기 매출을 핸드SOS 값으로 고치면 /salesFixQ 에 넣어 두고,
+   여기서 1분마다 보고 그 디자이너에게 알림을 보낸다. 무엇이 바뀌었는지는 /salesFix/{폰}/{날짜}. */
+const FIX_LABEL = { cash: '현금', card: '카드', transfer: '계좌이체', naverpay: '네이버페이', etc: '기타' };
+const won = (n) => (+n || 0).toLocaleString('ko-KR');
+async function runSalesFixPush(env) {
+  const q = await dbGet(env, '/salesFixQ').catch(() => null);
+  if (!q) return 0;
+  const byPh = {};
+  for (const [key, v] of Object.entries(q)) {
+    await dbDelete(env, '/salesFixQ/' + encodeURIComponent(key));   // 먼저 지운다 — 겹쳐 돌아도 두 번 안 보내게
+    if (v && v.ph && v.date) (byPh[v.ph] || (byPh[v.ph] = [])).push(v.date);
+  }
+  for (const [ph, dates] of Object.entries(byPh)) {
+    const ds = [...new Set(dates)].sort();
+    const first = await dbGet(env, '/salesFix/' + encodeURIComponent(ph) + '/' + ds[0]).catch(() => null);
+    const md = (d) => +d.slice(5, 7) + '/' + +d.slice(8, 10);
+    let body;
+    if (ds.length === 1 && first && first.diffs && first.diffs.length) {
+      const f = first.diffs[0];
+      body = md(ds[0]) + ' · ' + (FIX_LABEL[f.k] || f.k) + ' ' + won(f.from) + '→' + won(f.to) + '원' + (first.diffs.length > 1 ? ' 외 ' + (first.diffs.length - 1) + '건' : '');
+    } else body = md(ds[0]) + (ds.length > 1 ? ' 외 ' + (ds.length - 1) + '일' : '') + ' · 눌러서 확인해 주세요';
+    await pushToPhones(env, [ph], {
+      title: '매출이 핸드SOS와 달라 수정되었어요',
+      body: body + ' · 핸드SOS가 틀렸다면 경영팀에 문의해 주세요',
+      url: './#sales/fix',
+      tag: 'salesfix',
+    }).catch(() => {});
+  }
+  return Object.keys(byPh).length;
+}
+
 export default {
-  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 */
+  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 · 수기 매출 수정 알림 */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
     ctx.waitUntil(chatRoute.runScheduled(env, ctx).catch((e) => console.log('sched', e && e.message)));
     ctx.waitUntil(calRoute.runReminders(env).catch((e) => console.log('cal', e && e.message)));
     ctx.waitUntil(gcalRoute.runSync(env).catch((e) => console.log('gcal', e && e.message)));
+    ctx.waitUntil(runSalesFixPush(env).catch((e) => console.log('salesfix', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
