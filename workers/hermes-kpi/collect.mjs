@@ -268,7 +268,9 @@ async function main() {
     try { console.log('[month]', ym, opt.shop || '전지점', JSON.stringify(await verifyMonth(ym, dry, opt.shop), null, 1)); }
     catch (e) { errors.push('month ' + ym + ': ' + e.message); await notify('[Hermes] 월 확정 재수집 실패 ' + ym + ': ' + e.message); }
   }
-  if (mode === 'salesfix') fixDates.push(...(opt.date ? [opt.date] : Array.from({ length: 30 }, (_, i) => kstDateString(-(i + 1)))));
+  if (mode === 'salesfix') fixDates.push(...(opt.date ? [opt.date]
+    : opt.ym ? dateRange(opt.ym + '-01', opt.ym + '-' + pad(new Date(Date.UTC(+opt.ym.slice(0, 4), +opt.ym.slice(5, 7), 0)).getUTCDate()))
+    : Array.from({ length: 30 }, (_, i) => kstDateString(-(i + 1)))));
   if (fixDates.length) {
     try { console.log('[salesfix]', JSON.stringify(await reconcileSales(fixDates, dry))); }
     catch (e) { errors.push('salesfix: ' + e.message); await notify('[Hermes] 수기 매출 맞추기 실패: ' + e.message); }
@@ -519,12 +521,13 @@ async function reconcileSales(dates, dry) {
       const m = manualGroups(s), h = hsGroups(recs);
       const wasFix = !!(s.hsFixAt && s.orig);
       if (wasFix && !diffGroups(manualGroups(s.orig), h).length) {
-        // 원래 입력이 맞았는데 고쳐 버린 날 — 원래 입력으로 되돌린다. 알림은 보내지 않는다.
-        // 기록은 reverted 로 남겨 경영팀 목록에서 보이게 하고, 디자이너 화면(카드·달력)에서는 뺀다.
+        // 원래 입력이 맞았는데 고쳐 버린 날 — 원래 입력으로 되돌리고 '핸드SOS 매출 오류 버그가 수정되었어요' 알림을 한 번 보낸다.
+        // 기록은 reverted 로 남겨 경영팀 목록에서 보이게 하고, 디자이너 달력에서는 뺀다(홈에는 안내 카드만, revSeen 전까지).
         if (!dry) {
           const o = s.orig, at = nowIso();
           await rtdbPatch(`/dailySales/${enc(ph)}/${enc(date)}`, { cash: +o.cash || 0, card: +o.card || 0, alipay: +o.alipay || 0, transfer: +o.transfer || 0, naverpay: +o.naverpay || 0, etc: +o.etc || null, total: +o.total || 0, hsFixAt: null, orig: null, hsUndoAt: at });
-          await rtdbPut(fixPath, { ...(prev || { date, ph, name: (users[ph] || {}).nick || (users[ph] || {}).name || '', branch: (users[ph] || {}).branch || '' }), wrong: { ...manualGroups(s) }, hs: { ...h, total: FIX_KEYS.reduce((a, k) => a + h[k], 0) }, applied: 0, reverted: 1, revertedAt: at, seen: 1 });
+          await rtdbPut(fixPath, { ...(prev || { date, ph, name: (users[ph] || {}).nick || (users[ph] || {}).name || '', branch: (users[ph] || {}).branch || '' }), wrong: { ...manualGroups(s) }, hs: { ...h, total: FIX_KEYS.reduce((a, k) => a + h[k], 0) }, applied: 0, reverted: 1, revertedAt: at, seen: 1, revQ: 1, revSeen: 0 });
+          await rtdbPut(`/salesFixQ/${enc('r_' + ph + '_' + date)}`, { ph, date, at, kind: 'rev' });
         }
         // 저장소가 공개라 실행 기록에 이름·전화·금액은 남기지 않는다
         console.log('[salesfix] 되돌림', (users[ph] || {}).branch || '', date);
@@ -554,6 +557,15 @@ async function reconcileSales(dates, dry) {
         out.fixed++;
       } else { await rtdbPut(fixPath, rec); out.flagged++; }
     }
+  }
+  // 예전에 알림 없이 되돌린 날(11/5 첫 정리분 14건) — '오류 수정됨' 알림을 한 번 보낸다
+  for (const ph of phones) for (const [date, r] of Object.entries(fixBy[ph] || {})) {
+    if (!r || !r.reverted || r.revQ || !dates.includes(date)) continue;
+    if (!dry) {
+      await rtdbPatch(`/salesFix/${enc(ph)}/${enc(date)}`, { revQ: 1, revSeen: 0 });
+      await rtdbPut(`/salesFixQ/${enc('r_' + ph + '_' + date)}`, { ph, date, at: nowIso(), kind: 'rev' });
+    }
+    out.revNotice = (out.revNotice || 0) + 1;
   }
   return out;
 }

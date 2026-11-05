@@ -450,15 +450,25 @@ const won = (n) => (+n || 0).toLocaleString('ko-KR');
 async function runSalesFixPush(env) {
   const q = await dbGet(env, '/salesFixQ').catch(() => null);
   if (!q) return 0;
-  const byPh = {};
+  const byPh = {}, revBy = {};
   for (const [key, v] of Object.entries(q)) {
     await dbDelete(env, '/salesFixQ/' + encodeURIComponent(key));   // 먼저 지운다 — 겹쳐 돌아도 두 번 안 보내게
-    if (v && v.ph && v.date) (byPh[v.ph] || (byPh[v.ph] = [])).push(v.date);
+    if (v && v.ph && v.date) { const m = v.kind === 'rev' ? revBy : byPh; (m[v.ph] || (m[v.ph] = [])).push(v.date); }
+  }
+  const md = (d) => +d.slice(5, 7) + '/' + +d.slice(8, 10);
+  // 버그로 잘못 고쳤다가 처음 입력으로 되돌린 날 (11/5)
+  for (const [ph, dates] of Object.entries(revBy)) {
+    const ds = [...new Set(dates)].sort();
+    await pushToPhones(env, [ph], {
+      title: '핸드SOS 매출 오류 버그가 수정되었어요',
+      body: md(ds[0]) + (ds.length > 1 ? ' 외 ' + (ds.length - 1) + '일' : '') + ' 매출이 처음 입력하신 값으로 돌아갔어요',
+      url: './#sales/fix',
+      tag: 'salesfix-rev',
+    }).catch(() => {});
   }
   for (const [ph, dates] of Object.entries(byPh)) {
     const ds = [...new Set(dates)].sort();
     const first = await dbGet(env, '/salesFix/' + encodeURIComponent(ph) + '/' + ds[0]).catch(() => null);
-    const md = (d) => +d.slice(5, 7) + '/' + +d.slice(8, 10);
     let body;
     if (ds.length === 1 && first && first.diffs && first.diffs.length) {
       const f = first.diffs[0];
@@ -471,7 +481,7 @@ async function runSalesFixPush(env) {
       tag: 'salesfix',
     }).catch(() => {});
   }
-  return Object.keys(byPh).length;
+  return Object.keys(byPh).length + Object.keys(revBy).length;
 }
 
 export default {
