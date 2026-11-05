@@ -449,7 +449,8 @@ async function collectVisits(date, dry) {
    핸드SOS 가 기준이다. 다르면 수기 매출을 핸드SOS 값으로 고치고(원래 입력은 orig 에 남김),
    /salesFix/{폰}/{날짜} 에 무엇이 얼마에서 얼마로 바뀌었는지 적고, /salesFixQ 에 넣으면 Worker 가 디자이너에게 알림을 보낸다.
    짝: 현금↔현금 · 카드+알리페이↔카드(알리페이는 핸드SOS에서 카드로 통일) · 계좌이체↔통장 · 네이버페이↔Pay · 기타↔기타.
-   비교 금액은 시술+점판 결제 전부(pay). 정액권 '사용'분은 돈을 받은 게 아니라 결제수단에 안 잡힌다.
+   비교 금액은 그날 받은 결제 전부(pay_all: 시술·점판·정액권판매 등 모든 명세 행). 정액권 '사용'분은 돈을 받은 게 아니라 결제수단에 안 잡힌다.
+   (10/31~11/5 은 시술+점판만 비교해서 정액권을 판 날을 잘못 고쳤다 — 원래 입력이 맞으면 되돌린다)
    /config/salesFix.auto 가 true 일 때만 실제로 고친다. 아니면 다른 것만 적어 둔다(경영팀 목록에서 보임).
    핸드SOS 에 그 디자이너가 아예 없으면(이름이 안 맞을 수 있음) 고치지 않고 '확인 필요'로만 남긴다. */
 export const FIX_KEYS = ['cash', 'card', 'transfer', 'naverpay', 'etc'];
@@ -460,7 +461,7 @@ export function manualGroups(s) {
 export function hsGroups(recs) {
   const g = { cash: 0, card: 0, transfer: 0, naverpay: 0, etc: 0 };
   for (const r of recs) {
-    const p = (r && r.pay) || {};
+    const p = (r && r.pay_all) || {};
     g.cash += +p['현금'] || 0; g.card += +p['카드'] || 0; g.transfer += +p['통장'] || 0; g.naverpay += +p['Pay'] || 0; g.etc += +p['기타'] || 0;
   }
   return g;
@@ -482,7 +483,7 @@ async function reconcileSales(dates, dry) {
   for (const [ph, u] of Object.entries(users)) if (u && u.name && !byName.has(normName(u.name))) put(normName(u.name), ph);
   for (const k of dup) byName.delete(k);
   const phones = Object.keys((await fbGET('/dailySales.json?shallow=true')) || {});
-  const out = { auto, dates: dates.length, fixed: 0, flagged: 0, cleared: 0 };
+  const out = { auto, dates: dates.length, fixed: 0, flagged: 0, cleared: 0, reverted: 0 };
   // 사람마다 그 기간만 한 번에 받는다(날짜 × 사람으로 부르면 월 확정 때 수천 번)
   const rq = `?orderBy=%22%24key%22&startAt=%22${dates[0]}%22&endAt=%22${dates[dates.length - 1]}%22`;
   const manBy = {}, fixBy = {};
@@ -513,18 +514,33 @@ async function reconcileSales(dates, dry) {
         if (!collected.has(BRANCH_TO_SHOP[u.branch])) continue;
         recs = []; missing = true;
       }
-      if (!missing && !recs.some(r => r && r.pay)) continue; // 결제수단이 없는 옛 수집분은 비교 불가
-      const m = manualGroups(s), h = hsGroups(recs), diffs = diffGroups(m, h);
+      // pay_all(정액권판매 포함 결제 전부)이 없는 옛 수집분은 비교하지 않는다 — 시술+점판만 있어 정액권 판 날을 잘못 고쳤다(11/5)
+      if (!missing && !recs.some(r => r && r.pay_all)) continue;
+      const m = manualGroups(s), h = hsGroups(recs);
+      const wasFix = !!(s.hsFixAt && s.orig);
+      if (wasFix && !diffGroups(manualGroups(s.orig), h).length) {
+        // 원래 입력이 맞았는데 고쳐 버린 날 — 원래 입력으로 되돌린다. 알림은 보내지 않고 수정 기록도 지운다.
+        if (!dry) {
+          const o = s.orig;
+          await rtdbPatch(`/dailySales/${enc(ph)}/${enc(date)}`, { cash: +o.cash || 0, card: +o.card || 0, alipay: +o.alipay || 0, transfer: +o.transfer || 0, naverpay: +o.naverpay || 0, etc: +o.etc || null, total: +o.total || 0, hsFixAt: null, orig: null, hsUndoAt: nowIso() });
+          if (prev) await rtdbPut(fixPath, null);
+        }
+        console.log('[salesfix] 되돌림', ph, date, JSON.stringify(manualGroups(s)), '→', JSON.stringify(manualGroups(s.orig)));
+        out.reverted++; continue;
+      }
+      // 이미 한 번 고친 날이면 디자이너에게는 처음 넣은 값과 비교해서 보여 준다
+      const diffs = diffGroups(m, h), shown = wasFix ? diffGroups(manualGroups(s.orig), h) : diffs;
       if (!diffs.length) {
         if (prev && !prev.applied && !dry) { await rtdbPut(fixPath, null); out.cleared++; }
         continue;
       }
-      const before = { cash: +s.cash || 0, card: +s.card || 0, alipay: +s.alipay || 0, transfer: +s.transfer || 0, naverpay: +s.naverpay || 0, etc: +s.etc || 0, total: +s.total || 0 };
+      const b0 = wasFix ? s.orig : s;
+      const before = { cash: +b0.cash || 0, card: +b0.card || 0, alipay: +b0.alipay || 0, transfer: +b0.transfer || 0, naverpay: +b0.naverpay || 0, etc: +b0.etc || 0, total: +b0.total || 0 };
       const hsTotal = FIX_KEYS.reduce((a, k) => a + h[k], 0);
       const apply = auto && !missing;
-      const sig = JSON.stringify(diffs);
+      const sig = JSON.stringify(shown);
       if (!apply && prev && !prev.applied && JSON.stringify(prev.diffs || []) === sig) continue; // 같은 내용이면 다시 안 씀
-      const rec = { date, ph, name: u.nick || u.name || '', branch: u.branch || '', at: nowIso(), before, hs: { ...h, total: hsTotal }, diffs, applied: apply ? 1 : 0, seen: 0 };
+      const rec = { date, ph, name: u.nick || u.name || '', branch: u.branch || '', at: nowIso(), before, hs: { ...h, total: hsTotal }, diffs: shown, applied: apply ? 1 : 0, seen: 0 };
       if (missing) rec.missing = 1;
       if (dry) { console.log('[salesfix][dry]', ph, date, sig, apply ? '→ 수정' : '→ 기록만'); continue; }
       if (apply) {
@@ -846,7 +862,11 @@ function buildDesigner(name, list, I) {
   const pay_retail = addPay(mkPay(), retailRows);
   const pay = mkPay();
   for (const k of Object.keys(pay)) pay[k] = pay_service[k] + pay_retail[k];
-  return { name, payroll_base, service_payroll, service_perf, prepaid_sold, prepaid_used, guests, service_count, avg_ticket, items_per_guest, retail_amount, retail_items, menus: menuAmt, menu_mix, pay, pay_service, pay_retail };
+  // 그날 이 사람이 실제로 받은 돈 전부 — 시술·점판에 정액권판매 등 모든 명세 행(11/5).
+  // 디자이너 수기 매출과 맞춰 볼 때 쓴다. 소계 행은 결제수단 칸이 틀리게 나와서(직원소계 통장에 남의 값) 쓰지 않고,
+  // '정액권사용' 열(정액권으로 차감한 몫)은 돈을 받은 게 아니라 결제수단 칸에 안 잡힌다.
+  const pay_all = addPay(mkPay(), list.filter(x => x.g && !/소계|합계|총계/.test(x.g)));
+  return { name, pay_all, payroll_base, service_payroll, service_perf, prepaid_sold, prepaid_used, guests, service_count, avg_ticket, items_per_guest, retail_amount, retail_items, menus: menuAmt, menu_mix, pay, pay_service, pay_retail };
 }
 // Report B 디자이너들 → 매장 집계 도출 (Report A 없을 때)
 function storeFromDesigners(designers) {

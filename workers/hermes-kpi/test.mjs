@@ -119,21 +119,38 @@ console.log('\nFirebase 키 금지문자 치환');
 eq('safeKey 금지문자 → ·', safeKey('a/b.c#d$e[f]g'), 'a·b·c·d·e·f·g');
 eq('canonMenu 클리닉→크리닉', canonMenu('클리닉(두피)'), '크리닉');
 
+/* ══ 결제 전부(pay_all) — 정액권판매 포함 (11/5 실제 리포트: 모먼트 민경 10/14) ══ */
+console.log('\n결제 전부 pay_all — 정액권판매 포함, 소계 행·정액권사용 열 제외');
+const rowsMk = [
+  COLS,
+  row({ 직원명: '민경', 구분: '시술', '1차메뉴': '컷', 합계: '539,000', 카드: '231,000', 통장: '77,000', Pay: '231,000', 정액권사용: '308,000' }),
+  row({ 구분: '시술', '1차메뉴': '펌', 합계: '320,000', 현금: '172,973', 카드: '147,027' }),
+  row({ 구분: '시술', '1차메뉴': '펌', 합계: '0', 정액권사용: '150,000' }),
+  row({ 구분: '시술소계', 합계: '859,000', 현금: '172,973', 카드: '378,027', 통장: '77,000', Pay: '231,000' }),
+  row({ 구분: '정액권판매', '1차메뉴': '정액권판매', 합계: '300,000', Pay: '300,000' }),
+  row({ 구분: '정액권판매', '1차메뉴': '정액권판매', 합계: '500,000', 통장: '500,000' }),
+  row({ 구분: '정액권소계', 합계: '800,000', 통장: '500,000', Pay: '300,000' }),
+  row({ 구분: '직원소계', 합계: '1,659,000', 통장: '999,999' }),
+];
+const mk = parseReportB(tableHtml(rowsMk)).designers[0];
+eq('pay_all = 시술+정액권판매 명세 행', mk.pay_all, { '현금': 172973, '카드': 378027, '통장': 577000, 'Pay': 531000, '기타': 0 });
+eq('pay_service 는 그대로 시술만 (명세서용)', mk.pay_service, { '현금': 172973, '카드': 378027, '통장': 77000, 'Pay': 231000, '기타': 0 });
+
 /* ══ 수기 매출 ↔ 핸드SOS 맞추기 ══ */
 console.log('\n수기 매출 ↔ 핸드SOS 결제수단 맞추기');
 const man = { cash: 0, card: 330000, alipay: 55000, transfer: 20000, naverpay: 0, total: 405000 };
 eq('알리페이는 카드로 합쳐 본다', manualGroups(man), { cash: 0, card: 385000, transfer: 20000, naverpay: 0, etc: 0 });
 const hsRecs = [
-  { pay: { '현금': 0, '카드': 300000, '통장': 20000, 'Pay': 0, '기타': 0 } },
-  { pay: { '현금': 0, '카드': 85000, '통장': 0, 'Pay': 0, '기타': 0 } },
+  { pay_all: { '현금': 0, '카드': 300000, '통장': 20000, 'Pay': 0, '기타': 0 } },
+  { pay_all: { '현금': 0, '카드': 85000, '통장': 0, 'Pay': 0, '기타': 0 } },
 ];
 eq('지점 여러 곳이면 합친다', hsGroups(hsRecs), { cash: 0, card: 385000, transfer: 20000, naverpay: 0, etc: 0 });
 eq('같으면 차이 없음', diffGroups(manualGroups(man), hsGroups(hsRecs)), []);
 eq('카드·네이버페이가 다르면 둘 다 알려 준다',
-  diffGroups(manualGroups({ card: 385000, naverpay: 0 }), hsGroups([{ pay: { '카드': 330000, 'Pay': 55000 } }])),
+  diffGroups(manualGroups({ card: 385000, naverpay: 0 }), hsGroups([{ pay_all: { '카드': 330000, 'Pay': 55000 } }])),
   [{ k: 'card', from: 385000, to: 330000 }, { k: 'naverpay', from: 0, to: 55000 }]);
 eq('핸드SOS에 없으면 0 과 비교', diffGroups(manualGroups({ cash: 50000 }), hsGroups([])), [{ k: 'cash', from: 50000, to: 0 }]);
-eq('결제수단만 바뀐 것도 다름', diffGroups(manualGroups({ card: 100000 }), hsGroups([{ pay: { '통장': 100000 } }])),
+eq('결제수단만 바뀐 것도 다름', diffGroups(manualGroups({ card: 100000 }), hsGroups([{ pay_all: { '통장': 100000 } }])),
   [{ k: 'card', from: 100000, to: 0 }, { k: 'transfer', from: 0, to: 100000 }]);
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} passed, ${fail} failed`);
