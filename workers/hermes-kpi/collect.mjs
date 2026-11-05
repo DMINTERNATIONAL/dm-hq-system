@@ -453,7 +453,7 @@ async function collectVisits(date, dry) {
    짝: 현금↔현금 · 카드+알리페이↔카드(알리페이는 핸드SOS에서 카드로 통일) · 계좌이체↔통장 · 네이버페이↔Pay · 기타↔기타.
    비교 금액은 그날 받은 결제 전부(pay_all: 시술·점판·정액권판매 등 모든 명세 행). 정액권 '사용'분은 돈을 받은 게 아니라 결제수단에 안 잡힌다.
    (10/31~11/5 은 시술+점판만 비교해서 정액권을 판 날을 잘못 고쳤다 — 원래 입력이 맞으면 되돌린다)
-   /config/salesFix.auto 가 true 일 때만 실제로 고친다. 아니면 다른 것만 적어 둔다(경영팀 목록에서 보임).
+   항상 고친다(11/5 사용자 결정 — 끄는 스위치 없앰). 핸드SOS 에 이름이 없는 날만 고치지 않고 적어 둔다(경영팀 목록에서 보임).
    핸드SOS 에 그 디자이너가 아예 없으면(이름이 안 맞을 수 있음) 고치지 않고 '확인 필요'로만 남긴다. */
 export const FIX_KEYS = ['cash', 'card', 'transfer', 'naverpay', 'etc'];
 export function manualGroups(s) {
@@ -475,8 +475,7 @@ const SALES_FIX_FROM = '2026-05-13'; // 앱 매출 입력 시작일(index.html S
 async function reconcileSales(dates, dry) {
   dates = [...new Set(dates)].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= SALES_FIX_FROM).sort();
   if (!dates.length) return { dates: 0 };
-  const cfg = (await fbGET('/config/salesFix.json')) || {};
-  const auto = cfg.auto === true;
+  const auto = true;
   const users = (await fbGET('/users.json')) || {};
   // 핸드SOS 직원명(닉네임 우선, 실명 폴백) → 폰. 같은 이름이 둘이면 누군지 몰라 뺀다.
   const byName = new Map(), dup = new Set();
