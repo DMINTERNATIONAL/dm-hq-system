@@ -506,7 +506,7 @@ async function reconcileSales(dates, dry) {
     for (const ph of phones) {
       const s = manBy[ph][date], prev = fixBy[ph][date];
       const fixPath = `/salesFix/${enc(ph)}/${enc(date)}`;
-      if (!hasManual(s)) { if (prev && !prev.applied && !dry) { await rtdbPut(fixPath, null); out.cleared++; } continue; }
+      if (!hasManual(s)) { if (prev && !prev.applied && !prev.reverted && !dry) { await rtdbPut(fixPath, null); out.cleared++; } continue; }
       const u = users[ph] || {};
       let recs = hsBy[ph], missing = false;
       if (!recs) {
@@ -519,19 +519,21 @@ async function reconcileSales(dates, dry) {
       const m = manualGroups(s), h = hsGroups(recs);
       const wasFix = !!(s.hsFixAt && s.orig);
       if (wasFix && !diffGroups(manualGroups(s.orig), h).length) {
-        // 원래 입력이 맞았는데 고쳐 버린 날 — 원래 입력으로 되돌린다. 알림은 보내지 않고 수정 기록도 지운다.
+        // 원래 입력이 맞았는데 고쳐 버린 날 — 원래 입력으로 되돌린다. 알림은 보내지 않는다.
+        // 기록은 reverted 로 남겨 경영팀 목록에서 보이게 하고, 디자이너 화면(카드·달력)에서는 뺀다.
         if (!dry) {
-          const o = s.orig;
-          await rtdbPatch(`/dailySales/${enc(ph)}/${enc(date)}`, { cash: +o.cash || 0, card: +o.card || 0, alipay: +o.alipay || 0, transfer: +o.transfer || 0, naverpay: +o.naverpay || 0, etc: +o.etc || null, total: +o.total || 0, hsFixAt: null, orig: null, hsUndoAt: nowIso() });
-          if (prev) await rtdbPut(fixPath, null);
+          const o = s.orig, at = nowIso();
+          await rtdbPatch(`/dailySales/${enc(ph)}/${enc(date)}`, { cash: +o.cash || 0, card: +o.card || 0, alipay: +o.alipay || 0, transfer: +o.transfer || 0, naverpay: +o.naverpay || 0, etc: +o.etc || null, total: +o.total || 0, hsFixAt: null, orig: null, hsUndoAt: at });
+          await rtdbPut(fixPath, { ...(prev || { date, ph, name: (users[ph] || {}).nick || (users[ph] || {}).name || '', branch: (users[ph] || {}).branch || '' }), wrong: { ...manualGroups(s) }, hs: { ...h, total: FIX_KEYS.reduce((a, k) => a + h[k], 0) }, applied: 0, reverted: 1, revertedAt: at, seen: 1 });
         }
-        console.log('[salesfix] 되돌림', ph, date, JSON.stringify(manualGroups(s)), '→', JSON.stringify(manualGroups(s.orig)));
+        // 저장소가 공개라 실행 기록에 이름·전화·금액은 남기지 않는다
+        console.log('[salesfix] 되돌림', (users[ph] || {}).branch || '', date);
         out.reverted++; continue;
       }
       // 이미 한 번 고친 날이면 디자이너에게는 처음 넣은 값과 비교해서 보여 준다
       const diffs = diffGroups(m, h), shown = wasFix ? diffGroups(manualGroups(s.orig), h) : diffs;
       if (!diffs.length) {
-        if (prev && !prev.applied && !dry) { await rtdbPut(fixPath, null); out.cleared++; }
+        if (prev && !prev.applied && !prev.reverted && !dry) { await rtdbPut(fixPath, null); out.cleared++; }
         continue;
       }
       const b0 = wasFix ? s.orig : s;
@@ -542,7 +544,7 @@ async function reconcileSales(dates, dry) {
       if (!apply && prev && !prev.applied && JSON.stringify(prev.diffs || []) === sig) continue; // 같은 내용이면 다시 안 씀
       const rec = { date, ph, name: u.nick || u.name || '', branch: u.branch || '', at: nowIso(), before, hs: { ...h, total: hsTotal }, diffs: shown, applied: apply ? 1 : 0, seen: 0 };
       if (missing) rec.missing = 1;
-      if (dry) { console.log('[salesfix][dry]', ph, date, sig, apply ? '→ 수정' : '→ 기록만'); continue; }
+      if (dry) { console.log('[salesfix][dry]', u.branch || '', date, diffs.map(f => f.k).join(','), apply ? '→ 수정' : '→ 기록만'); continue; }
       if (apply) {
         const fixed = { cash: h.cash, card: h.card, alipay: 0, transfer: h.transfer, naverpay: h.naverpay, etc: h.etc || null, total: hsTotal, hsFixAt: rec.at };
         if (!s.orig) fixed.orig = before;      // 처음 입력값은 한 번만 남긴다
