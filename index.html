@@ -1982,6 +1982,9 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-pq button.on{background:#fff;color:var(--cm-ink);box-shadow:0 1px 3px rgba(15,23,42,.1)}
 .cm-pqn{font-size:12.5px;color:var(--cm-ink3);padding:8px 16px 4px;line-height:1.5}
 .cm-sheet.cm-pv{padding-top:14px}
+.cm-vpv{padding:4px 14px 8px}
+.cm-vpv video{display:block;width:100%;max-height:36vh;border-radius:10px;background:#000}
+.cm-vinfo{font-size:12.5px;color:var(--cm-ink3);text-align:center;padding:0 16px 10px}
 .cm-sheet.cm-pv .cm-pq button{display:block;flex:1;width:auto;text-align:center;border-top:0;padding:9px 0;font-size:14px;font-weight:800}
 .cm-sheet.cm-pv .cm-pvbtns{display:flex;gap:8px;padding:10px 14px 6px}
 .cm-sheet.cm-pv .cm-pvbtns button{display:block;border-top:0;text-align:center;padding:13px 0;font-size:15px;font-weight:800;border-radius:12px}
@@ -8299,7 +8302,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-11-08-2',DM_UPDATE_READY=false;
+var DM_BUILD='2026-11-08-3',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -10174,21 +10177,30 @@ function cmReadAll(){var up={};Object.keys(CM.inbox||{}).forEach(function(k){var
 
 /* ── 사진 · 동영상 ──
    보통 사진: 폰에서 긴 변 2560px 로 줄여 p/ 에 올림(계속 보관). 원본: 그대로 o/ 에 올리고 줄인 사진도 같이(90일).
-   동영상: o/ 에 그대로(최대 300MB, 90MB 넘으면 50MB 조각으로), 첫 장면을 사진으로 따로 올려 미리보기로 씀. */
+   동영상: 카톡처럼 폰에서 먼저 줄여서(일반 720p · 고화질 1080p, 원본은 그대로) o/ 에 올림(최대 300MB, 10MB 조각으로),
+   첫 장면을 사진으로 따로 올려 미리보기로 씀. */
 CM.urls={};
 function cmShrink(file,maxd,q){return new Promise(function(res){var url=URL.createObjectURL(file);var img=new Image();img.onload=function(){var w=img.naturalWidth,h=img.naturalHeight,s=Math.min(1,maxd/Math.max(w,h));var cw=Math.round(w*s),ch=Math.round(h*s);var cv=document.createElement('canvas');cv.width=cw;cv.height=ch;cv.getContext('2d').drawImage(img,0,0,cw,ch);URL.revokeObjectURL(url);cv.toBlob(function(b){res(b?{blob:b,w:cw,h:ch}:null)},'image/jpeg',q)};img.onerror=function(){URL.revokeObjectURL(url);res(null)};img.src=url})}
 function cmPoster(file){return new Promise(function(res){var url=URL.createObjectURL(file);var v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';var done=false;function fin(x){if(done)return;done=true;URL.revokeObjectURL(url);res(x)}
   v.onloadeddata=function(){try{v.currentTime=Math.min(0.5,(v.duration||1)/2)}catch(e){fin(null)}};
   v.onseeked=function(){try{var s=Math.min(1,960/Math.max(v.videoWidth,v.videoHeight));var cv=document.createElement('canvas');cv.width=Math.round(v.videoWidth*s);cv.height=Math.round(v.videoHeight*s);cv.getContext('2d').drawImage(v,0,0,cv.width,cv.height);cv.toBlob(function(b){fin(b?{blob:b,w:cv.width,h:cv.height,d:v.duration}:{d:v.duration})},'image/jpeg',.8)}catch(e){fin({d:v.duration})}};
   v.onerror=function(){fin(null)};setTimeout(function(){fin(null)},8000);v.src=url})}
+/* 올리기 — 서버가 정한 크기(10MB) 조각으로 나눠 3개씩 동시에 보내고, 끊기거나 멈춘 조각은 그 조각만 3번까지 다시 보낸다.
+   (예전엔 90MB를 한 번에 보내서 폰 · 해외 회선에서 한 번 끊기면 처음부터 실패했다)
+   멈춤 판단: 초당 40KB도 안 가면(최소 1분) 끊고 다시. 앱이 잠깐 가려졌다 돌아와도 그 조각부터 이어서 보낸다 */
+function cmPut(path,type,body){var n=0;
+  function go(){n++;var ac=window.AbortController?new AbortController():null,t=ac?setTimeout(function(){ac.abort()},Math.max(60000,body.size/40)):0;
+    return ctFetch(path,{method:'PUT',headers:{'Content-Type':type},body:body,signal:ac?ac.signal:undefined}).then(function(r){clearTimeout(t);if(!r||!r.ok){var e=new Error((r&&r.error)||'올리지 못했습니다');if(r&&/허가|너무 큽|로그인|번호/.test(r.error||''))e.stop=1;throw e}return r},function(e){clearTimeout(t);throw e})
+      .catch(function(e){if(e.stop||n>=4)throw (e&&e.name==='AbortError'?new Error('인터넷이 너무 느려서 올리지 못했어요'):e.message==='Failed to fetch'||e.message==='Load failed'?new Error('인터넷 연결이 끊겨 올리지 못했어요'):e);return new Promise(function(res){setTimeout(res,n*2000)}).then(go)})}
+  return go()}
 function cmUpload(rid,blob,kind,name,onProg){var type=blob.type||'application/octet-stream';
   return cmApi('up/start',{rid:rid,kind:kind,name:name||'',type:type,size:blob.size}).then(function(st){
-    if(st.mode==='single')return ctFetch('/chat/up/put?key='+encodeURIComponent(st.key)+'&tk='+st.tk,{method:'PUT',headers:{'Content-Type':type},body:blob}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||'올리지 못했습니다');if(onProg)onProg(1);return st.key});
-    var parts=[],n=Math.ceil(blob.size/st.partSize),i=0;
-    function next(){if(i>=n)return cmApi('up/done',{key:st.key,uid:st.uid,tk:st.tk,parts:parts}).then(function(){return st.key});
-      var c=blob.slice(i*st.partSize,(i+1)*st.partSize);i++;
-      return ctFetch('/chat/up/part?key='+encodeURIComponent(st.key)+'&uid='+encodeURIComponent(st.uid)+'&n='+i+'&tk='+st.tk,{method:'PUT',headers:{'Content-Type':'application/octet-stream'},body:c}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||'올리지 못했습니다');parts.push(r.part);if(onProg)onProg(i/n);return next()})}
-    return next()})}
+    if(st.mode==='single')return cmPut('/chat/up/put?key='+encodeURIComponent(st.key)+'&tk='+st.tk,type,blob).then(function(){if(onProg)onProg(1);return st.key});
+    var ps=st.partSize,n=Math.ceil(blob.size/ps),parts=[],sent=0,nx=0,dead=0;
+    function worker(){if(nx>=n||dead)return Promise.resolve();var i=++nx,c=blob.slice((i-1)*ps,i*ps);
+      return cmPut('/chat/up/part?key='+encodeURIComponent(st.key)+'&uid='+encodeURIComponent(st.uid)+'&n='+i+'&tk='+st.tk,'application/octet-stream',c).then(function(r){parts.push(r.part);sent+=c.size;if(onProg)onProg(sent/blob.size);return worker()},function(e){dead=1;throw e})}
+    var ws=[];for(var w=0;w<Math.min(3,n);w++)ws.push(worker());
+    return Promise.all(ws).then(function(){parts.sort(function(a,b){return a.partNumber-b.partNumber});return cmApi('up/done',{key:st.key,uid:st.uid,tk:st.tk,parts:parts})}).then(function(){return st.key})})}
 /* 파일 고르기 — 반드시 화면(body)에 붙인 칸으로 연다. 붙이지 않은 칸은 아이폰에서 사진을 골라도
    change 가 안 와서 '고르면 메뉴가 닫히고 아무 일도 없는' 버그가 났다. */
 function cmFileInput(accept,multiple,capture,cb){var inp=document.createElement('input');inp.type='file';inp.accept=accept;inp.multiple=!!multiple;if(capture)inp.setAttribute('capture',capture);
@@ -10206,7 +10218,7 @@ function cmAttachDo(boxId,thread,what){
   if(what==='sched'){cmAttachClose(boxId);return cmSchedNew(boxId)}
   if(what==='notice'){cmAttachClose(boxId);return cmNoticeNew()}
   if(what==='ack'){cmAttachClose(boxId);return cmNewAck()}if(what==='poll'){cmAttachClose(boxId);return cmNewPoll()}
-  if(what==='video')return cmFileInput('video/*',false,null,function(fs){cmAttachClose(boxId);cmSendFiles('v',fs,thread)});
+  if(what==='video')return cmFileInput('video/*',false,null,function(fs){cmAttachClose(boxId);cmVideoPreview(fs[0],thread)});
   if(what==='file')return cmFileInput(cmFileAccept(),true,null,function(fs){cmAttachClose(boxId);cmFileConfirm(fs,thread)});
   cmFileInput('image/*',what!=='camera',what==='camera'?'environment':null,function(fs){cmAttachClose(boxId);cmPhotoPreview(fs,thread)})}
 /* 파일: 문서 종류만 고르게 해서 아이폰에서 바로 '파일' 앱이 열리게 한다(사진 · 동영상은 앨범 · 동영상 칸으로). 50MB · 90일 보관 */
@@ -10232,7 +10244,7 @@ function cmDropFiles(dt,thread){var fs=[];
   if(dt.items&&dt.items.length)[].forEach.call(dt.items,function(it){if(it.kind!=='file')return;var f=it.getAsFile();if(!f)return;try{var en=it.webkitGetAsEntry&&it.webkitGetAsEntry();if(en&&en.isDirectory)f._dir=1}catch(e){}fs.push(f)});
   else fs=[].slice.call(dt.files||[]);if(!fs.length)return;
   if(fs.every(function(f){return !f._dir&&/^image\/(jpeg|png|gif|webp|heic|heif)$/i.test(f.type)}))return cmPhotoPreview(fs,thread);
-  if(fs.length===1&&!fs[0]._dir&&/^video\//.test(fs[0].type)&&fs[0].size<=300*1048576)return cmSendFiles('v',fs,thread);
+  if(fs.length===1&&!fs[0]._dir&&/^video\//.test(fs[0].type))return cmVideoPreview(fs[0],thread);
   cmFileConfirm(fs,thread)}
 (function(){var depth=0,ov=null;
   function inRoom(){return typeof COMM_BETA!=='undefined'&&COMM_BETA&&CM.rid&&(cmOn('p-comm-room')||cmOn('p-comm-thread'))}
@@ -10258,18 +10270,83 @@ function cmPhotoPreview(files,thread){if(files.length>30){alert('사진은 한 �
   var close=function(){urls.forEach(function(u){URL.revokeObjectURL(u)});bg.remove()};
   bg.onclick=function(e){if(e.target===bg)close()};$('CM-PVX').onclick=close;
   $('CM-PVS').onclick=function(){if(q==='orig'&&(files.length>10||big())){alert('원본은 장당 20MB, 한 번에 10장까지예요. 일반이나 고화질로 보내 주세요.');return}close();cmSendFiles(q==='orig'?'o':'p',files,thread,q)}}
+/* ── 동영상 보내기 (카톡 기준) ──
+   고르면 미리보기 + 화질(일반 · 고화질 · 원본) 창을 띄우고, 일반 · 고화질은 폰 안에서 H.264 mp4 로 줄여서 보낸다.
+   그래서 아이폰 4K 처럼 300MB 넘는 영상도 보낼 수 있고, 아이폰 HEVC 영상도 윈도우 PC 에서 재생된다.
+   줄이는 도구: Mediabunny(MPL-2.0, 브라우저 웹코덱 사용) — 처음 동영상 고를 때만 불러온다(약 700KB).
+   이미 작고 H.264 면 그대로 보낸다. 줄이지 못하면(옛 기기 · 도구 못 불러옴 · 소리를 못 옮김) 300MB 이하면 원본으로,
+   넘으면 이유를 알려 준다. 줄이는 동안 화면이 꺼지지 않게 해 둔다(앱을 닫거나 다른 앱으로 가면 멈춤 — 웹앱 한계). */
+var CM_VQ={normal:['일반',1280,2500000,'빠르게 보내기 · 대부분 이걸로 충분해요'],high:['고화질',1920,6000000,'더 선명하게 (조금 오래 걸려요)'],orig:['원본',0,0,'찍은 그대로 · 300MB까지']};
+var CM_VMAX=300*1048576,CM_MBP=null;
+function cmVq(){try{var v=localStorage.getItem('cm_vq');return CM_VQ[v]?v:'normal'}catch(e){return 'normal'}}
+function cmMb(){if(!CM_MBP)CM_MBP=import('https://cdn.jsdelivr.net/npm/mediabunny@1.61.6/dist/bundles/mediabunny.min.mjs').catch(function(e){CM_MBP=null;throw e});return CM_MBP}
+function cmCanShrinkVideo(){return typeof VideoEncoder!=='undefined'&&typeof VideoDecoder!=='undefined'}
+function cmVidEst(q,info){var vq=CM_VQ[q];if(!vq[1]||!info.d)return 0;return Math.min(info.sz,Math.round(info.d*(vq[2]+128000)/8*1.05))}
+/* 화면 꺼짐 막기 — 줄이기 · 올리기 동안만. 앱이 가려지면 풀리므로 돌아오면 다시 건다 */
+var CM_WL=null,CM_WLN=0;
+function cmAwake(on){CM_WLN=Math.max(0,CM_WLN+(on?1:-1));try{if(CM_WLN&&!CM_WL&&navigator.wakeLock&&document.visibilityState==='visible'){CM_WL=1;navigator.wakeLock.request('screen').then(function(l){if(!CM_WLN){l.release().catch(function(){});CM_WL=null;return}CM_WL=l;l.addEventListener('release',function(){CM_WL=null})}).catch(function(){CM_WL=null})}else if(!CM_WLN&&CM_WL&&CM_WL.release){CM_WL.release().catch(function(){});CM_WL=null}}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&CM_WLN&&!CM_WL){CM_WLN--;cmAwake(1)}});
+async function cmVideoPrep(f,q,onProg){var vq=CM_VQ[q]||CM_VQ.normal;
+  var as=function(why){if(f.size<=CM_VMAX){if(why)toast(why+' — 원본으로 보내요');return {blob:f,name:f.name}}var e=new Error((why||'동영상을 줄이지 못했어요')+'\n\n300MB가 넘어서 원본으로도 보낼 수 없어요. 영상을 잘라서 보내 주세요.');e.keep=1;throw e};
+  if(!vq[1])return as('');
+  if(!cmCanShrinkVideo())return as('이 기기에서는 동영상을 줄일 수 없어요');
+  var MB;try{MB=await cmMb()}catch(e){return as('동영상 줄이는 도구를 불러오지 못했어요')}
+  var input=new MB.Input({source:new MB.BlobSource(f),formats:MB.ALL_FORMATS});
+  try{var vt=await input.getPrimaryVideoTrack();if(!vt)return as('동영상을 읽지 못했어요');
+    var at=await input.getPrimaryAudioTrack(),dur=await input.computeDuration();
+    var dw=vt.displayWidth,dh=vt.displayHeight,lg=Math.max(dw,dh),sc=Math.min(1,vq[1]/lg);
+    if(vt.codec==='avc'&&lg<=vq[1]&&f.size<=dur*(vq[2]+128000)/8*1.3)return {blob:f,name:f.name};
+    var out=new MB.Output({format:new MB.Mp4OutputFormat({fastStart:'in-memory'}),target:new MB.BufferTarget()});
+    var cv=await MB.Conversion.init({input:input,output:out,tracks:'primary',showWarnings:false,
+      video:{width:Math.round(dw*sc/2)*2,codec:'avc',quality:new MB.Quality({bitrate:vq[2],bitrateMode:'variable'}),forceTranscode:true}});
+    /* 소리 트랙을 못 옮기면 소리 없는 영상이 되므로 줄이지 않는다 */
+    var lost=cv.discardedTracks.some(function(x){return x.track===vt||(at&&x.track===at)});
+    if(!cv.isValid||lost)return as('이 동영상은 폰에서 줄일 수 없어요');
+    cv.onProgress=function(p){if(onProg)onProg(p)};
+    await cv.execute();
+    var blob=new Blob([out.target.buffer],{type:'video/mp4'});
+    if(blob.size>=f.size&&f.size<=CM_VMAX)return {blob:f,name:f.name};
+    if(blob.size>CM_VMAX){var e=new Error('줄여도 300MB가 넘어요 ('+cmFileSize(blob.size)+'). 영상을 잘라서 보내 주세요.');e.keep=1;throw e}
+    return {blob:blob,name:String(f.name||'video').replace(/\.[A-Za-z0-9]{1,5}$/,'')+'.mp4'};
+  }catch(e){if(e.keep)throw e;console.warn('video shrink',e);return as('동영상을 줄이다 멈췄어요')}
+  finally{try{input.dispose()}catch(e){}}}
+function cmVideoPreview(f,thread){var url=URL.createObjectURL(f),q=cmVq(),info={sz:f.size,d:0},can=cmCanShrinkVideo();
+  var bg=document.createElement('div');bg.className='cm-sheet-bg';
+  bg.innerHTML='<div class="cm-sheet cm-pv"><div class="ttl">동영상</div><div class="cm-vpv"><video src="'+url+'" playsinline muted controls preload="metadata"></video></div><div class="cm-vinfo" id="CM-VI"></div><div class="cm-pq" id="CM-PQ"></div><div class="cm-pqn" id="CM-PQN"></div><div class="cm-pvbtns"><button class="no" id="CM-PVX">취소</button><button class="go" id="CM-PVS">보내기</button></div></div>';
+  document.body.appendChild(bg);var v=bg.querySelector('video');
+  var why=function(){var big=f.size>CM_VMAX,est=cmVidEst(q,info);
+    if(q==='orig')return big?'300MB가 넘어서 원본으로는 보낼 수 없어요. 일반이나 고화질로 보내 주세요.':'';
+    if(!can)return big?'이 기기에서는 동영상을 줄일 수 없고, 300MB가 넘어서 보낼 수 없어요':'';
+    return est>CM_VMAX?'영상이 길어서 줄여도 300MB가 넘어요. '+(q==='high'?'일반으로 보내거나 ':'')+'잘라서 보내 주세요.':''};
+  var paint=function(){var est=cmVidEst(q,info),w=why();
+    $('CM-VI').textContent=(info.d?Math.floor(info.d/60)+':'+('0'+Math.floor(info.d%60)).slice(-2)+' · ':'')+'원본 '+cmFileSize(f.size);
+    $('CM-PQ').innerHTML=Object.keys(CM_VQ).map(function(k){return '<button class="'+(q===k?'on':'')+'" data-q="'+k+'">'+CM_VQ[k][0]+'</button>'}).join('');
+    var n=CM_VQ[q][3];if(q!=='orig'&&can&&est)n+=' · 약 '+cmFileSize(est);
+    if(q!=='orig'&&!can&&!w)n='이 기기에서는 동영상을 줄일 수 없어 원본으로 보내요';
+    if(q!=='orig'&&can&&!w)n+='<br>보내는 동안 앱을 열어 두세요 (다른 앱으로 가면 멈춰요)';
+    if(w)n+='<br><b style="color:#DC2626">'+w+'</b>';$('CM-PQN').innerHTML=n;
+    var go=$('CM-PVS');go.disabled=!!w;
+    $('CM-PQ').querySelectorAll('button').forEach(function(b){b.onclick=function(){q=b.getAttribute('data-q');try{localStorage.setItem('cm_vq',q)}catch(e){}paint()}})};
+  v.onloadedmetadata=function(){if(isFinite(v.duration)&&v.duration>0){info.d=v.duration;paint()}};
+  /* 이 브라우저가 재생 못 하는 영상(윈도우에서 아이폰 HEVC 등)은 도구로 길이만 읽는다 */
+  if(can)cmMb().then(function(MB){if(info.d||!bg.isConnected)return;var inp=new MB.Input({source:new MB.BlobSource(f),formats:MB.ALL_FORMATS});return inp.computeDuration().then(function(d){if(d>0&&!info.d){info.d=d;paint()}}).finally(function(){try{inp.dispose()}catch(e){}})}).catch(function(){});
+  paint();
+  var close=function(){URL.revokeObjectURL(url);bg.remove()};
+  bg.onclick=function(e){if(e.target===bg)close()};$('CM-PVX').onclick=close;
+  $('CM-PVS').onclick=function(){if(why())return;close();cmSendFiles('v',[f],thread,q)}}
 function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;var pq=CM_PQ[quality||'normal']||CM_PQ.normal;var max=kind==='p'?30:kind==='o'||kind==='f'?10:5;
   if(files.length>max){alert('한 번에 '+max+'개까지 보낼 수 있어요');return}
-  var lim={o:20,v:300,f:50}[kind];if(lim){var big=files.filter(function(f){return f.size>lim*1048576});if(big.length){alert('너무 큰 파일이 있어요 (최대 '+lim+'MB)\n\n'+big.map(function(f){return f.name}).join('\n'));return}}
+  var lim={o:20,f:50}[kind];if(lim){var big=files.filter(function(f){return f.size>lim*1048576});if(big.length){alert('너무 큰 파일이 있어요 (최대 '+lim+'MB)\n\n'+big.map(function(f){return f.name}).join('\n'));return}}
   var tmp='zz'+Date.now();var me=String(ME.phone);var label=kind==='v'?'동영상':kind==='f'?'파일 '+files.length+'개':'사진 '+files.length+'장';
   /* 올리기 시작할 때의 스레드 · 답장 모아 보기를 기억(올리는 동안 화면을 옮겨도 그 자리로) — 답장 모아 보기에서는 원글을 인용해 보낸다 */
   var root0=thread?CM.thRoot:null,rp0=!thread&&CM.rpRoot?(CM.reply||CM.rpQ0):null;
-  CM_PENDING[tmp]={rid:rid,root:root0,since:cmMaxKey(root0?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:label+' 올리는 중…',rp:rp0||undefined}};
+  CM_PENDING[tmp]={rid:rid,root:root0,since:cmMaxKey(root0?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:label+(kind==='v'?' 준비 중…':' 올리는 중…'),rp:rp0||undefined}};
   var paint=function(){if(thread)cmRenderThread();else cmRenderMsgs()};paint();
-  var prog=function(t){CM_PENDING[tmp].m.x=label+' 올리는 중… '+Math.round(t*100)+'%';paint()};
+  var last='';var step=function(w,t){var x=label+' '+w+'… '+Math.round(t*100)+'%';if(x===last||!CM_PENDING[tmp])return;last=x;CM_PENDING[tmp].m.x=x;paint()};var prog=function(t){step('올리는 중',t)};
   var done=0,md=[];
   var jobs=files.map(function(f,ix){
-    if(kind==='v')return cmPoster(f).then(function(pv){var pj=pv&&pv.blob?cmUpload(rid,pv.blob,'p','poster.jpg'):Promise.resolve(null);return pj.then(function(pk){return cmUpload(rid,f,'v',f.name,prog).then(function(vk){md[ix]={v:vk,u:pk||undefined,w:pv&&pv.w||0,h:pv&&pv.h||0,d:pv&&pv.d||0,sz:f.size,n:f.name}})})});
+    if(kind==='v'){cmAwake(1);return cmVideoPrep(f,quality||'normal',function(p){step('줄이는 중',p)}).then(function(r){step('올리는 중',0);
+      return cmPoster(r.blob).then(function(pv){return pv||r.blob===f?pv:cmPoster(f)}).then(function(pv){var pj=pv&&pv.blob?cmUpload(rid,pv.blob,'p','poster.jpg'):Promise.resolve(null);return pj.then(function(pk){return cmUpload(rid,r.blob,'v',r.name,prog).then(function(vk){md[ix]={v:vk,u:pk||undefined,w:pv&&pv.w||0,h:pv&&pv.h||0,d:pv&&pv.d||0,sz:r.blob.size,n:r.name}})})})}).finally(function(){cmAwake(0)})}
     if(kind==='f')return cmUpload(rid,f,'f',f.name,files.length===1?prog:null).then(function(fk){md[ix]={f:fk,n:f.name,sz:f.size};done++;prog(done/files.length)});
     return cmShrink(f,pq[1],pq[2]).then(function(s){if(!s)throw new Error(f.name+' 사진을 읽지 못했어요');return cmUpload(rid,s.blob,'p','photo.jpg').then(function(pk){var it={u:pk,w:s.w,h:s.h,sz:s.blob.size};if(kind!=='o')return it;return cmUpload(rid,f,'o',f.name).then(function(ok){it.o=ok;it.sz=f.size;it.n=f.name;return it})})}).then(function(it){md[ix]=it;done++;prog(done/files.length)})});
   Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(root0)body.root=root0;if(rp0)body.rp=rp0;
@@ -10558,7 +10635,8 @@ function bdWrite(bid,pid){go('p-comm-write');var p=$('p-comm-write');var ids=Obj
   bdMdList()}
 function bdMdList(){var e=$('BD-MDL');if(!e)return;var md=BD.draft.md;e.innerHTML=md.length?md.map(function(m,i){return '<div style="display:flex;justify-content:space-between;padding:4px 0">'+(m.v?'동영상':'사진')+' '+(i+1)+(m.n?' · '+cmEsc(m.n):'')+'<a style="color:#DC2626;cursor:pointer" onclick="BD.draft.md.splice('+i+',1);bdMdList()">빼기</a></div>'}).join(''):''}
 function bdAttach(){var bid=$('BD-B').value;cmFileInput('image/*,video/*',true,null,function(fs){var rid='board:'+bid;var btn=$('BD-SAVE');btn.disabled=true;btn.textContent='올리는 중…';
-  Promise.all(fs.map(function(f){if(/^video/.test(f.type)){if(f.size>300*1048576)throw new Error('동영상은 300MB까지예요');return cmPoster(f).then(function(pv){return (pv&&pv.blob?cmUpload(rid,pv.blob,'p','poster.jpg'):Promise.resolve(null)).then(function(pk){return cmUpload(rid,f,'v',f.name).then(function(vk){BD.draft.md.push({v:vk,u:pk||undefined,w:pv&&pv.w||0,h:pv&&pv.h||0,d:pv&&pv.d||0,n:f.name,sz:f.size})})})})}
+  /* 동영상은 채팅과 같이 '일반'으로 줄여서 올린다(300MB 넘는 영상도 가능) */
+  Promise.all(fs.map(function(f){if(/^video/.test(f.type)){cmAwake(1);return cmVideoPrep(f,'normal',function(p){btn.textContent='동영상 줄이는 중 '+Math.round(p*100)+'%'}).then(function(r){btn.textContent='올리는 중…';return cmPoster(r.blob).then(function(pv){return pv||r.blob===f?pv:cmPoster(f)}).then(function(pv){return (pv&&pv.blob?cmUpload(rid,pv.blob,'p','poster.jpg'):Promise.resolve(null)).then(function(pk){return cmUpload(rid,r.blob,'v',r.name,function(t){btn.textContent='올리는 중 '+Math.round(t*100)+'%'}).then(function(vk){BD.draft.md.push({v:vk,u:pk||undefined,w:pv&&pv.w||0,h:pv&&pv.h||0,d:pv&&pv.d||0,n:r.name,sz:r.blob.size})})})})}).finally(function(){cmAwake(0)})}
     return cmShrink(f,2560,.82).then(function(s){return cmUpload(rid,s.blob,'p','photo.jpg').then(function(k){BD.draft.md.push({u:k,w:s.w,h:s.h,sz:s.blob.size,n:f.name})})})})).then(function(){bdMdList()}).catch(function(e){alert(e.message)}).then(function(){btn.disabled=false;btn.textContent='올리기'})})}
 function bdSave(pid){var bid=$('BD-B').value,t=$('BD-T').value.trim(),x=$('BD-X').value;if(!t){alert('제목을 입력해 주세요');return}var body={bid:bid,t:t,x:x,md:BD.draft.md,pid:pid||null};
   if($('BD-MUST')){if($('BD-MUST').checked){var d=parseInt($('BD-DUE').value,10);body.must={due:d?Date.now()+d:0}}body.pin=$('BD-PIN').checked}

@@ -6,12 +6,14 @@
  *   보기:   방 참여 확인 후 6시간짜리 서명 주소를 준다. <img>·<video> 는 머리글을 못 보내서
  *           로그인 토큰 대신 파일마다 서명을 붙인다(토큰이 주소에 남지 않게).
  * 키: p/{방 태그}/… 보통 사진(계속 보관) · o/{방 태그}/… 원본 사진·동영상·파일(90일 뒤 자동 삭제 — 버킷 수명 규칙)
- * 100MB 넘는 동영상은 여러 조각으로 나눠 올린다(Worker 한 번에 받는 한도가 100MB).
+ * 10MB 넘는 파일은 10MB 조각으로 나눠 올린다 — 조각이 작으면 끊겨도 그 조각만 다시 보내면 되고(폰 · 해외 회선),
+ * 진행률도 촘촘해진다. 조각은 마지막만 빼고 크기가 같아야 한다(R2 규칙). Worker 한 번에 받는 한도는 100MB.
  */
 
 const te = new TextEncoder();
 const LIMIT = { p: 12 * 1024 * 1024, o: 20 * 1024 * 1024, v: 300 * 1024 * 1024, f: 50 * 1024 * 1024 };
-const PART = 50 * 1024 * 1024;
+const PART = 10 * 1024 * 1024;
+const MAX_PARTS = Math.ceil(LIMIT.v / PART) + 1;
 const URL_TTL = 6 * 3600;
 
 function b64u(bytes) {
@@ -96,7 +98,7 @@ export function makeMedia(deps) {
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
         const key = `${kind === 'p' ? 'p' : 'o'}/${await roomTag(rid)}/${id}.${extOf(b.name, b.type)}`;
         const type = String(b.type || 'application/octet-stream').slice(0, 80);
-        if (size <= 90 * 1024 * 1024) return json({ ok: true, key, mode: 'single', tk: await ticket(env, key, '') }, 200, origin);
+        if (size <= PART) return json({ ok: true, key, mode: 'single', tk: await ticket(env, key, '') }, 200, origin);
         const up = await env.CHAT_MEDIA.createMultipartUpload(key, { httpMetadata: { contentType: type } });
         return json({ ok: true, key, mode: 'multi', uid: up.uploadId, partSize: PART, tk: await ticket(env, key, up.uploadId) }, 200, origin);
       }
@@ -104,7 +106,7 @@ export function makeMedia(deps) {
         const key = url.searchParams.get('key') || '';
         if (!(await same(url.searchParams.get('tk') || '', await ticket(env, key, '')))) throw new Error('올리기 허가가 올바르지 않습니다');
         const len = Number(request.headers.get('content-length') || 0);
-        if (len > 95 * 1024 * 1024) throw new Error('너무 큽니다');
+        if (len > PART + 1024 * 1024) throw new Error('너무 큽니다');
         await env.CHAT_MEDIA.put(key, request.body, { httpMetadata: { contentType: request.headers.get('content-type') || 'application/octet-stream' } });
         return json({ ok: true, key }, 200, origin);
       }
@@ -112,7 +114,7 @@ export function makeMedia(deps) {
         const key = url.searchParams.get('key') || '', uid = url.searchParams.get('uid') || '';
         const n = parseInt(url.searchParams.get('n') || '0', 10);
         if (!(await same(url.searchParams.get('tk') || '', await ticket(env, key, uid)))) throw new Error('올리기 허가가 올바르지 않습니다');
-        if (n < 1 || n > 20) throw new Error('조각 번호가 올바르지 않습니다');
+        if (n < 1 || n > MAX_PARTS) throw new Error('조각 번호가 올바르지 않습니다');
         const part = await env.CHAT_MEDIA.resumeMultipartUpload(key, uid).uploadPart(n, request.body);
         return json({ ok: true, part: { partNumber: part.partNumber, etag: part.etag } }, 200, origin);
       }
