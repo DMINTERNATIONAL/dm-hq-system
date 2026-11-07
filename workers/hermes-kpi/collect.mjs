@@ -282,7 +282,8 @@ async function main() {
     catch (e) { errors.push('retail ' + ym + ': ' + e.message); await notify('[Hermes] 점판수익 수집 실패 ' + ym + ': ' + e.message); }
   }
   if (mode === 'sns' || mode === 'both') {
-    try { console.log('[sns]', JSON.stringify(await collectSns(kstDateString(0), dry))); }
+    /* 저장소가 공개라 Actions 기록도 누구나 본다 — 이름 · 전화번호 · 아이디는 찍지 않고 숫자만 (11/8 까지는 결과 전체를 찍었다) */
+    try { const r = await collectSns(kstDateString(0), dry); console.log('[sns]', JSON.stringify({ date: r.date, count: r.count, skipped: r.skipped, limited: r.limited, ok: r.results.filter((x) => x.ok).length, fail: r.results.filter((x) => !x.ok).map((x) => String(x.error || '').slice(0, 80)) })); }
     catch (e) { errors.push('sns: ' + e.message); await notify('[Hermes] SNS 수집 실패: ' + e.message); }
     try { console.log('[official]', JSON.stringify(await collectOfficialSns(kstDateString(0), dry))); }
     catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
@@ -1095,7 +1096,8 @@ async function collectSns(date, dry) {
     const ph = active[i].ph;
     if (done[shop + '|' + safeKey(name)]) { skipped++; continue; }
     try {
-      const metrics = computeSnsMetrics(await igBusinessDiscovery(username), date);
+      const bd = await igBusinessDiscovery(username);
+      const metrics = computeSnsMetrics(bd, date);
       metrics.ig_username = username;
       // 직군 태그(프론트 세분화용): 인턴은 매출 대신 교육 KPI로 표시.
       metrics.role = u.role || '';
@@ -1104,6 +1106,8 @@ async function collectSns(date, dry) {
       metrics.phone = ph;
       if (!dry) {
         await rtdbPut(`/stores/${enc(shop)}/daily/${enc(date)}/sns/${enc(safeKey(name))}`, metrics);
+        // AI 인스타 리포트용: 최근 게시물 글(캡션)까지. 날마다 쌓지 않고 사람별 한 칸에 덮어쓴다(일별 사본이 커지지 않게).
+        await rtdbPut(`/igPosts/${enc(ph)}`, { at: nowIso(), date, username, shop, name, posts: igPostList(bd) });
         // 연결 상태(직원관리 배지용): 조회 성공 → 팔로워 수 기록
         await rtdbPut(`/users/${enc(ph)}/ig_check`, { ok: true, username, followers: metrics.followers, at: nowIso() });
         // 인턴 연습 KPI용: 이번달 업로드수(피드+릴스, 스토리 제외)를 phone키로 저장 → 프론트가 연습보정에 사용.
@@ -1122,7 +1126,7 @@ async function collectSns(date, dry) {
             const was = await fbGET(`/practiceIg/${enc(pym)}/${enc(ph)}.json`);
             if (!was || (+was.uploads || 0) !== prev) {
               await rtdbPut(`/practiceIg/${enc(pym)}/${enc(ph)}`, { uploads: prev, username, at: nowIso(), fixed: true });
-              console.log(`[sns] ${name} ${pym} 업로드 ${was ? (+was.uploads || 0) : '-'} → ${prev} (말일 누락분 보정)`);
+              console.log(`[sns] ${pym} 인턴 업로드 1건 보정 (말일 누락분)`);
             }
           }
         }
@@ -1133,7 +1137,7 @@ async function collectSns(date, dry) {
         // 한도: 실패로 기록하지 않고 멈춘다 — 남은 사람은 다음 실행(05 · 07시)이 이어서 조회
         limited = true;
         out.push({ shop, name, username, ok: false, error: e.message, limited: true });
-        console.log(`[sns] 인스타 조회 한도 — ${name}부터 멈춤, 다음 실행에서 이어서`);
+        console.log(`[sns] 인스타 조회 한도 — ${i + 1}번째에서 멈춤, 다음 실행에서 이어서`);
         break;
       }
       // 조회 실패(없는 아이디·개인계정·비공개 등) → 사유 기록해 직원관리에서 확인 가능
@@ -1196,6 +1200,15 @@ async function igBusinessDiscovery(username) {
   const data = await resp.json();
   if (!resp.ok || data.error) throw new Error((data.error && data.error.message) || `IG ${resp.status}`);
   return data.business_discovery;
+}
+/* AI 인스타 리포트가 읽는 최근 게시물 목록 — 글은 앞 200자만, 최근 15개 */
+export function igPostList(bd) {
+  const media = (bd && bd.media && bd.media.data) || [];
+  return media.slice().sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || ''))).slice(0, 15).map((m) => ({
+    ts: m.timestamp || '', t: (m.media_product_type || '') === 'REELS' ? '릴스' : '피드',
+    l: num(m.like_count), c: num(m.comments_count), u: m.permalink || '',
+    cap: String(m.caption || '').replace(/\s+/g, ' ').trim().slice(0, 200),
+  }));
 }
 export function computeSnsMetrics(bd, date) {
   const followers = num(bd.followers_count), following = num(bd.follows_count), media_count = num(bd.media_count);

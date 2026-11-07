@@ -127,6 +127,10 @@ export default {
     if (pathname === '/ai/chat-summary' || pathname.endsWith('/ai/chat-summary')) {
       return cors(await handleAIChatSummary(body, env));
     }
+    // 인스타 AI 리포트 (디자이너 본인 · 경영팀 전체) — dm-contract-api 가 권한 확인 후 서비스 바인딩으로 부른다
+    if (pathname === '/ai/ig-report' || pathname.endsWith('/ai/ig-report')) {
+      return cors(await handleAIIgReport(body, env));
+    }
     if (pathname === '/ai/recommend' || pathname.endsWith('/ai/recommend')) {
       return cors(await handleAIRecommend(body, env));
     }
@@ -718,6 +722,70 @@ async function handleAIChatSummary(body, env) {
     return json({ ok: true,
       lines: rows.filter((l) => l.startsWith('- ')).map((l) => l.slice(2)).slice(0, 6),
       asks: rows.filter((l) => l.startsWith('! ')).map((l) => l.slice(2)).slice(0, 3) });
+  } catch (e) {
+    return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
+  }
+}
+
+/* 인스타 AI 리포트. 숫자는 dm-contract-api 가 DB 에서 뽑아 글로 정리해 보낸다(facts). 여기서는 읽고 쓰기만 한다.
+   mode: 'person' = 한 사람(본인) 주간 리포트 + 다음 콘텐츠 아이디어 / 'team' = 경영팀용 전체 리포트 */
+async function handleAIIgReport(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
+  const mode = body.mode === 'team' ? 'team' : 'person';
+  const facts = String(body.facts || '').slice(0, 30000);
+  if (!facts) return json({ ok: false, error: '분석할 데이터가 없어요' }, 400);
+  const common =
+    '- 아래 데이터에 있는 숫자와 사실만 근거로 쓴다. 데이터에 없는 수치(조회수 · 도달 · 저장 수 등)는 지어내지 않는다. 우리가 볼 수 있는 건 팔로워 · 게시 수 · 좋아요 · 댓글 · 릴스/피드 구분 · 게시 시각 · 게시글뿐이다.\n' +
+    '- 존댓말(해요체)로, 짧고 구체적으로. 한 항목은 한두 문장. 숫자를 넣어 말한다(예: "지난주보다 게시 2개 줄었어요").\n' +
+    '- 혼내는 말투가 아니라 같이 성장하자는 코치 말투. 잘한 건 확실히 칭찬한다.\n' +
+    '- 표본이 적거나(게시 3개 미만) 기간이 짧으면 단정하지 말고 "아직 판단하기 이르다"고 말한다.\n' +
+    '- 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다.\n';
+  const sys = mode === 'team'
+    ? '너는 헤어살롱 회사(DAY:MEAN · 에토바버샵) 경영팀을 돕는 인스타그램 마케팅 분석가야. 디자이너 · 인턴 개인 인스타 계정 전체의 최근 2주 숫자를 받아, 경영팀이 이번 주에 무엇을 챙겨야 하는지 알려 준다.\n\n규칙:\n' + common +
+      '- 사람 이름은 데이터에 있는 이름 그대로 쓴다.\n' +
+      '- 출력 형식: {"headline":"전체 흐름 한 문장","highlights":["좋은 흐름 (최대 4개)"],"concerns":["챙겨야 할 것 — 게시가 끊긴 사람, 반응이 크게 떨어진 사람 등 (최대 4개)"],"spotlight":[{"name":"이름","why":"이번 주 칭찬하거나 사례로 공유할 이유"}],"actions":["경영팀이 이번 주에 할 일 3개"]}\n' +
+      '- spotlight 는 최대 3명.'
+    : '너는 헤어 디자이너 · 인턴의 개인 인스타그램을 키워 주는 마케팅 코치야. 한 사람의 최근 숫자와 게시물(글 포함)을 받아, 본인에게 주는 주간 리포트와 다음 주 콘텐츠 아이디어를 쓴다. 읽는 사람은 그 디자이너 본인이다.\n\n규칙:\n' + common +
+      '- 반응이 좋았던 게시물과 안 좋았던 게시물의 차이(릴스/피드, 요일 · 시간대, 글 내용 · 길이 · 해시태그)를 데이터에서 찾아 말한다.\n' +
+      '- 아이디어는 헤어 디자이너가 매장에서 바로 찍을 수 있는 것으로. 본인 게시글의 말투 · 주제를 이어 간다. 해시태그는 한국어 위주 5개.\n' +
+      '- 출력 형식: {"headline":"이번 주 한 줄 요약","good":["잘한 점 (최대 3개)"],"improve":["아쉬운 점 (최대 3개)"],"try":["다음 주에 해볼 것 3개 — 언제 · 무엇을 · 몇 개"],"ideas":[{"title":"콘텐츠 아이디어 제목","hook":"릴스 첫 3초 문구 또는 첫 줄","caption":"올릴 글 예시 (3~5줄)","tags":"#해시태그 5개"}]}\n' +
+      '- ideas 는 정확히 3개.';
+  try {
+    const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+    const r = await fetch(AIG, {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-ig-report/1.0' },
+      body: JSON.stringify({
+        model: 'claude-opus-5-5', max_tokens: 8000, fallbacks: 'default',
+        output_config: { effort: 'medium' },
+        system: sys,
+        messages: [{ role: 'user', content: facts }],
+      }),
+    });
+    if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
+    const data = await r.json();
+    if (data && data.stop_reason === 'refusal') return json({ ok: false, error: '이 데이터는 분석할 수 없어요' }, 200);
+    let text = '';
+    if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
+    const a = text.indexOf('{'), z = text.lastIndexOf('}');
+    let rep = null;
+    try { rep = JSON.parse(text.slice(a, z + 1)); } catch (_) {}
+    if (!rep || typeof rep !== 'object') return json({ ok: false, error: 'AI 답을 읽지 못했어요. 잠시 뒤 다시 눌러 주세요' }, 502);
+    const strs = (v, n) => (Array.isArray(v) ? v : []).map((x) => String(x == null ? '' : x).slice(0, 400)).filter(Boolean).slice(0, n);
+    const out = { headline: String(rep.headline || '').slice(0, 300) };
+    if (mode === 'team') {
+      out.highlights = strs(rep.highlights, 4); out.concerns = strs(rep.concerns, 4); out.actions = strs(rep.actions, 3);
+      out.spotlight = (Array.isArray(rep.spotlight) ? rep.spotlight : []).slice(0, 3).map((x) => ({ name: String((x && x.name) || '').slice(0, 30), why: String((x && x.why) || '').slice(0, 300) })).filter((x) => x.name);
+    } else {
+      out.good = strs(rep.good, 3); out.improve = strs(rep.improve, 3); out.try = strs(rep.try, 3);
+      out.ideas = (Array.isArray(rep.ideas) ? rep.ideas : []).slice(0, 3).map((x) => ({
+        title: String((x && x.title) || '').slice(0, 120), hook: String((x && x.hook) || '').slice(0, 200),
+        caption: String((x && x.caption) || '').slice(0, 800), tags: String((x && x.tags) || '').slice(0, 200),
+      })).filter((x) => x.title);
+    }
+    return json({ ok: true, report: out, model: String((data && data.model) || '') });
   } catch (e) {
     return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
   }

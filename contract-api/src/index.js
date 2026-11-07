@@ -20,6 +20,7 @@ import { makeMedia, serveMedia, roomTag, signedUrl } from './media.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
+import { makeIgReport } from './igreport.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -430,6 +431,7 @@ const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, acce
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
+const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b) => relayCall(env, p, b) });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -812,6 +814,9 @@ export default {
       if (calRes) return calRes;
       const gcalRes = await gcalRoute(path, request, env, ctx, me, json, origin);
       if (gcalRes) return gcalRes;
+      /* 인스타 AI 리포트 (igreport.js) — 본인 것 · 경영팀은 전체 */
+      const igRes = await igRoute(path, request, env, ctx, me, json, origin);
+      if (igRes) return igRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
