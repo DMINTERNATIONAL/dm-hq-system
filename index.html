@@ -4935,8 +4935,8 @@ function igAiInner(kind,ph,nm){var k=igAiKey(kind,ph),st=IGAI[k]||{st:'load'};va
   var title=team?'AI 인스타 리포트 · 전체':'AI 인스타 리포트'+(nm?' <span class="mut">· '+igEsc(nm)+'</span>':'');
   var h='<div class="sect">'+title+'</div>';
   var mk=function(lbl,force,cls){return '<button class="gbtn '+(cls||'pri')+' sm igai-btn" onclick="igAiMake(\''+kind+'\',\''+igEsc(ph||'')+'\','+(force?1:0)+')">'+lbl+'</button>';};
-  if(st.st==='load')return h+'<div class="def" style="margin-top:6px">불러오는 중…</div>';
-  if(st.st==='making')return h+'<div class="igai-wait"><span class="igai-spin"></span>AI가 '+(team?'전체 계정을':'게시물과 숫자를')+' 읽고 있어요. 30초쯤 걸려요</div>';
+  if(st.st==='load')return h+'<div class="igai-wait"><span class="igai-spin"></span>리포트 불러오는 중…</div>';
+  if(st.st==='making')return h+'<div class="igai-wait"><span class="igai-spin"></span><span><b>리포트 만드는 중…</b><br>AI가 '+(team?'전체 계정을':'게시물과 숫자를')+' 읽고 있어요. 30초~1분쯤 걸려요. 앱 안에서 다른 화면에 다녀와도 계속 만들어요</span></div>';
   if(st.st==='err')return h+'<div class="def" style="margin-top:6px;color:var(--red)">'+igEsc(st.msg||'불러오지 못했어요')+'</div><div style="margin-top:10px">'+mk('다시 시도',st.force)+'</div>';
   var d=st.d||{};
   if(d.none)return h+'<div class="def" style="margin-top:6px;line-height:1.6">'+(team?'디자이너 · 인턴 전체 계정의 최근 2주를 AI가 읽고 <b>좋은 흐름 · 챙겨야 할 사람 · 이번 주 할 일</b>을 정리해 드려요.':'내가 올린 게시물과 숫자를 AI가 읽고 <b>잘한 점 · 아쉬운 점 · 다음 주에 해볼 것 · 내 스타일에 맞는 콘텐츠 아이디어 · 추천 해시태그</b>를 드려요.')+' 한 주에 한 번 만들어 두면 그 주 동안 다시 볼 수 있어요.</div><div style="margin-top:12px">'+mk('이번 주 리포트 만들기')+'</div>';
@@ -8554,7 +8554,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-11-08-7',DM_UPDATE_READY=false;
+var DM_BUILD='2026-11-08-8',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
