@@ -136,14 +136,30 @@ export function makeIgReport(deps) {
     } else {
       L.push('', '[게시물 글은 아직 수집 전이라 없음 — 숫자로만 판단. 시그니처를 알 수 없으니 아이디어는 일반적인 것임을 밝힌다]');
     }
-    const allow = await tagFacts(env, list, L);
+    const allow = await tagFacts(env, list, L, ph);
     return { facts: L.join('\n'), allow };
   }
 
   /* 해시태그 후보 — AI 는 여기 적힌 태그만 고를 수 있고, 서버가 결과를 이 목록으로 한 번 더 거른다(지어낸 태그 차단).
      ① 본인이 쓴 태그와 본인 평소 대비 반응 ② 우리 직원 계정 전체에서 두 명 이상이 쓴 태그(수집기 /igTags)
      ③ 인스타 해시태그 검색으로 확인한 상태(수집기 /igTagCheck, 주 1회) */
-  async function tagFacts(env, list, L) {
+  /* 계정별 게시물 → 태그별 { n, acc, lift } (수집기 igTagStats 와 같은 방식 — 올린 지 이틀 안 된 글 · 3개 미만 계정은 뺌) */
+  function refStats(accs) {
+    const agg = {};
+    accs.forEach((rec, i) => {
+      const posts = (Array.isArray(rec && rec.posts) ? rec.posts : []).filter((x) => Date.now() - Date.parse(x.ts) > 2 * DAY);
+      if (posts.length < 3) return;
+      const eng = (x) => n0(x.l) + n0(x.c);
+      const avg = posts.reduce((a, x) => a + eng(x), 0) / posts.length;
+      if (!avg) return;
+      for (const x of posts) for (const t of new Set((String(x.cap || '').match(/#[^\s#]+/g) || []).map((t) => t.toLowerCase().replace(/[.,!?~)\]]+$/, '')).filter((t) => t.length > 1 && t.length <= 40))) {
+        const g = agg[t] || (agg[t] = { n: 0, acc: new Set(), lift: 0 }); g.n++; g.acc.add(i); g.lift += eng(x) / avg;
+      }
+    });
+    return Object.keys(agg).map((t) => ({ tag: t, n: agg[t].n, acc: agg[t].acc.size, lift: agg[t].lift / agg[t].n }));
+  }
+
+  async function tagFacts(env, list, L, ph) {
     const allow = new Set();
     const ok = list.filter((x) => Date.now() - Date.parse(x.ts) > 2 * DAY);
     const eng = (x) => n0(x.l) + n0(x.c);
@@ -159,6 +175,17 @@ export function makeIgReport(deps) {
     const chkTxt = (t) => { const c = chk[t]; if (!c) return '인스타 확인 전'; if (c.none) return '인스타에 없는 태그'; return `최근 24시간 게시 ${c.recentMax ? '50개 이상' : (c.recent || 0) + '개'}` + (c.topMed != null ? ` · 인기 게시물 반응 중간값 ${c.topMed}` : ''); };
     const mk = Object.keys(mine).sort((a, b) => mine[b].n - mine[a].n).slice(0, 30);
     L.push('', '[해시태그 후보 — 추천은 반드시 아래 목록에 있는 태그만. lift = 그 태그를 단 글의 반응 ÷ 평소 반응 (1보다 크면 평소보다 반응 좋았음)]');
+    /* 본인이 고른 참고 계정(최대 5개) — 이 사람 스타일에 가장 가까우니 가장 먼저 */
+    const mine2 = ph ? ((await dbGet(env, '/igRefsMine/' + encodeURIComponent(ph)).catch(() => null)) || {}) : {};
+    const myKeys = Object.keys(mine2).filter((k) => mine2[k] && mine2[k].u).sort((a, b) => (+mine2[a].at || 0) - (+mine2[b].at || 0)).slice(0, 5);   // 수집기와 같은 5개
+    if (myKeys.length) {
+      const accs = (await Promise.all(myKeys.map((k) => dbGet(env, '/igRefPosts/' + encodeURIComponent(k)).catch(() => null)))).filter(Boolean);
+      const st = refStats(accs).filter((x) => x.n >= 2).sort((a, b) => b.acc - a.acc || b.lift - a.lift || b.n - a.n).slice(0, 30);
+      if (st.length) {
+        L.push(`본인이 고른 참고 계정 ${accs.length}곳(${accs.map((a) => '@' + a.username).join(', ')})이 쓴 태그 — 가장 우선: ` + st.map((x) => `${x.tag}(${x.acc}곳 ${x.n}회, lift ${f1(x.lift)})`).join(' · '));
+        st.forEach((x) => allow.add(x.tag));
+      } else L.push('본인이 고른 참고 계정: ' + myKeys.length + '곳 — 아직 읽기 전이거나 태그가 적음');
+    }
     if (mk.length) {
       L.push('본인이 쓴 태그: ' + mk.map((t) => `${t}(${mine[t].n}회, lift ${f1(mine[t].lift / mine[t].n)}, ${chkTxt(t)})`).join(' · '));
       mk.forEach((t) => allow.add(t));
@@ -252,8 +279,11 @@ export function makeIgReport(deps) {
 
     /* 참고 계정 바로 수집 — 경영팀이 계정을 넣고 '지금 확인'을 누를 때. 수집기(GitHub Actions)를 igrefs 로 한 번 돌린다 */
     if (path === '/ig/refs/collect') {
-      if (!hq) return json({ ok: false, error: '경영팀만 할 수 있어요' }, 403, origin);
       if (!env.GH_TOKEN || !env.GH_REPO) return json({ ok: false, error: '수집기 연결 설정이 없어요' }, 503, origin);
+      /* 디자이너도 본인 참고 계정을 넣고 누를 수 있다 — 수집기를 너무 자주 돌리지 않게 회사 전체 5분에 한 번 */
+      const last = (await rGet(env, 'ai/ig/_refrun.json').catch(() => null)) || {};
+      if (last.at && Date.now() - last.at < 5 * 60000) return json({ ok: true, already: true }, 200, origin);
+      await rPut(env, 'ai/ig/_refrun.json', { at: Date.now(), by: String(me.ph) });
       const r = await fetch(`https://api.github.com/repos/${env.GH_REPO}/actions/workflows/${env.GH_WORKFLOW || 'hermes-kpi.yml'}/dispatches`, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + env.GH_TOKEN, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'dm-contract-api', 'Content-Type': 'application/json' },

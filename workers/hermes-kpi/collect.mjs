@@ -1218,43 +1218,80 @@ export async function buildIgTags(dry) {
   return { accounts: Object.keys(all).length, tags: tags.length, refAccounts: Object.keys(refAll).length, refTags: refTags.length };
 }
 /* ═══ 참고 계정 ═══
-   경영팀이 KPI 인스타 탭에서 넣는다: /igRefs/{키} = { u: 아이디, memo, at, by }.
-   여기서 business_discovery 로 공개 게시물 15개를 읽어 /igRefPosts/{키} 에 덮어쓰고,
-   상태(팔로워 · 오류 사유)는 /igRefs/{키}/st 에 남긴다(앱에서 '확인됨 · 개인 계정이라 못 읽음' 표시).
-   비즈니스 · 크리에이터 공개 계정만 읽힌다. 최대 30개. 오늘 이미 읽은 계정은 건너뛴다(force 면 다시). */
-export async function collectIgRefs(dry, force) {
-  if (!process.env.IG_TOKEN) return { skip: 'IG_TOKEN 없음' };
-  const refs = (await fbGET('/igRefs.json')) || {};
-  const keys = Object.keys(refs).filter((k) => refs[k] && refs[k].u).slice(0, 30);
-  if (!keys.length) return { refs: 0 };
-  await resolveIgUserId();
-  const today = kstDateString(0);
-  const isLimit = (msg) => /\(#4\)|\(#17\)|\(#32\)|\(#613\)|request limit|rate limit|too many/i.test(String(msg || ''));
-  let ok = 0, fail = 0, skipped = 0, limited = false;
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i], r = refs[k];
-    const u = String(r.u).replace(/^@/, '').trim();
-    if (!force && r.st && r.st.date === today && r.st.ok) { skipped++; continue; }
-    try {
-      const bd = await igBusinessDiscovery(u);
-      if (!dry) {
-        await rtdbPut(`/igRefPosts/${enc(k)}`, { at: nowIso(), date: today, username: u, followers: num(bd.followers_count), posts: igPostList(bd) });
-        await rtdbPut(`/igRefs/${enc(k)}/st`, { ok: true, date: today, at: nowIso(), followers: num(bd.followers_count), media: num(bd.media_count) });
-      }
-      ok++;
-    } catch (e) {
-      if (isLimit(e.message)) { limited = true; break; }
-      const m = String(e.message || '');
-      const why = /Invalid user|cannot be found|does not exist/i.test(m) ? '없는 아이디이거나 개인 계정이라 읽을 수 없어요 (비즈니스 · 크리에이터 공개 계정만 돼요)'
-        : /not a business|professional|business account|creator account/i.test(m) ? '개인 계정이라 읽을 수 없어요 (비즈니스 · 크리에이터 계정만 돼요)' : '인스타 조회 실패: ' + m.slice(0, 120);
-      if (!dry) await rtdbPut(`/igRefs/${enc(k)}/st`, { ok: false, date: today, at: nowIso(), err: why }).catch(() => {});
-      fail++;
-    }
-    if (i < keys.length - 1) await sleep(CONFIG.igRateGapMs);
+   두 종류가 있다.
+   - 회사 공통: 경영팀이 KPI 인스타 탭에서 넣는다. /igRefs/{키} = { u: 아이디, memo, at, by, st }. 최대 30개, 매일 읽는다.
+   - 본인 참고 계정: 디자이너 · 인턴이 본인 KPI 화면에서 넣는다. /igRefsMine/{전화번호}/{키} = { u, memo, at, nm }.
+     한 사람 5개까지. 회사 목록에 없는 계정은 3일에 한 번만 읽는다(주 2~3번).
+   여러 명이 같은 계정을 넣어도 키가 같아서 한 번만 읽는다.
+   business_discovery 로 공개 게시물 15개를 읽어 /igRefPosts/{키} 에 덮어쓰고,
+   상태(팔로워 · 오류 사유)는 /igRefSt/{키} 에(회사 계정은 /igRefs/{키}/st 에도) 남긴다.
+   비즈니스 · 크리에이터 공개 계정만 읽힌다. 한 번에 최대 40개.
+   manual = 앱에서 '지금 확인하기'를 누른 경우 — 아직 한 번도 안 읽은 계정은 기한과 상관없이 읽는다. */
+export const IG_REF_MINE_MAX = 5;
+export const IG_REF_MINE_EVERY = 3;   // 일
+export function igRefPlan(refs, mine, st, today, manual) {
+  const company = Object.keys(refs || {}).filter((k) => refs[k] && refs[k].u).slice(0, 30);
+  const users = {};
+  for (const k of company) users[k] = String(refs[k].u);
+  const personal = new Set();
+  for (const ph of Object.keys(mine || {})) {
+    const m = mine[ph] || {};
+    Object.keys(m).filter((k) => m[k] && m[k].u).sort((x, y) => (+m[x].at || 0) - (+m[y].at || 0)).slice(0, IG_REF_MINE_MAX)
+      .forEach((k) => { personal.add(k); if (!users[k]) users[k] = String(m[k].u); });
   }
-  /* 지운 참고 계정의 게시물 사본도 정리 */
-  if (!dry) for (const k of Object.keys((await fbGET('/igRefPosts.json?shallow=true')) || {})) if (!refs[k]) await rtdbDelete(`/igRefPosts/${enc(k)}`).catch(() => {});
-  return { refs: keys.length, ok, fail, skipped, limited };
+  const isCo = new Set(company);
+  const days = (d) => (d ? Math.round((Date.parse(today) - Date.parse(d)) / 864e5) : 1e9);
+  const fresh = [], co = [], due = [];
+  for (const k of Object.keys(users)) {
+    const s = (st && st[k]) || (isCo.has(k) && refs[k].st) || null;
+    if (s && s.ok && s.date === today) continue;                      // 오늘 이미 읽음
+    if (!s) { fresh.push(k); continue; }                               // 처음 넣은 계정 — 가장 먼저
+    if (isCo.has(k)) { co.push(k); continue; }                         // 회사 계정은 매일
+    if (days(s.date) >= IG_REF_MINE_EVERY) due.push([k, days(s.date)]);  // 개인 계정은 3일에 한 번(실패한 것도 같은 간격으로 다시)
+    else if (manual && !s.ok && s.date !== today) due.push([k, days(s.date)]);
+  }
+  due.sort((x, y) => y[1] - x[1]);
+  const order = [...fresh, ...co, ...due.map((x) => x[0])].slice(0, 40);
+  return { users, company: isCo, all: new Set(Object.keys(users)), order, personal: personal.size };
+}
+export async function collectIgRefs(dry, manual) {
+  if (!process.env.IG_TOKEN) return { skip: 'IG_TOKEN 없음' };
+  const [refs, mine, st] = await Promise.all([fbGET('/igRefs.json'), fbGET('/igRefsMine.json'), fbGET('/igRefSt.json')]);
+  const today = kstDateString(0);
+  const plan = igRefPlan(refs || {}, mine || {}, st || {}, today, manual);
+  const out = { refs: plan.company.size, personal: plan.personal, all: plan.all.size, todo: plan.order.length, ok: 0, fail: 0, limited: false };
+  if (plan.order.length) {
+    await resolveIgUserId();
+    const isLimit = (msg) => /\(#4\)|\(#17\)|\(#32\)|\(#613\)|request limit|rate limit|too many/i.test(String(msg || ''));
+    for (let i = 0; i < plan.order.length; i++) {
+      const k = plan.order[i];
+      const u = plan.users[k].replace(/^@/, '').trim();
+      const putSt = async (v) => {
+        await rtdbPut(`/igRefSt/${enc(k)}`, v);
+        if (plan.company.has(k)) await rtdbPut(`/igRefs/${enc(k)}/st`, v);
+      };
+      try {
+        const bd = await igBusinessDiscovery(u);
+        if (!dry) {
+          await rtdbPut(`/igRefPosts/${enc(k)}`, { at: nowIso(), date: today, username: u, followers: num(bd.followers_count), posts: igPostList(bd) });
+          await putSt({ ok: true, date: today, at: nowIso(), followers: num(bd.followers_count), media: num(bd.media_count) });
+        }
+        out.ok++;
+      } catch (e) {
+        if (isLimit(e.message)) { out.limited = true; break; }
+        const m = String(e.message || '');
+        const why = /Invalid user|cannot be found|does not exist/i.test(m) ? '없는 아이디이거나 개인 계정이라 읽을 수 없어요 (비즈니스 · 크리에이터 공개 계정만 돼요)'
+          : /not a business|professional|business account|creator account/i.test(m) ? '개인 계정이라 읽을 수 없어요 (비즈니스 · 크리에이터 계정만 돼요)' : '인스타 조회 실패: ' + m.slice(0, 120);
+        if (!dry) await putSt({ ok: false, date: today, at: nowIso(), err: why }).catch(() => {});
+        out.fail++;
+      }
+      if (i < plan.order.length - 1) await sleep(CONFIG.igRateGapMs);
+    }
+  }
+  /* 아무도 안 쓰는 계정(회사 목록에서도, 누구의 본인 목록에서도 지운 것)의 사본 · 상태 정리 */
+  if (!dry) for (const base of ['/igRefPosts', '/igRefSt'])
+    for (const k of Object.keys((await fbGET(base + '.json?shallow=true')) || {})) if (!plan.all.has(k)) await rtdbDelete(`${base}/${enc(k)}`).catch(() => {});
+  return out;
 }
 async function igGet(path, params) {
   const q = new URLSearchParams({ ...params, access_token: process.env.IG_TOKEN }).toString();
