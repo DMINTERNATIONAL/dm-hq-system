@@ -191,7 +191,7 @@ export function makeIgReport(deps) {
   const making = new Map();   // 같은 리포트를 동시에 두 번 만들지 않게 (같은 Worker 안에서만)
 
   /* 저장된 것(이번 주 → 없으면 지난주)을 돌려주고, make 면 없을 때 만든다 */
-  async function getOrMake(env, id, b, canForce, build) {
+  async function getOrMake(env, id, b, canForce, build, who) {
     const wk = weekKey(Date.now());
     let cur = await rGet(env, rKey(wk, id)).catch(() => null);
     if (b.make && b.force && cur && !canForce(cur)) return { ok: false, error: '리포트는 한 주에 한 번 만들어요. 다시 만들기는 경영팀만 할 수 있어요' };
@@ -211,7 +211,7 @@ export function makeIgReport(deps) {
       const facts = built && typeof built === 'object' ? built.facts : built;
       if (!facts) return { ok: false, error: '아직 수집된 인스타 데이터가 없어요' };
       await rPut(env, rKey(wk, '_count'), { n: cnt.n + 1 });
-      const r = await relayCall(env, '/ai/ig-report', { mode: id === '_team' ? 'team' : 'person', facts });
+      const r = await relayCall(env, '/ai/ig-report', { mode: id === '_team' ? 'team' : 'person', facts }, who);
       if (!r.body || !r.body.ok) return { ok: false, error: (r.body && r.body.error) || 'AI 리포트를 만들지 못했어요' };
       const report = r.body.report || {};
       if (Array.isArray(report.hashtags)) {
@@ -238,14 +238,15 @@ export function makeIgReport(deps) {
       if (!/^[0-9]{8,12}$/.test(ph)) return json({ ok: false, error: '대상이 올바르지 않습니다' }, 400, origin);
       if (ph !== String(me.ph) && !hq) return json({ ok: false, error: '본인 리포트만 볼 수 있어요' }, 403, origin);
       const canForce = () => hq;   // 본인은 주 1회만. 다시 만들기는 경영팀만(AI 비용)
-      const out = await getOrMake(env, ph, b, canForce, async () => personFacts(env, ph, await loadAll(env)));
+      const out = await getOrMake(env, ph, b, canForce, async () => personFacts(env, ph, await loadAll(env)),
+        { ph: me.ph, nm: me.name, x: ph === String(me.ph) ? '본인 리포트' : '직원 리포트', tp: ph === String(me.ph) ? '' : ph });
       return json(out, out.ok ? 200 : 400, origin);
     }
 
     /* 경영팀 전체 리포트 */
     if (path === '/ig/team') {
       if (!hq) return json({ ok: false, error: '경영팀만 볼 수 있어요' }, 403, origin);
-      const out = await getOrMake(env, '_team', b, () => true, async () => teamFacts(await loadAll(env)));
+      const out = await getOrMake(env, '_team', b, () => true, async () => teamFacts(await loadAll(env)), { ph: me.ph, nm: me.name, x: '전체 리포트' });
       return json(out, out.ok ? 200 : 400, origin);
     }
     return json({ ok: false, error: '없는 기능입니다' }, 404, origin);

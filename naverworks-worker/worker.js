@@ -119,25 +119,25 @@ export default {
 
     // 고객 상담 현장메모 AI 다듬기 (Claude 프록시) — 키는 Worker env에만 보관
     if (pathname === '/ai/polish' || pathname.endsWith('/ai/polish')) {
-      return cors(await handleAIPolish(body, env));
+      return cors(await withAi(body, await handleAIPolish(body, env)));
     }
 
     // 전판 제품 맞춤 추천 (진단 답 + 제품목록 → Claude가 추천+이유)
     // 채팅 '안 읽은 것 요약' — dm-contract-api 가 서비스 바인딩으로 부른다
     if (pathname === '/ai/chat-summary' || pathname.endsWith('/ai/chat-summary')) {
-      return cors(await handleAIChatSummary(body, env));
+      return cors(await withAi(body, await handleAIChatSummary(body, env)));
     }
     // 인스타 AI 리포트 (디자이너 본인 · 경영팀 전체, Sonnet 5.5) — dm-contract-api 가 권한 확인 후 서비스 바인딩으로 부른다
     if (pathname === '/ai/ig-report' || pathname.endsWith('/ai/ig-report')) {
-      return cors(await handleAIIgReport(body, env));
+      return cors(await withAi(body, await handleAIIgReport(body, env)));
     }
     if (pathname === '/ai/recommend' || pathname.endsWith('/ai/recommend')) {
-      return cors(await handleAIRecommend(body, env));
+      return cors(await withAi(body, await handleAIRecommend(body, env)));
     }
 
     // 인턴 내수 — 송금 캡처 판독 (금액/계좌/보낸사람/이체일시 추출 + 신청내용 대조)
     if (pathname === '/ai/naesu-verify' || pathname.endsWith('/ai/naesu-verify')) {
-      return cors(await handleNaesuVerify(body, env));
+      return cors(await withAi(body, await handleNaesuVerify(body, env)));
     }
 
     if (!body.secret || body.secret !== env.WEBHOOK_SECRET) {
@@ -573,6 +573,24 @@ const NAESU_SYS =
 
 function naesuDigits(v) { return String(v == null ? '' : v).replace(/[^0-9]/g, ''); }
 
+/* AI 사용량 기록용 — 각 AI 처리기가 Claude 답을 받은 직후 쓴 토큰 수를 body.__ai 에 적어 두면,
+   withAi 가 돌려보내는 JSON 에 ai 칸으로 붙인다. 기록(저장·금액 계산)은 dm-contract-api 가 한다.
+   답을 못 읽거나 거절돼도 토큰은 이미 쓴 것이라 그대로 붙인다. */
+function aiMeter(body, data) {
+  if (!body || !data || !data.usage) return;
+  const u = data.usage;
+  body.__ai = { m: String(data.model || ''), in: u.input_tokens || 0, out: u.output_tokens || 0,
+    cr: u.cache_read_input_tokens || 0, cw: u.cache_creation_input_tokens || 0 };
+}
+async function withAi(body, resp) {
+  if (!body || !body.__ai || !resp) return resp;
+  try {
+    const obj = await resp.clone().json();
+    obj.ai = body.__ai;
+    return new Response(JSON.stringify(obj), { status: resp.status, headers: { 'Content-Type': 'application/json' } });
+  } catch (_) { return resp; }
+}
+
 async function handleNaesuVerify(body, env) {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
   if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
@@ -609,7 +627,7 @@ async function handleNaesuVerify(body, env) {
       })
     });
     if (!r.ok) return json({ ok: false, error: '판독 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
-    data = await r.json();
+    data = await r.json(); aiMeter(body, data);
   } catch (e) {
     return json({ ok: false, error: '판독 실패: ' + (e && e.message || e) }, 502);
   }
@@ -674,7 +692,7 @@ async function handleAIPolish(body, env) {
       body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1024, system: sys, messages: [{ role: 'user', content: raw }] })
     });
     if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
-    const data = await r.json();
+    const data = await r.json(); aiMeter(body, data);
     let text = '';
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
     return json({ ok: true, text: text.trim() });
@@ -714,7 +732,7 @@ async function handleAIChatSummary(body, env) {
       }),
     });
     if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
-    const data = await r.json();
+    const data = await r.json(); aiMeter(body, data);
     if (data && data.stop_reason === 'refusal') return json({ ok: false, error: '이 대화는 요약할 수 없어요' }, 200);
     let text = '';
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
@@ -768,7 +786,7 @@ async function handleAIIgReport(body, env) {
       }),
     });
     if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
-    const data = await r.json();
+    const data = await r.json(); aiMeter(body, data);
     if (data && data.stop_reason === 'refusal') return json({ ok: false, error: '이 데이터는 분석할 수 없어요' }, 200);
     let text = '';
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
@@ -832,7 +850,7 @@ async function handleAIRecommend(body, env) {
       body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 900, system: sys, messages: [{ role: 'user', content: userMsg }] })
     });
     if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 160) }, 502);
-    const data = await r.json();
+    const data = await r.json(); aiMeter(body, data);
     let text = '';
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
     text = text.trim();

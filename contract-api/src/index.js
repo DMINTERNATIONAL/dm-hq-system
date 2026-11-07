@@ -21,6 +21,7 @@ import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
 import { makeIgReport } from './igreport.js';
+import { makeAiUsage } from './aiusage.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -313,13 +314,24 @@ async function nwCfg(env) {
   if (!sec || !sec.url || !sec.secret) return null;
   return { url: String(sec.url).replace(/\/+$/, ''), secret: sec.secret, enabled: pub.enabled !== false };
 }
-async function relayCall(env, path, payload) {
+/* who = { ph, nm, x, tp, ctx } — AI 를 부른 사람 · 내용(AI 사용량 기록용, 선택). ctx 가 있으면 기록은 답을 돌려준 뒤 한다. */
+async function relayCall(env, path, payload, who) {
   const cfg = await nwCfg(env);
   if (!cfg) throw new Error('웍스 · AI 설정이 없어요');
   const req = new Request(cfg.url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, secret: cfg.secret }) });
   const r = env.AI_RELAY ? await env.AI_RELAY.fetch(req) : await fetch(req);
   const t = await r.text();
-  try { return { status: r.status, body: JSON.parse(t) }; } catch (_) { return { status: r.status, body: { ok: false, error: t.slice(0, 200) } }; }
+  let body;
+  try { body = JSON.parse(t); } catch (_) { return { status: r.status, body: { ok: false, error: t.slice(0, 200) } }; }
+  await meterAi(env, path, body, who);
+  return { status: r.status, body };
+}
+/* 릴레이 답에 붙어 온 토큰 수(ai)를 떼어 내 기록한다 — 앱 · 손님 화면에는 안 보낸다 */
+async function meterAi(env, path, body, who) {
+  if (!body || typeof body !== 'object' || !body.ai) return;
+  const ai = body.ai; delete body.ai;
+  const job = aiUsageRoute.log(env, path, ai, who).catch(() => {});
+  if (who && who.ctx) who.ctx.waitUntil(job); else await job;
 }
 
 /* ═══ 알림 보내기 ═══
@@ -427,11 +439,12 @@ function stripSensitive(v, hit) {
 }
 
 /* ═══ 라우팅 ═══ */
-const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b) => relayCall(env, p, b) });
+const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
-const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b) => relayCall(env, p, b) });
+const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
+const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -680,9 +693,11 @@ export default {
           body: JSON.stringify({ secret: cfg.secret, summary: b.summary, lang: b.lang, products: b.products }),
         });
         const r = env.AI_RELAY ? await env.AI_RELAY.fetch(relayReq) : await fetch(relayReq);
-        const t = await r.text();
+        let t = await r.text();
         let d = null;
         try { d = JSON.parse(t); } catch (e) { /* 릴레이 응답이 JSON 이 아니면 그대로 넘긴다 */ }
+        /* AI 사용량 기록 — 토큰 수는 떼고 손님 화면에 보낸다 */
+        if (d && d.ai) { await meterAi(env, '/ai/recommend', d, { x: '손님 · ' + String(b.lang || 'ko').slice(0, 5), ctx }); t = JSON.stringify(d); }
         if (key && d && d.ok && Array.isArray(d.items) && d.items.length) {
           await dbPut(env, '/recCache/' + key, { intro: d.intro || '', items: d.items, ts: Date.now() }).catch(() => {});
         }
@@ -782,9 +797,9 @@ export default {
           const r = await relayCall(env, '', { type: String(b.type || '').slice(0, 30), order: b.order || null });
           return json(r.body, r.status, origin);
         }
-        if (path === '/relay/polish') { const r = await relayCall(env, '/ai/polish', { raw: String(b.raw || '').slice(0, 4000), date: String(b.date || '').slice(0, 12) }); return json(r.body, r.status, origin); }
+        if (path === '/relay/polish') { const r = await relayCall(env, '/ai/polish', { raw: String(b.raw || '').slice(0, 4000), date: String(b.date || '').slice(0, 12) }, { ph: me.ph, nm: me.name, x: '상담 메모', ctx }); return json(r.body, r.status, origin); }
         if (path === '/relay/naesu') {
-          const r = await relayCall(env, '/ai/naesu-verify', { imageB64: String(b.imageB64 || ''), mediaType: String(b.mediaType || 'image/jpeg').slice(0, 40), expectAmount: b.expectAmount, expectAcct: b.expectAcct });
+          const r = await relayCall(env, '/ai/naesu-verify', { imageB64: String(b.imageB64 || ''), mediaType: String(b.mediaType || 'image/jpeg').slice(0, 40), expectAmount: b.expectAmount, expectAcct: b.expectAcct }, { ph: me.ph, nm: me.name, x: '송금 캡처', ctx });
           return json(r.body, r.status, origin);
         }
         if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
@@ -817,6 +832,8 @@ export default {
       /* 인스타 AI 리포트 (igreport.js) — 본인 것 · 경영팀은 전체 */
       const igRes = await igRoute(path, request, env, ctx, me, json, origin);
       if (igRes) return igRes;
+      const aiuRes = await aiUsageRoute(path, request, env, ctx, me, json, origin);
+      if (aiuRes) return aiuRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
