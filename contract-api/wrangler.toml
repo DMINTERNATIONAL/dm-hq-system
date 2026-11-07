@@ -6,6 +6,7 @@
 #   npx wrangler secret put VAPID_PRIVATE_JWK  (웹 푸시 개인키 JWK — 공개키는 아래 vars)
 #   npx wrangler secret put GH_TOKEN           (GitHub PAT — 월 재수집 실행용, Actions: read/write)
 #   npx wrangler secret put GOOGLE_CLIENT_SECRET (구글 캘린더 연동 OAuth 클라이언트 보안 비밀 — 프로젝트 dm-calendar-513115)
+#   npx wrangler secret put TIKTOK_CLIENT_SECRET (틱톡 회사 계정 연결 — 개발자 앱 Client secret)
 name = "dm-contract-api"
 main = "src/index.js"
 compatibility_date = "2026-09-30"
@@ -27,6 +28,10 @@ GH_REF = "main"
 # 구글 캘린더 연동 OAuth 클라이언트 ID (공개값). 보안 비밀은 secret GOOGLE_CLIENT_SECRET.
 #   구글 Cloud 프로젝트 dm-calendar-513115 · 승인된 리디렉션 URI = https://dm-contract-api.swavey2803.workers.dev/gcal/callback
 GOOGLE_CLIENT_ID = "363361161450-gigervf5v8rkel1g5vsackuh18gqasaq.apps.googleusercontent.com"
+# 틱톡 회사 계정 연결 (검색 노출 → SNS) — 틱톡 개발자 앱의 Client key (공개값). Client secret 은 secret TIKTOK_CLIENT_SECRET.
+#   developers.tiktok.com 앱 · Login Kit Redirect URI = https://dm-contract-api.swavey2803.workers.dev/tt/callback
+#   키를 받으면 아래 줄의 # 를 지우고 값을 넣는다. 없으면 SNS 탭에 "아직 준비 안 됐어요"가 보인다.
+# TIKTOK_CLIENT_KEY = ""
 VAPID_PUBLIC = "BB2j3AH4EDiULVEoDKLWE_Ma7SBvBZQoN3D5z-nwFhthblv2Zgym6zlD4KGWnuZHc3661_32XEiHfupWh2oymU4"
 
 # 같은 계정의 Worker 끼리는 HTTP 로 못 부른다(Cloudflare error 1042).

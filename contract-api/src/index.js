@@ -23,6 +23,7 @@ import { makeGcal } from './gcal.js';
 import { makeIgReport } from './igreport.js';
 import { makeAiUsage } from './aiusage.js';
 import { makeSeo } from './seo.js';
+import { makeSns } from './sns.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -446,7 +447,8 @@ const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
-const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones });
+const snsRoute = makeSns({ dbGet, dbPut });
+const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -511,6 +513,8 @@ export default {
     ctx.waitUntil(runSalesFixPush(env).catch((e) => console.log('salesfix', e && e.message)));
     /* 검색 노출 조사 — 일요일 밤 10시(한국) 한 번 + 경영팀 '지금 조사하기' 요청. 조사는 2~6분 걸린다 */
     ctx.waitUntil(seoRoute.tick(env).then((r) => { if (r) console.log('seo', JSON.stringify(r)); }).catch((e) => console.log('seo', e && e.message)));
+    /* 틱톡 회사 계정 숫자 — 매일 새벽 5시(한국) 한 번 (sns.js) */
+    ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', r.err ? 'err' : 'ok'); }).catch((e) => console.log('tt', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
@@ -528,6 +532,8 @@ export default {
 
       /* 구글 캘린더 연결 — 구글 로그인 창이 돌아오는 곳(브라우저가 바로 연다, 토큰 없음. state 서명으로 확인) */
       if (path === '/gcal/callback' && request.method === 'GET') return gcalRoute.callback(request, env, ctx, url);
+      /* 틱톡 회사 계정 연결 — 틱톡 로그인 창이 돌아오는 곳 (state 서명으로 확인) */
+      if (path === '/tt/callback' && request.method === 'GET') return snsRoute.callback(request, env, ctx, url);
 
       /* 자체 점검 — 키·인증·DB 접근이 살아 있는지 (내용은 반환하지 않음) */
       if (path === '/selftest') {
