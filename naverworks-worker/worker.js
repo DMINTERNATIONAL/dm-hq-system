@@ -127,7 +127,7 @@ export default {
     if (pathname === '/ai/chat-summary' || pathname.endsWith('/ai/chat-summary')) {
       return cors(await handleAIChatSummary(body, env));
     }
-    // 인스타 AI 리포트 (디자이너 본인 · 경영팀 전체) — dm-contract-api 가 권한 확인 후 서비스 바인딩으로 부른다
+    // 인스타 AI 리포트 (디자이너 본인 · 경영팀 전체, Haiku 5.5) — dm-contract-api 가 권한 확인 후 서비스 바인딩으로 부른다
     if (pathname === '/ai/ig-report' || pathname.endsWith('/ai/ig-report')) {
       return cors(await handleAIIgReport(body, env));
     }
@@ -758,10 +758,10 @@ async function handleAIIgReport(body, env) {
     const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
     const r = await fetch(AIG, {
       method: 'POST',
-      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-ig-report/1.0' },
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-ig-report/1.0' },
+      /* 비용 때문에 Haiku 5.5 (Opus 5.5 의 약 1/40). 리포트 한 건 몇 원. 다른 모델로 넘어가는 fallback 도 끔 — 비싼 모델로 넘어가지 않게 */
       body: JSON.stringify({
-        model: 'claude-opus-5-5', max_tokens: 8000, fallbacks: 'default',
-        output_config: { effort: 'medium' },
+        model: 'claude-haiku-5-5', max_tokens: 4000,
         system: sys,
         messages: [{ role: 'user', content: facts }],
       }),
