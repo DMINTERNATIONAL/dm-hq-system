@@ -131,6 +131,10 @@ export default {
     if (pathname === '/ai/ig-report' || pathname.endsWith('/ai/ig-report')) {
       return cors(await withAi(body, await handleAIIgReport(body, env)));
     }
+    // 검색 노출(네이버 플레이스 · 구글) 주간 조사 — 웹 검색으로 기준 · 정책 변화를 찾고 이번 주 할 일을 쓴다 (dm-contract-api 가 매주 · 경영팀 요청 때 부른다)
+    if (pathname === '/ai/seo-weekly' || pathname.endsWith('/ai/seo-weekly')) {
+      return cors(await withAi(body, await handleAISeoWeekly(body, env)));
+    }
     if (pathname === '/ai/recommend' || pathname.endsWith('/ai/recommend')) {
       return cors(await withAi(body, await handleAIRecommend(body, env)));
     }
@@ -580,7 +584,8 @@ function aiMeter(body, data) {
   if (!body || !data || !data.usage) return;
   const u = data.usage;
   body.__ai = { m: String(data.model || ''), in: u.input_tokens || 0, out: u.output_tokens || 0,
-    cr: u.cache_read_input_tokens || 0, cw: u.cache_creation_input_tokens || 0 };
+    cr: u.cache_read_input_tokens || 0, cw: u.cache_creation_input_tokens || 0,
+    ws: (u.server_tool_use && u.server_tool_use.web_search_requests) || 0 };   // 웹 검색 횟수 — 1,000번에 $10 따로 붙는다
 }
 async function withAi(body, resp) {
   if (!body || !body.__ai || !resp) return resp;
@@ -748,6 +753,121 @@ async function handleAIChatSummary(body, env) {
 
 /* 인스타 AI 리포트. 숫자는 dm-contract-api 가 DB 에서 뽑아 글로 정리해 보낸다(facts). 여기서는 읽고 쓰기만 한다.
    mode: 'person' = 한 사람(본인) 주간 리포트 + 다음 콘텐츠 아이디어 / 'team' = 경영팀용 전체 리포트 */
+/* ═══ 검색 노출 주간 조사 ═══
+   Sonnet 5.5 + 웹 검색 · 웹 읽기(서버 도구). 검색 결과를 기다리는 동안 연결이 끊기지 않게 stream 으로 받고,
+   서버 도구 반복이 한도에 걸리면(pause_turn) 받은 내용을 그대로 다시 보내 이어 가게 한다(최대 4번). */
+async function claudeStream(env, req) {
+  const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+  const r = await fetch(AIG, {
+    method: 'POST',
+    headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'text/event-stream', 'user-agent': 'dm-hq-seo/1.0' },
+    body: JSON.stringify({ ...req, stream: true }),
+  });
+  if (!r.ok) throw new Error('AI 호출 실패 (' + r.status + ') ' + (await r.text()).slice(0, 200));
+  const blocks = [], partial = {};
+  let usage = {}, stop = null, model = req.model, buf = '';
+  const dec = new TextDecoder();
+  const onEvent = (ev) => {
+    if (ev.type === 'message_start' && ev.message) { model = ev.message.model || model; usage = { ...(ev.message.usage || {}) }; }
+    else if (ev.type === 'content_block_start') { blocks[ev.index] = JSON.parse(JSON.stringify(ev.content_block)); if (ev.content_block && 'input' in ev.content_block) partial[ev.index] = ''; }
+    else if (ev.type === 'content_block_delta') {
+      const b = blocks[ev.index], d = ev.delta || {};
+      if (!b) return;
+      if (d.type === 'text_delta') b.text = (b.text || '') + d.text;
+      else if (d.type === 'input_json_delta') partial[ev.index] = (partial[ev.index] || '') + (d.partial_json || '');
+      else if (d.type === 'citations_delta') (b.citations = b.citations || []).push(d.citation);
+      else if (d.type === 'thinking_delta') b.thinking = (b.thinking || '') + d.thinking;
+      else if (d.type === 'signature_delta') b.signature = d.signature;
+    } else if (ev.type === 'content_block_stop') {
+      if (ev.index in partial) { try { blocks[ev.index].input = partial[ev.index] ? JSON.parse(partial[ev.index]) : {}; } catch (_) { blocks[ev.index].input = {}; } delete partial[ev.index]; }
+    } else if (ev.type === 'message_delta') { if (ev.delta && ev.delta.stop_reason) stop = ev.delta.stop_reason; if (ev.usage) usage = { ...usage, ...ev.usage }; }
+    else if (ev.type === 'error') throw new Error('AI 오류: ' + ((ev.error && ev.error.message) || '').slice(0, 200));
+  };
+  const reader = r.body.getReader();
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n\n')) >= 0) {
+      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+      const data = chunk.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('');
+      if (data) onEvent(JSON.parse(data));
+    }
+  }
+  return { content: blocks.filter(Boolean), stop_reason: stop, usage, model };
+}
+async function handleAISeoWeekly(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
+  const facts = String(body.facts || '').slice(0, 30000);
+  const sys = '너는 한국 헤어살롱 회사(DAY:MEAN · ETOH, 서울 마포 · 합정 · 홍대 권역)의 지역 검색 노출 담당 연구원이야. 매주 한 번, 네이버 플레이스(스마트플레이스 · 네이버 예약)와 구글 비즈니스 프로필(구글 지도)의 상위 노출 기준과 정책 변화를 조사해서, 경영팀이 이번 주에 바로 할 수 있는 일로 정리한다. 경영팀은 마케팅 전문가가 아니다.\n\n' +
+    '조사 방법:\n' +
+    '- 웹 검색을 꼭 한다. 공식 출처를 먼저 찾는다: 네이버 스마트플레이스 공지 · 고객센터, 네이버 검색 공식 블로그 · 네이버 다이어리, 네이버 예약 공지, Google 비즈니스 프로필 고객센터, Google Search Central 블로그. 그다음 최근 뉴스(대략 최근 2~3주)와 업계 글을 본다.\n' +
+    '- 공식 발표와 마케팅 업체 · 블로그의 주장을 반드시 구분한다(official). 업계 글만 있는 내용은 "확인 중인 소문"(watch)으로 보낸다. 출처 없는 내용은 쓰지 않는다.\n' +
+    '- 데이터의 [지난 리포트] 에 이미 있는 변화는 다시 "바뀐 점"으로 쓰지 않는다. 새로 바뀐 게 없으면 changes 를 빈 배열로 두고 headline 에 "이번 주 새로 바뀐 공식 기준은 없어요"처럼 솔직하게 쓴다.\n' +
+    '- 데이터에 우리 매장 네이버 플레이스 · 구글 지도 주소가 있으면 웹 읽기로 열어 보고, 읽히는 내용(소개글 · 메뉴 · 사진 수 · 리뷰 수 · 소식 날짜 등)으로 빠진 것을 찾는다. 안 읽히면 그렇다고 하고 일반 점검 항목을 준다. 지어내지 않는다.\n\n' +
+    '할 일(todo) 규칙:\n' +
+    '- 이번 주에 할 일 최대 6개, 효과가 큰 순서. 지난주 할 일 중 아직 안 한 것이 여전히 중요하면 다시 넣는다(why 에 "지난주에 이어서").\n' +
+    '- 매장 이름은 데이터에 있는 이름 그대로, 모든 매장 공통이면 "전체".\n' +
+    '- how 는 어디를 눌러 무엇을 하는지 단계로. 소개글 · 소식 글 · 리뷰 답글 · 키워드처럼 붙여넣을 수 있는 건 draft 에 완성된 한국어 문장으로 쓴다(그대로 붙여넣을 수 있게, 과장 · 최상급 · 의료 효능 표현 없이).\n' +
+    '- 절대 권하지 않는 것: 가짜 · 대가성 리뷰, 리뷰 대행 · 영수증 조작, 트래픽 · 저장 · 클릭 작업, 순위 보장 업체, 경쟁 매장 비방. 네이버 · 구글 정책 위반은 노출 제재로 이어진다고 경고한다.\n\n' +
+    '말투: 존댓말(해요체), 짧고 쉽게. 영어 용어는 피하거나 풀어서.\n' +
+    '마지막에 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다. 형식:\n' +
+    '{"headline":"이번 주 한 줄 요약","changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
+    '- changes 최대 6개, naver · google 각각 최대 8개, watch 최대 4개, sources 최대 20개.';
+  const req = {
+    model: 'claude-sonnet-5-5', max_tokens: 32000, system: sys,
+    tools: [
+      { type: 'web_search_20260209', name: 'web_search', max_uses: 14, user_location: { type: 'approximate', country: 'KR', city: 'Seoul', timezone: 'Asia/Seoul' } },
+      { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 8 },
+    ],
+    messages: [{ role: 'user', content: facts || '(데이터 없음)' }],
+  };
+  const tot = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, server_tool_use: { web_search_requests: 0 } };
+  let res = null, model = req.model;
+  try {
+    for (let turn = 0; turn < 5; turn++) {
+      res = await claudeStream(env, req);
+      model = res.model || model;
+      const u = res.usage || {};
+      ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'].forEach((k) => { tot[k] += +u[k] || 0; });
+      tot.server_tool_use.web_search_requests += +((u.server_tool_use && u.server_tool_use.web_search_requests) || 0);
+      if (res.stop_reason !== 'pause_turn') break;
+      req.messages = [req.messages[0], { role: 'assistant', content: res.content }];   // 그대로 다시 보내면 서버가 이어서 한다
+    }
+  } catch (e) {
+    aiMeter(body, { model, usage: tot });
+    return json({ ok: false, error: String((e && e.message) || e).slice(0, 300) }, 502);
+  }
+  aiMeter(body, { model, usage: tot });
+  if (res.stop_reason === 'refusal') return json({ ok: false, error: '이번 조사는 AI 가 거절했어요' }, 200);
+  /* 마지막 검색 결과 뒤에 쓴 글이 답 */
+  let last = -1;
+  res.content.forEach((b, i) => { if (b && /tool_result$|^server_tool_use$/.test(b.type)) last = i; });
+  let text = '';
+  res.content.slice(last + 1).forEach((b) => { if (b && b.type === 'text') text += b.text; });
+  const a = text.indexOf('{'), z = text.lastIndexOf('}');
+  let rep = null;
+  try { rep = JSON.parse(text.slice(a, z + 1)); } catch (_) {}
+  if (!rep || typeof rep !== 'object') return json({ ok: false, error: 'AI 답을 읽지 못했어요 (' + (res.stop_reason || '') + ')' }, 502);
+  const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+  const U = (v) => (Array.isArray(v) ? v : [v]).map((x) => S(x, 500)).filter((x) => /^https?:\/\//.test(x)).slice(0, 5);
+  const A = (v, n) => (Array.isArray(v) ? v : []).filter((x) => x && typeof x === 'object').slice(0, n);
+  const out = {
+    headline: S(rep.headline, 300),
+    changes: A(rep.changes, 6).map((x) => ({ title: S(x.title, 160), what: S(x.what, 800), impact: ['high', 'mid', 'low'].indexOf(x.impact) >= 0 ? x.impact : 'mid', official: x.official === true, date: S(x.date, 40), src: U(x.src) })).filter((x) => x.title),
+    todo: A(rep.todo, 6).map((x) => ({ branch: S(x.branch, 40) || '전체', title: S(x.title, 160), why: S(x.why, 600), how: S(x.how, 1500), draft: S(x.draft, 2500), time: S(x.time, 30), src: U(x.src) })).filter((x) => x.title),
+    naver: A(rep.naver, 8).map((x) => ({ factor: S(x.factor, 80), now: S(x.now, 600), tip: S(x.tip, 300) })).filter((x) => x.factor),
+    google: A(rep.google, 8).map((x) => ({ factor: S(x.factor, 80), now: S(x.now, 600), tip: S(x.tip, 300) })).filter((x) => x.factor),
+    watch: A(rep.watch, 4).map((x) => ({ title: S(x.title, 160), why: S(x.why, 600) })).filter((x) => x.title),
+    sources: A(rep.sources, 20).map((x) => ({ title: S(x.title, 160), url: U(x.url)[0] || '' })).filter((x) => x.url),
+  };
+  out.searches = tot.server_tool_use.web_search_requests;
+  return json({ ok: true, report: out });
+}
+
 async function handleAIIgReport(body, env) {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
   if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);

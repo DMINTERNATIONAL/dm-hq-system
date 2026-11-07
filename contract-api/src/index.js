@@ -22,6 +22,7 @@ import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
 import { makeIgReport } from './igreport.js';
 import { makeAiUsage } from './aiusage.js';
+import { makeSeo } from './seo.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -445,6 +446,7 @@ const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
+const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -500,13 +502,15 @@ async function runSalesFixPush(env) {
 }
 
 export default {
-  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 · 수기 매출 수정 알림 */
+  /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 · 수기 매출 수정 알림 · 검색 노출 조사 */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
     ctx.waitUntil(chatRoute.runScheduled(env, ctx).catch((e) => console.log('sched', e && e.message)));
     ctx.waitUntil(calRoute.runReminders(env).catch((e) => console.log('cal', e && e.message)));
     ctx.waitUntil(gcalRoute.runSync(env).catch((e) => console.log('gcal', e && e.message)));
     ctx.waitUntil(runSalesFixPush(env).catch((e) => console.log('salesfix', e && e.message)));
+    /* 검색 노출 조사 — 일요일 밤 10시(한국) 한 번 + 경영팀 '지금 조사하기' 요청. 조사는 2~6분 걸린다 */
+    ctx.waitUntil(seoRoute.tick(env).then((r) => { if (r) console.log('seo', JSON.stringify(r)); }).catch((e) => console.log('seo', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
@@ -834,6 +838,9 @@ export default {
       if (igRes) return igRes;
       const aiuRes = await aiUsageRoute(path, request, env, ctx, me, json, origin);
       if (aiuRes) return aiuRes;
+      /* 검색 노출 주간 조사 (seo.js) — 경영팀만 */
+      const seoRes = await seoRoute(path, request, env, ctx, me, json, origin);
+      if (seoRes) return seoRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.

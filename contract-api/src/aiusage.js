@@ -4,7 +4,7 @@
    정확한 청구 금액은 Anthropic 콘솔이 기준이다.
 
    저장 위치(잠긴 경로라 staff 토큰으로는 못 읽는다):
-     /authSecrets/__ai/usage/{YYYY-MM}/{pushId} = { at, f, m, in, out, cr, cw, usd, ph?, nm?, x?, tp?, unk? }
+     /authSecrets/__ai/usage/{YYYY-MM}/{pushId} = { at, f, m, in, out, cr, cw, ws?, usd, ph?, nm?, x?, tp?, unk? }
      /authSecrets/__ai/sum/{YYYY-MM}           = { usd, n, in, out, f: { 기능: { usd, n } }, al?: { b, lv } }
      /authSecrets/__ai/cfg                     = { budgetKrw, krw, hist: { YYYY-MM: 예산 }, at, by }
    예산은 비워 둘 수 있다(알림 없음). 넣으면 그 달 80% · 100% 를 넘을 때 경영팀 휴대폰으로 한 번씩 알림만 보낸다.
@@ -17,11 +17,12 @@ const PRICES = [
   [/haiku-5-5/, [0.1, 0.5, 0.01, 0.125]],
   [/haiku-4-5/, [1, 5, 0.1, 1.25]],
 ];
-const WORST = [4, 20, 0.2, 5];   // 가격표에 없는 모델은 가장 비싼 값으로 잡고 표시한다(적게 보이는 것보다 낫다)
+const WORST = [4, 20, 0.2, 5];
+export const WEB_SEARCH_USD = 0.01;   // 웹 검색 한 번   // 가격표에 없는 모델은 가장 비싼 값으로 잡고 표시한다(적게 보이는 것보다 낫다)
 
 export const FEATURES = {
   '/ai/polish': 'polish', '/ai/recommend': 'reco', '/ai/naesu-verify': 'naesu',
-  '/ai/chat-summary': 'chatsum', '/ai/ig-report': 'igreport',
+  '/ai/chat-summary': 'chatsum', '/ai/ig-report': 'igreport', '/ai/seo-weekly': 'seo',
 };
 
 export function priceOf(model) {
@@ -31,7 +32,8 @@ export function priceOf(model) {
 }
 export function costUsd(model, ai) {
   const { p, unk } = priceOf(model);
-  const v = ((+ai.in || 0) * p[0] + (+ai.out || 0) * p[1] + (+ai.cr || 0) * p[2] + (+ai.cw || 0) * p[3]) / 1e6;
+  /* 웹 검색(서버 도구)은 토큰과 따로 1,000번에 $10 */
+  const v = ((+ai.in || 0) * p[0] + (+ai.out || 0) * p[1] + (+ai.cr || 0) * p[2] + (+ai.cw || 0) * p[3]) / 1e6 + (+ai.ws || 0) * WEB_SEARCH_USD;
   return { usd: Math.round(v * 1e6) / 1e6, unk };
 }
 /* 한국 시각 기준 'YYYY-MM' */
@@ -74,6 +76,7 @@ export function makeAiUsage(deps) {
     const ym = monthKey(now);
     const rec = { at: now, f, m: String(ai.m || '').slice(0, 60), in: +ai.in || 0, out: +ai.out || 0, cr: +ai.cr || 0, cw: +ai.cw || 0, usd };
     if (unk) rec.unk = 1;
+    if (+ai.ws > 0) rec.ws = +ai.ws;
     if (who) {
       if (who.ph) rec.ph = String(who.ph).slice(0, 15);
       if (who.nm) rec.nm = String(who.nm).slice(0, 30);
