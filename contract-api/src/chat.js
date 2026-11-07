@@ -286,6 +286,9 @@ export function makeChat(deps) {
       }
     }
 
+    /* 사진 · 동영상 · 파일 목록(모아 보기) — 방 전체 메시지를 받지 않고 이것만 읽는다 */
+    if (md) up[`chat/media/${rid}/${key}`] = root ? { at, by: ph, bn, md, r: root } : { at, by: ph, bn, md };
+
     /* 내 활동: 나를 부른 것 · 내 글(또는 내가 참여한 스레드)에 달린 답 */
     const actFor = new Set();
     const actK = {};
@@ -633,12 +636,14 @@ export function makeChat(deps) {
     if (del === 'hide') {
       if (!isManagerUser(String(me.ph), u)) throw new Error('가리기는 경영팀 · 관리자만 할 수 있습니다');
       await dbPatch(env, path, { x: null, md: null, hid: { by: nameOf(u), at: nowMs() } });
+      if (m.md) await dbPatch(env, '/', { [`chat/media/${rid}/${key}`]: null });
       if (!root) await fixPreview(env, rid, room, m, '가려진 메시지입니다');
       return {};
     }
     if (!mine) throw new Error('내가 보낸 메시지만 바꿀 수 있습니다');
     if (del) {
       await dbPatch(env, path, { x: null, md: null, del: 1 });
+      if (m.md) await dbPatch(env, '/', { [`chat/media/${rid}/${key}`]: null });
       if (!root) await fixPreview(env, rid, room, m, '삭제된 메시지입니다');
     } else {
       const x = clip(body.x, 5000).trim();
@@ -786,33 +791,70 @@ export function makeChat(deps) {
     return due.length;
   }
 
-  /* 전달 — 다른 방으로 복사. 사진·동영상은 그 방 저장 위치로 파일도 복사한다(방마다 열람 권한이 다르므로). */
+  /* 전달 — 다른 방(여러 방 한 번에, 최대 20)으로 복사. 사진·동영상은 그 방 저장 위치로 파일도 복사한다(방마다 열람 권한이 다르므로).
+     only: 메시지 안 몇 번째 사진만(사진 보기 화면에서 한 장 전달) — 이때는 글은 빼고 사진만. root: 스레드 답장 안의 사진 */
   async function forward(env, ctx, me, body) {
-    const rid = String(body.rid || ''), key = String(body.key || ''), to = String(body.to || '');
+    const rid = String(body.rid || ''), key = String(body.key || ''), root = body.root ? String(body.root) : '';
+    const tos = [...new Set((Array.isArray(body.to) ? body.to : [body.to]).map((t) => String(t || '')).filter(Boolean))].slice(0, 20);
+    if (!tos.length) throw new Error('보낼 방을 골라 주세요');
     const room = await getRoom(env, rid);
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
-    const m = await msgOf(env, rid, key);
+    const m = root ? await dbGet(env, `/chat/thr/${rid}/${root}/${key}`) : await msgOf(env, rid, key);
+    if (!m) throw new Error('메시지를 찾지 못했습니다');
     if (m.del || m.hid) throw new Error('지워진 메시지는 전달할 수 없습니다');
-    let md = null;
-    if (m.md && m.md.length) {
-      const toRoom = await getRoom(env, to);
-      if (!member(toRoom, String(me.ph))) throw new Error('보낼 방에 참여하고 있지 않습니다');
-      const tag = await deps.roomTag(to);
-      md = [];
-      for (const it of m.md) {
-        const o = { w: it.w, h: it.h, sz: it.sz, n: it.n, d: it.d };
-        for (const f of ['u', 'o', 'v', 'f']) if (it[f]) {
-          const src = await env.CHAT_MEDIA.get(it[f]);
-          if (!src) continue;
-          const nk = it[f].replace(/^([po])\/[^/]+\//, `$1/${tag}/`).replace(/(\.[A-Za-z0-9]+)$/, '_f' + Date.now().toString(36) + '$1');
-          await env.CHAT_MEDIA.put(nk, src.body, { httpMetadata: src.httpMetadata });
-          o[f] = nk;
+    const only = Array.isArray(body.only) ? body.only.map((i) => i | 0) : null;
+    const srcMd = (m.md || []).filter((it, i) => it && (!only || only.includes(i)));
+    if (only && !srcMd.length) throw new Error('전달할 사진을 찾지 못했습니다');
+    const x = only ? '' : (m.x || '');
+    let ok = 0; const fail = [];
+    for (const to of tos) {
+      try {
+        let md = null;
+        if (srcMd.length) {
+          const toRoom = await getRoom(env, to);
+          if (!member(toRoom, String(me.ph))) throw new Error('보낼 방에 참여하고 있지 않습니다');
+          const tag = await deps.roomTag(to);
+          md = [];
+          for (const it of srcMd) {
+            const o = { w: it.w, h: it.h, sz: it.sz, n: it.n, d: it.d };
+            for (const f of ['u', 'o', 'v', 'f']) if (it[f]) {
+              const src = await env.CHAT_MEDIA.get(it[f]);
+              if (!src) continue;
+              const nk = it[f].replace(/^([po])\/[^/]+\//, `$1/${tag}/`).replace(/(\.[A-Za-z0-9]+)$/, '_f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) + '$1');
+              /* R2 에 넣을 때는 길이를 알아야 해서 크기를 붙여 흘려 보낸다(큰 동영상도 메모리에 다 올리지 않음) */
+              await env.CHAT_MEDIA.put(nk, src.body.pipeThrough(new FixedLengthStream(src.size)), { httpMetadata: src.httpMetadata });
+              o[f] = nk;
+            }
+            if (o.u || o.v || o.f) md.push(o);
+          }
+          if (!md.length) throw new Error('보관 기간(90일)이 지난 파일이라 전달할 수 없습니다');
         }
-        if (o.u || o.v || o.f) md.push(o);
-      }
-      if (!md.length) md = null;
+        const k = md ? (md.some((it) => it.v) ? 'v' : md.some((it) => it.f) ? 'f' : 'p') : 't';
+        await send(env, ctx, me, { rid: to, k, x, md, fw: m.bn });
+        ok++;
+      } catch (e) { fail.push({ to, error: e.message || String(e) }); }
     }
-    return send(env, ctx, me, { rid: to, k: m.k === 'v' || m.k === 'p' ? m.k : 't', x: m.x || '', md, fw: m.bn });
+    if (!ok) throw new Error(fail[0] ? fail[0].error : '전달하지 못했습니다');
+    return { n: ok, fail };
+  }
+
+  /* 모아 보기 — 방의 사진 · 동영상 · 파일 목록. /chat/media/{방} 에 쌓아 두고(보낼 때마다 send 가 추가, 지우면 뺌),
+     이 기능 전에 보낸 것은 처음 열 때 한 번만 메시지에서 뽑아 채운다(_b 표시). */
+  async function gallery(env, me, body) {
+    const rid = String(body.rid || '');
+    const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
+    let idx = (await dbGet(env, `/chat/media/${rid}`)) || {};
+    if (!idx._b) {
+      const [msgs, thr] = await Promise.all([dbGet(env, `/chat/msgs/${rid}`), dbGet(env, `/chat/thr/${rid}`)]);
+      const up = { [`chat/media/${rid}/_b`]: 1 };
+      const add = (k, m, r) => { if (m && m.md && m.md.length && !m.del && !m.hid && !idx[k]) { const e = r ? { at: m.at, by: m.by, bn: m.bn, md: m.md, r } : { at: m.at, by: m.by, bn: m.bn, md: m.md }; up[`chat/media/${rid}/${k}`] = e; idx[k] = e; } };
+      for (const [k, m] of Object.entries(msgs || {})) add(k, m, '');
+      for (const [r, list] of Object.entries(thr || {})) for (const [k, m] of Object.entries(list || {})) add(k, m, r);
+      await dbPatch(env, '/', up);
+    }
+    const items = Object.entries(idx).filter(([k, v]) => k !== '_b' && v && v.md).map(([k, v]) => ({ k, ...v })).sort((a, b) => (b.at || 0) - (a.at || 0));
+    return { items };
   }
 
   /* 대화 내보내기 — 경영팀만, 단체방만 (1:1 은 내보낼 수 없다) */
@@ -893,6 +935,7 @@ export function makeChat(deps) {
         case '/chat/later': out = await later(env, me, body); break;
         case '/chat/remind': out = await remind(env, me, body); break;
         case '/chat/forward': out = await forward(env, ctx, me, body); break;
+        case '/chat/gallery': out = await gallery(env, me, body); break;
         case '/chat/export': out = await exportRoom(env, me, body); break;
         case '/chat/summary': out = await summary(env, me, body); break;
         default: return json({ ok: false, error: '없는 기능입니다' }, 404, origin);

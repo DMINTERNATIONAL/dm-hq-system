@@ -1936,8 +1936,70 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-sumbody{padding:4px 14px 10px;font-size:14px;line-height:1.6}
 .cm-sumbody ul{margin:0;padding-left:18px;color:var(--cm-ink2)}
 .cm-ask{background:#FEF3C7;color:#92400E;border-radius:10px;padding:8px 10px;margin-bottom:8px;font-weight:700;font-size:13.5px}
-.cm-drawer{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;width:100%;max-width:720px;align-self:flex-start;overflow:auto;max-height:100%;padding:3px}
-.cm-drawer img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#1E293B;cursor:pointer}
+/* 사진 · 동영상 보기 — 카톡 모양: 위아래 막대가 사진 위에 떠 있고, 사진을 누르면 숨었다 나타남 */
+.cm-mv .vbody{position:absolute;inset:0;padding:0}
+.cm-mv.vid .vbody{padding:calc(70px + env(safe-area-inset-top,0px)) 0 calc(86px + var(--sab))}
+.cm-mv .mv-top,.cm-mv .mv-bot{position:absolute;left:0;right:0;display:flex;align-items:center;gap:12px;padding:0 14px;z-index:2;transition:opacity .2s,transform .2s;pointer-events:none}
+.cm-mv .mv-top{top:0;padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:22px;background:linear-gradient(rgba(0,0,0,.55),transparent)}
+.cm-mv .mv-bot{bottom:0;justify-content:space-between;padding-top:22px;padding-bottom:calc(12px + var(--sab));background:linear-gradient(transparent,rgba(0,0,0,.5))}
+.cm-mv .mv-top>*,.cm-mv .mv-bot>*{pointer-events:auto}
+.cm-mv.bare .mv-top{opacity:0;transform:translateY(-12px)}.cm-mv.bare .mv-bot{opacity:0;transform:translateY(12px)}.cm-mv.bare .mv-top>*,.cm-mv.bare .mv-bot>*{pointer-events:none}
+.mv-c{flex:none;width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.92);color:#111;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.18);padding:0}
+.mv-c svg,.mv-pill svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.mv-pill svg circle{fill:currentColor;stroke:none}
+.mv-c.ing{position:relative;color:transparent}.mv-c.ing::after{content:'';position:absolute;width:20px;height:20px;border:2.5px solid #111;border-top-color:transparent;border-radius:50%;animation:cmSpin .8s linear infinite}
+@keyframes cmSpin{to{transform:rotate(360deg)}}
+html.dm-dark .cm-mv .mv-c.ing::after{border-color:#EEE;border-top-color:transparent}
+.mv-who{flex:1;min-width:0;color:#fff;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.mv-who b{display:block;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mv-who small{display:block;font-size:13px;opacity:.9;margin-top:1px}
+.mv-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.92);border-radius:99px;padding:3px 10px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.mv-pill button{width:48px;height:42px;border:none;background:none;color:#111;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.mv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:none;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:30px;cursor:pointer;z-index:1}
+.mv-nav.l{left:12px}.mv-nav.r{right:12px}
+.cm-sheet-bg.cm-top{z-index:720}
+.cm-sh-info{padding:12px 16px;font-size:13px;color:var(--cm-ink3);border-top:1px solid var(--cm-line)}
+/* 모아 보기 */
+.cm-gal{background:#fff;color:var(--cm-ink)}
+.gal-top{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px}
+.gal-top .mv-c{width:38px;height:38px;box-shadow:none;background:#F1F5F9}
+.gal-top b{flex:1;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gal-n{font-size:12.5px;color:var(--cm-ink3)}
+.gal-tabs{display:flex;border-bottom:1px solid var(--cm-line)}
+.gal-tabs button{flex:1;border:none;background:none;padding:11px 0;font-size:14.5px;font-weight:700;color:var(--cm-ink3);font-family:inherit;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.gal-tabs button.on{color:var(--cm-ink);border-bottom-color:var(--cm-ink)}
+.gal-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(16px + var(--sab))}
+.gal-day{font-size:13px;font-weight:700;padding:14px 14px 8px}
+.gal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+@media(min-width:700px){.gal-grid{grid-template-columns:repeat(6,1fr)}}
+.gal-c{position:relative;aspect-ratio:1/1;background:#E2E8F0;cursor:pointer;overflow:hidden}
+.gal-c img{width:100%;height:100%;object-fit:cover;display:block}
+.gal-v{position:absolute;right:5px;bottom:5px;color:#fff;font-size:11.5px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.gal-c.exp img{opacity:.35}.gal-x{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:11px;font-weight:700;color:#334155}
+.gal-files{padding:0 12px;display:flex;flex-direction:column;gap:8px}
+.gal-f{max-width:none;cursor:pointer}.gal-f.exp{opacity:.55}
+.gal-empty{text-align:center;color:var(--cm-ink3);padding:50px 20px;font-size:14px}
+/* 편집 */
+.cm-ed .ed-top{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top,0px)) 10px 10px;color:#fff}
+.cm-ed .ed-top button{background:none;border:none;color:#fff;font-size:16px;font-family:inherit;padding:8px 10px;cursor:pointer}.cm-ed .ed-top .ok{font-weight:800;color:#FACC15}
+.ed-stage{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none}
+.ed-stage canvas{position:absolute}
+.ed-wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;margin:0}
+.ed-crop{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);touch-action:none;cursor:move}
+.ed-crop i{position:absolute;width:26px;height:26px;border:4px solid #fff;touch-action:none}
+.ed-crop i[data-h=nw]{left:-5px;top:-5px;border-right:0;border-bottom:0;cursor:nwse-resize}.ed-crop i[data-h=ne]{right:-5px;top:-5px;border-left:0;border-bottom:0;cursor:nesw-resize}
+.ed-crop i[data-h=sw]{left:-5px;bottom:-5px;border-right:0;border-top:0;cursor:nesw-resize}.ed-crop i[data-h=se]{right:-5px;bottom:-5px;border-left:0;border-top:0;cursor:nwse-resize}
+.ed-tools{display:flex;justify-content:center;gap:28px;padding:12px 0 calc(14px + var(--sab))}
+.ed-tools button{background:none;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12.5px;font-family:inherit;cursor:pointer}
+.ed-tools svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* 전달할 방 고르기 */
+.cm-fwd .cm-fwd-q{padding:4px 14px 8px}.cm-fwd .cm-fwd-q input{width:100%;box-sizing:border-box;border:none;background:#F1F5F9;border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;color:var(--cm-ink)}
+.cm-fwd-list{max-height:48vh;overflow:auto}
+.cm-fwd-row{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.cm-fwd-row .nm{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cm-fwd-row .nm small{color:var(--cm-ink3);font-size:12px}
+.cm-fwd-row .ck{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid #CBD5E1;box-sizing:border-box}
+.cm-fwd-row.on .ck{background:#FACC15;border-color:#FACC15;box-shadow:inset 0 0 0 4px #FACC15}
+.cm-fwd-row.on .ck{background:#FACC15 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23111' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
 .cm-viewer .vbody{overflow:auto}
 .wc{border-top:1px dashed #E2E8F0;margin-top:10px;padding-top:6px;font-size:13px}
 .wc-h{cursor:pointer;color:#3B82F6;font-weight:700;font-size:12.5px;padding:4px 0}
@@ -2360,6 +2422,19 @@ html.dm-dark .cm-findbar{background:#1C1C1E}
 html.dm-dark .cm-hit{background:#1C1C1E}
 html.dm-dark .cm-sumbtn{border:1px solid #264369;background:#213045;color:#829FEE}
 html.dm-dark .cm-ask{background:#443D23;color:#F5BC99}
+html.dm-dark .mv-c{background:rgba(28,28,30,0.92);color:#EEEEEE}
+html.dm-dark .mv-c.ing::after{border:2.5px solid #3A3A3C}
+html.dm-dark .mv-pill{background:rgba(28,28,30,0.92)}
+html.dm-dark .mv-pill button{color:#EEEEEE}
+html.dm-dark .cm-gal{background:#1C1C1E}
+html.dm-dark .gal-top .mv-c{background:#242426}
+html.dm-dark .gal-c{background:#2C2C2E}
+html.dm-dark .gal-x{color:#B3BAC3}
+html.dm-dark .cm-ed .ed-top .ok{color:#F7DC70}
+html.dm-dark .ed-crop{border:2px solid #2C2C2E}
+html.dm-dark .ed-crop i{border:4px solid #2C2C2E}
+html.dm-dark .cm-fwd .cm-fwd-q input{background:#242426}
+html.dm-dark .cm-fwd-row .ck{border:2px solid #2C2C2E}
 html.dm-dark .wc{border-top:1px dashed #2C2C2E}
 html.dm-dark .wc-h{color:#659CF7}
 html.dm-dark .wc-c{border-bottom:1px solid #2C2C2E}
@@ -8302,7 +8377,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-11-08-3',DM_UPDATE_READY=false;
+var DM_BUILD='2026-11-08-4',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -9892,6 +9967,7 @@ function cmMsgHtml(list,opts){
     var day=new Date(m.at).toDateString();if(day!==lastDay){h+='<div class="cm-day">'+cmDay(m.at)+'</div>';lastDay=day;prev=null}
     var nw=opts.anim&&!CM_SEEN[opts.anim+'|'+key]&&!it.pending;if(opts.anim)CM_SEEN[opts.anim+'|'+key]=1;
     if(m.k==='sys'){h+='<div class="cm-sys'+(nw?' cm-new':'')+'">'+cmEsc(m.x)+'</div>';prev=null;return}
+    if(m.md&&m.md.length&&!m.x&&!it.pending&&m.md.every(cmHidden))return; /* 이 기기에서 지운 사진만 있던 말풍선 */
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     /* 보내는 중인 글도 '1'(안 읽은 사람 수)을 바로 — 진짜 글이 도착할 때까지 0.5~1초 늦게 떴다(10/27) */
     var un=opts.thread?0:(it.pending?Math.max(0,Object.keys((CM.room&&CM.room.m)||{}).length-1):cmUnread(m));
@@ -10108,7 +10184,7 @@ function cmRenderSet(){var p=$('p-comm-set'),r=CM.room;if(!p||!r)return;var me=S
     if(grp)h+='<div class="cm-it" style="color:var(--cm-blue);font-weight:700;cursor:pointer" onclick="cmOpenNew(\'invite\')">+ 초대하기</div>';
     mem.forEach(function(ph){var u=CM.users[ph]||{};h+='<div class="cm-it"><span>'+cmEsc(cmName(ph))+'<span class="rl">'+cmEsc(u.role||'')+(r.by===ph?' · 방 만든 사람':'')+(ph===me?' · 나':'')+'</span></span>'+(grp&&mgr&&ph!==me?'<button class="cm-kick" onclick="cmKick(\''+ph+'\')">내보내기</button>':'')+'</div>'});
     h+='</div>'}
-  h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmDrawer()">사진 · 동영상 모아 보기<span class="rl">›</span></div>'+(r.t!=='dm'&&r.t!=='me'&&cmIsHq()?'<div class="cm-it" style="cursor:pointer" onclick="cmExport()">대화 내보내기 (경영팀)<span class="rl">›</span></div>':'')+'</div>';
+  h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmDrawer()">사진 · 동영상 · 파일 모아 보기<span class="rl">›</span></div>'+(r.t!=='dm'&&r.t!=='me'&&cmIsHq()?'<div class="cm-it" style="cursor:pointer" onclick="cmExport()">대화 내보내기 (경영팀)<span class="rl">›</span></div>':'')+'</div>';
   if(grp&&(r.by===me||mgr))h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmPrompt(\'방 이름 바꾸기\',\'\',CM.room.n,function(v){cmApi(\'rename\',{rid:CM.rid,name:v}).then(function(){toast(\'바꿨어요\')}).catch(function(e){alert(e.message)})})">방 이름 바꾸기<span class="rl">›</span></div></div>';
   if(grp)h+='<div class="cm-grp"><div class="cm-it" style="color:#DC2626;cursor:pointer" onclick="cmConfirm(\'이 방에서 나갈까요?\',\'나가면 이 방 대화를 더 볼 수 없습니다.\',\'나가기\',true,function(){cmApi(\'leave\',{rid:CM.rid}).then(function(){cmBack()}).catch(function(e){alert(e.message)})})">방 나가기</div></div>';
   else if(r.auto)h+='<p style="font-size:12px;color:var(--cm-ink3);text-align:center">이 방은 직원 정보에 따라 자동으로 참여하는 방이라 나갈 수 없습니다</p>';
@@ -10352,7 +10428,7 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
   Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(root0)body.root=root0;if(rp0)body.rp=rp0;
     /* 다 올리면 진짜 메시지 모양(사진)으로 바꿔 두고, 실시간으로 들어올 때까지 그 자리에 둔다(사라졌다 나타나던 것) */
     if(CM_PENDING[tmp])CM_PENDING[tmp].m=Object.assign({},CM_PENDING[tmp].m,{x:'',k:body.k,md:body.md});paint();return cmApi('send',body)}).then(function(r){var have=r&&r.key&&(root0?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp];paint()},8000);paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert('보내지 못했어요\n\n'+e.message)})}
-function cmMediaHtml(m){var md=m.md||[];if(!md.length)return '';
+function cmMediaHtml(m){var md=(m.md||[]).filter(function(x){return x&&!cmHidden(x)});if(!md.length)return '';
   var vids=md.filter(function(x){return x.v}),pics=md.filter(function(x){return x.u&&!x.v}),docs=md.filter(function(x){return x.f});
   var h='';
   docs.forEach(function(x){var nm=x.n||'파일';var ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file" onclick="event.stopPropagation();cmFileView(\''+x.f+'\',\''+encodeURIComponent(nm)+'\','+(x.sz||0)+')"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · 90일 보관</small></span><button class="cm-fsv" title="저장" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify([[x.f,nm]]))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'});
@@ -10361,7 +10437,9 @@ function cmMediaHtml(m){var md=m.md||[];if(!md.length)return '';
   return h}
 function cmFillMedia(root,rid){var need=[];root.querySelectorAll('img[data-mk]').forEach(function(im){var k=im.getAttribute('data-mk');var c=CM.urls[k];if(im.getAttribute('src'))return;if(c&&c.exp>Date.now()+60000)im.src=c.u;else if(need.indexOf(k)<0)need.push(k)});
   if(!need.length)return Promise.resolve();
-  return cmApi('media-urls',{rid:rid||CM.rid,keys:need}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});root.querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.src)im.src=c.u})}).catch(function(){})}
+  /* 서버가 한 번에 100개까지만 주소를 줘서 나눠 받는다(모아 보기는 수백 장) */
+  var ch=[];for(var i=0;i<need.length;i+=100)ch.push(need.slice(i,i+100));
+  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});root.querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.src)im.src=c.u})}).catch(function(){})}))}
 function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};return u})}
 function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove();CM_FILES={}">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
 /* 사진 · 동영상 보기 화면의 저장 · 공유.
@@ -10410,23 +10488,145 @@ function cmZoomable(slide,img,tr){var s=1,tx=0,ty=0,st=null,lastTap=0;img.style.
   slide.addEventListener('touchend',function(e){if(!e.touches.length&&st){st=null;clamp();apply(true)}else if(e.touches.length===1&&st&&st.m==='pinch'){var t=e.touches[0];st={m:'pan',x:t.clientX,y:t.clientY,tx:tx,ty:ty}}});
   slide.addEventListener('dblclick',function(e){zoomAt(e.clientX,e.clientY)});
   return {reset:function(){if(s!==1||tx||ty){s=1;tx=0;ty=0;apply(false)}}}}
-function cmRoomPics(){var src=CM.msgs||{},out=[];Object.keys(src).sort().forEach(function(k){var m=src[k];if(!m||m.del||m.hid)return;(m.md||[]).forEach(function(x){if(x&&x.u&&!x.v&&!x.f)out.push(x)})});return out}
-function cmView(enc,i){var pics=JSON.parse(decodeURIComponent(enc));var start=pics[i];
-  var all=cmRoomPics(),j=-1;if(start)for(var q=0;q<all.length;q++)if(all[q].u===start.u){j=q;break}
-  if(j>=0){pics=all;i=j}
-  var bg=cmOverlay('<div class="cm-swipe">'+pics.map(function(){return '<div class="cm-slide"><img alt=""></div>'}).join('')+'</div>');
-  var tr=bg.querySelector('.cm-swipe'),slides=tr.children,touch='ontouchstart' in window;
+/* ══ 사진 · 동영상 보기 — 카톡 모양 (11/8 사용자 요청: 카톡 캡처 기준) ══
+   위: ‹ 닫기 · 보낸 사람 + 보낸 시각 ›(누르면 그 메시지로) · 모아 보기(네모)
+   아래: 저장 · [휴지통 · 편집 · …] · 공유(채팅방으로 전달 / 다른 앱으로). 사진을 한 번 누르면 위아래 막대가 숨었다 나타난다.
+   휴지통 = 카톡처럼 '이 기기에서 지우기'(내 화면에서만, 이 폰에 기억) + 내가 보낸 것이면 '모두에게서 삭제' */
+var CM_SVG={back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',grid:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>',
+  down:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',share:'<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M6 12H5v8h14v-8h-1"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg>',edit:'<svg viewBox="0 0 24 24"><path d="M6 3v13a2 2 0 0 0 2 2h13M3 6h13a2 2 0 0 1 2 2v13"/></svg>',
+  more:'<svg viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg>',rot:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>'};
+/* 이 기기에서 지운 사진 · 동영상 · 파일(저장소 키) — 이 폰에만 기억 */
+var CM_HIDM=(function(){try{return JSON.parse(localStorage.getItem('cm_hidm')||'{}')||{}}catch(e){return {}}})();
+function cmMdKey(x){return x&&(x.v||x.f||x.u)}
+function cmHidden(x){return !!CM_HIDM[cmMdKey(x)]}
+function cmHideLocal(k){CM_HIDM[k]=Date.now();try{localStorage.setItem('cm_hidm',JSON.stringify(CM_HIDM))}catch(e){}}
+/* 이 사진이 어느 메시지(보낸 사람 · 시각 · 몇 번째)인지 — 지금 방 메시지 · 스레드 · 모아 보기 목록에서 찾는다 */
+function cmMediaMeta(mk){var hit=null;
+  function scan(src,root){if(hit||!src)return;for(var k in src){var m=src[k];if(!m||!m.md)continue;for(var i=0;i<m.md.length;i++){var x=m.md[i];if(x&&(x.u===mk||x.v===mk||x.f===mk||x.o===mk)){hit={k:k,i:i,by:m.by,bn:m.bn,at:m.at,r:root||m.r||'',x:x};return}}}}
+  scan(CM.msgs,'');scan(CM.thMsgs,CM.thRoot);if(!hit&&CM.gal&&CM.gal.rid===CM.rid)CM.gal.items.forEach(function(it){if(!hit){var o={};o[it.k]=it;scan(o,it.r)}});return hit}
+function cmMvTime(at){var d=new Date(at),h=d.getHours();return d.getFullYear()+'. '+(d.getMonth()+1)+'. '+d.getDate()+'. '+(h<12?'오전 ':'오후 ')+((h%12)||12)+':'+('0'+d.getMinutes()).slice(-2)}
+function cmMvClose(bg){if(bg)bg.remove();if(!document.querySelector('.cm-mv'))CM_FILES={}}
+function cmMvOpen(inner){var bg=document.createElement('div');bg.className='cm-viewer cm-mv';
+  bg.innerHTML='<div class="vbody">'+inner+'</div><div class="mv-top"><button class="mv-c" data-a="close" aria-label="닫기">'+CM_SVG.back+'</button><div class="mv-who" data-a="goto"><b></b><small></small></div><button class="mv-c" data-a="grid" aria-label="모아 보기">'+CM_SVG.grid+'</button></div>'+
+    '<div class="mv-bot"><button class="mv-c" data-a="save" aria-label="저장">'+CM_SVG.down+'</button><div class="mv-pill"><button data-a="del" aria-label="지우기">'+CM_SVG.trash+'</button><button data-a="edit" aria-label="편집">'+CM_SVG.edit+'</button><button data-a="more" aria-label="더 보기">'+CM_SVG.more+'</button></div><button class="mv-c" data-a="share" aria-label="공유">'+CM_SVG.share+'</button></div>';
+  document.body.appendChild(bg);
+  bg.addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||!bg.contains(b))return;e.stopPropagation();cmMvAct(bg,b.getAttribute('data-a'),b)});
+  /* 한 번 누르면 막대 숨기기 · 보이기 (두 번 누르기는 확대라 잠깐 기다렸다 판단) */
+  var tt=null;bg.querySelector('.vbody').addEventListener('click',function(e){if(e.target.closest('video,button'))return;if(tt){clearTimeout(tt);tt=null;return}tt=setTimeout(function(){tt=null;bg.classList.toggle('bare')},280)});
+  return bg}
+function cmMvSet(bg,cur){bg._cur=cur;var m=cur.meta;bg.querySelector('.mv-who b').textContent=m?m.bn||'':'';bg.querySelector('.mv-who small').textContent=m?cmMvTime(m.at)+(m.k?' ›':''):'';
+  bg.querySelector('[data-a=edit]').style.display=cur.kind==='p'?'':'none'}
+function cmMvAct(bg,a,btn){var cur=bg._cur||{},m=cur.meta;
+  if(a==='close')return cmMvClose(bg);
+  if(a==='goto'){if(!m||!m.k)return;document.querySelectorAll('.cm-mv,.cm-gal').forEach(function(e){e.remove()});CM_FILES={};if(m.r)return cmOpenThread(m.r);return cmJump(m.k)}
+  if(a==='grid'){if(document.querySelector('.cm-gal'))return cmMvClose(bg);return cmDrawer(cur.kind==='f'?'f':'m')}
+  if(a==='save')return cmMvSave(btn,cur.sk);
+  if(a==='share')return cmMvShare(cur);
+  if(a==='del')return cmMvDel(bg,cur);
+  if(a==='edit')return cmEditPhoto(cur.sk);
+  if(a==='more'){var it=[];if(m&&m.k)it.push(['메시지로 가기',function(){cmMvAct(bg,'goto')}]);if(cur.x&&cur.x.o)it.push(['원본 보기 (브라우저)',function(){cmOpenOrig(cur.x.o)}]);
+    if(m)it.push(['보낸 사람 · '+(m.bn||'')+' · '+cmMvTime(m.at),null]);if(cur.x&&cur.x.sz)it.push(['크기 · '+cmFileSize(cur.x.sz)+(cur.x.w?' · '+cur.x.w+'×'+cur.x.h:''),null]);
+    it.push(['모아 보기',function(){cmMvAct(bg,'grid')}]);return cmSheetTop('',it)}}
+/* 뷰어 위에 뜨는 시트 — [[글자, 누르면 할 일(없으면 안내 줄), 'red']] */
+function cmSheetTop(title,items){var bg=document.createElement('div');bg.className='cm-sheet-bg cm-top';
+  bg.innerHTML='<div class="cm-sheet">'+(title?'<div class="ttl">'+cmEsc(title)+'</div>':'')+items.map(function(t,i){return t[1]?'<button data-i="'+i+'"'+(t[2]==='red'?' style="color:#DC2626"':'')+'>'+cmEsc(t[0])+'</button>':'<div class="cm-sh-info">'+cmEsc(t[0])+'</div>'}).join('')+'<button data-i="-1">취소</button></div>';
+  bg.onclick=function(e){if(e.target===bg){bg.remove();return}var b=e.target.closest('button[data-i]');if(!b)return;bg.remove();var i=+b.getAttribute('data-i');if(i>=0&&items[i][1])items[i][1]()};
+  document.body.appendChild(bg);return bg}
+/* 저장 — 아이폰은 앱이 사진첩에 직접 못 넣어서 공유 창(맨 위 '이미지 저장' · '비디오 저장')을 연다. 공유 창은 누른 순간에만 열려서
+   파일을 미리 받아 두고, 아직이면 받는 동안 돌고 → 다 받으면 한 번 더 누르게 한다 */
+function cmMvSave(btn,k){if(!k)return;var desk=typeof CM_DESK!=='undefined'&&CM_DESK,ios=pushIsIOS(),c=CM_FILES[k];
+  if(c&&c.f){if(!desk&&ios&&cmCanShareFile(c.f))navigator.share({files:[c.f]}).catch(function(){});else cmSaveBlob(c.f,k);return}
+  if(btn.classList.contains('ing'))return;btn.classList.add('ing');
+  cmMediaFile(k).then(function(f){btn.classList.remove('ing');if(!desk&&ios)toast('준비됐어요. 한 번 더 눌러 주세요');else cmSaveBlob(f,k)}).catch(function(){btn.classList.remove('ing');if(desk)cmOpenOrig(k);else alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
+function cmMvShare(cur){var m=cur.meta,desk=typeof CM_DESK!=='undefined'&&CM_DESK,it=[];
+  if(m&&m.k)it.push(['채팅방으로 전달',function(){cmForwardPick(m.k,{root:m.r||'',only:[m.i],what:cur.kind==='v'?'동영상':cur.kind==='f'?'파일':'사진'})}]);
+  if(!desk&&navigator.share)it.push(['다른 앱으로 공유 (카톡 · 문자 · 메일)',function(){var c=CM_FILES[cur.sk];if(c&&c.f&&cmCanShareFile(c.f))return navigator.share({files:[c.f]}).catch(function(){});
+    toast('파일을 받는 중이에요. 잠시 뒤 다시 눌러 주세요');cmMediaFile(cur.sk).catch(function(){toast('보관 기간(90일)이 지났거나 받을 수 없는 파일이에요')})}]);
+  if(!it.length)return toast('전달할 수 없는 사진이에요');cmSheetTop('공유',it)}
+function cmMvDel(bg,cur){var m=cur.meta,it=[['이 기기에서 지우기',function(){cmHideLocal(cur.mk);cmMvClose(bg);var g=document.querySelector('.cm-gal');if(g&&g._paint)g._paint();if(CM.rid)cmRenderMsgs();toast('이 기기에서 지웠어요 (다른 사람 화면엔 그대로예요)')}]];
+  if(m&&m.k&&m.by===String(ME.phone)){var n=(cmMsgOf(m)||{md:[]}).md.length;it.push([n>1?'모두에게서 삭제 (이 메시지의 '+n+'개 모두)':'모두에게서 삭제',function(){document.querySelectorAll('.cm-mv,.cm-gal').forEach(function(e){e.remove()});CM_FILES={};cmDelete(m.k,m.r||null)},'red'])}
+  cmSheetTop('',it)}
+function cmMsgOf(m){return m.r?(CM.thRoot===m.r?CM.thMsgs[m.k]:null):(CM.msgs[m.k]||(CM.gal&&CM.gal.items.filter(function(x){return x.k===m.k})[0]))}
+
+/* 편집 — 돌리기 · 자르기(모서리 끌기, 가운데 끌면 이동) → 이 방에 보내기 · 저장 */
+function cmEditPhoto(k){if(!k)return;var bg=document.createElement('div');bg.className='cm-viewer cm-ed';
+  bg.innerHTML='<div class="ed-top"><button data-e="no">취소</button><b>편집</b><button data-e="ok" class="ok">완료</button></div><div class="ed-stage"><canvas></canvas><div class="ed-crop"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div><p class="ed-wait">불러오는 중…</p></div><div class="ed-tools"><button data-e="rot">'+CM_SVG.rot+'<span>돌리기</span></button><button data-e="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/><path d="M9 9l6 6M15 9l-6 6"/></svg><span>원래대로</span></button></div>';
+  document.body.appendChild(bg);var stage=bg.querySelector('.ed-stage'),cv=stage.querySelector('canvas'),box=stage.querySelector('.ed-crop'),img=null,rot=0,src=null,disp={},crop={};
+  function build(){var w=img.naturalWidth,h=img.naturalHeight,s=Math.min(1,2560/Math.max(w,h)),sw=Math.round(w*s),sh=Math.round(h*s),r=rot%2;src=document.createElement('canvas');src.width=r?sh:sw;src.height=r?sw:sh;var g=src.getContext('2d');g.translate(src.width/2,src.height/2);g.rotate(rot*Math.PI/2);g.drawImage(img,-sw/2,-sh/2,sw,sh);layout(true)}
+  function layout(reset){var R=stage.getBoundingClientRect(),pad=24,k=Math.min((R.width-pad*2)/src.width,(R.height-pad*2)/src.height);var w=Math.round(src.width*k),h=Math.round(src.height*k);
+    cv.width=w*(window.devicePixelRatio||1);cv.height=h*(window.devicePixelRatio||1);cv.style.width=w+'px';cv.style.height=h+'px';cv.getContext('2d').drawImage(src,0,0,cv.width,cv.height);
+    var nd={x:(R.width-w)/2,y:(R.height-h)/2,w:w,h:h,k:k};if(reset||!disp.w)crop={x:nd.x,y:nd.y,w:w,h:h};else{var f=w/disp.w;crop={x:nd.x+(crop.x-disp.x)*f,y:nd.y+(crop.y-disp.y)*f,w:crop.w*f,h:crop.h*f}}disp=nd;cv.style.left=nd.x+'px';cv.style.top=nd.y+'px';place()}
+  function place(){box.style.left=crop.x+'px';box.style.top=crop.y+'px';box.style.width=crop.w+'px';box.style.height=crop.h+'px'}
+  function cl(v,a,b){return Math.max(a,Math.min(b,v))}
+  box.addEventListener('pointerdown',function(e){if(!src)return;e.preventDefault();var h=e.target.getAttribute('data-h')||'move',s={x:e.clientX,y:e.clientY,c:Object.assign({},crop)},M=48;try{box.setPointerCapture(e.pointerId)}catch(x){}
+    box.onpointermove=function(ev){var dx=ev.clientX-s.x,dy=ev.clientY-s.y,c=Object.assign({},s.c);
+      if(h==='move'){c.x=cl(c.x+dx,disp.x,disp.x+disp.w-c.w);c.y=cl(c.y+dy,disp.y,disp.y+disp.h-c.h)}
+      else{if(h.indexOf('w')>=0){var nx=cl(c.x+dx,disp.x,c.x+c.w-M);c.w+=c.x-nx;c.x=nx}if(h.indexOf('e')>=0)c.w=cl(c.w+dx,M,disp.x+disp.w-c.x);if(h.indexOf('n')>=0){var ny=cl(c.y+dy,disp.y,c.y+c.h-M);c.h+=c.y-ny;c.y=ny}if(h.indexOf('s')>=0)c.h=cl(c.h+dy,M,disp.y+disp.h-c.y)}
+      crop=c;place()};
+    box.onpointerup=box.onpointercancel=function(){box.onpointermove=null}});
+  var onRs=function(){if(src)layout(false)};window.addEventListener('resize',onRs);
+  var close=function(){window.removeEventListener('resize',onRs);bg.remove()};
+  bg.addEventListener('click',function(e){var b=e.target.closest('[data-e]');if(!b)return;var a=b.getAttribute('data-e');
+    if(a==='no')return close();if(!src)return;
+    if(a==='rot'){rot=(rot+3)%4;build();return}if(a==='reset'){rot=0;build();return}
+    if(a==='ok'){var k2=1/disp.k,sx=Math.round((crop.x-disp.x)*k2),sy=Math.round((crop.y-disp.y)*k2),sw=Math.min(src.width-sx,Math.round(crop.w*k2)),sh=Math.min(src.height-sy,Math.round(crop.h*k2));
+      var o=document.createElement('canvas');o.width=sw;o.height=sh;o.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh);
+      o.toBlob(function(b){if(!b)return alert('사진을 만들지 못했어요');var f=new File([b],cmMediaName('edit.jpg'),{type:'image/jpeg'});
+        var it=[];if(CM.rid)it.push(['이 방에 보내기',function(){close();document.querySelectorAll('.cm-mv').forEach(function(e){e.remove()});cmSendFiles('p',[f],false,'high')}]);
+        it.push(['저장',function(){if(!(typeof CM_DESK!=='undefined'&&CM_DESK)&&pushIsIOS()&&cmCanShareFile(f))navigator.share({files:[f]}).catch(function(){});else cmSaveBlob(f)}]);cmSheetTop('편집한 사진',it)},'image/jpeg',.92)}});
+  cmMediaFile(k).then(function(f){var u=URL.createObjectURL(f);img=new Image();img.onload=function(){stage.querySelector('.ed-wait').remove();build()};img.onerror=function(){alert('사진을 열지 못했어요');close()};img.src=u}).catch(function(){alert('보관 기간(90일)이 지났거나 열 수 없는 사진이에요');close()})}
+
+function cmRoomPics(){var src=CM.msgs||{},out=[];Object.keys(src).sort().forEach(function(k){var m=src[k];if(!m||m.del||m.hid)return;(m.md||[]).forEach(function(x){if(x&&x.u&&!x.v&&!x.f&&!cmHidden(x))out.push(x)})});return out}
+/* 사진 보기 — 옆으로 밀어 넘김(그 방 사진 처음부터 끝까지, 누른 사진에서 시작). 모아 보기에서 열면 그 목록을 넘긴다. PC 는 ← → 키 · 양옆 버튼 */
+function cmView(enc,i){var fromMsg=typeof enc==='string',pics=fromMsg?JSON.parse(decodeURIComponent(enc)):enc;var start=pics[i];
+  if(fromMsg){var all=cmRoomPics(),j=-1;if(start)for(var q=0;q<all.length;q++)if(all[q].u===start.u){j=q;break}if(j>=0){pics=all;i=j}}
+  var touch='ontouchstart' in window;
+  var bg=cmMvOpen('<div class="cm-swipe">'+pics.map(function(){return '<div class="cm-slide"><img alt=""></div>'}).join('')+'</div>'+(pics.length>1&&!touch?'<button class="mv-nav l" onclick="this.closest(\'.cm-viewer\')._go(-1)">‹</button><button class="mv-nav r" onclick="this.closest(\'.cm-viewer\')._go(1)">›</button>':''));
+  var tr=bg.querySelector('.cm-swipe'),slides=tr.children;
   var zooms=[].map.call(slides,function(sl){return cmZoomable(sl,sl.firstChild,tr)});
   function load(k){if(k<0||k>=pics.length)return;var im=slides[k].firstChild;if(im.getAttribute('src')||im._ld)return;im._ld=1;cmUrl(pics[k].u).then(function(u){im.src=u})}
-  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});bg.querySelector('.vt').textContent=(i+1)+' / '+pics.length;var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
-    bg.querySelector('.va').innerHTML=cmMediaBtns(sk)+(pics.length>1&&!touch?'<button onclick="this.closest(\'.cm-viewer\')._go(-1)">이전</button><button onclick="this.closest(\'.cm-viewer\')._go(1)">다음</button>':'');load(i);load(i+1);load(i-1)}
+  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
+    cmMvSet(bg,{kind:'p',mk:x.u,sk:sk,x:x,meta:cmMediaMeta(x.u)});load(i);load(i+1);load(i-1)}
   tr.scrollLeft=i*tr.clientWidth;upd();requestAnimationFrame(function(){tr.scrollLeft=i*tr.clientWidth});
   var tm=null;tr.addEventListener('scroll',function(){load(Math.floor(tr.scrollLeft/tr.clientWidth));load(Math.ceil(tr.scrollLeft/tr.clientWidth));clearTimeout(tm);tm=setTimeout(function(){var k=Math.round(tr.scrollLeft/(tr.clientWidth||1));if(k!==i&&k>=0&&k<pics.length){i=k;upd()}},90)},{passive:true});
   bg._go=function(d){var k=Math.max(0,Math.min(pics.length-1,i+d));tr.scrollTo({left:k*tr.clientWidth,behavior:'smooth'})};
-  var key=function(e){if(!bg.isConnected){document.removeEventListener('keydown',key);return}if(e.key==='ArrowLeft')bg._go(-1);else if(e.key==='ArrowRight')bg._go(1);else if(e.key==='Escape'){bg.remove();CM_FILES={}}};
+  var key=function(e){if(!bg.isConnected){document.removeEventListener('keydown',key);return}if(document.querySelector('.cm-ed,.cm-top'))return;if(e.key==='ArrowLeft')bg._go(-1);else if(e.key==='ArrowRight')bg._go(1);else if(e.key==='Escape')cmMvClose(bg)};
   document.addEventListener('keydown',key)}
 function cmOpenOrig(k){cmUrl(k).then(function(u){window.open(u,'_blank')}).catch(function(e){alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
-function cmPlay(k){var bg=cmOverlay('<video controls playsinline autoplay></video>');bg.querySelector('.vt').textContent='동영상';bg.querySelector('.va').innerHTML=cmMediaBtns(k);var v=bg.querySelector('video');cmUrl(k).then(function(u){v.src=u}).catch(function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'});v.onerror=function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff;text-align:center;padding:20px">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'}}
+function cmPlay(k){var bg=cmMvOpen('<video controls playsinline autoplay></video>');bg.classList.add('vid');var meta=cmMediaMeta(k);cmMvSet(bg,{kind:'v',mk:k,sk:k,x:meta&&meta.x,meta:meta});
+  var v=bg.querySelector('video'),gone=function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff;text-align:center;padding:20px">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'};
+  cmUrl(k).then(function(u){v.src=u}).catch(gone);v.onerror=gone;
+  var key=function(e){if(!bg.isConnected){document.removeEventListener('keydown',key);return}if(e.key==='Escape'&&!document.querySelector('.cm-top'))cmMvClose(bg)};document.addEventListener('keydown',key)}
+
+/* ══ 모아 보기 — 사진 · 동영상 / 파일 탭, 날짜별 (카톡 서랍처럼). 목록은 서버가 방마다 따로 쌓아 둔 것(/chat/gallery)만 받는다 ══ */
+function cmDrawer(tab){var rid=CM.rid;if(!rid)return;tab=tab||'m';var old=document.querySelector('.cm-gal');if(old)old.remove();
+  var bg=document.createElement('div');bg.className='cm-viewer cm-gal';
+  bg.innerHTML='<div class="gal-top"><button class="mv-c" data-g="close" aria-label="닫기">'+CM_SVG.back+'</button><b>'+cmEsc(cmRoomName(rid,CM.room))+'</b><span class="gal-n"></span></div><div class="gal-tabs"><button data-t="m">사진 · 동영상</button><button data-t="f">파일</button></div><div class="gal-body"><p class="gal-empty">불러오는 중…</p></div>';
+  document.body.appendChild(bg);var body=bg.querySelector('.gal-body'),items=null,pics=[];
+  var old90=Date.now()-90*864e5;
+  function day(at){var d=new Date(at);return d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일'}
+  function paint(){bg.querySelectorAll('.gal-tabs button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===tab)});if(!items)return;
+    var rows=[];items.forEach(function(it){(it.md||[]).forEach(function(x){if(!x||cmHidden(x))return;var isF=!!x.f;if((tab==='f')!==isF)return;rows.push({x:x,it:it})})});
+    bg.querySelector('.gal-n').textContent=rows.length?rows.length+'개':'';
+    if(!rows.length){body.innerHTML='<p class="gal-empty">'+(tab==='f'?'아직 주고받은 파일이 없어요':'아직 주고받은 사진 · 동영상이 없어요')+'</p>';return}
+    /* 사진 보기에서 넘길 순서는 오래된 → 최근 */
+    pics=rows.filter(function(r){return !r.x.v&&!r.x.f}).map(function(r){return r.x}).reverse();
+    var h='',last='';rows.forEach(function(r,ix){var d=day(r.it.at);if(d!==last){h+=(last?'</div>':'')+'<div class="gal-day">'+d+'</div><div class="'+(tab==='f'?'gal-files':'gal-grid')+'">';last=d}
+      var x=r.x,exp=(x.v||x.f)&&r.it.at<old90;
+      if(tab==='f'){var nm=x.n||'파일',ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file gal-f'+(exp?' exp':'')+'" data-ix="'+ix+'"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · '+cmEsc(r.it.bn||'')+(exp?' · 보관 기간 지남':'')+'</small></span></div>'}
+      else h+='<div class="gal-c'+(exp?' exp':'')+'" data-ix="'+ix+'">'+(x.u?'<img data-mk="'+x.u+'" alt="" loading="lazy">':'')+(x.v?'<span class="gal-v">▶'+(x.d?' '+Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'')+'</span>':'')+(exp?'<span class="gal-x">기간 지남</span>':'')+'</div>'});
+    body.innerHTML=h+'</div>';body._rows=rows;cmFillMedia(body,rid)}
+  bg._paint=paint;
+  bg.addEventListener('click',function(e){if(e.target.closest('[data-g=close]')){bg.remove();return}
+    var t=e.target.closest('[data-t]');if(t){tab=t.getAttribute('data-t');body.scrollTop=0;paint();return}
+    var c=e.target.closest('[data-ix]');if(!c||!body._rows)return;var r=body._rows[+c.getAttribute('data-ix')],x=r.x;
+    if(x.f)return cmFileView(x.f,encodeURIComponent(x.n||'파일'),x.sz||0);if(x.v)return cmPlay(x.v);var j=pics.indexOf(x);cmView(pics,j<0?0:j)});
+  paint();
+  cmApi('gallery',{rid:rid}).then(function(r){return r.items||[]}).catch(function(){
+    /* 서버가 아직 옛 버전이면 예전처럼 방 메시지에서 뽑는다 */
+    return fbG(cmSeg('/chat/msgs/'+rid)+'.json').then(function(d){return Object.keys(d||{}).map(function(k){var m=d[k];return m&&m.md&&!m.del&&!m.hid?{k:k,at:m.at,by:m.by,bn:m.bn,md:m.md}:null}).filter(Boolean).sort(function(a,b){return b.at-a.at})})})
+    .then(function(list){items=list;CM.gal={rid:rid,items:list};if(bg.isConnected)paint()}).catch(function(){body.innerHTML='<p class="gal-empty">불러오지 못했어요. 잠시 뒤 다시 열어 주세요</p>'})}
 
 
 /* ═══ 소통 2차: 확인 요청 · 투표 · 나중에 · 다시 알림 · 전달 · 방 안 찾기 · #주제 · 그룹 부르기 · 요약 · 서랍 · 내보내기 · 원격 로그아웃 ═══ */
@@ -10540,8 +10740,19 @@ function cmLater(key){cmApi('later',{rid:CM.rid,key:key,on:true}).then(function(
 function cmRemindPick(key){var now=new Date();var tonight=new Date();tonight.setHours(18,0,0,0);if(tonight<=now)tonight.setDate(tonight.getDate()+1);var tmr=new Date();tmr.setDate(tmr.getDate()+1);tmr.setHours(9,0,0,0);
   var opts=[[Date.now()+3600e3,'1시간 뒤'],[Date.now()+3*3600e3,'3시간 뒤'],[tonight.getTime(),(tonight.getDate()===now.getDate()?'오늘':'내일')+' 오후 6시'],[tmr.getTime(),'내일 오전 9시']];
   cmSheet('<div class="ttl">언제 다시 알려 드릴까요?</div>'+opts.map(function(o){return '<button onclick="this.closest(\'.cm-sheet-bg\').remove();cmApi(\'remind\',{rid:CM.rid,key:\''+key+'\',at:'+o[0]+'}).then(function(){toast(\''+o[1]+'에 알려 드릴게요\')}).catch(function(e){alert(e.message)})">'+o[1]+'</button>'}).join('')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">취소</button>')}
-function cmForwardPick(key){var rooms=Object.keys(CM.inbox||{}).filter(function(k){var r=CM.inbox[k];return r&&r.t&&!(r.t==='notice'&&!cmIsManager())}).sort(function(a,b){return (CM.inbox[b].at||0)-(CM.inbox[a].at||0)});
-  cmSheet('<div class="ttl">어느 방으로 보낼까요?</div>'+rooms.map(function(k){return '<button onclick="this.closest(\'.cm-sheet-bg\').remove();cmApi(\'forward\',{rid:CM.rid,key:\''+key+'\',to:\''+cmEsc(k)+'\'}).then(function(){toast(\'전달했어요\')}).catch(function(e){alert(e.message)})">'+cmEsc(cmRoomName(k,CM.inbox[k]))+'</button>'}).join('')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">취소</button>')}
+/* 전달 — 카톡처럼 여러 방을 골라 한 번에(최대 20개), 위에 방 이름 찾기. opt.only: 사진 보기에서 그 한 장만 · opt.root: 스레드 답장 */
+function cmForwardPick(key,opt){opt=opt||{};var rooms=Object.keys(CM.inbox||{}).filter(function(k){var r=CM.inbox[k];return r&&r.t&&!(r.t==='notice'&&!cmIsManager())}).sort(function(a,b){return (CM.inbox[b].at||0)-(CM.inbox[a].at||0)});
+  var sel={},n=0,bg=document.createElement('div');bg.className='cm-sheet-bg cm-top';
+  bg.innerHTML='<div class="cm-sheet cm-pv cm-fwd"><div class="ttl">'+(opt.what?cmEsc(opt.what)+' ':'')+'전달할 방 고르기</div><div class="cm-fwd-q"><input type="search" placeholder="방 이름 찾기" enterkeyhint="search"></div><div class="cm-fwd-list"></div><div class="cm-pvbtns"><button class="no">취소</button><button class="go" disabled>전달</button></div></div>';
+  document.body.appendChild(bg);var list=bg.querySelector('.cm-fwd-list'),q=bg.querySelector('input'),go=bg.querySelector('.go');
+  function paint(){var t=q.value.trim().toLowerCase();list.innerHTML=rooms.filter(function(k){return !t||cmRoomName(k,CM.inbox[k]).toLowerCase().indexOf(t)>=0}).map(function(k){var nm=cmRoomName(k,CM.inbox[k]);return '<div class="cm-fwd-row'+(sel[k]?' on':'')+'" data-r="'+cmEsc(k)+'">'+cmAv(nm,k,true)+'<span class="nm">'+cmEsc(nm)+(k===CM.rid?' <small>지금 방</small>':'')+'</span><i class="ck"></i></div>'}).join('')||'<p class="gal-empty" style="color:var(--cm-ink3)">찾는 방이 없어요</p>';
+    go.disabled=!n;go.textContent=n?n+'개 방에 전달':'전달'}
+  q.oninput=paint;
+  bg.onclick=function(e){if(e.target===bg||e.target.closest('.no')){bg.remove();return}
+    var r=e.target.closest('[data-r]');if(r){var k=r.getAttribute('data-r');if(sel[k]){delete sel[k];n--}else{if(n>=20){toast('한 번에 20개 방까지예요');return}sel[k]=1;n++}paint();return}
+    if(e.target.closest('.go')&&n){var to=Object.keys(sel),body={rid:CM.rid,key:key,to:to.length===1?to[0]:to};if(opt.root)body.root=opt.root;if(opt.only)body.only=opt.only;bg.remove();toast('전달하는 중…');
+      cmApi('forward',body).then(function(r){var f=(r.fail||[]).length;toast((r.n||to.length)+'개 방에 전달했어요'+(f?' · '+f+'개 방은 못 보냈어요':''))}).catch(function(e){alert('전달하지 못했어요\n\n'+e.message)})}};
+  paint()}
 function cmMarkUnread(key){var m=CM.msgs[key];if(!m||!m.s)return;var v=Math.max(0,m.s-1);CM.reads[ME.phone]=v;cmP('/chat/reads/'+CM.rid+'/'+ME.phone,v);cmP('/chat/inbox/'+ME.phone+'/'+CM.rid+'/r',v);CM._noMark=true;toast('읽지 않음으로 표시했어요');cmBack()}
 
 /* 방 안에서 찾기 · 골라 보기 */
@@ -10562,10 +10773,6 @@ function cmFindHtml(){var keys=Object.keys(CM.msgs).sort().reverse();var hits=ke
 function cmFindGo(k){CM.find.on=true;cmFindToggle();setTimeout(function(){cmJump(k)},50)}
 function cmLoadAll(){var rid=CM.rid;toast('대화를 모두 불러오는 중…');fbG(cmSeg('/chat/msgs/'+rid)+'.json').then(function(d){if(CM.rid!==rid)return;Object.keys(d||{}).forEach(function(k){if(!CM.msgs[k])CM.msgs[k]=d[k]});CM.older=true;cmFindBar();cmRenderMsgs();toast('모두 불러왔어요')})}
 
-/* 서랍: 사진 · 동영상 모아 보기 */
-function cmDrawer(){var rid=CM.rid;fbG(cmSeg('/chat/msgs/'+rid)+'.json').then(function(d){var items=[];Object.keys(d||{}).sort().reverse().forEach(function(k){var m=d[k];if(m&&!m.del&&!m.hid)(m.md||[]).forEach(function(x){items.push(x)})});
-  var bg=cmOverlay('<div class="cm-drawer">'+(items.length?items.map(function(x,i){return x.v?'<div class="cm-vid" style="width:auto;aspect-ratio:1/1;margin:0" onclick="cmPlay(\''+x.v+'\')">'+(x.u?'<img data-mk="'+x.u+'">':'')+'<span>동영상</span></div>':'<img data-mk="'+x.u+'" onclick="cmView(\''+encodeURIComponent(JSON.stringify(items.filter(function(y){return !y.v})))+'\','+items.filter(function(y){return !y.v}).indexOf(x)+')">'}).join(''):'<p style="color:#fff;padding:30px;text-align:center">아직 사진 · 동영상이 없어요</p>')+'</div>');
-  bg.querySelector('.vt').textContent='사진 · 동영상 '+items.length;cmFillMedia(bg,rid)})}
 
 /* 대화 내보내기 (경영팀 · 단체방) */
 function cmExport(){cmApi('export',{rid:CM.rid}).then(function(r){var blob=new Blob(['﻿'+r.text],{type:'text/plain;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(r.name||'대화')+'_'+new Date().toISOString().slice(0,10)+'.txt';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);toast('내보냈어요')}).catch(function(e){alert(e.message)})}
