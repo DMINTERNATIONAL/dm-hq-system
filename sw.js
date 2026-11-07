@@ -95,6 +95,17 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// 아이콘 숫자 — 서비스 워커는 지금 숫자를 읽을 수 없어서 따로 적어 둔다(dm-nav 저장소는 버전이 바뀌어도 안 지운다)
+function badgeGet() {
+  return caches.open('dm-nav').then((c) => c.match('/__badge')).then((r) => (r ? r.json() : 0)).then((n) => +n || 0).catch(() => 0);
+}
+function badgeSet(n) {
+  n = Math.max(0, +n || 0);
+  const put = caches.open('dm-nav').then((c) => c.put('/__badge', new Response(String(n), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
+  const show = self.navigator && 'setAppBadge' in self.navigator ? (n > 0 ? self.navigator.setAppBadge(n) : self.navigator.clearAppBadge()).catch(() => {}) : null;
+  return Promise.all([put, show]);
+}
+
 // 앱에서 SKIP_WAITING 메시지 받으면 즉시 활성화
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
@@ -102,6 +113,8 @@ self.addEventListener('message', (event) => {
   }
   // 앱이 오래 백그라운드에 있다가 다시 보일 때 새 버전 확인
   if (event.data && event.data.type === 'check-app') event.waitUntil(refreshApp());
+  // 앱이 진짜 안 읽은 수를 알려 주면 그 수로 맞춘다
+  if (event.data && event.data.type === 'badge') event.waitUntil(badgeSet(event.data.n));
 });
 
 // ── 폰·PC 알림(웹 푸시) ──
@@ -119,6 +132,9 @@ self.addEventListener('push', (event) => {
   // 앱 아이콘 숫자 배지 (지원하는 기기만)
   if (typeof d.badge === 'number' && self.navigator && 'setAppBadge' in self.navigator) {
     jobs.push((d.badge > 0 ? self.navigator.setAppBadge(d.badge) : self.navigator.clearAppBadge()).catch(() => {}));
+  } else if (String(d.tag || '').startsWith('chat-') && self.navigator && 'setAppBadge' in self.navigator) {
+    // 채팅 알림이 올 때마다 아이콘 숫자 +1 (11/8 — 전에는 앱을 열어야만 숫자가 바뀌었다). 앱을 열면 진짜 안 읽은 수로 다시 맞춘다.
+    jobs.push(badgeGet().then((n) => badgeSet(n + 1)));
   }
   event.waitUntil(Promise.all(jobs));
 });

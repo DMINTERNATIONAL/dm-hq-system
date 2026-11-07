@@ -8299,7 +8299,7 @@ function dmHardRefresh(){
 }
 /* 새 버전: 화면에 안 보일 때(맥 창을 닫았거나 폰에서 앱을 내렸을 때) 조용히 새 버전으로 바꾼다. 맥 앱처럼 계속 켜 두면
    안내를 안 눌러 예전 버전을 계속 쓰던 것(10/25 '맥에서 더 느림'). 쓰던 글이 입력칸에 있으면 바꾸지 않는다 */
-var DM_BUILD='2026-11-05-3',DM_UPDATE_READY=false;
+var DM_BUILD='2026-11-08-1',DM_UPDATE_READY=false;
 function dmCanAutoReload(){if(typeof CM_PENDING!=='undefined'&&Object.keys(CM_PENDING).length)return false;
   /* 떠 있는 창 · 시트 · 사진 보기 · 팝업이 있으면 안 함 */
   var vis=function(e){return e.getClientRects().length>0};
@@ -9700,9 +9700,21 @@ function cmBoot(){
   var p=fbG('/users.json').then(function(u){CM.users=u||{}});
   (function brk(){fbG('/breakActive.json').then(function(b){CM.brk=b||{};if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});setTimeout(brk,120000)})();
   if(CM.inbox===null){var ci=cmCacheGet('inbox');if(ci)CM.inbox=ci}
-  cmStream('inbox','/chat/inbox/'+ME.phone,'',function(d){CM.inbox=d||{};cmNoticeMaybe(CM.inbox);cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()});
+  cmStream('inbox','/chat/inbox/'+ME.phone,'',cmOnInbox);
   cmStream('act','/chat/act/'+ME.phone,'orderBy=%22%24key%22&limitToLast=200',function(d){CM.act=d||{};cmBadges();cmDeskCheck();if(cmOn('p-comm')&&CM.tab==='act')cmRenderAct()});
   return p}
+function cmOnInbox(d){CM.inbox=d||{};cmNoticeMaybe(CM.inbox);cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()}
+/* 폰에서 앱으로 돌아왔을 때(11/8, 시드니에서 '들어가면 30초 뒤에야 메시지가 뜬다'):
+   폰이 앱을 재우는 동안 실시간 연결이 끊기는데, 연결 쪽은 그걸 한참(30초~) 뒤에야 알아채고 다시 붙는다. 그동안 목록·숫자가 옛것.
+   → 돌아오면 ① 실시간 연결을 바로 끊고 다시 붙이고 ② 대화 목록과 보던 방의 최근 대화는 그 사이 한 번 바로 받아 그린다. */
+var CM_HID_AT=0,CM_WAKE_AT=0;
+function cmWake(){if(!CM.booted||!ME||!CM_SDK||Date.now()-CM_WAKE_AT<2000)return;CM_WAKE_AT=Date.now();
+  CM_SDK.then(function(db){try{db.goOffline();db.goOnline()}catch(e){}}).catch(function(){});
+  fbReq(cmSeg('/chat/inbox/'+ME.phone)+'.json').then(function(r){return r.ok?r.json():null}).then(function(d){if(d)cmOnInbox(d)}).catch(function(){});
+  var rid=CM.rid;if(rid&&cmOn('p-comm-room'))fbReq(cmSeg('/chat/msgs/'+rid)+'.json?orderBy=%22%24key%22&limitToLast=60').then(function(r){return r.ok?r.json():null}).then(function(d){if(!d||CM.rid!==rid)return;Object.keys(d).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});cmRenderMsgs()}).catch(function(){})}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'){CM_HID_AT=Date.now();return}if(CM_HID_AT&&Date.now()-CM_HID_AT>3000)cmWake()});
+window.addEventListener('pageshow',function(e){if(e.persisted)cmWake()});
+window.addEventListener('online',function(){CM_WAKE_AT=0;cmWake()});
 function cmFilterSheet(){var f=CM.filter;var row=function(items,cur,key){return '<div class="cm-chips" style="flex-wrap:wrap;padding:4px 16px 12px">'+items.map(function(it){return '<button class="cm-chip'+(cur===it[0]?' on':'')+'" onclick="CM.filter.'+key+'=\''+cmEsc(it[0])+'\';this.closest(\'.cm-sheet-bg\').remove();cmRenderList()">'+cmEsc(it[1])+'</button>'}).join('')+'</div>'};
   cmSheet('<div class="ttl">종류</div>'+row([['','전체'],['un','안 읽음'+(CM._unN?' '+CM._unN:'')],['at','@나'+(CM._atN?' '+CM._atN:'')],['notice','공지'],['dm','1:1']],f.k,'k')+'<div class="ttl">지점</div>'+row([['','전체 지점']].concat((CM._brs||[]).map(function(b){return [b,b]})),f.br,'br')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>')}
 function cmBrkOf(rid){var o=rid.replace('dm_','').split('_').filter(function(p){return p!==String(ME.phone)})[0];return !!(CM.brk&&CM.brk[o]&&CM.brk[o].startedAt)}
@@ -9711,6 +9723,7 @@ function cmUnreadTotal(){var n=0;Object.keys(CM.inbox||{}).forEach(function(k){v
 function cmActNew(){return Object.keys(CM.act||{}).filter(function(k){return CM.act[k]&&!CM.act[k].done}).length}
 function cmBadges(){var n=cmUnreadTotal()+cmActNew();cmTopTabs();['BT-BADGE-comm','BT-BADGE-cm-chat','BT-BADGE-cm-act'].forEach(function(id,i){var b=$(id);if(!b)return;var v=i===0?n:(i===1?cmUnreadTotal():cmActNew());if(v>0){b.textContent=v>99?'99+':v;b.style.display='inline-block'}else b.style.display='none'});
   try{if(navigator.setAppBadge){if(n>0)navigator.setAppBadge(n);else navigator.clearAppBadge()}}catch(e){}
+  try{if(CM.inbox&&n!==CM._swBadge&&navigator.serviceWorker&&navigator.serviceWorker.controller){CM._swBadge=n;navigator.serviceWorker.controller.postMessage({type:'badge',n:n})}}catch(e){}
   cmDeskBadge(n)}
 
 /* ── 소통 첫 화면 ── */

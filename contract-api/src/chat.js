@@ -306,7 +306,8 @@ export function makeChat(deps) {
 
     /* 알림 — 보낸 사람에게는 안 보낸다. 방 알림을 끈 사람에게는 @부른 경우 · 스레드 답에만 보낸다. */
     const muted = room.mute || {};
-    /* 알림은 응답을 돌려준 뒤에 계산 · 발송한다 — 보내는 사람이 기다리지 않게 */
+    /* 알림은 응답을 돌려준 뒤에 계산 · 발송한다 — 보내는 사람이 기다리지 않게.
+       채팅은 전부 '급함(high)'으로 보낸다(11/8) — '보통'이면 아이폰이 잠금·절전 중에 모아 뒀다가 늦게 띄운다(카톡처럼 바로 오게) */
     const pushJob = (async () => {
     const quietSet = await quietPhones(env);
     const targets = Object.keys(room.m).filter((p) => p !== ph && (root ? actFor.has(p) : (actFor.has(p) || (!muted[p] && !quietSet.has(p)))));
@@ -315,7 +316,7 @@ export function makeChat(deps) {
       const text = x ? clip(x, 120) : (k === 'p' ? '사진을 보냈습니다' : k === 'v' ? '동영상을 보냈습니다' : '파일을 보냈습니다');
       const head = k === 'ack' ? '[확인 요청] ' : k === 'poll' ? '[투표] ' : root ? '(답장) ' : '';
       const payload = { title, body: (room.t === 'dm' ? '' : bn + ': ') + head + text, url: './#comm/' + rid, tag: 'chat-' + rid };
-      await pushToPhones(env, targets, payload, { urgency: actFor.size ? 'high' : 'normal', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {});
+      await pushToPhones(env, targets, payload, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {});
     }
     })().catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(pushJob); else await pushJob;
