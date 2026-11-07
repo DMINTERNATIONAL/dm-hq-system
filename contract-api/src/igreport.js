@@ -8,7 +8,7 @@
  *   R2 는 이 Worker 를 거쳐야만 읽힌다. ai/ 는 90일 자동 삭제 규칙(o/)에 안 걸린다.
  *
  * 한 주(월요일 시작, 한국 시각)에 한 번 만든다. 누가 열어 볼 때 만들고(아무도 안 보는 계정에 AI 를 쓰지 않게),
- * 같은 주에는 저장된 것을 보여 준다. 본인은 하루 지나면 다시 만들 수 있고, 경영팀은 언제든.
+ * 같은 주에는 저장된 것을 보여 준다. 본인은 주 1회만, 다시 만들기는 경영팀만. 회사 전체로도 주 WEEK_CAP 번이 상한.
  *
  * 숫자는 수집기(workers/hermes-kpi)가 매일 쌓은 /storesKpi/{지점}/daily 의 인스타 숫자와
  * /igPosts/{전화번호} 의 최근 게시물(글 포함)에서 뽑는다. 조회수 · 도달 · 저장 수는 우리에게 없다.
@@ -19,6 +19,7 @@ const SHOP_KO = { flagship: '플래그십', moment: '모먼트', eto: '에토' }
 const BRANCH_TO_SHOP = { '플래그십점': 'flagship', '모먼트점': 'moment', '합정점': 'eto' };
 const HQ_GRADES = ['경영팀', '관리자', '스탭장'];
 const DAY = 86400000;
+const WEEK_CAP = 60;   // 한 주에 회사 전체 AI 리포트 생성 상한 (비용 안전장치)
 
 function kstYmd(ms) { return new Date(ms + 9 * 3600000).toISOString().slice(0, 10); }
 /* 이번 주 월요일(한국 시각) */
@@ -128,14 +129,46 @@ export function makeIgReport(deps) {
     }
     const list = (posts && Array.isArray(posts.posts)) ? posts.posts : [];
     if (list.length) {
-      L.push('', `[최근 게시물 ${list.length}개 — 최신순 (좋아요 수는 오래된 글일수록 많이 쌓여 있음)]`);
+      L.push('', `[최근 게시물 ${list.length}개 — 최신순. 이 사람의 시그니처 시술 · 말투 · 자주 다루는 주제는 여기서 읽는다 (좋아요 수는 오래된 글일수록 많이 쌓여 있음)]`);
       list.forEach((x, i) => {
-        L.push(`${i + 1}. ${whenKo(x.ts)} ${x.t} · 좋아요 ${n0(x.l)} · 댓글 ${n0(x.c)}` + (x.cap ? ` · 글: ${String(x.cap).slice(0, 200)}` : ' · 글 없음'));
+        L.push(`${i + 1}. ${whenKo(x.ts)} ${x.t} · 좋아요 ${n0(x.l)} · 댓글 ${n0(x.c)}` + (x.cap ? `\n   글: ${String(x.cap).replace(/\n+/g, ' / ').slice(0, 800)}` : ' · 글 없음'));
       });
     } else {
-      L.push('', '[게시물 글은 아직 수집 전이라 없음 — 숫자로만 판단]');
+      L.push('', '[게시물 글은 아직 수집 전이라 없음 — 숫자로만 판단. 시그니처를 알 수 없으니 아이디어는 일반적인 것임을 밝힌다]');
     }
-    return L.join('\n');
+    const allow = await tagFacts(env, list, L);
+    return { facts: L.join('\n'), allow };
+  }
+
+  /* 해시태그 후보 — AI 는 여기 적힌 태그만 고를 수 있고, 서버가 결과를 이 목록으로 한 번 더 거른다(지어낸 태그 차단).
+     ① 본인이 쓴 태그와 본인 평소 대비 반응 ② 우리 직원 계정 전체에서 두 명 이상이 쓴 태그(수집기 /igTags)
+     ③ 인스타 해시태그 검색으로 확인한 상태(수집기 /igTagCheck, 주 1회) */
+  async function tagFacts(env, list, L) {
+    const allow = new Set();
+    const ok = list.filter((x) => Date.now() - Date.parse(x.ts) > 2 * DAY);
+    const eng = (x) => n0(x.l) + n0(x.c);
+    const avg = ok.length ? ok.reduce((a, x) => a + eng(x), 0) / ok.length : 0;
+    const mine = {};
+    if (avg) for (const x of ok) {
+      for (const t of new Set((String(x.cap || '').match(/#[^\s#]+/g) || []).map((t) => t.toLowerCase().replace(/[.,!?~)\]]+$/, '')))) {
+        const g = mine[t] || (mine[t] = { n: 0, lift: 0 }); g.n++; g.lift += eng(x) / avg;
+      }
+    }
+    const [T, C] = await Promise.all([dbGet(env, '/igTags').catch(() => null), dbGet(env, '/igTagCheck').catch(() => null)]);
+    const chk = {}; for (const x of ((C && C.list) || [])) if (x && x.tag) chk[x.tag] = x;
+    const chkTxt = (t) => { const c = chk[t]; if (!c) return '인스타 확인 전'; if (c.none) return '인스타에 없는 태그'; return `최근 24시간 게시 ${c.recentMax ? '50개 이상' : (c.recent || 0) + '개'}` + (c.topMed != null ? ` · 인기 게시물 반응 중간값 ${c.topMed}` : ''); };
+    const mk = Object.keys(mine).sort((a, b) => mine[b].n - mine[a].n).slice(0, 30);
+    L.push('', '[해시태그 후보 — 추천은 반드시 아래 목록에 있는 태그만. lift = 그 태그를 단 글의 반응 ÷ 평소 반응 (1보다 크면 평소보다 반응 좋았음)]');
+    if (mk.length) {
+      L.push('본인이 쓴 태그: ' + mk.map((t) => `${t}(${mine[t].n}회, lift ${f1(mine[t].lift / mine[t].n)}, ${chkTxt(t)})`).join(' · '));
+      mk.forEach((t) => allow.add(t));
+    } else L.push('본인이 쓴 태그: 없음');
+    const co = ((T && T.tags) || []).filter((x) => x && x.acc >= 2 && !(chk[x.tag] && chk[x.tag].none)).slice(0, 60);
+    if (co.length) {
+      L.push(`우리 회사 직원 계정 ${(T && T.accounts) || ''}개에서 2명 이상 쓴 태그: ` + co.map((x) => `${x.tag}(${x.acc}명 ${x.n}회, lift ${f1(x.lift)}, ${chkTxt(x.tag)})`).join(' · '));
+      co.forEach((x) => allow.add(x.tag));
+    } else L.push('우리 회사 태그 집계: 아직 없음');
+    return allow;
   }
 
   function teamFacts(all) {
@@ -161,7 +194,7 @@ export function makeIgReport(deps) {
   async function getOrMake(env, id, b, canForce, build) {
     const wk = weekKey(Date.now());
     let cur = await rGet(env, rKey(wk, id)).catch(() => null);
-    if (b.make && b.force && cur && !canForce(cur)) return { ok: false, error: '오늘 이미 새로 만들었어요. 내일 다시 만들 수 있어요' };
+    if (b.make && b.force && cur && !canForce(cur)) return { ok: false, error: '리포트는 한 주에 한 번 만들어요. 다시 만들기는 경영팀만 할 수 있어요' };
     const want = b.make && (!cur || b.force);
     if (!want) {
       if (cur) return { ok: true, ...cur, week: wk };
@@ -171,11 +204,21 @@ export function makeIgReport(deps) {
     const lock = wk + '/' + id;
     if (making.has(lock)) return making.get(lock);
     const job = (async () => {
-      const facts = await build();
+      /* 비용 안전장치 — 한 주에 회사 전체 WEEK_CAP 번까지 (평소엔 계정 수 + 전체 1 = 30여 번) */
+      const cnt = (await rGet(env, rKey(wk, '_count')).catch(() => null)) || { n: 0 };
+      if (cnt.n >= WEEK_CAP) return { ok: false, error: `이번 주 AI 리포트 한도(${WEEK_CAP}번)를 다 썼어요. 다음 주 월요일에 다시 열려요` };
+      const built = await build();
+      const facts = built && typeof built === 'object' ? built.facts : built;
       if (!facts) return { ok: false, error: '아직 수집된 인스타 데이터가 없어요' };
+      await rPut(env, rKey(wk, '_count'), { n: cnt.n + 1 });
       const r = await relayCall(env, '/ai/ig-report', { mode: id === '_team' ? 'team' : 'person', facts });
       if (!r.body || !r.body.ok) return { ok: false, error: (r.body && r.body.error) || 'AI 리포트를 만들지 못했어요' };
-      const rec = { report: r.body.report, at: Date.now() };
+      const report = r.body.report || {};
+      if (Array.isArray(report.hashtags)) {
+        const allow = (built && built.allow) || new Set();
+        report.hashtags = report.hashtags.filter((x) => x && allow.has(String(x.tag || '').toLowerCase()));
+      }
+      const rec = { report, at: Date.now() };
       await rPut(env, rKey(wk, id), rec);
       return { ok: true, ...rec, week: wk };
     })().finally(() => making.delete(lock));
@@ -194,7 +237,7 @@ export function makeIgReport(deps) {
       const ph = String(b.ph || me.ph || '');
       if (!/^[0-9]{8,12}$/.test(ph)) return json({ ok: false, error: '대상이 올바르지 않습니다' }, 400, origin);
       if (ph !== String(me.ph) && !hq) return json({ ok: false, error: '본인 리포트만 볼 수 있어요' }, 403, origin);
-      const canForce = (cur) => hq || Date.now() - (+cur.at || 0) > DAY;
+      const canForce = () => hq;   // 본인은 주 1회만. 다시 만들기는 경영팀만(AI 비용)
       const out = await getOrMake(env, ph, b, canForce, async () => personFacts(env, ph, await loadAll(env)));
       return json(out, out.ok ? 200 : 400, origin);
     }

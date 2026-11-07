@@ -281,10 +281,21 @@ async function main() {
     try { console.log('[retail]', ym, JSON.stringify(await collectMonthlyRetail(ym, dry), null, 1)); }
     catch (e) { errors.push('retail ' + ym + ': ' + e.message); await notify('[Hermes] 점판수익 수집 실패 ' + ym + ': ' + e.message); }
   }
+  if (mode === 'igtagcheck') {
+    try { console.log('[igtags]', JSON.stringify(await buildIgTags(dry))); console.log('[igtagcheck]', JSON.stringify(await checkIgTags(dry))); }
+    catch (e) { errors.push('igtagcheck: ' + e.message); }
+  }
   if (mode === 'sns' || mode === 'both') {
     /* 저장소가 공개라 Actions 기록도 누구나 본다 — 이름 · 전화번호 · 아이디는 찍지 않고 숫자만 (11/8 까지는 결과 전체를 찍었다) */
     try { const r = await collectSns(kstDateString(0), dry); console.log('[sns]', JSON.stringify({ date: r.date, count: r.count, skipped: r.skipped, limited: r.limited, ok: r.results.filter((x) => x.ok).length, fail: r.results.filter((x) => !x.ok).map((x) => String(x.error || '').slice(0, 80)) })); }
     catch (e) { errors.push('sns: ' + e.message); await notify('[Hermes] SNS 수집 실패: ' + e.message); }
+    try { console.log('[igtags]', JSON.stringify(await buildIgTags(dry))); }
+    catch (e) { errors.push('igtags: ' + e.message); }
+    /* 인스타 해시태그 검색은 계정당 7일에 30개 태그까지라 일주일에 한 번(월요일)만. mode=igtagcheck 로 따로 돌릴 수도 있다 */
+    if (new Date(Date.now() + 9 * 3600000).getUTCDay() === 1) {
+      try { console.log('[igtagcheck]', JSON.stringify(await checkIgTags(dry))); }
+      catch (e) { errors.push('igtagcheck: ' + e.message); }
+    }
     try { console.log('[official]', JSON.stringify(await collectOfficialSns(kstDateString(0), dry))); }
     catch (e) { errors.push('official: ' + e.message); await notify('[Hermes] 공식SNS 수집 실패: ' + e.message); }
   }
@@ -1161,6 +1172,90 @@ async function collectSns(date, dry) {
   if (limited) await notify(`[Hermes] 인스타 조회 한도에 걸려 ${out.filter((x) => x.limited).length ? '일부' : ''} 수집을 다음 실행으로 미뤘어요 (실패로 기록 안 함)`).catch(() => {});
   return { date, count: out.length, skipped, limited, results: out };
 }
+/* ═══ 해시태그 ═══
+   AI 리포트가 해시태그를 지어내지 않게, 추천은 아래 두 근거에서만 고른다.
+   ① /igTags — 우리 직원 계정들이 실제로 쓴 태그별 반응. 계정 크기가 달라 좋아요 수를 그대로 비교하면 큰 계정 태그만 좋아 보이므로,
+      '그 게시물 반응 ÷ 그 계정 평균 반응'(lift)으로 본다. 1.0 보다 크면 그 사람 평소보다 반응이 좋았던 글에 붙은 태그.
+      올린 지 이틀 안 된 글은 반응이 덜 쌓여 뺀다.
+   ② /igTagCheck — 인스타 해시태그 검색으로 확인한 태그 상태(최근 24시간 게시 수 · 인기 게시물 반응). 주 1회, 25개까지.
+   태그에는 . # $ [ ] / 가 들어갈 수 있어 DB 키로 못 쓴다 — 배열로 저장한다. */
+export function igTagStats(all, nowMs) {
+  const agg = {};
+  for (const ph of Object.keys(all || {})) {
+    const rec = all[ph] || {};
+    const posts = (Array.isArray(rec.posts) ? rec.posts : []).filter((x) => { const t = Date.parse(x.ts); return Number.isFinite(t) && nowMs - t > 2 * 86400000; });
+    if (posts.length < 3) continue;
+    const eng = (x) => num(x.l) + num(x.c);
+    const avg = posts.reduce((a, x) => a + eng(x), 0) / posts.length;
+    if (!avg) continue;
+    for (const x of posts) {
+      const tags = Array.from(new Set((String(x.cap || '').match(/#[^\s#]+/g) || []).map((t) => t.toLowerCase().replace(/[.,!?~)\]]+$/, '')).filter((t) => t.length > 1 && t.length <= 40)));
+      for (const t of tags) {
+        const g = agg[t] || (agg[t] = { n: 0, acc: new Set(), lift: 0, eng: 0 });
+        g.n++; g.acc.add(ph); g.lift += eng(x) / avg; g.eng += eng(x);
+      }
+    }
+  }
+  return Object.keys(agg).map((t) => ({ tag: t, n: agg[t].n, acc: agg[t].acc.size, lift: +(agg[t].lift / agg[t].n).toFixed(2), eng: +(agg[t].eng / agg[t].n).toFixed(1) }))
+    .filter((x) => x.n >= 2).sort((a, b) => b.n - a.n || b.lift - a.lift).slice(0, 300);
+}
+async function buildIgTags(dry) {
+  const all = await fbGET('/igPosts.json');
+  if (!all) return { skip: '게시물 없음' };
+  const tags = igTagStats(all, Date.now());
+  if (!dry) await rtdbPut('/igTags', { at: nowIso(), accounts: Object.keys(all).length, tags });
+  return { accounts: Object.keys(all).length, tags: tags.length };
+}
+async function igGet(path, params) {
+  const q = new URLSearchParams({ ...params, access_token: process.env.IG_TOKEN }).toString();
+  const resp = await fetch(`${IG_API}/${path}?${q}`, { headers: { 'User-Agent': UA } });
+  const data = await resp.json();
+  if (!resp.ok || data.error) throw new Error((data.error && data.error.message) || `IG ${resp.status}`);
+  return data;
+}
+async function checkIgTags(dry) {
+  if (!process.env.IG_TOKEN) return { skip: 'IG_TOKEN 없음' };
+  const uid = await resolveIgUserId();
+  const T = await fbGET('/igTags.json');
+  if (!T || !Array.isArray(T.tags)) return { skip: '태그 집계 없음' };
+  const prev = (await fbGET('/igTagCheck.json')) || {};
+  const list = Array.isArray(prev.list) ? prev.list : [];
+  const byTag = {}; for (const x of list) if (x && x.tag) byTag[x.tag] = x;
+  const now = Date.now();
+  /* 한도: 계정당 7일 안에 서로 다른 태그 30개. 넉넉히 25개, 지난 7일에 쓴 만큼 뺀다 */
+  const usedRecent = list.filter((x) => x && Date.parse(x.at) > now - 7 * 86400000).length;
+  const room = Math.max(0, 25 - usedRecent);
+  /* 두 명 이상이 쓴 태그 중 많이 쓰인 순, 28일 안에 확인한 건 건너뜀 */
+  const cand = T.tags.filter((x) => x.acc >= 2 && !(byTag[x.tag] && Date.parse(byTag[x.tag].at) > now - 28 * 86400000)).slice(0, room);
+  let ok = 0, err = '';
+  for (const c of cand) {
+    try {
+      const h = await igGet('ig_hashtag_search', { user_id: uid, q: c.tag.replace(/^#/, '') });
+      const id = h.data && h.data[0] && h.data[0].id;
+      if (!id) { byTag[c.tag] = { tag: c.tag, at: nowIso(), none: true }; continue; }
+      const rec = await igGet(`${id}/recent_media`, { user_id: uid, fields: 'timestamp', limit: '50' });
+      const recent = (rec.data || []).filter((m) => now - Date.parse(m.timestamp) < 86400000).length;
+      let topMed = null;
+      try {
+        const top = await igGet(`${id}/top_media`, { user_id: uid, fields: 'like_count,comments_count', limit: '25' });
+        const v = (top.data || []).map((m) => num(m.like_count) + num(m.comments_count)).sort((a, b) => a - b);
+        if (v.length) topMed = v[Math.floor(v.length / 2)];
+      } catch (_) {}
+      byTag[c.tag] = { tag: c.tag, at: nowIso(), recent, recentMax: (rec.data || []).length >= 50, topMed };
+      ok++;
+    } catch (e) {
+      /* 권한이 없으면(Meta 앱에 Instagram Public Content Access 가 없을 때 등) 나머지도 똑같이 실패하므로 멈춘다 */
+      err = String(e.message || e).slice(0, 160);
+      break;
+    }
+    await sleep(CONFIG.igRateGapMs);
+  }
+  const out = Object.values(byTag).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 300);
+  if (!dry) await rtdbPut('/igTagCheck', { at: nowIso(), list: out, err: err || null });
+  if (err && !ok) await notify('[Hermes] 인스타 해시태그 검색 실패 (AI 리포트는 우리 회사 데이터로만 추천): ' + err).catch(() => {});
+  return { room, tried: cand.length, ok, err: err ? 'yes' : '' };
+}
+
 // 공식 인스타 계정 수집 (브랜드별 1개). /official/{key}/daily/{date} 저장.
 async function collectOfficialSns(date, dry) {
   if (!process.env.IG_TOKEN) throw new Error('IG_TOKEN 미설정');
@@ -1201,13 +1296,13 @@ async function igBusinessDiscovery(username) {
   if (!resp.ok || data.error) throw new Error((data.error && data.error.message) || `IG ${resp.status}`);
   return data.business_discovery;
 }
-/* AI 인스타 리포트가 읽는 최근 게시물 목록 — 글은 앞 200자만, 최근 15개 */
+/* AI 인스타 리포트가 읽는 최근 게시물 목록 — 최근 15개, 글 전체(인스타 글 한도 2,200자). 말투 · 주제 · 해시태그를 여기서 읽는다 */
 export function igPostList(bd) {
   const media = (bd && bd.media && bd.media.data) || [];
   return media.slice().sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || ''))).slice(0, 15).map((m) => ({
     ts: m.timestamp || '', t: (m.media_product_type || '') === 'REELS' ? '릴스' : '피드',
     l: num(m.like_count), c: num(m.comments_count), u: m.permalink || '',
-    cap: String(m.caption || '').replace(/\s+/g, ' ').trim().slice(0, 200),
+    cap: String(m.caption || '').replace(/[ \t]+/g, ' ').trim().slice(0, 2200),
   }));
 }
 export function computeSnsMetrics(bd, date) {

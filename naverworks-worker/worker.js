@@ -734,7 +734,7 @@ async function handleAIIgReport(body, env) {
   if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
   if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
   const mode = body.mode === 'team' ? 'team' : 'person';
-  const facts = String(body.facts || '').slice(0, 30000);
+  const facts = String(body.facts || '').slice(0, 40000);
   if (!facts) return json({ ok: false, error: '분석할 데이터가 없어요' }, 400);
   const common =
     '- 아래 데이터에 있는 숫자와 사실만 근거로 쓴다. 데이터에 없는 수치(조회수 · 도달 · 저장 수 등)는 지어내지 않는다. 우리가 볼 수 있는 건 팔로워 · 게시 수 · 좋아요 · 댓글 · 릴스/피드 구분 · 게시 시각 · 게시글뿐이다.\n' +
@@ -749,9 +749,11 @@ async function handleAIIgReport(body, env) {
       '- spotlight 는 최대 3명.'
     : '너는 헤어 디자이너 · 인턴의 개인 인스타그램을 키워 주는 마케팅 코치야. 한 사람의 최근 숫자와 게시물(글 포함)을 받아, 본인에게 주는 주간 리포트와 다음 주 콘텐츠 아이디어를 쓴다. 읽는 사람은 그 디자이너 본인이다.\n\n규칙:\n' + common +
       '- 반응이 좋았던 게시물과 안 좋았던 게시물의 차이(릴스/피드, 요일 · 시간대, 글 내용 · 길이 · 해시태그)를 데이터에서 찾아 말한다.\n' +
-      '- 아이디어는 헤어 디자이너가 매장에서 바로 찍을 수 있는 것으로. 본인 게시글의 말투 · 주제를 이어 간다. 해시태그는 한국어 위주 5개.\n' +
-      '- 출력 형식: {"headline":"이번 주 한 줄 요약","good":["잘한 점 (최대 3개)"],"improve":["아쉬운 점 (최대 3개)"],"try":["다음 주에 해볼 것 3개 — 언제 · 무엇을 · 몇 개"],"ideas":[{"title":"콘텐츠 아이디어 제목","hook":"릴스 첫 3초 문구 또는 첫 줄","caption":"올릴 글 예시 (3~5줄)","tags":"#해시태그 5개"}]}\n' +
-      '- ideas 는 정확히 3개.';
+      '- 콘텐츠 아이디어는 이 사람이 지금까지 올린 게시물(글)에서 읽히는 시그니처 시술 · 스타일 · 자주 다루는 주제 · 분위기를 이어 가는 것으로만 낸다. 다른 디자이너에게도 똑같이 줄 수 있는 일반적인 아이디어는 쓰지 않는다. 각 아이디어에는 근거가 된 본인 게시물(날짜)을 밝힌다. 게시물 글이 없거나 너무 적으면 그렇다고 말한다.\n' +
+      '- 올릴 글(캡션) 문장은 써 주지 않는다. 말투는 본인 것이어야 하므로 글은 본인이 쓴다. 아이디어는 무엇을 · 어떻게 찍을지까지만.\n' +
+      '- 해시태그는 데이터의 [해시태그 후보] 목록에 있는 태그만 고른다. 목록에 없는 태그는 절대 만들지 않는다. lift 가 1보다 큰 태그, 이 사람 시그니처와 맞는 시술 · 지역 태그를 우선한다. 최근 24시간 게시가 50개 이상인 큰 태그는 금방 묻히므로 많아야 1~2개만. 후보가 없으면 빈 배열.\n' +
+      '- 출력 형식: {"headline":"이번 주 한 줄 요약","good":["잘한 점 (최대 3개)"],"improve":["아쉬운 점 (최대 3개)"],"try":["다음 주에 해볼 것 3개 — 언제 · 무엇을 · 몇 개"],"ideas":[{"title":"콘텐츠 아이디어 제목","why":"이 사람에게 맞는 이유 — 근거 게시물(날짜)과 반응","how":"찍는 방법 · 구성 (릴스면 장면 순서) 2~3줄"}],"hashtags":[{"tag":"#태그","why":"고른 이유 (lift · 최근 게시 수 등 근거)"}]}\n' +
+      '- ideas 는 정확히 3개, hashtags 는 최대 8개.';
   try {
     const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
     const r = await fetch(AIG, {
@@ -781,9 +783,13 @@ async function handleAIIgReport(body, env) {
     } else {
       out.good = strs(rep.good, 3); out.improve = strs(rep.improve, 3); out.try = strs(rep.try, 3);
       out.ideas = (Array.isArray(rep.ideas) ? rep.ideas : []).slice(0, 3).map((x) => ({
-        title: String((x && x.title) || '').slice(0, 120), hook: String((x && x.hook) || '').slice(0, 200),
-        caption: String((x && x.caption) || '').slice(0, 800), tags: String((x && x.tags) || '').slice(0, 200),
+        title: String((x && x.title) || '').slice(0, 120), why: String((x && x.why) || '').slice(0, 400),
+        how: String((x && x.how) || '').slice(0, 600),
       })).filter((x) => x.title);
+      /* 태그는 dm-contract-api 가 후보 목록으로 한 번 더 거른다 */
+      out.hashtags = (Array.isArray(rep.hashtags) ? rep.hashtags : []).slice(0, 8).map((x) => ({
+        tag: String((x && x.tag) || '').trim().slice(0, 40), why: String((x && x.why) || '').slice(0, 200),
+      })).filter((x) => /^#\S+$/.test(x.tag));
     }
     return json({ ok: true, report: out, model: String((data && data.model) || '') });
   } catch (e) {
