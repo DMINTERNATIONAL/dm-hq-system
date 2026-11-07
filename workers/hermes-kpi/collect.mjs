@@ -281,6 +281,10 @@ async function main() {
     try { console.log('[retail]', ym, JSON.stringify(await collectMonthlyRetail(ym, dry), null, 1)); }
     catch (e) { errors.push('retail ' + ym + ': ' + e.message); await notify('[Hermes] 점판수익 수집 실패 ' + ym + ': ' + e.message); }
   }
+  if (mode === 'igrefs') {
+    try { console.log('[igrefs]', JSON.stringify(await collectIgRefs(dry, true))); console.log('[igtags]', JSON.stringify(await buildIgTags(dry))); }
+    catch (e) { errors.push('igrefs: ' + e.message); }
+  }
   if (mode === 'igtagcheck') {
     try { console.log('[igtags]', JSON.stringify(await buildIgTags(dry))); console.log('[igtagcheck]', JSON.stringify(await checkIgTags(dry))); }
     catch (e) { errors.push('igtagcheck: ' + e.message); }
@@ -289,6 +293,8 @@ async function main() {
     /* 저장소가 공개라 Actions 기록도 누구나 본다 — 이름 · 전화번호 · 아이디는 찍지 않고 숫자만 (11/8 까지는 결과 전체를 찍었다) */
     try { const r = await collectSns(kstDateString(0), dry); console.log('[sns]', JSON.stringify({ date: r.date, count: r.count, skipped: r.skipped, limited: r.limited, ok: r.results.filter((x) => x.ok).length, fail: r.results.filter((x) => !x.ok).map((x) => String(x.error || '').slice(0, 80)) })); }
     catch (e) { errors.push('sns: ' + e.message); await notify('[Hermes] SNS 수집 실패: ' + e.message); }
+    try { console.log('[igrefs]', JSON.stringify(await collectIgRefs(dry, false))); }
+    catch (e) { errors.push('igrefs: ' + e.message); }
     try { console.log('[igtags]', JSON.stringify(await buildIgTags(dry))); }
     catch (e) { errors.push('igtags: ' + e.message); }
     /* 인스타 해시태그 검색은 계정당 7일에 30개 태그까지라 일주일에 한 번(월요일)만. mode=igtagcheck 로 따로 돌릴 수도 있다 */
@@ -1199,12 +1205,56 @@ export function igTagStats(all, nowMs) {
   return Object.keys(agg).map((t) => ({ tag: t, n: agg[t].n, acc: agg[t].acc.size, lift: +(agg[t].lift / agg[t].n).toFixed(2), eng: +(agg[t].eng / agg[t].n).toFixed(1) }))
     .filter((x) => x.n >= 2).sort((a, b) => b.n - a.n || b.lift - a.lift).slice(0, 300);
 }
-async function buildIgTags(dry) {
+export async function buildIgTags(dry) {
   const all = await fbGET('/igPosts.json');
   if (!all) return { skip: '게시물 없음' };
   const tags = igTagStats(all, Date.now());
-  if (!dry) await rtdbPut('/igTags', { at: nowIso(), accounts: Object.keys(all).length, tags });
-  return { accounts: Object.keys(all).length, tags: tags.length };
+  /* 참고 계정(경영팀이 앱에서 넣은 잘하는 계정들) — 같은 방식(lift)으로 따로 집계. 지운 계정은 빼고 센다 */
+  const refsOn = (await fbGET('/igRefs.json')) || {};
+  const refAll = {};
+  for (const [k, v] of Object.entries((await fbGET('/igRefPosts.json')) || {})) if (refsOn[k]) refAll[k] = v;
+  const refTags = igTagStats(refAll, Date.now());
+  if (!dry) await rtdbPut('/igTags', { at: nowIso(), accounts: Object.keys(all).length, tags, refAccounts: Object.keys(refAll).length, refTags });
+  return { accounts: Object.keys(all).length, tags: tags.length, refAccounts: Object.keys(refAll).length, refTags: refTags.length };
+}
+/* ═══ 참고 계정 ═══
+   경영팀이 KPI 인스타 탭에서 넣는다: /igRefs/{키} = { u: 아이디, memo, at, by }.
+   여기서 business_discovery 로 공개 게시물 15개를 읽어 /igRefPosts/{키} 에 덮어쓰고,
+   상태(팔로워 · 오류 사유)는 /igRefs/{키}/st 에 남긴다(앱에서 '확인됨 · 개인 계정이라 못 읽음' 표시).
+   비즈니스 · 크리에이터 공개 계정만 읽힌다. 최대 30개. 오늘 이미 읽은 계정은 건너뛴다(force 면 다시). */
+export async function collectIgRefs(dry, force) {
+  if (!process.env.IG_TOKEN) return { skip: 'IG_TOKEN 없음' };
+  const refs = (await fbGET('/igRefs.json')) || {};
+  const keys = Object.keys(refs).filter((k) => refs[k] && refs[k].u).slice(0, 30);
+  if (!keys.length) return { refs: 0 };
+  await resolveIgUserId();
+  const today = kstDateString(0);
+  const isLimit = (msg) => /\(#4\)|\(#17\)|\(#32\)|\(#613\)|request limit|rate limit|too many/i.test(String(msg || ''));
+  let ok = 0, fail = 0, skipped = 0, limited = false;
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i], r = refs[k];
+    const u = String(r.u).replace(/^@/, '').trim();
+    if (!force && r.st && r.st.date === today && r.st.ok) { skipped++; continue; }
+    try {
+      const bd = await igBusinessDiscovery(u);
+      if (!dry) {
+        await rtdbPut(`/igRefPosts/${enc(k)}`, { at: nowIso(), date: today, username: u, followers: num(bd.followers_count), posts: igPostList(bd) });
+        await rtdbPut(`/igRefs/${enc(k)}/st`, { ok: true, date: today, at: nowIso(), followers: num(bd.followers_count), media: num(bd.media_count) });
+      }
+      ok++;
+    } catch (e) {
+      if (isLimit(e.message)) { limited = true; break; }
+      const m = String(e.message || '');
+      const why = /Invalid user|cannot be found|does not exist/i.test(m) ? '없는 아이디이거나 개인 계정이라 읽을 수 없어요 (비즈니스 · 크리에이터 공개 계정만 돼요)'
+        : /not a business|professional|business account|creator account/i.test(m) ? '개인 계정이라 읽을 수 없어요 (비즈니스 · 크리에이터 계정만 돼요)' : '인스타 조회 실패: ' + m.slice(0, 120);
+      if (!dry) await rtdbPut(`/igRefs/${enc(k)}/st`, { ok: false, date: today, at: nowIso(), err: why }).catch(() => {});
+      fail++;
+    }
+    if (i < keys.length - 1) await sleep(CONFIG.igRateGapMs);
+  }
+  /* 지운 참고 계정의 게시물 사본도 정리 */
+  if (!dry) for (const k of Object.keys((await fbGET('/igRefPosts.json?shallow=true')) || {})) if (!refs[k]) await rtdbDelete(`/igRefPosts/${enc(k)}`).catch(() => {});
+  return { refs: keys.length, ok, fail, skipped, limited };
 }
 async function igGet(path, params) {
   const q = new URLSearchParams({ ...params, access_token: process.env.IG_TOKEN }).toString();
@@ -1417,6 +1467,10 @@ async function rtdbPut(path, value) {
   if (String(path).startsWith('/stores/')) STORES_TOUCHED = true;
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
   if (!resp.ok) throw new Error(`RTDB PUT ${path} → ${resp.status}`);
+}
+async function rtdbDelete(path) {
+  const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'DELETE' });
+  if (!resp.ok) throw new Error(`RTDB DELETE ${path} → ${resp.status}`);
 }
 async function rtdbPatch(path, value) {
   const resp = await fetch(await fbAuthed(`${fbUrl()}${path}.json`), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });

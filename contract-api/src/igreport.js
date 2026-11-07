@@ -168,6 +168,13 @@ export function makeIgReport(deps) {
       L.push(`우리 회사 직원 계정 ${(T && T.accounts) || ''}개에서 2명 이상 쓴 태그: ` + co.map((x) => `${x.tag}(${x.acc}명 ${x.n}회, lift ${f1(x.lift)}, ${chkTxt(x.tag)})`).join(' · '));
       co.forEach((x) => allow.add(x.tag));
     } else L.push('우리 회사 태그 집계: 아직 없음');
+    /* 참고 계정 — 경영팀이 앱에서 넣은 잘하는 계정들. 2곳 이상이 쓴 태그(없으면 1곳이라도 반응 좋았던 태그) */
+    const rt = ((T && T.refTags) || []).filter((x) => x && !(chk[x.tag] && chk[x.tag].none));
+    const ref = (rt.filter((x) => x.acc >= 2).length >= 5 ? rt.filter((x) => x.acc >= 2) : rt.filter((x) => x.acc >= 2 || x.lift >= 1.2)).slice(0, 40);
+    if (ref.length) {
+      L.push(`참고 계정(경영팀이 고른 잘하는 계정 ${(T && T.refAccounts) || ''}곳)이 쓴 태그: ` + ref.map((x) => `${x.tag}(${x.acc}곳 ${x.n}회, lift ${f1(x.lift)})`).join(' · '));
+      ref.forEach((x) => allow.add(x.tag));
+    }
     return allow;
   }
 
@@ -241,6 +248,19 @@ export function makeIgReport(deps) {
       const out = await getOrMake(env, ph, b, canForce, async () => personFacts(env, ph, await loadAll(env)),
         { ph: me.ph, nm: me.name, x: ph === String(me.ph) ? '본인 리포트' : '직원 리포트', tp: ph === String(me.ph) ? '' : ph });
       return json(out, out.ok ? 200 : 400, origin);
+    }
+
+    /* 참고 계정 바로 수집 — 경영팀이 계정을 넣고 '지금 확인'을 누를 때. 수집기(GitHub Actions)를 igrefs 로 한 번 돌린다 */
+    if (path === '/ig/refs/collect') {
+      if (!hq) return json({ ok: false, error: '경영팀만 할 수 있어요' }, 403, origin);
+      if (!env.GH_TOKEN || !env.GH_REPO) return json({ ok: false, error: '수집기 연결 설정이 없어요' }, 503, origin);
+      const r = await fetch(`https://api.github.com/repos/${env.GH_REPO}/actions/workflows/${env.GH_WORKFLOW || 'hermes-kpi.yml'}/dispatches`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + env.GH_TOKEN, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'dm-contract-api', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: env.GH_REF || 'main', inputs: { mode: 'igrefs' } }),
+      });
+      if (!r.ok) return json({ ok: false, error: '수집을 시작하지 못했어요 (' + r.status + ')' }, 502, origin);
+      return json({ ok: true }, 200, origin);
     }
 
     /* 경영팀 전체 리포트 */
