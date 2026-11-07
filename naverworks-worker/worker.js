@@ -723,10 +723,11 @@ async function handleAIChatSummary(body, env) {
     const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
     const r = await fetch(AIG, {
       method: 'POST',
-      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-chat-summary/1.0' },
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-chat-summary/1.0' },
+      /* Sonnet 5.5 — Opus 5.5 의 절반 값(11/8 사용자 결정). 요약은 어렵지 않은 일이라 충분하다.
+         다른 모델로 넘어가는 fallback 은 끔 — 비싼 모델로 넘어가지 않게 (인스타 리포트와 같음) */
       body: JSON.stringify({
-        model: 'claude-opus-5-5', max_tokens: 4000, fallbacks: 'default',
-        output_config: { effort: 'low' },
+        model: 'claude-sonnet-5-5', max_tokens: 1500,
         system: sys,
         messages: [{ role: 'user', content: '방 이름: ' + String(body.room || '').slice(0, 40) + '\n\n' + convo }],
       }),
