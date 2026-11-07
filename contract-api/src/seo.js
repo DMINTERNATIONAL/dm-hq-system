@@ -7,15 +7,21 @@
      seo/r/{id}.json       = { id, at, trig, report, done: { 할일번호: { by, at } } }
      seo/_pending.json     = { at, by }   — '지금 조사하기' 요청
      seo/_running.json     = { at }       — 겹쳐 돌지 않게 (20분 지나면 무시)
-     seo/_err.json         = { at, err }  — 마지막 실패 */
+     seo/_err.json         = { at, err }  — 마지막 실패
+     seo/data_latest.json  = 숫자(seo_data.js collect) — 공식 API · 핸드SOS. AI 안 씀
+     seo/stats.json        = [{ id, wk, branch, views, books, at, by }]  — 경영팀이 스마트플레이스 통계에서 옮겨 적는 주간 조회 · 예약 (예약 전환율)
+     seo/ranks.json        = [{ id, at, by, q, branch, rank }]  — 경영팀이 휴대폰으로 본 플레이스 순위 (0 = 안 보임)
+     seo/shot/{shop}.json  = { at, by, mt, b64 }  — 스마트플레이스 통계 캡처(유입 키워드 등). 주간 조사 때 AI 가 읽는다
+   목표는 '예약 늘리기'. 검색 노출은 수단이다. */
 import { hqUser } from './aiusage.js';
+import { collect, dataFacts, apisOf, monday, SHOPS } from './seo_data.js';
 
 const DEFAULT_BRANCHES = [
   { name: 'DAY:MEAN 플래그십점', naver: '', google: '', keywords: '' },
   { name: 'DAY:MEAN 모먼트점', naver: '', google: '', keywords: '' },
   { name: 'ETOH 합정점', naver: '', google: '', keywords: '' },
 ];
-const KEY = { cfg: 'seo/cfg.json', idx: 'seo/index.json', pend: 'seo/_pending.json', run: 'seo/_running.json', err: 'seo/_err.json' };
+const KEY = { cfg: 'seo/cfg.json', idx: 'seo/index.json', pend: 'seo/_pending.json', run: 'seo/_running.json', err: 'seo/_err.json', data: 'seo/data_latest.json', stats: 'seo/stats.json', ranks: 'seo/ranks.json' };
 
 /* 한국 시각 쪼개기 */
 export function kst(ts) {
@@ -32,6 +38,21 @@ export function shouldRun(now, idx, pending) {
   return '';
 }
 const urlOk = (v) => { const s = String(v || '').trim(); return /^https?:\/\/[^\s]+$/.test(s) ? s.slice(0, 400) : ''; };
+
+/* 경영팀이 적은 주간 조회 · 예약 → 지점별 최근 8주 (예약 전환율) */
+export function statsFacts(stats) {
+  const L = [];
+  const by = {};
+  for (const x of stats || []) (by[x.branch] = by[x.branch] || []).push(x);
+  const names = Object.keys(by);
+  if (!names.length) return '\n[예약 전환 — 스마트플레이스 통계] 아직 기록 없음. 경영팀에게 매주 조회수 · 예약 신청 수를 앱 "기록" 탭에 적어 달라고 할 일에 넣을 것.';
+  L.push('', '[예약 전환 — 경영팀이 스마트플레이스 통계에서 옮겨 적은 주간 숫자. 이번 조사의 가장 중요한 결과 지표]');
+  for (const b of names) {
+    const arr = by[b].sort((a, c) => (a.wk < c.wk ? 1 : -1)).slice(0, 8);
+    L.push(`- ${b}: ` + arr.map((x) => `${x.wk.slice(5)}주 조회 ${x.views} · 예약 ${x.books} · 전환 ${x.views ? (Math.round((x.books / x.views) * 1000) / 10) + '%' : '-'}`).join(' / '));
+  }
+  return L.join('\n');
+}
 
 export function buildFacts(now, cfg, idx, prev) {
   const k = kst(now);
@@ -85,11 +106,23 @@ export function makeSeo(deps) {
       const [cfg, idx] = await Promise.all([getCfg(env), rGet(env, KEY.idx).catch(() => null)]);
       const list = Array.isArray(idx) ? idx : [];
       const prev = list[0] ? await rGet(env, `seo/r/${list[0].id}.json`).catch(() => null) : null;
-      const facts = buildFacts(Date.now(), cfg, list, prev);
-      const r = await relayCall(env, '/ai/seo-weekly', { facts }, { nm: by || '자동', x: trig === 'weekly' ? '주간 자동 조사' : '바로 조사' });
+      /* 숫자 먼저 (무료) — 실패해도 조사는 한다 */
+      const [data, stats, ranks, shots] = await Promise.all([
+        collect(env, cfg, dbGet).catch(() => null),
+        rGet(env, KEY.stats).catch(() => null),
+        rGet(env, KEY.ranks).catch(() => null),
+        Promise.all(SHOPS.map((sh) => rGet(env, `seo/shot/${sh}.json`).catch(() => null))),
+      ]);
+      if (data) await rPut(env, KEY.data, data).catch(() => {});
+      const prevData = prev && prev.data ? prev.data : null;
+      const facts = buildFacts(Date.now(), cfg, list, prev) + statsFacts(stats) + dataFacts(data, prevData, ranks || []);
+      /* 스마트플레이스 통계 캡처 — 45일 안에 올린 것만 AI 에게 보여 준다 */
+      const LBL = { flagship: '플래그십점', moment: '모먼트점', eto: 'ETOH 합정점' };
+      const images = shots.map((x, i) => (x && x.b64 && Date.now() - x.at < 45 * 864e5 ? { label: `${LBL[SHOPS[i]]} 스마트플레이스 통계 캡처 (${kst(x.at).ymd} 올림)`, mt: x.mt, b64: x.b64 } : null)).filter(Boolean);
+      const r = await relayCall(env, '/ai/seo-weekly', { facts, images }, { nm: by || '자동', x: trig === 'weekly' ? '주간 자동 조사' : '바로 조사' });
       if (!r.body || !r.body.ok || !r.body.report) throw new Error((r.body && r.body.error) || '조사 실패 (' + r.status + ')');
       const now = Date.now(), id = kst(now).id, rep = r.body.report;
-      await rPut(env, `seo/r/${id}.json`, { id, at: now, trig, by: by || '', report: rep, done: {} });
+      await rPut(env, `seo/r/${id}.json`, { id, at: now, trig, by: by || '', report: rep, done: {}, data: data || null });
       const row = { id, at: now, headline: rep.headline, nc: (rep.changes || []).length, nt: (rep.todo || []).length, ct: (rep.changes || []).map((c) => c.title).slice(0, 6), trig };
       await rPut(env, KEY.idx, [row, ...list.filter((x) => x.id !== id)].slice(0, 60));
       await rDel(env, KEY.err).catch(() => {});
@@ -127,7 +160,63 @@ export function makeSeo(deps) {
 
     if (path === '/seo/list') {
       const [idx, cfg, pend, running, err] = await Promise.all([rGet(env, KEY.idx), getCfg(env), rGet(env, KEY.pend), rGet(env, KEY.run), rGet(env, KEY.err)].map((p) => p.catch(() => null)));
-      return json({ ok: true, items: idx || [], cfg, pending: pend || null, running: running && Date.now() - running.at < 20 * 60000 ? running : null, err: err || null }, 200, origin);
+      return json({ ok: true, items: idx || [], cfg, pending: pend || null, running: running && Date.now() - running.at < 20 * 60000 ? running : null, err: err || null, apis: apisOf(env) }, 200, origin);
+    }
+    /* 숫자 · 기록 — AI 안 씀. refresh 면 10분에 한 번까지 새로 모은다 */
+    if (path === '/seo/numbers') {
+      let [data, stats, ranks] = await Promise.all([rGet(env, KEY.data), rGet(env, KEY.stats), rGet(env, KEY.ranks)].map((p) => p.catch(() => null)));
+      let note = '';
+      if (b.refresh) {
+        if (data && Date.now() - data.at < 10 * 60000) note = '방금 불러왔어요. 10분 뒤에 다시 할 수 있어요';
+        else { data = await collect(env, await getCfg(env), dbGet); await rPut(env, KEY.data, data); }
+      }
+      const shots = {};
+      for (const sh of SHOPS) {   /* 사진은 크니까 머리(메타)만 */
+        const h = await env.CHAT_MEDIA.head(`seo/shot/${sh}.json`).catch(() => null);
+        if (h) shots[sh] = { at: +((h.customMetadata && h.customMetadata.at) || 0), by: decodeURIComponent((h.customMetadata && h.customMetadata.by) || '') };
+      }
+      return json({ ok: true, data: data || null, stats: stats || [], ranks: ranks || [], shots, apis: apisOf(env), note }, 200, origin);
+    }
+    if (path === '/seo/stat') {   /* 주간 조회 · 예약 — 같은 주 · 지점은 덮어쓴다 */
+      const cfg = await getCfg(env);
+      const branch = String(b.branch || '').trim(), wk = /^\d{4}-\d{2}-\d{2}$/.test(String(b.wk || '')) ? monday(String(b.wk)) : '';
+      const views = Math.floor(+b.views), books = Math.floor(+b.books);
+      if (!cfg.branches.some((x) => x.name === branch) || !wk) return json({ ok: false, error: '지점과 주를 골라 주세요' }, 400, origin);
+      if (!(views >= 0 && views < 1e7 && books >= 0 && books < 1e6)) return json({ ok: false, error: '숫자를 확인해 주세요' }, 400, origin);
+      const list = ((await rGet(env, KEY.stats).catch(() => null)) || []).filter((x) => !(x.wk === wk && x.branch === branch));
+      list.unshift({ id: wk + '|' + branch, wk, branch, views, books, at: Date.now(), by: String(me.name || '').slice(0, 30) });
+      list.sort((x, y) => (x.wk < y.wk ? 1 : -1));
+      await rPut(env, KEY.stats, list.slice(0, 400));
+      return json({ ok: true, stats: list.slice(0, 400) }, 200, origin);
+    }
+    if (path === '/seo/rank') {   /* 휴대폰으로 본 플레이스 순위 */
+      const cfg = await getCfg(env);
+      const q = String(b.q || '').trim().slice(0, 30), branch = String(b.branch || '').trim(), rank = Math.floor(+b.rank || 0);
+      if (!q || !cfg.branches.some((x) => x.name === branch)) return json({ ok: false, error: '검색어와 지점을 넣어 주세요' }, 400, origin);
+      if (!(rank >= 0 && rank <= 300)) return json({ ok: false, error: '순위를 확인해 주세요' }, 400, origin);
+      const list = (await rGet(env, KEY.ranks).catch(() => null)) || [];
+      list.unshift({ id: Date.now().toString(36), at: Date.now(), by: String(me.name || '').slice(0, 30), q, branch, rank });
+      await rPut(env, KEY.ranks, list.slice(0, 300));
+      return json({ ok: true, ranks: list.slice(0, 300) }, 200, origin);
+    }
+    if (path === '/seo/rank/del' || path === '/seo/stat/del') {
+      const key = path === '/seo/rank/del' ? KEY.ranks : KEY.stats;
+      const list = ((await rGet(env, key).catch(() => null)) || []).filter((x) => x.id !== String(b.id || ''));
+      await rPut(env, key, list);
+      return json({ ok: true, [path === '/seo/rank/del' ? 'ranks' : 'stats']: list }, 200, origin);
+    }
+    if (path === '/seo/shot' || path === '/seo/shot/get' || path === '/seo/shot/del') {   /* 스마트플레이스 통계 캡처 */
+      const sh = String(b.shop || '');
+      if (SHOPS.indexOf(sh) < 0) return json({ ok: false, error: '지점을 골라 주세요' }, 400, origin);
+      const key = `seo/shot/${sh}.json`;
+      if (path === '/seo/shot/get') { const x = await rGet(env, key).catch(() => null); return x ? json({ ok: true, mt: x.mt, b64: x.b64, at: x.at }, 200, origin) : json({ ok: false, error: '캡처가 없어요' }, 404, origin); }
+      if (path === '/seo/shot/del') { await rDel(env, key).catch(() => {}); return json({ ok: true }, 200, origin); }
+      const mt = String(b.mt || ''), b64 = String(b.b64 || '');
+      if (!/^image\/(jpeg|png|webp)$/.test(mt) || !/^[A-Za-z0-9+/=]+$/.test(b64)) return json({ ok: false, error: '사진만 올릴 수 있어요' }, 400, origin);
+      if (b64.length > 2400000) return json({ ok: false, error: '사진이 너무 커요' }, 413, origin);
+      const at = Date.now(), nm = String(me.name || '').slice(0, 30);
+      await env.CHAT_MEDIA.put(key, JSON.stringify({ at, by: nm, mt, b64 }), { httpMetadata: { contentType: 'application/json' }, customMetadata: { at: String(at), by: encodeURIComponent(nm) } });
+      return json({ ok: true, at }, 200, origin);
     }
     if (path === '/seo/get') {
       const id = String(b.id || '');

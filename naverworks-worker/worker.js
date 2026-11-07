@@ -801,8 +801,14 @@ async function handleAISeoWeekly(body, env) {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
   if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
   if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
-  const facts = String(body.facts || '').slice(0, 30000);
-  const sys = '너는 한국 헤어살롱 회사(DAY:MEAN · ETOH, 서울 마포 · 합정 · 홍대 권역)의 지역 검색 노출 담당 연구원이야. 매주 한 번, 네이버 플레이스(스마트플레이스 · 네이버 예약)와 구글 비즈니스 프로필(구글 지도)의 상위 노출 기준과 정책 변화를 조사해서, 경영팀이 이번 주에 바로 할 수 있는 일로 정리한다. 경영팀은 마케팅 전문가가 아니다.\n\n' +
+  const facts = String(body.facts || '').slice(0, 40000);
+  const sys = '너는 한국 헤어살롱 회사(DAY:MEAN · ETOH, 서울 마포 · 합정 · 홍대 권역)의 지역 검색 노출 담당 연구원이야. 회사의 목표는 "예약을 늘리는 것"이고, 네이버 플레이스(스마트플레이스 · 네이버 예약)와 구글 비즈니스 프로필(구글 지도)의 검색 노출은 그 수단이다. 매주 한 번, 노출 기준 · 정책 변화를 조사하고 우리 숫자를 읽어서, 경영팀이 이번 주에 바로 할 수 있는 일로 정리한다. 경영팀은 마케팅 전문가가 아니다.\n\n' +
+    '예약이 먼저:\n' +
+    '- 예약은 "노출(검색에서 보이기) × 전환(본 사람이 예약하기)"이다. 할 일마다 kind 를 "노출" 또는 "예약 전환"으로 표시하고, 예상되는 예약 증가가 큰 순서로 정렬한다. 노출이 이미 충분한데 전환이 낮으면 전환 일을 먼저 낸다.\n' +
+    '- 전환을 올리는 일의 예: 첫 화면 대표 사진 · 스타일 사진, 가격 · 시간이 분명한 메뉴와 예약 상품, 디자이너 소개 · 포트폴리오, 리뷰 답글, 예약 버튼을 네이버 예약으로 모으기, 첫 방문 쿠폰 같은 네이버 공식 혜택 기능. 예약 가능 시간 · 빈자리처럼 운영과 얽힌 건 "매장과 상의"라고 쓴다.\n' +
+    '- [예약 전환] 숫자(조회 · 예약 · 전환율)와 [숫자]의 신규일반(소개 없이 온 새 손님) 추이로 지난주 적용한 일이 효과가 있었는지 조심스럽게 평가한다. 시즌 · 휴무 · 디자이너 사정 등 다른 이유가 있을 수 있으니 단정하지 않는다. 기록이 없으면 기록부터 하자고 한다.\n' +
+    '- 검색량이 큰 검색어를 우선 노리고, 유행이 오르는 시술은 메뉴 · 소식 글 앞쪽에 둔다. 숫자는 데이터에 있는 것만 쓰고 지어내지 않는다.\n' +
+    '- 스마트플레이스 통계 캡처 사진이 함께 오면 읽어서(유입 키워드 · 조회 · 예약 등) 근거로 쓴다. 안 읽히면 그렇다고 한다.\n\n' +
     '조사 방법:\n' +
     '- 웹 검색을 꼭 한다. 공식 출처를 먼저 찾는다: 네이버 스마트플레이스 공지 · 고객센터, 네이버 검색 공식 블로그 · 네이버 다이어리, 네이버 예약 공지, Google 비즈니스 프로필 고객센터, Google Search Central 블로그. 그다음 최근 뉴스(대략 최근 2~3주)와 업계 글을 본다.\n' +
     '- 공식 발표와 마케팅 업체 · 블로그의 주장을 반드시 구분한다(official). 업계 글만 있는 내용은 "확인 중인 소문"(watch)으로 보낸다. 출처 없는 내용은 쓰지 않는다.\n' +
@@ -815,7 +821,7 @@ async function handleAISeoWeekly(body, env) {
     '- 절대 권하지 않는 것: 가짜 · 대가성 리뷰, 리뷰 대행 · 영수증 조작, 트래픽 · 저장 · 클릭 작업, 순위 보장 업체, 경쟁 매장 비방. 네이버 · 구글 정책 위반은 노출 제재로 이어진다고 경고한다.\n\n' +
     '말투: 존댓말(해요체), 짧고 쉽게. 영어 용어는 피하거나 풀어서.\n' +
     '마지막에 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다. 형식:\n' +
-    '{"headline":"이번 주 한 줄 요약","changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
+    '{"headline":"이번 주 한 줄 요약 (예약 관점)","pulse":"숫자로 본 이번 주 — 조회 · 예약 · 전환율 · 신규 손님 흐름 2~3문장 (숫자가 없으면 빈 문자열)","changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","kind":"노출|예약 전환","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
     '- changes 최대 6개, naver · google 각각 최대 8개, watch 최대 4개, sources 최대 20개.';
   const req = {
     model: 'claude-sonnet-5-5', max_tokens: 32000, system: sys,
@@ -823,7 +829,15 @@ async function handleAISeoWeekly(body, env) {
       { type: 'web_search_20260209', name: 'web_search', max_uses: 14, user_location: { type: 'approximate', country: 'KR', city: 'Seoul', timezone: 'Asia/Seoul' } },
       { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 8 },
     ],
-    messages: [{ role: 'user', content: facts || '(데이터 없음)' }],
+    messages: [{ role: 'user', content: (function () {
+      /* 스마트플레이스 통계 캡처 (최대 3장) — 사진 앞에 설명 한 줄 */
+      const imgs = (Array.isArray(body.images) ? body.images : []).filter((x) => x && /^image\/(jpeg|png|webp)$/.test(x.mt) && typeof x.b64 === 'string' && x.b64.length < 2400000).slice(0, 3);
+      if (!imgs.length) return facts || '(데이터 없음)';
+      const c = [];
+      imgs.forEach((x) => { c.push({ type: 'text', text: '[사진] ' + String(x.label || '스마트플레이스 통계 캡처').slice(0, 80) }); c.push({ type: 'image', source: { type: 'base64', media_type: x.mt, data: x.b64 } }); });
+      c.push({ type: 'text', text: facts || '(데이터 없음)' });
+      return c;
+    })() }],
   };
   const tot = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, server_tool_use: { web_search_requests: 0 } };
   let res = null, model = req.model;
@@ -857,8 +871,9 @@ async function handleAISeoWeekly(body, env) {
   const A = (v, n) => (Array.isArray(v) ? v : []).filter((x) => x && typeof x === 'object').slice(0, n);
   const out = {
     headline: S(rep.headline, 300),
+    pulse: S(rep.pulse, 600),
     changes: A(rep.changes, 6).map((x) => ({ title: S(x.title, 160), what: S(x.what, 800), impact: ['high', 'mid', 'low'].indexOf(x.impact) >= 0 ? x.impact : 'mid', official: x.official === true, date: S(x.date, 40), src: U(x.src) })).filter((x) => x.title),
-    todo: A(rep.todo, 6).map((x) => ({ branch: S(x.branch, 40) || '전체', title: S(x.title, 160), why: S(x.why, 600), how: S(x.how, 1500), draft: S(x.draft, 2500), time: S(x.time, 30), src: U(x.src) })).filter((x) => x.title),
+    todo: A(rep.todo, 6).map((x) => ({ branch: S(x.branch, 40) || '전체', kind: x.kind === '노출' ? '노출' : x.kind === '예약 전환' ? '예약 전환' : '', title: S(x.title, 160), why: S(x.why, 600), how: S(x.how, 1500), draft: S(x.draft, 2500), time: S(x.time, 30), src: U(x.src) })).filter((x) => x.title),
     naver: A(rep.naver, 8).map((x) => ({ factor: S(x.factor, 80), now: S(x.now, 600), tip: S(x.tip, 300) })).filter((x) => x.factor),
     google: A(rep.google, 8).map((x) => ({ factor: S(x.factor, 80), now: S(x.now, 600), tip: S(x.tip, 300) })).filter((x) => x.factor),
     watch: A(rep.watch, 4).map((x) => ({ title: S(x.title, 160), why: S(x.why, 600) })).filter((x) => x.title),
