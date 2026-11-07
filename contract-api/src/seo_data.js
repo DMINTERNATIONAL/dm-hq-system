@@ -3,7 +3,8 @@
    - 네이버 검색광고 API  : 검색어별 월 검색량 + 연관 검색어   (NAVER_AD_KEY · NAVER_AD_SECRET · NAVER_AD_CUSTOMER)
    - 네이버 데이터랩 API  : 시술 검색어 주별 유행               (NAVER_CLIENT_ID · NAVER_CLIENT_SECRET)
    - 네이버 블로그 검색   : 지점 이름 블로그 글 수 · 이번 주 새 글   (같은 키)
-   - 네이버 지역 검색     : 검색어별 상위 5곳 (API 기준, 앱 순위와 다를 수 있음)
+   - 네이버 지역 검색     : 검색어별 상위 5곳 (API 기준, 앱 순위와 다를 수 있음) + 우리 매장에서 거리
+   - 상위 매장 블로그     : 지역 검색 상위 매장 이름으로 블로그 검색 → 전체 글 · 최근 30일 글 (우리와 비교)
    - 구글 Places API      : 구글 지도 검색 순위 (GOOGLE_PLACES_KEY)
    - 핸드SOS 방문구분     : /storesLite/{지점}/daily 의 visits (신규일반 · 신규소개 · 재방) 주별 합
    네이버 플레이스 앱 순위는 공식 API 가 없어 자동으로 긁지 않는다(봇 차단 · 약관). 경영팀이 앱에서 손으로 기록한다. */
@@ -37,7 +38,7 @@ export function kwPlan(cfg) {
     seen.add(norm(t)); list.push(t);
     if (list.length >= 15) break;
   }
-  const local = list.filter((k) => PLACE_KW.test(k)).slice(0, 3);
+  const local = list.filter((k) => PLACE_KW.test(k)).slice(0, 4);
   const style = list.filter((k) => !PLACE_KW.test(k) && !/합정|홍대|망원|마포|상수|연남/.test(k)).slice(0, 5);
   return { list, local, style };
 }
@@ -122,7 +123,7 @@ export async function trend(env, style, now, fx) {
   return { rows, from: start, to: end };
 }
 export async function blogs(env, branches, now, fx) {
-  const f = fx || fetch, wkAgo = ymdOf(now - 7 * 864e5).replace(/-/g, '');
+  const f = fx || fetch, wkAgo = ymdOf(now - 7 * 864e5).replace(/-/g, ''), moAgo = ymdOf(now - 30 * 864e5).replace(/-/g, '');
   const out = [];
   for (const b of branches) {
     const q = blogQuery(b.name);
@@ -132,7 +133,8 @@ export async function blogs(env, branches, now, fx) {
     const j = await r.json();
     const items = j.items || [];
     const fresh = items.filter((x) => String(x.postdate || '') >= wkAgo);
-    out.push({ branch: b.name, q, total: +j.total || 0, week: fresh.length, recent: items.slice(0, 5).map((x) => ({ t: strip(x.title).slice(0, 80), by: strip(x.bloggername).slice(0, 30), d: String(x.postdate || '') })) });
+    const m30 = items.filter((x) => String(x.postdate || '') >= moAgo).length;
+    out.push({ branch: b.name, q, total: +j.total || 0, week: fresh.length, m30, m30plus: m30 >= items.length && items.length >= 30, recent: items.slice(0, 5).map((x) => ({ t: strip(x.title).slice(0, 80), by: strip(x.bloggername).slice(0, 30), d: String(x.postdate || '') })) });
   }
   return out;
 }
@@ -142,9 +144,40 @@ export async function localTop(env, qs, fx) {
     const r = await f('https://openapi.naver.com/v1/search/local.json?display=5&sort=random&query=' + encodeURIComponent(q), { headers: openH(env) });
     if (!r.ok) throw new Error('지역 검색 API ' + r.status);
     const j = await r.json();
-    out.push({ q, items: (j.items || []).map((x) => { const n = strip(x.title).slice(0, 40); return { n, cat: strip(x.category).slice(0, 30), ours: OURS.test(n) }; }) });
+    out.push({ q, items: (j.items || []).map((x) => { const n = strip(x.title).slice(0, 40); return { n, cat: strip(x.category).slice(0, 30), ours: OURS.test(n), m: distM(x.mapx, x.mapy), addr: strip(x.roadAddress || x.address).slice(0, 60) }; }) });
   }
   return out;
+}
+/* 지역 검색 mapx · mapy = 경도 · 위도 × 10^7 (2023년부터). 우리 매장에서 직선 거리(m) */
+export function distM(mx, my) {
+  const lon = +mx / 1e7, lat = +my / 1e7;
+  if (!(lat > 33 && lat < 39 && lon > 124 && lon < 132)) return null;
+  const R = 6371000, rad = Math.PI / 180, dLat = (lat - CENTER.latitude) * rad, dLon = (lon - CENTER.longitude) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(CENTER.latitude * rad) * Math.cos(lat * rad) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+}
+/* 지역 검색 상위 매장(우리 빼고) 이름으로 블로그 검색 — 매장 이름이 흔하면 다른 글도 섞이니 '대략'이다 */
+export async function rivals(env, local, now, fx) {
+  const f = fx || fetch, moAgo = ymdOf(now - 30 * 864e5).replace(/-/g, '');
+  const M = new Map();
+  for (const x of local || []) (x.items || []).forEach((it, i) => {
+    if (it.ours || !it.n) return;
+    const k = norm(it.n);
+    const e = M.get(k) || { n: it.n, m: it.m, addr: it.addr, at: [] };
+    e.at.push({ q: x.q, r: i + 1 });
+    M.set(k, e);
+  });
+  const list = [...M.values()].sort((a, b) => b.at.length - a.at.length || Math.min(...a.at.map((t) => t.r)) - Math.min(...b.at.map((t) => t.r))).slice(0, 12);
+  for (const e of list) {
+    const r = await f('https://openapi.naver.com/v1/search/blog.json?display=30&sort=date&query=' + encodeURIComponent(e.n), { headers: openH(env) });
+    if (!r.ok) throw new Error('블로그 검색 API ' + r.status);
+    const j = await r.json(), items = j.items || [];
+    e.total = +j.total || 0;
+    e.m30 = items.filter((x) => String(x.postdate || '') >= moAgo).length;
+    e.m30plus = e.m30 >= items.length && items.length >= 30;
+    e.last = String((items[0] && items[0].postdate) || '');
+  }
+  return list;
 }
 
 /* ─── 구글 지도 (Places API Text Search) ─── */
@@ -175,11 +208,12 @@ export async function collect(env, cfg, dbGet, now, fx) {
   const t = now || Date.now(), today = ymdOf(t), apis = apisOf(env), plan = kwPlan(cfg), err = [];
   const branches = (cfg.branches || []).filter((b) => b && b.name);
   const take = async (label, on, fn) => { if (!on) return null; try { return await fn(); } catch (e) { err.push(label + ': ' + String((e && e.message) || e).slice(0, 120)); return null; } };
+  let rv = null;
   const [vol, tr, blog, local, gmap, visits] = await Promise.all([
     take('검색량', apis.ad, () => adVolumes(env, plan.list, fx)),
     take('유행', apis.open, () => trend(env, plan.style, t, fx)),
     take('블로그', apis.open, () => blogs(env, branches, t, fx)),
-    take('지역 검색', apis.open, () => localTop(env, plan.local, fx)),
+    take('지역 검색', apis.open, async () => { const l = await localTop(env, plan.local, fx); rv = await take('상위 매장 블로그', true, () => rivals(env, l, t, fx)); return l; }),
     take('구글 지도', apis.places, () => gmapRank(env, GOOGLE_Q, fx)),
     take('신규 손님', true, async () => {
       const out = [];
@@ -192,7 +226,7 @@ export async function collect(env, cfg, dbGet, now, fx) {
       return out;
     }),
   ]);
-  return { at: t, today, apis, kw: plan, vol, trend: tr, blog, local, gmap, visits, err };
+  return { at: t, today, apis, kw: plan, vol, trend: tr, blog, local, rivals: rv, gmap, visits, err };
 }
 
 /* AI 에게 줄 숫자 글 — 지난번 숫자와 비교 */
@@ -210,8 +244,10 @@ export function dataFacts(d, prev, ranks) {
     if (d.vol.rel && d.vol.rel.length) L.push('  연관 검색어 상위: ' + d.vol.rel.slice(0, 12).map((r) => `${r.k} ${r.t.toLocaleString('en-US')}`).join(' · '));
   }
   if (d.trend && d.trend.rows && d.trend.rows.length) L.push('· 시술 검색 유행(데이터랩, 최근 4주 평균 vs 그 전 4주): ' + d.trend.rows.map((r) => `${r.k} ${r.chg == null ? '-' : (r.chg > 0 ? '+' : '') + r.chg + '%'}`).join(' · '));
-  if (d.blog && d.blog.length) L.push('· 네이버 블로그 글(지점 이름 검색): ' + d.blog.map((b) => { const p = prev && prev.blog ? pv(prev.blog, 'branch', b.branch) : null; return `${b.branch} 전체 ${b.total}${p ? ` (지난번 ${p.total})` : ''} · 최근 7일 새 글 ${b.week}`; }).join(' / '));
-  if (d.local && d.local.length) L.push('· 네이버 지역검색 API 상위 5곳(플레이스 앱 순위와 다를 수 있음): ' + d.local.map((x) => `"${x.q}" → ` + (x.items.map((i, n) => `${n + 1}.${i.n}${i.ours ? '(우리)' : ''}`).join(' ') || '없음')).join(' / '));
+  const m30 = (o) => (o.m30 == null ? '' : ` · 최근 30일 ${o.m30}${o.m30plus ? '+' : ''}`);
+  if (d.blog && d.blog.length) L.push('· 네이버 블로그 글(지점 이름 검색): ' + d.blog.map((b) => { const p = prev && prev.blog ? pv(prev.blog, 'branch', b.branch) : null; return `${b.branch} 전체 ${b.total}${p ? ` (지난번 ${p.total})` : ''} · 최근 7일 새 글 ${b.week}${m30(b)}`; }).join(' / '));
+  if (d.local && d.local.length) L.push('· 네이버 지역검색 API 상위 5곳(플레이스 앱 순위와 다를 수 있음, 괄호는 우리 매장에서 직선 거리): ' + d.local.map((x) => `"${x.q}" → ` + (x.items.map((i, n) => `${n + 1}.${i.n}${i.ours ? '(우리)' : i.m != null ? `(${i.m}m)` : ''}`).join(' ') || '없음')).join(' / '));
+  if (d.rivals && d.rivals.length) L.push('· 상위 매장 블로그 글(매장 이름으로 블로그 검색, 이름이 흔하면 다른 글이 섞여 대략적): ' + d.rivals.map((e) => `${e.n} 전체 ${e.total}${m30(e)}`).join(' · ') + ' — 우리 지점 숫자와 비교할 것');
   if (d.gmap && d.gmap.length) L.push('· 구글 지도 검색 순위(Places API, 매장 근처 기준 20위까지): ' + d.gmap.map((x) => `"${x.q}" → ` + (x.ours.length ? x.ours.map((o) => `${o.n} ${o.r}위(별점 ${o.rt || '-'}, 리뷰 ${o.c})`).join(', ') : '20위 안에 우리 없음')).join(' / '));
   const off = [];
   if (!d.apis.ad) off.push('검색량');

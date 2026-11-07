@@ -12,6 +12,9 @@
      seo/stats.json        = [{ id, wk, branch, views, books, at, by }]  — 경영팀이 스마트플레이스 통계에서 옮겨 적는 주간 조회 · 예약 (예약 전환율)
      seo/ranks.json        = [{ id, at, by, q, branch, rank }]  — 경영팀이 휴대폰으로 본 플레이스 순위 (0 = 안 보임)
      seo/shot/{shop}.json  = { at, by, mt, b64 }  — 스마트플레이스 통계 캡처(유입 키워드 등). 주간 조사 때 AI 가 읽는다
+     seo/rival/meta.json   = { items: [{ k, at, by, note }] }  — 경쟁 비교 캡처 목록 (최대 8장, 한 달에 한 번)
+     seo/rival/img/{k}.json = { mt, b64 }  — 휴대폰 검색 결과 · 상위 매장 첫 화면. 주간 조사 때 AI 가 읽고 비교표를 만든다
+       (네이버 검색 페이지는 자동 수집을 막아 두어서(robots.txt) 긁지 않는다 — 사람이 찍은 캡처만 쓴다)
    목표는 '예약 늘리기'. 검색 노출은 수단이다. */
 import { hqUser } from './aiusage.js';
 import { collect, dataFacts, apisOf, monday, SHOPS } from './seo_data.js';
@@ -21,7 +24,8 @@ const DEFAULT_BRANCHES = [
   { name: 'DAY:MEAN 모먼트점', naver: '', google: '', keywords: '' },
   { name: 'ETOH 합정점', naver: '', google: '', keywords: '' },
 ];
-const KEY = { cfg: 'seo/cfg.json', idx: 'seo/index.json', pend: 'seo/_pending.json', run: 'seo/_running.json', err: 'seo/_err.json', data: 'seo/data_latest.json', stats: 'seo/stats.json', ranks: 'seo/ranks.json' };
+const KEY = { cfg: 'seo/cfg.json', idx: 'seo/index.json', pend: 'seo/_pending.json', run: 'seo/_running.json', err: 'seo/_err.json', data: 'seo/data_latest.json', stats: 'seo/stats.json', ranks: 'seo/ranks.json', rival: 'seo/rival/meta.json' };
+const RIVAL_MAX = 8, RIVAL_DAYS = 45;
 
 /* 한국 시각 쪼개기 */
 export function kst(ts) {
@@ -52,6 +56,16 @@ export function statsFacts(stats) {
     L.push(`- ${b}: ` + arr.map((x) => `${x.wk.slice(5)}주 조회 ${x.views} · 예약 ${x.books} · 전환 ${x.views ? (Math.round((x.books / x.views) * 1000) / 10) + '%' : '-'}`).join(' / '));
   }
   return L.join('\n');
+}
+
+/* 경쟁 비교 캡처가 있는지 · 언제 올렸는지 — AI 가 '캡처 올릴 때예요'를 할 일에 넣을지 판단 */
+export function rivalFacts(meta, now) {
+  const items = (meta && meta.items) || [];
+  const fresh = items.filter((x) => now - x.at < RIVAL_DAYS * 864e5);
+  if (!items.length) return '\n[경쟁 비교 캡처] 아직 없음. 한 달에 한 번 경영팀이 휴대폰으로 "합정 미용실" · "홍대 미용실" 검색 결과와 상위 매장 첫 화면을 캡처해 앱 "기록" 탭에 올리도록 할 일에 넣을 것(rivals 는 공식 API 숫자만으로 채운다).';
+  const last = Math.max(...items.map((x) => x.at));
+  const old = Math.round((now - last) / 864e5);
+  return `\n[경쟁 비교 캡처] ${fresh.length}장(최근 ${RIVAL_DAYS}일 안) · 마지막으로 올린 지 ${old}일.` + (old >= 30 ? ' 30일이 지났으니 새로 찍어 올리자고 할 일에 넣을 것.' : '');
 }
 
 export function buildFacts(now, cfg, idx, prev) {
@@ -107,18 +121,25 @@ export function makeSeo(deps) {
       const list = Array.isArray(idx) ? idx : [];
       const prev = list[0] ? await rGet(env, `seo/r/${list[0].id}.json`).catch(() => null) : null;
       /* 숫자 먼저 (무료) — 실패해도 조사는 한다 */
-      const [data, stats, ranks, shots] = await Promise.all([
+      const [data, stats, ranks, shots, rmeta] = await Promise.all([
         collect(env, cfg, dbGet).catch(() => null),
         rGet(env, KEY.stats).catch(() => null),
         rGet(env, KEY.ranks).catch(() => null),
         Promise.all(SHOPS.map((sh) => rGet(env, `seo/shot/${sh}.json`).catch(() => null))),
+        rGet(env, KEY.rival).catch(() => null),
       ]);
       if (data) await rPut(env, KEY.data, data).catch(() => {});
       const prevData = prev && prev.data ? prev.data : null;
-      const facts = buildFacts(Date.now(), cfg, list, prev) + statsFacts(stats) + dataFacts(data, prevData, ranks || []);
+      const facts = buildFacts(Date.now(), cfg, list, prev) + statsFacts(stats) + dataFacts(data, prevData, ranks || []) + rivalFacts(rmeta, Date.now());
       /* 스마트플레이스 통계 캡처 — 45일 안에 올린 것만 AI 에게 보여 준다 */
       const LBL = { flagship: '플래그십점', moment: '모먼트점', eto: 'ETOH 합정점' };
-      const images = shots.map((x, i) => (x && x.b64 && Date.now() - x.at < 45 * 864e5 ? { label: `${LBL[SHOPS[i]]} 스마트플레이스 통계 캡처 (${kst(x.at).ymd} 올림)`, mt: x.mt, b64: x.b64 } : null)).filter(Boolean);
+      const images = shots.map((x, i) => (x && x.b64 && Date.now() - x.at < 45 * 864e5 ? { kind: 'stats', label: `${LBL[SHOPS[i]]} 스마트플레이스 통계 캡처 (${kst(x.at).ymd} 올림)`, mt: x.mt, b64: x.b64 } : null)).filter(Boolean);
+      /* 경쟁 비교 캡처 — 45일 안, 최대 8장 (올린 순서대로) */
+      const rFresh = ((rmeta && rmeta.items) || []).filter((x) => Date.now() - x.at < RIVAL_DAYS * 864e5).sort((a, b) => a.at - b.at).slice(0, RIVAL_MAX);
+      for (const [n, x] of rFresh.entries()) {
+        const img = await rGet(env, `seo/rival/img/${x.k}.json`).catch(() => null);
+        if (img && img.b64) images.push({ kind: 'rival', label: `경쟁 비교 캡처 ${n + 1}${x.note ? ' — ' + x.note : ''} (${kst(x.at).ymd} 올림)`, mt: img.mt, b64: img.b64 });
+      }
       const r = await relayCall(env, '/ai/seo-weekly', { facts, images }, { nm: by || '자동', x: trig === 'weekly' ? '주간 자동 조사' : '바로 조사' });
       if (!r.body || !r.body.ok || !r.body.report) throw new Error((r.body && r.body.error) || '조사 실패 (' + r.status + ')');
       const now = Date.now(), id = kst(now).id, rep = r.body.report;
@@ -175,7 +196,8 @@ export function makeSeo(deps) {
         const h = await env.CHAT_MEDIA.head(`seo/shot/${sh}.json`).catch(() => null);
         if (h) shots[sh] = { at: +((h.customMetadata && h.customMetadata.at) || 0), by: decodeURIComponent((h.customMetadata && h.customMetadata.by) || '') };
       }
-      return json({ ok: true, data: data || null, stats: stats || [], ranks: ranks || [], shots, apis: apisOf(env), note }, 200, origin);
+      const rival = ((await rGet(env, KEY.rival).catch(() => null)) || {}).items || [];
+      return json({ ok: true, data: data || null, stats: stats || [], ranks: ranks || [], shots, rival, apis: apisOf(env), note }, 200, origin);
     }
     if (path === '/seo/stat') {   /* 주간 조회 · 예약 — 같은 주 · 지점은 덮어쓴다 */
       const cfg = await getCfg(env);
@@ -217,6 +239,41 @@ export function makeSeo(deps) {
       const at = Date.now(), nm = String(me.name || '').slice(0, 30);
       await env.CHAT_MEDIA.put(key, JSON.stringify({ at, by: nm, mt, b64 }), { httpMetadata: { contentType: 'application/json' }, customMetadata: { at: String(at), by: encodeURIComponent(nm) } });
       return json({ ok: true, at }, 200, origin);
+    }
+    if (path.startsWith('/seo/rival/')) {   /* 경쟁 비교 캡처 — 여러 장 */
+      const meta = (await rGet(env, KEY.rival).catch(() => null)) || { items: [] };
+      const items = Array.isArray(meta.items) ? meta.items : [];
+      const k = String(b.k || '');
+      const okK = /^[a-z0-9]{6,16}$/.test(k) && items.some((x) => x.k === k);
+      if (path === '/seo/rival/add') {
+        const mt = String(b.mt || ''), b64 = String(b.b64 || '');
+        if (!/^image\/(jpeg|png|webp)$/.test(mt) || !/^[A-Za-z0-9+/=]+$/.test(b64)) return json({ ok: false, error: '사진만 올릴 수 있어요' }, 400, origin);
+        if (b64.length > 2400000) return json({ ok: false, error: '사진이 너무 커요' }, 413, origin);
+        if (items.length >= RIVAL_MAX) return json({ ok: false, error: `${RIVAL_MAX}장까지예요. 지난 캡처를 지우고 올려 주세요` }, 400, origin);
+        const nk = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        await rPut(env, `seo/rival/img/${nk}.json`, { mt, b64 });
+        items.push({ k: nk, at: Date.now(), by: String(me.name || '').slice(0, 30), note: String(b.note || '').trim().slice(0, 40) });
+        await rPut(env, KEY.rival, { items });
+        return json({ ok: true, items }, 200, origin);
+      }
+      if (path === '/seo/rival/get') {
+        if (!okK) return json({ ok: false, error: '캡처가 없어요' }, 404, origin);
+        const x = await rGet(env, `seo/rival/img/${k}.json`).catch(() => null);
+        return x ? json({ ok: true, mt: x.mt, b64: x.b64 }, 200, origin) : json({ ok: false, error: '캡처가 없어요' }, 404, origin);
+      }
+      if (path === '/seo/rival/del') {
+        if (!okK) return json({ ok: false, error: '캡처가 없어요' }, 404, origin);
+        await rDel(env, `seo/rival/img/${k}.json`).catch(() => {});
+        const next = items.filter((x) => x.k !== k);
+        await rPut(env, KEY.rival, { items: next });
+        return json({ ok: true, items: next }, 200, origin);
+      }
+      if (path === '/seo/rival/clear') {
+        for (const x of items) await rDel(env, `seo/rival/img/${x.k}.json`).catch(() => {});
+        await rPut(env, KEY.rival, { items: [] });
+        return json({ ok: true, items: [] }, 200, origin);
+      }
+      return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
     }
     if (path === '/seo/get') {
       const id = String(b.id || '');

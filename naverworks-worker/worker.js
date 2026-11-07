@@ -809,6 +809,12 @@ async function handleAISeoWeekly(body, env) {
     '- [예약 전환] 숫자(조회 · 예약 · 전환율)와 [숫자]의 신규일반(소개 없이 온 새 손님) 추이로 지난주 적용한 일이 효과가 있었는지 조심스럽게 평가한다. 시즌 · 휴무 · 디자이너 사정 등 다른 이유가 있을 수 있으니 단정하지 않는다. 기록이 없으면 기록부터 하자고 한다.\n' +
     '- 검색량이 큰 검색어를 우선 노리고, 유행이 오르는 시술은 메뉴 · 소식 글 앞쪽에 둔다. 숫자는 데이터에 있는 것만 쓰고 지어내지 않는다.\n' +
     '- 스마트플레이스 통계 캡처 사진이 함께 오면 읽어서(유입 키워드 · 조회 · 예약 등) 근거로 쓴다. 안 읽히면 그렇다고 한다.\n\n' +
+    '경쟁 매장 비교 (rivals):\n' +
+    '- "경쟁 비교 캡처" 사진은 경영팀이 휴대폰 네이버 앱에서 찍은 검색 결과 목록과 상위 매장 첫 화면이다. 목록에서 "광고" 표시가 붙은 매장은 빼고 실제 순서대로 1~5위를 읽는다. 매장 첫 화면에서 방문자 리뷰 수 · 블로그 리뷰 수 · 별점 공개 여부 · 쿠폰 · 사진(최근 것인지) · "첫방문" 메뉴 · 소개글 · 이벤트를 읽는다. 사진에서 안 보이는 칸은 "-" 로 두고 지어내지 않는다.\n' +
+    '- 캡처가 없으면 [숫자]의 지역검색 상위 5곳 · 상위 매장 블로그 글 수 · 거리만으로 채우고, 캡처에서만 알 수 있는 칸은 "-" 로 둔다. 둘 다 없으면 rivals 를 null 로 둔다.\n' +
+    '- 우리 매장(데이민 · DAY:MEAN · ETOH)이 목록에 있으면 ours:true 로 같이 넣고, 없으면 rows 마지막에 우리 매장을 rank "밖" 으로 넣는다.\n' +
+    '- common 에는 상위 매장 대부분에 공통으로 있는 것, gaps 에는 그중 우리에게 없는 것을 쓴다. 리뷰 수처럼 우리가 오히려 많은 건 "우리가 이미 앞서는 것"이라고 common 에 밝힌다. 이유를 단정하지 말고 "상위 매장 N곳 중 M곳이 ~" 처럼 숫자로 쓴다. gaps 는 todo 에 반영한다(예약 전환에 효과 큰 것 먼저).\n' +
+    '- 순위는 검색하는 위치 · 시간에 따라 달라진다는 점을 note 에 한 번 밝힌다.\n\n' +
     '조사 방법:\n' +
     '- 웹 검색을 꼭 한다. 공식 출처를 먼저 찾는다: 네이버 스마트플레이스 공지 · 고객센터, 네이버 검색 공식 블로그 · 네이버 다이어리, 네이버 예약 공지, Google 비즈니스 프로필 고객센터, Google Search Central 블로그. 그다음 최근 뉴스(대략 최근 2~3주)와 업계 글을 본다.\n' +
     '- 공식 발표와 마케팅 업체 · 블로그의 주장을 반드시 구분한다(official). 업계 글만 있는 내용은 "확인 중인 소문"(watch)으로 보낸다. 출처 없는 내용은 쓰지 않는다.\n' +
@@ -821,7 +827,7 @@ async function handleAISeoWeekly(body, env) {
     '- 절대 권하지 않는 것: 가짜 · 대가성 리뷰, 리뷰 대행 · 영수증 조작, 트래픽 · 저장 · 클릭 작업, 순위 보장 업체, 경쟁 매장 비방. 네이버 · 구글 정책 위반은 노출 제재로 이어진다고 경고한다.\n\n' +
     '말투: 존댓말(해요체), 짧고 쉽게. 영어 용어는 피하거나 풀어서.\n' +
     '마지막에 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다. 형식:\n' +
-    '{"headline":"이번 주 한 줄 요약 (예약 관점)","pulse":"숫자로 본 이번 주 — 조회 · 예약 · 전환율 · 신규 손님 흐름 2~3문장 (숫자가 없으면 빈 문자열)","changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","kind":"노출|예약 전환","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
+    '{"headline":"이번 주 한 줄 요약 (예약 관점)","pulse":"숫자로 본 이번 주 — 조회 · 예약 · 전환율 · 신규 손님 흐름 2~3문장 (숫자가 없으면 빈 문자열)","rivals":{"q":"비교한 검색어","from":"캡처|API|캡처+API","when":"캡처 날짜","rows":[{"rank":"1","name":"매장 이름","ours":false,"reviews":"방문자 리뷰 수","blog":"블로그 리뷰 · 글 수","star":"별점(공개 시) 또는 -","coupon":"쿠폰 내용 또는 없음 또는 -","photo":"사진 최근 갱신(예: 11월) 또는 -","first":"첫방문 메뉴 · 혜택 또는 없음 또는 -","note":"눈에 띄는 점 한 줄"}],"common":["상위 매장 공통점"],"gaps":["우리에게 없는 것"],"note":"주의할 점 한 줄"},"changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","kind":"노출|예약 전환","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
     '- changes 최대 6개, naver · google 각각 최대 8개, watch 최대 4개, sources 최대 20개.';
   const req = {
     model: 'claude-sonnet-5-5', max_tokens: 32000, system: sys,
@@ -830,8 +836,11 @@ async function handleAISeoWeekly(body, env) {
       { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 8 },
     ],
     messages: [{ role: 'user', content: (function () {
-      /* 스마트플레이스 통계 캡처 (최대 3장) — 사진 앞에 설명 한 줄 */
-      const imgs = (Array.isArray(body.images) ? body.images : []).filter((x) => x && /^image\/(jpeg|png|webp)$/.test(x.mt) && typeof x.b64 === 'string' && x.b64.length < 2400000).slice(0, 3);
+      /* 스마트플레이스 통계 캡처 (최대 3장) + 경쟁 비교 캡처 (최대 8장) — 사진 앞에 설명 한 줄, 합쳐서 14MB 까지 */
+      const ok = (x) => x && /^image\/(jpeg|png|webp)$/.test(x.mt) && typeof x.b64 === 'string' && x.b64.length < 2400000;
+      const all = Array.isArray(body.images) ? body.images.filter(ok) : [];
+      let room = 14000000;
+      const imgs = all.filter((x) => x.kind !== 'rival').slice(0, 3).concat(all.filter((x) => x.kind === 'rival').slice(0, 8)).filter((x) => (room -= x.b64.length) >= 0);
       if (!imgs.length) return facts || '(데이터 없음)';
       const c = [];
       imgs.forEach((x) => { c.push({ type: 'text', text: '[사진] ' + String(x.label || '스마트플레이스 통계 캡처').slice(0, 80) }); c.push({ type: 'image', source: { type: 'base64', media_type: x.mt, data: x.b64 } }); });
@@ -872,6 +881,13 @@ async function handleAISeoWeekly(body, env) {
   const out = {
     headline: S(rep.headline, 300),
     pulse: S(rep.pulse, 600),
+    rivals: (function (v) {
+      if (!v || typeof v !== 'object') return null;
+      const rows = A(v.rows, 10).map((x) => ({ rank: S(x.rank, 10), name: S(x.name, 40), ours: x.ours === true, reviews: S(x.reviews, 20), blog: S(x.blog, 20), star: S(x.star, 12), coupon: S(x.coupon, 60), photo: S(x.photo, 30), first: S(x.first, 60), note: S(x.note, 160) })).filter((x) => x.name);
+      if (!rows.length) return null;
+      const L = (a, n) => (Array.isArray(a) ? a : []).map((x) => S(x, 300)).filter(Boolean).slice(0, n);
+      return { q: S(v.q, 40), from: S(v.from, 20), when: S(v.when, 30), rows, common: L(v.common, 6), gaps: L(v.gaps, 6), note: S(v.note, 300) };
+    })(rep.rivals),
     changes: A(rep.changes, 6).map((x) => ({ title: S(x.title, 160), what: S(x.what, 800), impact: ['high', 'mid', 'low'].indexOf(x.impact) >= 0 ? x.impact : 'mid', official: x.official === true, date: S(x.date, 40), src: U(x.src) })).filter((x) => x.title),
     todo: A(rep.todo, 6).map((x) => ({ branch: S(x.branch, 40) || '전체', kind: x.kind === '노출' ? '노출' : x.kind === '예약 전환' ? '예약 전환' : '', title: S(x.title, 160), why: S(x.why, 600), how: S(x.how, 1500), draft: S(x.draft, 2500), time: S(x.time, 30), src: U(x.src) })).filter((x) => x.title),
     naver: A(rep.naver, 8).map((x) => ({ factor: S(x.factor, 80), now: S(x.now, 600), tip: S(x.tip, 300) })).filter((x) => x.factor),
