@@ -17,6 +17,8 @@
        (네이버 검색 페이지는 자동 수집을 막아 두어서(robots.txt) 긁지 않는다 — 사람이 찍은 캡처만 쓴다)
      seo/xhs/meta.json     = { items: [{ k, at, by, note, kind: 'search'|'ours' }] }  — 샤오홍슈 캡처 (검색 결과 · 우리 계정 통계, 최대 8장)
      seo/xhs/img/{k}.json  = { mt, b64 }   (샤오홍슈는 공개 API 가 없어 캡처만 쓴다)
+     seo/ttx/meta.json     = { items: [{ k, at, by, note, slot: 'dm'|'bb', ex: { handle, followers, likes, views[] … } }] } — 비교할 틱톡 계정 프로필 캡처.
+                             틱톡은 남의 계정 숫자를 주는 API 가 없고 긁어 오는 건 약관 위반이라, 올릴 때 AI 가 사진에서 숫자를 읽어 둔다
    틱톡 회사 계정 숫자는 sns.js 가 공식 API 로 매일 가져온다 — 주간 조사 때 같이 읽는다.
    목표는 '예약 늘리기'. 검색 노출은 수단이다. */
 import { hqUser } from './aiusage.js';
@@ -27,7 +29,7 @@ const DEFAULT_BRANCHES = [
   { name: 'DAY:MEAN 모먼트점', naver: '', google: '', keywords: '' },
   { name: 'ETOH 합정점', naver: '', google: '', keywords: '' },
 ];
-const KEY = { cfg: 'seo/cfg.json', idx: 'seo/index.json', pend: 'seo/_pending.json', run: 'seo/_running.json', err: 'seo/_err.json', data: 'seo/data_latest.json', stats: 'seo/stats.json', ranks: 'seo/ranks.json', rival: 'seo/rival/meta.json', xhs: 'seo/xhs/meta.json' };
+const KEY = { cfg: 'seo/cfg.json', idx: 'seo/index.json', pend: 'seo/_pending.json', run: 'seo/_running.json', err: 'seo/_err.json', data: 'seo/data_latest.json', stats: 'seo/stats.json', ranks: 'seo/ranks.json', rival: 'seo/rival/meta.json', xhs: 'seo/xhs/meta.json', ttx: 'seo/ttx/meta.json' };
 const RIVAL_MAX = 8, RIVAL_DAYS = 45;
 const XHS_KIND = { search: '검색 결과', ours: '우리 계정 통계' };
 
@@ -95,6 +97,27 @@ export function buildFacts(now, cfg, idx, prev) {
 }
 
 /* 샤오홍슈 캡처 — 없으면 '올리기'를 할 일에 넣게 한다 */
+/* 비교할 틱톡 계정 (캡처에서 AI 가 읽은 숫자) */
+const TT_ACCT = { dm: 'DAY:MEAN', bb: '바버샵' };
+export function ttxFacts(meta, now) {
+  const items = ((meta && meta.items) || []).filter((x) => x.ex && !x.ex.err && now - x.at < 120 * 864e5);
+  if (!items.length) return '\n[틱톡 비교 계정] 캡처 없음. 경영팀이 비교할 틱톡 계정 프로필 화면을 SNS 탭에 올리도록 할 일에 넣을 것(한 달에 한 번).';
+  const L = ['', '[틱톡 비교 계정 — 경영팀이 올린 프로필 캡처를 AI 가 읽은 숫자. 조회는 프로필 격자에 보이는 최근 영상들]'];
+  for (const x of items) {
+    const e = x.ex, v = (e.views || []).filter((n) => n >= 0), md = v.length ? v.slice().sort((a, b) => a - b)[v.length >> 1] : null;
+    L.push(`- ${TT_ACCT[x.slot] || ''} 비교용 · ${e.handle || x.note || '이름 모름'}${x.note ? ' (' + x.note + ')' : ''}: 팔로워 ${e.followers ?? '-'} · 받은 좋아요 ${e.likes ?? '-'} · 보이는 영상 ${v.length}개 조회 중간값 ${md ?? '-'} (${kst(x.at).ymd} 캡처)`);
+  }
+  return L.join('\n');
+}
+/* AI 가 읽은 프로필 숫자 정리 */
+export function ttxClean(v) {
+  const n = (x) => (x == null || x === '' || !Number.isFinite(+x) || +x < 0 ? null : Math.round(+x));
+  if (!v || typeof v !== 'object') return { err: '읽지 못했어요' };
+  const out = { handle: String(v.handle || '').trim().slice(0, 40), name: String(v.name || '').trim().slice(0, 40), followers: n(v.followers), following: n(v.following), likes: n(v.likes),
+    views: (Array.isArray(v.views) ? v.views : []).map(n).filter((x) => x != null).slice(0, 30), note: String(v.note || '').slice(0, 200) };
+  if (out.followers == null && out.likes == null && !out.views.length) return { err: '틱톡 프로필 화면이 아닌 것 같아요', note: out.note };
+  return out;
+}
 export function xhsFacts(meta, now) {
   const items = (meta && meta.items) || [];
   const fresh = items.filter((x) => now - x.at < RIVAL_DAYS * 864e5);
@@ -135,7 +158,7 @@ export function makeSeo(deps) {
       const list = Array.isArray(idx) ? idx : [];
       const prev = list[0] ? await rGet(env, `seo/r/${list[0].id}.json`).catch(() => null) : null;
       /* 숫자 먼저 (무료) — 실패해도 조사는 한다 */
-      const [data, stats, ranks, shots, rmeta, xmeta, ttTxt] = await Promise.all([
+      const [data, stats, ranks, shots, rmeta, xmeta, ttTxt, ttxMeta] = await Promise.all([
         collect(env, cfg, dbGet).catch(() => null),
         rGet(env, KEY.stats).catch(() => null),
         rGet(env, KEY.ranks).catch(() => null),
@@ -143,10 +166,11 @@ export function makeSeo(deps) {
         rGet(env, KEY.rival).catch(() => null),
         rGet(env, KEY.xhs).catch(() => null),
         sns ? sns.forReport(env).catch(() => '') : '',
+        rGet(env, KEY.ttx).catch(() => null),
       ]);
       if (data) await rPut(env, KEY.data, data).catch(() => {});
       const prevData = prev && prev.data ? prev.data : null;
-      const facts = buildFacts(Date.now(), cfg, list, prev) + statsFacts(stats) + dataFacts(data, prevData, ranks || []) + rivalFacts(rmeta, Date.now()) + (ttTxt || '') + xhsFacts(xmeta, Date.now());
+      const facts = buildFacts(Date.now(), cfg, list, prev) + statsFacts(stats) + dataFacts(data, prevData, ranks || []) + rivalFacts(rmeta, Date.now()) + (ttTxt || '') + ttxFacts(ttxMeta, Date.now()) + xhsFacts(xmeta, Date.now());
       /* 스마트플레이스 통계 캡처 — 45일 안에 올린 것만 AI 에게 보여 준다 */
       const LBL = { flagship: '플래그십점', moment: '모먼트점', eto: 'ETOH 합정점' };
       const images = shots.map((x, i) => (x && x.b64 && Date.now() - x.at < 45 * 864e5 ? { kind: 'stats', label: `${LBL[SHOPS[i]]} 스마트플레이스 통계 캡처 (${kst(x.at).ymd} 올림)`, mt: x.mt, b64: x.b64 } : null)).filter(Boolean);
@@ -266,10 +290,20 @@ export function makeSeo(deps) {
     if (sns && (path === '/seo/sns' || path.startsWith('/seo/tt/'))) {
       const r = await sns.route(path, b, env, me, new URL(request.url));
       if (!r) return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
-      if (path === '/seo/sns') r.xhs = ((await rGet(env, KEY.xhs).catch(() => null)) || {}).items || [];
+      if (path === '/seo/sns') {
+        r.xhs = ((await rGet(env, KEY.xhs).catch(() => null)) || {}).items || [];
+        r.ttx = ((await rGet(env, KEY.ttx).catch(() => null)) || {}).items || [];
+        /* 업계 평균 — 가장 최근 주간 조사가 웹에서 찾은 것 (출처 있는 것만) */
+        const idx = (await rGet(env, KEY.idx).catch(() => null)) || [];
+        for (const row of idx.slice(0, 4)) {
+          const rr = await rGet(env, `seo/r/${row.id}.json`).catch(() => null);
+          const bench = rr && rr.report && rr.report.sns && rr.report.sns.bench;
+          if (Array.isArray(bench) && bench.length) { r.bench = { at: rr.at, items: bench }; break; }
+        }
+      }
       return json(r, r.ok ? 200 : 400, origin);
     }
-    const cap = path.match(/^\/seo\/(rival|xhs)\/[a-z]+$/);
+    const cap = path.match(/^\/seo\/(rival|xhs|ttx)\/[a-z]+$/);
     if (cap) {   /* 캡처 여러 장 — rival: 경쟁 비교 · xhs: 샤오홍슈 */
       const C = cap[1], dir = `seo/${C}/img/`, mkey = KEY[C], base = `/seo/${C}/`;
       const meta = (await rGet(env, mkey).catch(() => null)) || { items: [] };
@@ -284,6 +318,14 @@ export function makeSeo(deps) {
         const nk = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         const row = { k: nk, at: Date.now(), by: String(me.name || '').slice(0, 30), note: String(b.note || '').trim().slice(0, 40) };
         if (C === 'xhs') row.kind = b.kind === 'ours' ? 'ours' : 'search';
+        if (C === 'ttx') {
+          row.slot = b.slot === 'bb' ? 'bb' : 'dm';
+          /* 올릴 때 바로 숫자를 읽어 둔다 — 비교표가 일요일 조사를 기다리지 않게 */
+          try {
+            const r = await relayCall(env, '/ai/tt-cap', { mt, b64 }, { ph: me.ph, nm: me.name, x: '틱톡 비교 캡처 읽기' });
+            row.ex = r.body && r.body.ok ? ttxClean(r.body.data) : { err: (r.body && r.body.error) || '읽지 못했어요' };
+          } catch (e) { row.ex = { err: '읽지 못했어요' }; }
+        }
         await rPut(env, dir + nk + '.json', { mt, b64 });
         items.push(row);
         await rPut(env, mkey, { items });

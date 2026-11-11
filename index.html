@@ -5310,7 +5310,7 @@ function seoTtCard(S,A,no){var h='<div class="card"><div class="seo-h">'+no+' �
   h+='<div class="seo-rr" style="border-top:none;padding-top:0"><span>'+(Us?'<b>@'+seoEsc(Us.username||Us.name)+'</b> ':'')+'<span class="seo-time2">'+(L.at?'마지막으로 가져옴 '+igAiWhen(L.at):'아직 못 가져왔어요')+(A.by?' · 연결 '+seoEsc(A.by):'')+'</span></span><span class="seo-btns"><button class="gbtn sec sm" onclick="seoSnsLoad(true,\''+A.id+'\')"'+(SEO.snsBusy?' disabled':'')+'>'+(busy?'불러오는 중…':'새로 불러오기')+'</button><button class="igref-x" onclick="seoTtStop(\''+A.id+'\',\''+seoEsc(A.label)+'\')" title="연결 끊기">✕</button></span></div>';
   if(L.err)h+='<div class="seo-errl" style="margin:4px 0 8px">⚠ '+seoEsc(L.err)+(/인증|token|401/i.test(L.err)?' — 연결을 끊고 다시 연결해 주세요.':'')+'</div>';
   if(A.rtx&&A.rtx-Date.now()<30*864e5)h+='<div class="seo-errl" style="margin:4px 0 8px">연결이 '+Math.max(0,Math.round((A.rtx-Date.now())/864e5))+'일 뒤 끝나요. 끊고 다시 연결해 주세요.</div>';
-  if(Us)h+=seoTtDiagView(seoTtDiag(L,H,Us,w1))+seoTtCapView(L)+seoTtAiView(A)+'<div class="seo-sub">숫자</div>';
+  if(Us)h+=seoTtScore(S,A,L,H,Us)+seoTtDiagView(seoTtDiag(L,H,Us,w1))+seoTtCapView(L)+seoTtAiView(A)+seoTtComp(S,A,L,Us)+seoTtLinkView(A)+'<div class="seo-sub">숫자</div>';
   if(Us){h+='<table class="seo-tb"><tr><th></th><th>지금</th><th>7일 전보다</th></tr>'+
       '<tr><td>팔로워</td><td><b>'+seoN(Us.followers)+'</b></td><td>'+(w1?seoDelta(Us.followers,w1.f):'-')+'</td></tr>'+
       '<tr><td>받은 좋아요 합</td><td><b>'+seoN(Us.likes)+'</b></td><td>'+(w1?seoDelta(Us.likes,w1.l):'-')+'</td></tr>'+
@@ -5393,6 +5393,79 @@ function seoTtCapView(L){var now=Date.now()/1e3,N=seoN,C=(L.videos||[]).filter(f
     (tb?'<table class="seo-tb" style="margin-top:6px"><tr><th>무엇으로 나눴나</th><th>영상</th><th>평균 조회</th></tr>'+tb+'</table>':'')+'</details>';
   h+='<div class="seo-time2" style="margin-top:6px">같이 나타난 경향이지 원인 확정은 아니에요. 틱톡은 시청 시간 · 끝까지 본 비율을 우리에게 주지 않아서 영상 첫 장면의 힘은 숫자로 못 봐요.</div>';
   return h}
+/* ── 틱톡 성적표 · 비교 · 예약 링크 ── */
+function seoTtMed(a){a=(a||[]).filter(function(x){return x!=null});if(!a.length)return null;var x=a.slice().sort(function(p,q){return p-q});return x[x.length>>1]}
+function seoTtYmd(ms){return new Date(ms+9*3600e3).toISOString().slice(0,10)}
+/* 업계 평균 값("2.5~4%")과 비교 — 범위면 아래보다 낮음 / 위보다 높음 / 범위 안 */
+function seoTtVs(x,str){var n=String(str||'').match(/[\d.]+/g);if(x==null||!n)return '';var lo=parseFloat(n[0]),hi=n.length>1?parseFloat(n[1]):lo;if(!(lo>=0))return '';
+  return x<lo*0.9?'<span class="seo-dl dn">낮음</span>':x>hi*1.1?'<span class="seo-dl up">높음</span>':'<span class="seo-dl">비슷</span>'}
+function seoTtScore(S,A,L,H,Us){var now=Date.now()/1e3,N=seoN,V=(L.videos||[]).filter(function(v){return v.t>0}).sort(function(a,b){return b.t-a.t}),
+    C=V.filter(function(v){var a=now-v.t;return a>=3*86400&&a<120*86400}),sum=function(a,k){return a.reduce(function(s,v){return s+(+v[k]||0)},0)};
+  /* ① 조회 — 매일 쌓는 조회 합(vw)이 7일 넘게 있으면 '새로 본 수', 아니면 최근 30일에 올린 영상 조회 합 */
+  var hv=(H||[]).filter(function(h){return h.vw!=null}),h0=hv[0],hO=null,cut=seoTtYmd(Date.now()-30*864e5);for(var i=0;i<hv.length;i++){if(hv[i].d<=cut){hO=hv[i];break}}if(!hO&&hv.length)hO=hv[hv.length-1];
+  var span=h0&&hO&&h0!==hO?Math.round((Date.parse(h0.d)-Date.parse(hO.d))/864e5):0,views,vLab;
+  if(span>=7){views=Math.max(0,h0.vw-hO.vw);vLab='최근 '+span+'일 동안 새로 본 수'}else{var r30=V.filter(function(v){return now-v.t<30*86400});views=sum(r30,'views');vLab='최근 30일에 올린 영상 '+r30.length+'개 조회 합'}
+  var mv=seoTtMed(C.slice(0,12).map(function(v){return v.views}));
+  /* ② 반응 */
+  var cv=sum(C,'views'),eng=cv?(sum(C,'likes')+sum(C,'comments')+sum(C,'shares'))/cv*100:null;
+  /* ③ 팔로우 — 조회 1,000회당 */
+  var fol=null,fLab;if(span>=7&&views>0){var df=h0.f-hO.f;fol=df/views*1000;fLab='최근 '+span+'일 팔로워 '+(df>=0?'+':'')+df+'명'}else{var tv=sum(V,'views');fol=tv?Us.followers/tv*1000:null;fLab='지금까지 누적 (매일 쌓이면 최근 30일로 바뀌어요)'}
+  /* ④ 예약 링크 클릭 */
+  var cd=A.clicks||{},cl=function(n){var c=0,u=0;for(var i=0;i<n;i++){var x=cd[seoTtYmd(Date.now()-i*864e5)];if(x){c+=x.c;u+=x.u}}return {c:c,u:u}},c30=cl(30),c7=cl(7),lk=A.link&&A.link.url;
+  /* ⑤ 방문 — 사전상담 '알게 된 경로: 틱톡' 첫 방문 */
+  var VM=(S.visits&&S.visits.months)||{},kd=new Date(Date.now()+9*3600e3),mNow=seoTtYmd(Date.now()).slice(0,7),mPrev=new Date(Date.UTC(kd.getUTCFullYear(),kd.getUTCMonth()-1,1)).toISOString().slice(0,7),
+    z={first:0,tt:0,rt:0},vn=(VM[mNow]||{})[A.id]||z,vp=(VM[mPrev]||{})[A.id]||z;
+  /* 비교 */
+  var CP=(S.ttx||[]).filter(function(x){return x.slot===A.id&&x.ex&&!x.ex.err}),cm=CP.map(function(x){return seoTtMed(x.ex.views)}).filter(function(x){return x!=null}),cAvg=cm.length?Math.round(cm.reduce(function(a,b){return a+b},0)/cm.length):null;
+  var BE=(S.bench&&S.bench.items)||[],bE=BE.filter(function(b){return /참여|반응|engag/i.test(b.metric)})[0],bF=BE.filter(function(b){return /팔로우|팔로워 ?전환|follow/i.test(b.metric)&&/조회|view/i.test(b.metric+b.basis)})[0];
+  var bTxt=function(b,x){return b?seoEsc(b.value)+' '+seoTtVs(x,b.value)+'<div class="seo-time2"><a href="'+seoEsc(b.src)+'" target="_blank" rel="noopener">업계 평균</a> · '+seoEsc(b.basis||'')+'</div>':''};
+  var row=function(st,ours,sub,cmp){return '<tr><td><b>'+st+'</b><div class="seo-time2">'+sub+'</div></td><td><b>'+ours+'</b></td><td>'+(cmp||'<span class="seo-time2">-</span>')+'</td></tr>'};
+  var h='<div class="seo-sub">성적표 — 조회에서 방문까지</div><table class="seo-tb"><tr><th>단계</th><th>우리</th><th>비교</th></tr>'+
+    row('① 조회',N(views)+'회',vLab+(mv!=null?' · 영상 1개 보통 '+N(mv)+'회':''),cAvg!=null&&mv!=null?'비교 계정 영상 보통 '+N(cAvg)+'회 '+(mv<cAvg*0.9?'<span class="seo-dl dn">낮음</span>':mv>cAvg*1.1?'<span class="seo-dl up">높음</span>':'<span class="seo-dl">비슷</span>'):'')+
+    row('② 반응',eng!=null?eng.toFixed(1)+'%':'-','(좋아요+댓글+공유) ÷ 조회',bTxt(bE,eng))+
+    row('③ 팔로우',fol!=null?(fol<10?fol.toFixed(1):fol.toFixed(0))+'명':'-','조회 1,000회당 · '+fLab,bTxt(bF,fol))+
+    row('④ 예약 링크',lk?c30.u+'명':'안 걸림',lk?'최근 30일 누른 사람 (7일 '+c7.u+'명 · '+c30.c+'번)'+(views?' · 조회 1,000회당 '+(c30.u/views*1000).toFixed(1)+'명':''):'아래 "예약 링크"를 걸면 여기부터 세요','')+
+    row('⑤ 방문',vn.tt+'명','이번 달 첫 방문 손님 중 사전상담에 "틱톡 보고 옴" (지난달 '+vp.tt+'명)'+(vn.rt?' · 경로 답한 '+vn.rt+'명 중 '+Math.round(vn.tt/vn.rt*100)+'%':''),'')+'</table>';
+  /* 어디서 막히나 */
+  var W=[];
+  if(fol!=null&&fol<1)W.push('<b>③ 팔로우</b>에서 가장 많이 빠져요 — 1,000번 봐도 '+(fol<0.1?'거의 아무도':fol.toFixed(1)+'명만')+' 팔로우해요. 영상 끝에 "다음 편 · 예약은 프로필" 같은 다음 행동을 넣어야 해요');
+  if(bE&&eng!=null&&seoTtVs(eng,bE.value).indexOf('낮음')>=0)W.push('<b>② 반응</b>이 업계 평균보다 낮아요 — 질문 · 투표 · "어떤 게 좋아요?"로 댓글을 부르세요');
+  if(!lk)W.push('<b>④ 예약 링크</b>를 아직 안 걸어서 조회 → 예약 사이를 못 재고 있어요');
+  else if(c30.u===0&&views>1000)W.push('<b>④ 예약 링크</b>를 30일 동안 아무도 안 눌렀어요 — 영상 · 캡션에서 프로필 링크를 말로 안내해 주세요');
+  if(vn.tt+vp.tt===0)W.push('<b>⑤ 방문</b> — 두 달 동안 사전상담에서 "틱톡 보고 왔다"는 첫 방문 손님이 없어요. 상담 때 경로를 꼭 고르게 안내해 주세요');
+  if(W.length)h+=seoTtList('bd','🔎','어디서 막히나',W,'',1);
+  if(!BE.length)h+='<div class="seo-time2" style="margin-top:6px">업계 평균은 일요일 주간 조사 때 AI가 출처 있는 숫자를 웹에서 찾아 채워요.</div>';
+  return h}
+/* 다른 계정과 비교 — 경영팀이 올린 프로필 캡처를 AI 가 읽은 숫자 */
+function seoTtComp(S,A,L,Us){var now=Date.now()/1e3,N=seoN,all=S.ttx||[],CP=all.filter(function(x){return x.slot===A.id}),busy=SEO.ttxBusy===A.id;
+  var om=seoTtMed((L.videos||[]).filter(function(v){var a=now-v.t;return v.t&&a>=3*86400&&a<120*86400}).sort(function(a,b){return b.t-a.t}).slice(0,12).map(function(v){return v.views}));
+  var tr=function(nm,f,lk,md,me,extra){return '<tr><td'+(me?' class="seo-ours"':'')+'>'+nm+(extra||'')+'</td><td>'+(f!=null?N(f):'-')+'</td><td>'+(lk!=null?N(lk):'-')+'</td><td>'+(md!=null?N(md):'-')+'</td><td>'+(f&&md!=null?(md/f>=2?(md/f).toFixed(0)+'배':Math.round(md/f*100)+'%'):'-')+'</td></tr>'};
+  var h='<details class="seo-ko"'+(CP.length?' open':'')+'><summary>다른 틱톡 계정과 비교 ('+CP.length+'개)</summary><div style="padding:6px 2px">';
+  h+='<div class="def" style="line-height:1.7">틱톡은 다른 계정 숫자를 가져올 공식 방법이 없어요. 비교하고 싶은 계정(홍대 · 합정 미용실, 바버샵, 롤모델 계정)을 틱톡 앱에서 열어 <b>팔로워 · 좋아요 · 영상 조회수가 보이게 프로필 화면을 캡처</b>해 올리면 AI가 숫자를 읽어요. 한 장 약 ₩10~20, 한 달에 한 번 새로.</div>';
+  h+='<table class="seo-tb" style="margin-top:6px"><tr><th>계정</th><th>팔로워</th><th>받은 좋아요</th><th>영상 보통 조회</th><th>조회÷팔로워</th></tr>'+tr('@'+seoEsc(Us.username||Us.name||'우리'),Us.followers,Us.likes,om,1,' <span class="seo-time2">우리</span>')+
+    CP.map(function(x){var e=x.ex||{},k=seoEsc(x.k),nm=seoEsc(e.handle||x.note||'계정')+(x.note&&e.handle?' <span class="seo-time2">'+seoEsc(x.note)+'</span>':'');
+      if(e.err)return '<tr><td colspan="5">'+nm+' <span class="seo-miss">'+seoEsc(e.err)+'</span> <a href="javascript:seoTtCompDel(\''+k+'\')">지우기</a></td></tr>';
+      return tr(nm,e.followers,e.likes,seoTtMed(e.views),0,'<div class="seo-time2">'+igAiWhen(x.at)+' · 영상 '+(e.views||[]).length+'개 보임 · <a href="javascript:seoTtCompView(\''+k+'\')">캡처</a> · <a href="javascript:seoTtCompDel(\''+k+'\')">지우기</a></div><div id="SEO-TV-'+k+'"></div>')}).join('')+'</table>';
+  h+='<div class="seo-form" style="margin-top:8px"><label>계정 메모 (선택)<input id="SEO-TN-'+A.id+'" maxlength="40" placeholder="예: 홍대 ○○헤어"></label></div><div class="seo-btns" style="margin-top:6px">'+
+    (busy?'<span class="seo-wait" style="margin:0"><span class="igai-spin"></span>AI가 숫자를 읽는 중…</span>':'<label class="gbtn pri sm seo-up">프로필 캡처 올리기<input type="file" accept="image/*" multiple onchange="seoTtCompPick(this,\''+A.id+'\')"></label>')+'</div>'+
+    '<div class="seo-time2" style="margin-top:6px">조회÷팔로워는 팔로워가 아닌 사람에게도 얼마나 퍼지는지예요. 캡처는 두 계정 합쳐 8장까지.</div></div></details>';
+  return h}
+function seoTtCompPick(inp,id){var fs=[].slice.call(inp.files||[]);inp.value='';if(!fs.length||!SEO.sns)return;var room=8-((SEO.sns.ttx||[]).length);if(room<=0){toast('8장까지예요. 지난 캡처를 지우고 올려 주세요');return}if(fs.length>room){toast(room+'장만 올릴게요');fs=fs.slice(0,room)}
+  var note=(($('SEO-TN-'+id)||{}).value||'').trim(),done=0;SEO.ttxBusy=id;seoPaint();
+  var next=function(i){if(i>=fs.length){SEO.ttxBusy=null;toast(done+'장 읽었어요');seoPaint();return}
+    seoImgB64(fs[i]).then(function(b64){return ctFetch('/seo/ttx/add',{method:'POST',body:JSON.stringify({mt:'image/jpeg',b64:b64,note:note,slot:id})})}).then(function(j){if(!j||!j.ok){toast((j&&j.error)||'올리지 못했어요');SEO.ttxBusy=null;seoPaint();return}SEO.sns.ttx=j.items;done++;next(i+1)},function(){toast('사진을 읽지 못했어요');next(i+1)})};
+  next(0)}
+function seoTtCompView(k){var box=$('SEO-TV-'+k);if(!box)return;if(box.innerHTML){box.innerHTML='';return}box.innerHTML='<div class="seo-wait"><span class="igai-spin"></span>불러오는 중…</div>';ctFetch('/seo/ttx/get',{method:'POST',body:JSON.stringify({k:k})}).then(function(j){box.innerHTML=j&&j.ok?'<img class="seo-shot" src="data:'+seoEsc(j.mt)+';base64,'+j.b64+'" alt="틱톡 비교 캡처">':'<div class="seo-errl">불러오지 못했어요</div>'})}
+function seoTtCompDel(k){customConfirm('이 캡처를 지울까요?',function(ok){if(!ok)return;ctFetch('/seo/ttx/del',{method:'POST',body:JSON.stringify({k:k})}).then(function(j){if(j&&j.ok){SEO.sns.ttx=j.items;seoPaint()}else toast('지우지 못했어요')})})}
+/* 예약 링크 — 틱톡 프로필에 거는 추적 주소 + 넘겨 줄 예약 페이지 */
+function seoTtLinkView(A){var L=A.link,on=L&&L.url,h='<details class="seo-ko"'+(on?'':' open')+'><summary>예약 링크 '+(on?'· 걸려 있음':'· 아직 안 걸림')+'</summary><div style="padding:6px 2px">';
+  h+='<div class="def" style="line-height:1.7">틱톡 프로필의 웹사이트 링크를 아래 <b>추적 주소</b>로 바꾸면, 누른 사람은 예약 페이지로 바로 가고 우리는 하루에 몇 명이 눌렀는지 알 수 있어요. 누가 눌렀는지는 남지 않아요.</div>';
+  h+='<div class="seo-rr"><span style="min-width:0;word-break:break-all"><b>추적 주소</b><br><span class="seo-time2">'+seoEsc(A.track||'')+'</span></span><span class="seo-btns"><button class="gbtn sec sm" onclick="seoTtCopy(\''+seoEsc(A.track||'')+'\')">복사</button></span></div>';
+  h+='<div class="seo-form"><label>누르면 갈 예약 페이지 주소<input id="SEO-TL-'+A.id+'" value="'+seoEsc((L&&L.url)||'')+'" placeholder="https://booking.naver.com/..."></label></div><div class="seo-btns" style="margin-top:6px"><button class="gbtn pri sm" onclick="seoTtLinkSave(\''+A.id+'\')">저장</button>'+(on?'<span class="seo-time2">'+igAiWhen(L.at)+(L.by?' · '+seoEsc(L.by):'')+'</span>':'')+'</div>';
+  h+='<div class="seo-time2" style="margin-top:6px">순서: ① 예약 페이지 주소 저장 → ② 추적 주소 복사 → ③ 틱톡 앱 → 프로필 편집 → 웹사이트에 붙여넣기. 웹사이트 칸이 안 보이면 비즈니스 계정으로 바꿔야 할 수 있어요.</div></div></details>';
+  return h}
+function seoTtLinkSave(id){var u=(($('SEO-TL-'+id)||{}).value||'').trim();ctFetch('/seo/tt/link',{method:'POST',body:JSON.stringify({slot:id,url:u})}).then(function(j){if(!j||!j.ok){toast((j&&j.error)||'저장하지 못했어요');return}var A=((SEO.sns&&SEO.sns.accts)||[]).filter(function(a){return a.id===id})[0];if(A)A.link=j.link;toast(u?'저장했어요. 추적 주소를 틱톡 프로필에 붙여넣으세요':'링크를 비웠어요');seoPaint()})}
+function seoTtCopy(t){var done=function(){toast('복사했어요')};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,function(){customPrompt('복사해 주세요',t,function(){})});else customPrompt('복사해 주세요',t,function(){})}
 /* 틱톡 AI 분석 — 영상 제목 · 내용까지 읽고 왜 잘 됐는지 · 무엇을 찍을지. 누를 때만, 계정마다 하루 한 번 */
 function seoTtAiView(A){var R=A.ai,busy=(SEO.ttAi||{})[A.id]==='making',ymd=function(t){return new Date(t+9*3600e3).toISOString().slice(0,10)},today=R&&R.at&&ymd(R.at)===ymd(Date.now());
   var h='<div class="seo-sub">AI 분석 <span class="seo-time2">영상 제목 · 내용까지 읽고 왜 잘 됐는지 · 무엇을 찍을지 — 누를 때만</span></div>';

@@ -534,6 +534,8 @@ export default {
       if (path === '/gcal/callback' && request.method === 'GET') return gcalRoute.callback(request, env, ctx, url);
       /* 틱톡 회사 계정 연결 — 틱톡 로그인 창이 돌아오는 곳 (state 서명으로 확인) */
       if (path === '/tt/callback' && request.method === 'GET') return snsRoute.callback(request, env, ctx, url);
+      /* 틱톡 프로필 예약 링크 — 공개. 예약 페이지로 넘기며 클릭 수만 센다 (sns.js) */
+      { const gm = path.match(/^\/go\/(dm|bb)\/?$/); if (gm && (request.method === 'GET' || request.method === 'HEAD')) return snsRoute.go(request, env, ctx, gm[1]); }
 
       /* 자체 점검 — 키·인증·DB 접근이 살아 있는지 (내용은 반환하지 않음) */
       if (path === '/selftest') {

@@ -20,7 +20,12 @@ export const SLOTS = [{ id: 'dm', label: 'DAY:MEAN' }, { id: 'bb', label: '바�
 const slotOf = (id) => SLOTS.find((x) => x.id === id) || null;
 const KEY = { latest: (id) => `seo/tt/${id}/latest.json`, hist: (id) => `seo/tt/${id}/hist.json` };
 const SEC = (id) => '/authSecrets/__tiktok/' + id;
-const AIK = (id) => `seo/tt/${id}/ai.json`;   /* AI 분석 — { report, at, base(분석한 숫자 시각), by } */
+const AIK = (id) => `seo/tt/${id}/ai.json`;
+/* 예약 링크 추적 — 틱톡 프로필 링크를 우리 주소로 걸면 예약 페이지로 넘겨 주면서 하루 클릭 수를 센다 (개인정보 안 남김) */
+const KX = { link: (id) => `seo/tt/${id}/link.json`, clicks: (id) => `seo/tt/${id}/clicks.json`, visits: 'seo/tt/visits.json' };
+/* 틱톡 프로필에 거는 주소 — 회사 GitHub Pages 의 t/{slot}/ 가 이 Worker 의 /go/{slot} 로 바로 넘긴다 */
+export const TRACK_URL = (id) => `https://dminternational.github.io/dm-hq-system/t/${id}/`;
+const BOT_UA = /bot|crawl|spider|preview|slurp|bytespider|facebookexternalhit|headless|curl|wget|python|okhttp|go-http/i;   /* AI 분석 — { report, at, base(분석한 숫자 시각), by } */
 const AI_WEEK_CAP = 30;   /* 한 주(월요일 시작)에 회사 전체 틱톡 AI 분석 상한 — 계정마다 하루 한 번이라 평소엔 14번 이하 */
 const te = new TextEncoder();
 const S = (v, n) => String(v == null ? '' : v).slice(0, n);
@@ -80,6 +85,20 @@ export function ttTags(t) {
   return m.map((x) => x.toLowerCase().replace(/[.,!?…:;)\]]+$/, '')).filter((x, i, a) => x.length > 1 && a.indexOf(x) === i);
 }
 
+
+/* 주간 조사용 — 예약 링크 클릭 · 사전상담 '틱톡' 방문 */
+export function funnelFacts(label, days, link, vis, id) {
+  const L = [];
+  const sum = (n) => { let c = 0, u = 0; for (let i = 0; i < n; i++) { const d = ymdK(Date.now() - i * 864e5), x = days && days[d]; if (x) { c += x.c; u += x.u; } } return { c, u }; };
+  if (link && link.url) { const a = sum(7), b = sum(30); L.push(`- 프로필 예약 링크 클릭: 최근 7일 ${a.u}명(${a.c}번) · 30일 ${b.u}명(${b.c}번)`); }
+  else L.push('- 프로필 예약 링크 추적: 아직 안 걸었음 (경영팀이 SNS 탭에서 예약 페이지 주소를 넣고 틱톡 프로필 링크를 바꾸도록 할 일에 넣을 것)');
+  if (vis && vis.months) {
+    const ms = Object.keys(vis.months).sort().reverse().slice(0, 3);
+    const rows = ms.map((m) => { const o = vis.months[m][id]; return o ? `${m} 첫 방문 ${o.first}명 중 '틱톡 보고 옴' ${o.tt}명 (경로 답한 ${o.rt}명 기준 ${o.rt ? Math.round(o.tt / o.rt * 100) : 0}%)` : `${m} 기록 없음`; });
+    L.push('- 사전상담 알게 된 경로: ' + rows.join(' · '));
+  }
+  return L.length ? `\n[틱톡 → 예약 — ${label}]\n` + L.join('\n') : '';
+}
 
 export function makeSns(deps) {
   const { dbGet, dbPut, relayCall } = deps;
@@ -153,7 +172,7 @@ export function makeSns(deps) {
       const now = Date.now(), latest = { at: now, user, videos, err: '' };
       await rPut(env, KEY.latest(id), latest);
       const hist = ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).filter((h) => h.d !== ymdK(now));
-      hist.unshift({ d: ymdK(now), f: user.followers, l: user.likes, v: user.videos });
+      hist.unshift({ d: ymdK(now), f: user.followers, l: user.likes, v: user.videos, vw: videos.reduce((a, x) => a + x.views, 0), n: videos.length });   /* vw: 가져온 영상(최근 60개) 조회 합 — 하루하루 차이 ≈ 새로 본 수 */
       await rPut(env, KEY.hist(id), hist.slice(0, 180));
       return latest;
     } catch (e) {
@@ -164,6 +183,69 @@ export function makeSns(deps) {
   }
 
   /* 1분 크론 — 매일 새벽 5시(한국)에 한 번 */
+  /* 사전상담 '알게 된 경로' — 첫 방문 손님 중 틱톡 보고 온 사람 (달 · 매장별). 하루 한 번 다시 센다 */
+  async function visits(env, force) {
+    const cur = await rGet(env, KX.visits).catch(() => null);
+    if (!force && cur && Date.now() - cur.at < 20 * 3600e3) return cur;
+    const all = (await dbGet(env, '/consults').catch(() => null)) || {};
+    const M = {}, since = Date.now() - 400 * 864e5;
+    for (const k of Object.keys(all)) {
+      const r = all[k];
+      if (!r || !r.ts || r.ts < since || r.visitType === 'revisit') continue;
+      const br = String(r.branch || '') + ' ' + String(r.source || '');
+      const sl = /합정|etoh|에토|barber/i.test(br) ? 'bb' : /플래그십|모먼트|day\s*:?\s*mean|데이민/i.test(br) ? 'dm' : null;
+      if (!sl) continue;
+      const m = ymdK(r.ts).slice(0, 7);
+      M[m] = M[m] || {};
+      const o = (M[m][sl] = M[m][sl] || { first: 0, tt: 0, rt: 0 });
+      o.first++;
+      if (r.route) o.rt++;   /* 경로를 고른 사람 수 — 비율의 분모 */
+      if (r.route === '틱톡' || /tiktok|틱톡|抖音/i.test(String(r.routeEtc || ''))) o.tt++;
+    }
+    const out = { at: Date.now(), months: M };
+    await rPut(env, KX.visits, out);
+    return out;
+  }
+  /* 공개 — 틱톡 프로필 링크를 누르면 여기로 와서 예약 페이지로 넘어간다. 셈은 넘긴 뒤에 */
+  async function go(request, env, ctx, id) {
+    const slot = slotOf(id);
+    const L = slot ? await rGet(env, KX.link(slot.id)).catch(() => null) : null;
+    if (!L || !L.url) return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><p style="font-family:sans-serif;padding:24px">예약 링크를 준비 중이에요. / Booking link coming soon.</p>', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+    const ua = request.headers.get('user-agent') || '';
+    if (request.method === 'GET' && ua && !BOT_UA.test(ua)) ctx.waitUntil(countClick(env, slot.id, request.headers.get('cf-connecting-ip') || '').catch(() => {}));
+    return new Response(null, { status: 302, headers: { Location: L.url, 'Cache-Control': 'no-store' } });
+  }
+  async function countClick(env, id, ip) {
+    const d = ymdK(Date.now());
+    /* 같은 사람이 하루에 여러 번 눌러도 '사람 수'는 한 번 — IP 는 날짜와 섞어 해시 10자만, 그날만 들고 있다 */
+    const h = (await hm(env, 'click|' + d + '|' + ip)).slice(0, 10);
+    const C = (await rGet(env, KX.clicks(id)).catch(() => null)) || { days: {}, t: { d: '', h: [] } };
+    if (!C.t || C.t.d !== d) C.t = { d, h: [] };
+    const day = (C.days[d] = C.days[d] || { c: 0, u: 0 });
+    day.c++;
+    if (C.t.h.indexOf(h) < 0) { C.t.h.push(h); day.u++; if (C.t.h.length > 3000) C.t.h = C.t.h.slice(-3000); }
+    const cut = ymdK(Date.now() - 180 * 864e5);
+    for (const k of Object.keys(C.days)) if (k < cut) delete C.days[k];
+    await rPut(env, KX.clicks(id), C);
+  }
+  /* 비교 — 경영팀이 올린 경쟁 계정 캡처(AI 가 읽은 숫자) + 최근 주간 조사가 찾은 업계 평균(출처 있는 것만) */
+  async function compareFacts(env, id) {
+    const L = [];
+    const items = (((await rGet(env, 'seo/ttx/meta.json').catch(() => null)) || {}).items || []).filter((x) => x.slot === id && x.ex && !x.ex.err && Date.now() - x.at < 120 * 864e5);
+    for (const x of items) {
+      const e = x.ex, v = (e.views || []).slice().sort((a, b) => a - b), md = v.length ? v[v.length >> 1] : null;
+      L.push(`- 비교 계정 ${e.handle || x.note || ''}${x.note ? ' (' + x.note + ')' : ''}: 팔로워 ${e.followers ?? '-'} · 받은 좋아요 ${e.likes ?? '-'} · 프로필에 보이는 영상 ${v.length}개 조회 중간값 ${md ?? '-'} (${ymdK(x.at)} 캡처)`);
+    }
+    const idx = (await rGet(env, 'seo/index.json').catch(() => null)) || [];
+    for (const row of idx.slice(0, 4)) {
+      const rr = await rGet(env, `seo/r/${row.id}.json`).catch(() => null);
+      const bench = rr && rr.report && rr.report.sns && rr.report.sns.bench;
+      if (Array.isArray(bench) && bench.length) { for (const b of bench) L.push(`- 업계 평균 ${b.metric}: ${b.value} (${b.basis || '기준 모름'} · 출처 ${b.src}${b.note ? ' · ' + b.note : ''})`); break; }
+    }
+    return L.length ? '\n\n[비교]\n' + L.join('\n') : '\n\n[비교] 경쟁 계정 캡처 · 업계 평균 아직 없음';
+  }
+  const clickDays = async (env, id) => (((await rGet(env, KX.clicks(id)).catch(() => null)) || {}).days || {});
+
   async function tick(env) {
     const k = new Date(Date.now() + 9 * 3600e3);
     if (k.getUTCHours() !== 5 || k.getUTCMinutes() > 9 || !ready(env)) return null;
@@ -173,6 +255,7 @@ export function makeSns(deps) {
       if (l && Date.now() - Math.max(l.at || 0, l.errAt || 0) < 20 * 3600e3) continue;
       out[id] = await collect(env, id).catch(() => null);
     }
+    await visits(env, true).catch((e) => console.log('tt visits', e && e.message));
     return out;
   }
 
@@ -184,6 +267,7 @@ export function makeSns(deps) {
       let l = await rGet(env, KEY.latest(id)).catch(() => null);
       if (!l || Date.now() - (l.at || 0) > 20 * 3600e3) l = (await collect(env, id).catch(() => null)) || l;
       txt += ttFacts(l, await rGet(env, KEY.hist(id)).catch(() => null), Date.now(), label);
+      txt += funnelFacts(label, await clickDays(env, id), await rGet(env, KX.link(id)).catch(() => null), (await visits(env).catch(() => null)), id);
     }
     return txt;
   }
@@ -241,9 +325,9 @@ export function makeSns(deps) {
           if (latest && Date.now() - Math.max(latest.at || 0, latest.errAt || 0) < 10 * 60000) note = '방금 불러왔어요. 10분 뒤에 다시 할 수 있어요';
           else latest = (await collect(env, id)) || latest;
         }
-        accts.push({ id, label, on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, ai: await rGet(env, AIK(id)).catch(() => null), hist: ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).slice(0, 60) });
+        accts.push({ id, label, on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, ai: await rGet(env, AIK(id)).catch(() => null), link: await rGet(env, KX.link(id)).catch(() => null), track: TRACK_URL(id), clicks: await clickDays(env, id), hist: ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).slice(0, 60) });
       }
-      return { ok: true, ready: ready(env), accts, note };
+      return { ok: true, ready: ready(env), accts, note, visits: await visits(env).catch(() => null) };
     }
     if (path === '/seo/tt/start') {
       if (!ready(env)) return { ok: false, error: '틱톡 개발자 앱 설정이 아직 안 됐어요' };
@@ -270,7 +354,9 @@ export function makeSns(deps) {
         const n = c.wk === wk ? +c.n || 0 : 0;
         if (n >= AI_WEEK_CAP) return { ok: false, error: `이번 주 틱톡 AI 분석 한도(${AI_WEEK_CAP}번)를 다 썼어요. 다음 주 월요일에 다시 열려요` };
         await rPut(env, ck, { wk, n: n + 1 });
-        const facts = ttAiFacts(slot.label, latest, await rGet(env, KEY.hist(slot.id)).catch(() => null), now);
+        let facts = ttAiFacts(slot.label, latest, await rGet(env, KEY.hist(slot.id)).catch(() => null), now);
+        facts += funnelFacts(slot.label, await clickDays(env, slot.id), await rGet(env, KX.link(slot.id)).catch(() => null), await visits(env).catch(() => null), slot.id);
+        facts += await compareFacts(env, slot.id);
         const r = await relayCall(env, '/ai/tt-report', { facts }, { ph: me.ph, nm: me.name, x: '틱톡 분석 · ' + slot.label });
         if (!r.body || !r.body.ok) return { ok: false, error: (r.body && r.body.error) || 'AI 분석을 하지 못했어요' };
         const rec = { report: r.body.report || {}, at: Date.now(), base: latest.at, by: S(me.name, 30) };
@@ -280,11 +366,23 @@ export function makeSns(deps) {
       aiBusy.set(slot.id, job);
       return job;
     }
+    /* 예약 링크 — 틱톡 프로필 링크가 넘겨 줄 예약 페이지 주소 (비우면 '준비 중' 화면) */
+    if (path === '/seo/tt/link') {
+      const slot = slotOf(b.slot);
+      if (!slot) return { ok: false, error: '계정 칸을 골라 주세요' };
+      const u = String(b.url || '').trim();
+      if (!u) { await env.CHAT_MEDIA.delete(KX.link(slot.id)).catch(() => {}); return { ok: true, link: null }; }
+      if (!/^https:\/\/[^\s"'<>]+$/.test(u) || u.length > 500) return { ok: false, error: 'https:// 로 시작하는 주소를 넣어 주세요' };
+      if (/dminternational\.github\.io\/dm-hq-system\/t\/|\/go\/(dm|bb)\b/.test(u)) return { ok: false, error: '추적 링크 말고 실제 예약 페이지 주소를 넣어 주세요' };
+      const link = { url: u, at: Date.now(), by: S(me.name, 30) };
+      await rPut(env, KX.link(slot.id), link);
+      return { ok: true, link };
+    }
     if (path === '/seo/tt/stop') { if (!slotOf(b.slot)) return { ok: false, error: '계정 칸을 골라 주세요' }; await stop(env, b.slot); return { ok: true }; }
     return null;
   }
 
-  return { route, callback, tick, collect, forReport, ready };
+  return { route, callback, tick, collect, forReport, ready, go, visits };
 }
 
 function page(ok, msg) {

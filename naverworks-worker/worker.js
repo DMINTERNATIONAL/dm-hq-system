@@ -131,6 +131,10 @@ export default {
     if (pathname === '/ai/ig-report' || pathname.endsWith('/ai/ig-report')) {
       return cors(await withAi(body, await handleAIIgReport(body, env)));
     }
+    // 틱톡 비교 계정 프로필 캡처에서 숫자 읽기 — dm-contract-api 가 경영팀 업로드 때 부른다
+    if (pathname === '/ai/tt-cap' || pathname.endsWith('/ai/tt-cap')) {
+      return cors(await withAi(body, await handleAITtCap(body, env)));
+    }
     // 틱톡 회사 계정 AI 분석 (경영팀이 누를 때만, Sonnet 5.5) — dm-contract-api 가 경영팀 확인 · 하루 한 번 제한 후 부른다
     if (pathname === '/ai/tt-report' || pathname.endsWith('/ai/tt-report')) {
       body.mode = 'tiktok';   /* 사본을 넘기면 토큰 기록(body.__ai)이 원본에 안 남는다 */
@@ -824,6 +828,8 @@ async function handleAISeoWeekly(body, env) {
     '- 틱톡: 계정이 둘이다([틱톡 — DAY:MEAN] 미용실 · [틱톡 — 바버샵]). 계정마다 tiktok 배열에 하나씩, acct 에 그 이름(DAY:MEAN · 바버샵)을 쓰고 두 계정을 섞지 않는다. 손님층이 다르니 next 도 그 계정 손님에 맞춘다. 숫자(공식 API)만 근거로 쓴다. summary 에 팔로워 · 좋아요 흐름과 조회가 많이 나온 영상의 공통점(주제 · 길이 · 올린 요일)을 2~3문장으로. good 에는 숫자가 뒷받침하는 잘된 점(최대 4개), next 에는 다음에 찍을 영상 3개(예약으로 이어지게 — 시술 전후, 디자이너 소개, 첫 방문 안내 등. 조회 많은 영상의 형식을 따른다). 연결 안 된 계정은 tiktok 배열에서 빼고 todo 에 "○○ 틱톡 연결"을 넣는다(둘 다 안 됐으면 tiktok 을 빈 배열로).\n' +
     '- 샤오홍슈: "샤오홍슈 검색 결과" 사진에서 중국 손님이 무엇을 찾고 무엇을 중요하게 보는지(가격 표시 · 중국어 상담 · 예약 방법 · 스타일 · 위치 등)를 wants 에, 검색 결과에 자주 나오는 한국 미용실과 그들이 내세우는 점을 rivals 에 쓴다. "샤오홍슈 우리 계정 통계" 사진이 있으면 ours 에 읽은 숫자(노출 · 조회 · 팔로워 증가 등)와 뜻을 쓴다(없으면 빈 문자열). 사진이 없으면 웹 검색으로 일반 경향만 짧게 쓰고 from 을 "웹 조사"로 둔다.\n' +
     '- 샤오홍슈 drafts 는 최대 2개, 바로 올릴 수 있는 게시글 초안: title 은 중국어 제목(20자 안), zh 는 간체 중국어 본문, ko 는 그 한국어 번역, tags 는 #없이 해시태그 5~8개(중국어). 가격 · 할인은 데이터에 없으면 지어내지 말고 "[가격]" 처럼 빈칸으로 둔다. 最 · 第一 · 100% 같은 절대 표현과 의료 효능 표현은 쓰지 않는다. 외부 링크 · 전화번호 · 위챗 아이디는 본문에 넣지 않는다(샤오홍슈가 외부 유도를 제한한다) — 예약 안내는 "欢迎私信" 정도로.\n' +
+    '- 틱톡 업계 평균(bench): 웹 검색으로 공개된 틱톡 평균 지표를 찾는다 — 참여율(좋아요+댓글+공유÷조회), 팔로워 대비 평균 조회, 팔로워 증가율 등. 뷰티 · 헤어 · 살롱이나 팔로워 1만 미만 작은 계정 기준이 있으면 그걸 먼저. 출처 URL 과 기준 연도 · 기준(계정 크기 · 업종)이 있는 것만 넣고, 측정 방식이 다르면 note 에 밝힌다. 못 찾으면 빈 배열. 숫자를 지어내지 않는다.\n' +
+    '- [틱톡 비교 계정] 숫자가 있으면 tiktok 의 summary · good 에서 우리와 비교한다(팔로워 · 받은 좋아요 · 최근 영상 조회 중간값). [틱톡 → 예약] 숫자(링크 클릭 · 사전상담 틱톡 방문)도 summary 에 같이 본다.\n' +
     '- SNS 숫자도 지어내지 않는다. 둘 다 아무 데이터가 없으면 sns 를 null 로 둔다.\n\n' +
     '조사 방법:\n' +
     '- 웹 검색을 꼭 한다. 공식 출처를 먼저 찾는다: 네이버 스마트플레이스 공지 · 고객센터, 네이버 검색 공식 블로그 · 네이버 다이어리, 네이버 예약 공지, Google 비즈니스 프로필 고객센터, Google Search Central 블로그. 그다음 최근 뉴스(대략 최근 2~3주)와 업계 글을 본다.\n' +
@@ -837,7 +843,7 @@ async function handleAISeoWeekly(body, env) {
     '- 절대 권하지 않는 것: 가짜 · 대가성 리뷰, 리뷰 대행 · 영수증 조작, 트래픽 · 저장 · 클릭 작업, 순위 보장 업체, 경쟁 매장 비방. 네이버 · 구글 정책 위반은 노출 제재로 이어진다고 경고한다.\n\n' +
     '말투: 존댓말(해요체), 짧고 쉽게. 영어 용어는 피하거나 풀어서.\n' +
     '마지막에 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다. 형식:\n' +
-    '{"headline":"이번 주 한 줄 요약 (예약 관점)","pulse":"숫자로 본 이번 주 — 조회 · 예약 · 전환율 · 신규 손님 흐름 2~3문장 (숫자가 없으면 빈 문자열)","rivals":{"q":"비교한 검색어","from":"캡처|API|캡처+API","when":"캡처 날짜","rows":[{"rank":"1","name":"매장 이름","ours":false,"reviews":"방문자 리뷰 수","blog":"블로그 리뷰 · 글 수","star":"별점(공개 시) 또는 -","coupon":"쿠폰 내용 또는 없음 또는 -","photo":"사진 최근 갱신(예: 11월) 또는 -","first":"첫방문 메뉴 · 혜택 또는 없음 또는 -","note":"눈에 띄는 점 한 줄"}],"common":["상위 매장 공통점"],"gaps":["우리에게 없는 것"],"note":"주의할 점 한 줄"},"sns":{"tiktok":[{"acct":"DAY:MEAN|바버샵","summary":"틱톡 흐름 2~3문장","good":["잘된 점"],"next":[{"idea":"다음 영상","why":"왜 (숫자 근거)"}]}],"xhs":{"from":"캡처|웹 조사","summary":"샤오홍슈 요약 2~3문장","wants":["중국 손님이 찾는 것"],"rivals":[{"name":"자주 보이는 매장","point":"내세우는 점"}],"ours":"우리 계정 통계 읽은 내용","drafts":[{"title":"中文标题","zh":"简体中文正文","ko":"한국어 번역","tags":["标签"]}]}},"changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","kind":"노출|예약 전환","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
+    '{"headline":"이번 주 한 줄 요약 (예약 관점)","pulse":"숫자로 본 이번 주 — 조회 · 예약 · 전환율 · 신규 손님 흐름 2~3문장 (숫자가 없으면 빈 문자열)","rivals":{"q":"비교한 검색어","from":"캡처|API|캡처+API","when":"캡처 날짜","rows":[{"rank":"1","name":"매장 이름","ours":false,"reviews":"방문자 리뷰 수","blog":"블로그 리뷰 · 글 수","star":"별점(공개 시) 또는 -","coupon":"쿠폰 내용 또는 없음 또는 -","photo":"사진 최근 갱신(예: 11월) 또는 -","first":"첫방문 메뉴 · 혜택 또는 없음 또는 -","note":"눈에 띄는 점 한 줄"}],"common":["상위 매장 공통점"],"gaps":["우리에게 없는 것"],"note":"주의할 점 한 줄"},"sns":{"bench":[{"metric":"지표 이름","value":"값 (예: 2.5~4%)","basis":"기준 — 업종 · 계정 크기 · 연도","src":"출처 URL","note":"측정 방식 차이 등"}],"tiktok":[{"acct":"DAY:MEAN|바버샵","summary":"틱톡 흐름 2~3문장","good":["잘된 점"],"next":[{"idea":"다음 영상","why":"왜 (숫자 근거)"}]}],"xhs":{"from":"캡처|웹 조사","summary":"샤오홍슈 요약 2~3문장","wants":["중국 손님이 찾는 것"],"rivals":[{"name":"자주 보이는 매장","point":"내세우는 점"}],"ours":"우리 계정 통계 읽은 내용","drafts":[{"title":"中文标题","zh":"简体中文正文","ko":"한국어 번역","tags":["标签"]}]}},"changes":[{"title":"바뀐 점","what":"무엇이 어떻게 바뀌었고 우리에게 무슨 뜻인지 2~3문장","impact":"high|mid|low","official":true,"date":"발표 · 보도 날짜(알면)","src":["출처 URL"]}],"todo":[{"branch":"매장 이름 또는 전체","kind":"노출|예약 전환","title":"할 일","why":"왜 (근거)","how":"단계별 방법","draft":"붙여넣을 글(없으면 빈 문자열)","time":"걸리는 시간(예: 10분)","src":["출처 URL"]}],"naver":[{"factor":"네이버 순위 요소","now":"지금 알려진 내용(공식인지 표시)","tip":"우리가 할 일 한 줄"}],"google":[{"factor":"구글 순위 요소","now":"지금 알려진 내용","tip":"우리가 할 일 한 줄"}],"watch":[{"title":"확인 중인 소문","why":"누가 주장하는지, 왜 아직 확인 안 됐는지"}],"sources":[{"title":"출처 제목","url":"URL"}]}\n' +
     '- changes 최대 6개, naver · google 각각 최대 8개, watch 최대 4개, sources 최대 20개.';
   const req = {
     model: 'claude-sonnet-5-5', max_tokens: 32000, system: sys,
@@ -912,7 +918,8 @@ async function handleAISeoWeekly(body, env) {
         drafts: A(v.xhs.drafts, 4).map((d) => ({ title: S(d.title, 60), zh: S(d.zh, 1500), ko: S(d.ko, 1500), tags: L(d.tags, 10, 30).map((g) => g.replace(/^#+/, '')).filter(Boolean) })).filter((d) => d.zh).slice(0, 2),
       } : null;
       const xOk = x && (x.summary || x.wants.length || x.drafts.length || x.ours);
-      return tl.length || xOk ? { tiktok: tl.length ? tl : null, xhs: xOk ? x : null } : null;
+      const bench = A(v.bench, 6).map((b) => ({ metric: S(b.metric, 40), value: S(b.value, 40), basis: S(b.basis, 120), src: /^https?:\/\//.test(String(b.src || '')) ? S(b.src, 300) : '', note: S(b.note, 200) })).filter((b) => b.metric && b.value && b.src);
+      return tl.length || xOk || bench.length ? { tiktok: tl.length ? tl : null, xhs: xOk ? x : null, bench } : null;
     })(rep.sns),
     changes: A(rep.changes, 6).map((x) => ({ title: S(x.title, 160), what: S(x.what, 800), impact: ['high', 'mid', 'low'].indexOf(x.impact) >= 0 ? x.impact : 'mid', official: x.official === true, date: S(x.date, 40), src: U(x.src) })).filter((x) => x.title),
     todo: A(rep.todo, 6).map((x) => ({ branch: S(x.branch, 40) || '전체', kind: x.kind === '노출' ? '노출' : x.kind === '예약 전환' ? '예약 전환' : '', title: S(x.title, 160), why: S(x.why, 600), how: S(x.how, 1500), draft: S(x.draft, 2500), time: S(x.time, 30), src: U(x.src) })).filter((x) => x.title),
@@ -923,6 +930,40 @@ async function handleAISeoWeekly(body, env) {
   };
   out.searches = tot.server_tool_use.web_search_requests;
   return json({ ok: true, report: out });
+}
+
+async function handleAITtCap(body, env) {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
+  const mt = String(body.mt || ''), b64 = String(body.b64 || '');
+  if (!/^image\/(jpeg|png|webp)$/.test(mt) || !b64 || b64.length > 2400000) return json({ ok: false, error: '사진이 아니에요' }, 400);
+  const sys = '틱톡 앱의 계정 프로필 화면 캡처에서 숫자만 정확히 읽는다. 다른 설명 없이 JSON 하나만 출력한다.\n' +
+    '형식: {"handle":"@아이디","name":"표시 이름","followers":숫자,"following":숫자,"likes":숫자,"views":[격자에 보이는 영상 조회수, 왼쪽 위부터 순서대로],"note":"읽기 어려웠던 점 또는 빈 문자열"}\n' +
+    '- 1.2K=1200, 3.4M=3400000, 1.2만=12000, 3.5천=3500, 1.1억=110000000 처럼 숫자로 바꾼다. 쉼표는 뺀다.\n' +
+    '- 보이지 않거나 잘린 값은 null (views 는 보이는 것만). 지어내지 않는다.\n' +
+    '- 틱톡 프로필 화면이 아니면 모든 숫자를 null 로 두고 note 에 무슨 화면인지 쓴다.';
+  try {
+    const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+    const r = await fetch(AIG, {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-tt-cap/1.0' },
+      /* Sonnet 5.5 — 작은 글씨 숫자(1.2K · 3.4만)를 잘 읽는다. 한 장 약 ₩10~20 */
+      body: JSON.stringify({ model: 'claude-sonnet-5-5', max_tokens: 1000, system: sys,
+        messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mt, data: b64 } }, { type: 'text', text: '이 캡처의 숫자를 읽어 줘.' }] }] }),
+    });
+    if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ')' }, 502);
+    const data = await r.json(); aiMeter(body, data);
+    let text = '';
+    if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
+    const a = text.indexOf('{'), z = text.lastIndexOf('}');
+    let v = null;
+    try { v = JSON.parse(text.slice(a, z + 1)); } catch (_) {}
+    if (!v || typeof v !== 'object') return json({ ok: false, error: '숫자를 읽지 못했어요' }, 200);
+    return json({ ok: true, data: v });
+  } catch (e) {
+    return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
+  }
 }
 
 async function handleAIIgReport(body, env) {
@@ -942,6 +983,8 @@ async function handleAIIgReport(body, env) {
     '- 아래 데이터에 있는 숫자와 사실만 근거로 쓴다. 데이터에 없는 수치(시청 시간 · 끝까지 본 비율 · 도달 · 프로필 방문 · 예약 수 등)는 지어내지 않는다. 틱톡 평균 같은 바깥 기준 숫자도 지어내지 않는다.\n' +
     '- 조회가 높은 영상과 낮은 영상을 실제로 비교해서 차이를 찾는다: 다룬 시술 · 스타일(색 · 컷 · 펌 등), 제목 첫 문장의 방식(POV · 질문 · 설명 등), 언어(영어 · 한국어), 해시태그, 길이(사진 게시물 포함), 요일 · 시간대, 올린 간격. 근거가 된 영상은 날짜와 제목 앞부분으로 밝힌다.\n' +
     '- 조회 대비 팔로워 · 댓글 · 공유가 적으면 그 숫자로 분명히 말한다.\n' +
+    '- [틱톡 → 예약] 숫자(프로필 예약 링크 클릭 · 사전상담에서 틱톡 보고 왔다는 첫 방문 손님)가 있으면 조회 → 반응 → 팔로우 → 링크 클릭 → 방문 순서로 어디서 가장 많이 빠지는지 problems 에 숫자로 쓰고, 그 단계를 고치는 일을 todo 맨 앞에 둔다.\n' +
+    '- [비교] 에 경쟁 계정 · 업계 평균이 있으면 우리 숫자와 나란히 비교한다(업계 평균은 출처의 기준이 우리와 다를 수 있음을 짧게). 없으면 비교를 지어내지 않는다.\n' +
     '- 캡션과 해시태그는 따로 본다. caption 에는 캡션 글(첫 문장 방식 — POV · 질문 · 설명 · 이벤트 홍보, 길이, 언어, @멘션 · 영업시간 같은 정보 나열)과 조회의 관계를, hashtags 에는 [해시태그별] 표로 어떤 태그를 붙였을 때 조회가 높고 낮았는지 · 태그 개수 · 모든 영상에 똑같이 붙여 비교가 안 되는 태그를 쓴다. 쓴 영상이 3개뿐인 태그는 "참고만". 같이 나타난 경향일 뿐 원인 확정이 아님을 잊지 말 것.\n' +
     '- 캡션 · 해시태그 차이보다 영상 주제 자체(어떤 시술 · 스타일을 보여 줬나)의 차이가 더 크면 그렇다고 분명히 말한다. 우리 데이터에는 시청 시간 · 끝까지 본 비율이 없어서 영상 첫 장면의 힘은 숫자로 못 본다는 점도 필요하면 짧게 말한다.\n' +
     '- 표본이 적으면(영상 5개 미만이거나 비교 그룹이 3개 미만) 단정하지 말고 "아직 판단하기 이르다"고 말한다. 팔로워 기록이 하루뿐이면 팔로워 흐름은 말하지 않는다.\n' +

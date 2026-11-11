@@ -22,7 +22,7 @@ export const WEB_SEARCH_USD = 0.01;   // 웹 검색 한 번   // 가격표에 �
 
 export const FEATURES = {
   '/ai/polish': 'polish', '/ai/recommend': 'reco', '/ai/naesu-verify': 'naesu',
-  '/ai/chat-summary': 'chatsum', '/ai/ig-report': 'igreport', '/ai/seo-weekly': 'seo', '/ai/tt-report': 'ttreport',
+  '/ai/chat-summary': 'chatsum', '/ai/ig-report': 'igreport', '/ai/seo-weekly': 'seo', '/ai/tt-report': 'ttreport', '/ai/tt-cap': 'ttreport',
 };
 
 export function priceOf(model) {
