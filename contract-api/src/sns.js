@@ -15,12 +15,14 @@ const AUTH = 'https://www.tiktok.com/v2/auth/authorize/';
 const API = 'https://open.tiktokapis.com/v2';
 const SCOPE = 'user.info.basic,user.info.profile,user.info.stats,video.list';
 const USER_F = 'open_id,display_name,username,follower_count,following_count,likes_count,video_count';
-const VIDEO_F = 'id,title,video_description,create_time,share_url,duration,view_count,like_count,comment_count,share_count';
+const VIDEO_F = 'id,title,video_description,create_time,share_url,cover_image_url,duration,view_count,like_count,comment_count,share_count';
 export const SLOTS = [{ id: 'dm', label: 'DAY:MEAN' }, { id: 'bb', label: '바버샵' }];
 const slotOf = (id) => SLOTS.find((x) => x.id === id) || null;
 const KEY = { latest: (id) => `seo/tt/${id}/latest.json`, hist: (id) => `seo/tt/${id}/hist.json` };
 const SEC = (id) => '/authSecrets/__tiktok/' + id;
 const AIK = (id) => `seo/tt/${id}/ai.json`;
+/* 영상 표지 — 틱톡이 주는 표지 주소는 6시간이면 막혀서 R2 에 한 번 받아 두고 /ttc/{slot}/{영상 id} 로 보여 준다 */
+const CVK = (id, vid) => `seo/tt/${id}/cv/${vid}`;
 /* 예약 링크 추적 — 틱톡 프로필 링크를 우리 주소로 걸면 예약 페이지로 넘겨 주면서 하루 클릭 수를 센다 (개인정보 안 남김) */
 const KX = { link: (id) => `seo/tt/${id}/link.json`, clicks: (id) => `seo/tt/${id}/clicks.json`, visits: 'seo/tt/visits.json' };
 /* 틱톡 프로필에 거는 주소 — 회사 GitHub Pages 의 t/{slot}/ 가 이 Worker 의 /go/{slot} 로 바로 넘긴다 */
@@ -63,8 +65,8 @@ export function ttAiFacts(label, latest, hist, now) {
   if (V.length) {
     const tot = V.reduce((a, v) => a + v.views, 0), sv = V.map((v) => v.views).sort((a, b) => a - b);
     L.push(`최근 ${V.length}개 영상 조회 합 ${tot} · 평균 ${Math.round(tot / V.length)} · 중간값 ${sv[V.length >> 1]} · 좋아요 합 ${V.reduce((a, v) => a + v.likes, 0)} · 댓글 합 ${V.reduce((a, v) => a + v.comments, 0)} · 공유 합 ${V.reduce((a, v) => a + v.shares, 0)}`);
-    L.push('', '영상 목록 (최신순). 길이 0초는 틱톡이 길이를 안 준 것 — 사진(슬라이드) 게시물일 수 있음.', '게시 시각(한국) | 길이 | 조회 | 좋아요 | 댓글 | 공유 | 제목 · 설명');
-    for (const v of V) L.push([whenK(v.t), v.dur + '초', v.views, v.likes, v.comments, v.shares, S(v.title, 500).replace(/\s+/g, ' ')].join(' | '));
+    L.push('', '영상 목록 (최신순). 길이 0초는 틱톡이 길이를 안 준 것 — 사진(슬라이드) 게시물일 수 있음. 영상을 말할 때는 맨 앞 번호를 [V3] 처럼 붙일 것.', '번호 | 게시 시각(한국) | 길이 | 조회 | 좋아요 | 댓글 | 공유 | 제목 · 설명');
+    V.forEach((v, i) => L.push(['V' + (i + 1), whenK(v.t), v.dur + '초', v.views, v.likes, v.comments, v.shares, S(v.title, 500).replace(/\s+/g, ' ')].join(' | ')));
     /* 해시태그별 비교 — 올린 지 3~120일 된 영상끼리 (새 영상은 조회가 덜 쌓였고, 아주 옛날 것은 시기가 다르다) */
     const C = V.filter((v) => { const a = now / 1000 - v.t; return v.t && a >= 3 * 86400 && a < 120 * 86400; });
     const avg = (a) => (a.length ? Math.round(a.reduce((x, v) => x + v.views, 0) / a.length) : 0);
@@ -78,6 +80,16 @@ export function ttAiFacts(label, latest, hist, now) {
   }
   if (!V.length) L.push('올린 영상 없음');
   return L.join('\n');
+}
+/* AI 가 [V3] 처럼 적은 영상 번호 → 그 영상 (분석한 때의 목록 순서라 따로 남겨 둔다) */
+export function vrefOf(report, videos) {
+  const V = videos || [], out = {}, txt = JSON.stringify(report || {});
+  const groups = txt.match(/\[[^\]]{1,40}\]/g) || [];
+  for (const g of groups) for (const m of g.match(/V(\d{1,2})/g) || []) {
+    const n = +m.slice(1), v = V[n - 1];
+    if (v && !out[m] && Object.keys(out).length < 30) out[m] = { id: v.id, url: v.url || '', t: v.t || 0, title: S(v.title, 80), views: v.views || 0, cv: v.cv ? 1 : 0 };
+  }
+  return out;
 }
 /* 캡션에서 해시태그 뽑기 (소문자, 끝 문장부호 뺌, 중복 없이) */
 export function ttTags(t) {
@@ -165,10 +177,13 @@ export function makeSns(deps) {
         const vj = await vr.json().catch(() => ({}));
         if (!vr.ok || (vj.error && vj.error.code && vj.error.code !== 'ok')) throw new Error('틱톡 영상 목록 (' + S((vj.error && vj.error.code) || vr.status, 60) + ')');
         const d = vj.data || {};
-        for (const v of d.videos || []) videos.push({ id: S(v.id, 40), t: +v.create_time || 0, title: S([v.video_description, v.title].map((x) => String(x || '')).sort((p, q) => q.length - p.length)[0], 1500),   /* 캡션 전체 — 해시태그가 끝에 붙어서 자르면 안 된다 */ url: /^https:\/\//.test(v.share_url || '') ? S(v.share_url, 300) : '', dur: +v.duration || 0, views: +v.view_count || 0, likes: +v.like_count || 0, comments: +v.comment_count || 0, shares: +v.share_count || 0 });
+        for (const v of d.videos || []) videos.push({ id: S(v.id, 40), cu: /^https:\/\//.test(v.cover_image_url || '') ? S(v.cover_image_url, 1500) : '', t: +v.create_time || 0, title: S([v.video_description, v.title].map((x) => String(x || '')).sort((p, q) => q.length - p.length)[0], 1500),   /* 캡션 전체 — 해시태그가 끝에 붙어서 자르면 안 된다 */ url: /^https:\/\//.test(v.share_url || '') ? S(v.share_url, 300) : '', dur: +v.duration || 0, views: +v.view_count || 0, likes: +v.like_count || 0, comments: +v.comment_count || 0, shares: +v.share_count || 0 });
         if (!d.has_more || !d.cursor) break;
         cursor = d.cursor;
       }
+      const had = {};
+      for (const v of prev.videos || []) if (v.cv) had[v.id] = 1;
+      for (const v of videos) if (had[v.id]) v.cv = 1;   /* 이미 받아 둔 표지 */
       const now = Date.now(), latest = { at: now, user, videos, err: '' };
       await rPut(env, KEY.latest(id), latest);
       const hist = ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).filter((h) => h.d !== ymdK(now));
@@ -180,6 +195,39 @@ export function makeSns(deps) {
       await rPut(env, KEY.latest(id), { ...prev, err, errAt: Date.now() }).catch(() => {});
       return { ...prev, err };
     }
+  }
+
+  /* 표지 받아 두기 — 한 번에 n개까지 (1분 크론이 다른 일도 해서 한 번에 많이 부르지 않는다). 최근 12개 · 조회 많은 순 먼저 */
+  async function covers(env, id, n) {
+    const L = await rGet(env, KEY.latest(id)).catch(() => null);
+    if (!L || !Array.isArray(L.videos)) return 0;
+    const V = L.videos, top = V.slice(0, 12), rest = V.slice(12).sort((a, b) => b.views - a.views);
+    const todo = top.concat(rest).filter((v) => v.cu && !v.cv && /^\d{5,30}$/.test(v.id)).slice(0, n);
+    if (!todo.length) return 0;
+    let got = 0;
+    for (const v of todo) {
+      try {
+        const r = await fetch(v.cu, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const ct = r.headers.get('content-type') || '';
+        const buf = r.ok && /^image\//.test(ct) ? await r.arrayBuffer() : null;
+        if (buf && buf.byteLength > 200 && buf.byteLength < 1500000) { await env.CHAT_MEDIA.put(CVK(id, v.id), buf, { httpMetadata: { contentType: ct.split(';')[0] } }); v.cv = 1; got++; }
+        else v.cu = '';   /* 막힌 주소 — 다음에 새로 가져올 때 다시 */
+      } catch (_) { v.cu = ''; }
+    }
+    /* 그사이 새로 가져왔을 수 있어서 다시 읽고 표시만 옮긴다 */
+    const cur = await rGet(env, KEY.latest(id)).catch(() => null);
+    if (cur && Array.isArray(cur.videos)) {
+      const M = {}; for (const v of todo) M[v.id] = v;
+      for (const v of cur.videos) { const x = M[v.id]; if (x) { if (x.cv) v.cv = 1; if (!x.cu && !x.cv) v.cu = ''; } }
+      await rPut(env, KEY.latest(id), cur);
+    }
+    return got;
+  }
+  /* 공개 — 표지 이미지 (우리 회사 틱톡에 이미 공개된 표지) */
+  async function cover(env, id, vid) {
+    const o = slotOf(id) && /^\d{5,30}$/.test(vid) ? await env.CHAT_MEDIA.get(CVK(id, vid)).catch(() => null) : null;
+    if (!o) return new Response('', { status: 404, headers: { 'Cache-Control': 'no-store' } });
+    return new Response(o.body, { headers: { 'Content-Type': (o.httpMetadata && o.httpMetadata.contentType) || 'image/jpeg', 'Cache-Control': 'public, max-age=604800' } });
   }
 
   /* 1분 크론 — 매일 새벽 5시(한국)에 한 번 */
@@ -248,6 +296,11 @@ export function makeSns(deps) {
 
   async function tick(env) {
     const k = new Date(Date.now() + 9 * 3600e3);
+    if (k.getUTCHours() === 5 && k.getUTCMinutes() >= 10 && k.getUTCMinutes() < 40 && ready(env)) {   /* 표지 — 1분에 한 계정씩 6개 */
+      const slot = SLOTS[k.getUTCMinutes() % SLOTS.length];
+      const n = await covers(env, slot.id, 6).catch(() => 0);
+      return n ? { [slot.id + '_cv']: { n } } : null;
+    }
     if (k.getUTCHours() !== 5 || k.getUTCMinutes() > 9 || !ready(env)) return null;
     const out = {};
     for (const { id } of SLOTS) {
@@ -300,6 +353,7 @@ export function makeSns(deps) {
     await dbPut(env, SEC(slot.id), secOf(j, null, String(st.nm || '')));
     /* 어느 틱톡 계정이 들어갔는지 바로 보여 준다 — 브라우저에 로그인된 다른 계정이 들어가는 실수를 그 자리에서 알게 */
     const l = await collect(env, slot.id).catch((e) => { console.log('tt first', e && e.message); return null; });
+    if (l && !l.err) await covers(env, slot.id, 12).catch(() => 0);
     const un = l && l.user && (l.user.username || l.user.name);
     if (!un) return page(true, `${slot.label} 틱톡 계정을 연결했어요. 잠시 뒤 DM 앱 검색 노출 → SNS 에서 숫자를 확인하세요.`);
     return page(true, `${slot.label} 칸에 틱톡 <b>@${htmlEsc(S(un, 40))}</b> 계정을 연결했어요.<br><br>다른 계정이 들어갔다면 DM 앱에서 이 칸의 ✕ 를 누르고, 틱톡에서 로그아웃한 뒤 맞는 계정으로 로그인해 다시 연결하세요.`);
@@ -311,6 +365,15 @@ export function makeSns(deps) {
     await dbPut(env, SEC(id), null);
     await env.CHAT_MEDIA.delete(KEY.latest(id)).catch(() => {});
     await env.CHAT_MEDIA.delete(AIK(id)).catch(() => {});   /* 다른 계정을 연결하면 예전 분석이 섞이지 않게 */
+    try {
+      for (let i = 0; i < 5; i++) {   /* 표지도 */
+        const ls = await env.CHAT_MEDIA.list({ prefix: `seo/tt/${id}/cv/`, limit: 500 });
+        const ks = ((ls && ls.objects) || []).map((o) => o.key);
+        if (!ks.length) break;
+        await env.CHAT_MEDIA.delete(ks);
+        if (!ls.truncated) break;
+      }
+    } catch (_) {}
   }
 
   /* 경영팀만 — seo.js 가 경영팀 확인 후 넘긴다 */
@@ -323,8 +386,12 @@ export function makeSns(deps) {
         const sec = await dbGet(env, SEC(id)).catch(() => null);
         if (b.refresh && (!b.slot || b.slot === id) && sec && sec.rt) {
           if (latest && Date.now() - Math.max(latest.at || 0, latest.errAt || 0) < 10 * 60000) note = '방금 불러왔어요. 10분 뒤에 다시 할 수 있어요';
-          else latest = (await collect(env, id)) || latest;
+          else {
+            latest = (await collect(env, id)) || latest;
+            if (latest && !latest.err && b.slot === id && await covers(env, id, 12).catch(() => 0)) latest = (await rGet(env, KEY.latest(id)).catch(() => null)) || latest;
+          }
         }
+        if (latest && Array.isArray(latest.videos)) latest = { ...latest, videos: latest.videos.map(({ cu, ...v }) => v) };   /* 표지 원래 주소는 앱에 안 보낸다 */
         accts.push({ id, label, on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, ai: await rGet(env, AIK(id)).catch(() => null), link: await rGet(env, KX.link(id)).catch(() => null), track: TRACK_URL(id), clicks: await clickDays(env, id), hist: ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).slice(0, 60) });
       }
       return { ok: true, ready: ready(env), accts, note, visits: await visits(env).catch(() => null) };
@@ -359,7 +426,7 @@ export function makeSns(deps) {
         facts += await compareFacts(env, slot.id);
         const r = await relayCall(env, '/ai/tt-report', { facts }, { ph: me.ph, nm: me.name, x: '틱톡 분석 · ' + slot.label });
         if (!r.body || !r.body.ok) return { ok: false, error: (r.body && r.body.error) || 'AI 분석을 하지 못했어요' };
-        const rec = { report: r.body.report || {}, at: Date.now(), base: latest.at, by: S(me.name, 30) };
+        const rec = { report: r.body.report || {}, at: Date.now(), base: latest.at, by: S(me.name, 30), vref: vrefOf(r.body.report, latest.videos) };
         await rPut(env, AIK(slot.id), rec);
         return { ok: true, ai: rec };
       })().finally(() => aiBusy.delete(slot.id));
@@ -382,7 +449,7 @@ export function makeSns(deps) {
     return null;
   }
 
-  return { route, callback, tick, collect, forReport, ready, go, visits };
+  return { route, callback, tick, collect, forReport, ready, go, visits, cover, covers };
 }
 
 function page(ok, msg) {
