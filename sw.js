@@ -134,7 +134,12 @@ self.addEventListener('push', (event) => {
     jobs.push((d.badge > 0 ? self.navigator.setAppBadge(d.badge) : self.navigator.clearAppBadge()).catch(() => {}));
   } else if (String(d.tag || '').startsWith('chat-') && self.navigator && 'setAppBadge' in self.navigator) {
     // 채팅 알림이 올 때마다 아이콘 숫자 +1 (11/8 — 전에는 앱을 열어야만 숫자가 바뀌었다). 앱을 열면 진짜 안 읽은 수로 다시 맞춘다.
-    jobs.push(badgeGet().then((n) => badgeSet(n + 1)));
+    // 단, 앱을 지금 보고 있으면(이미 읽었을 수 있음) +1 하지 않고 앱에 진짜 수를 물어본다 — 읽었는데 숫자가 남던 것(11/11)
+    jobs.push(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const vis = list.filter((c) => c.visibilityState === 'visible');
+      if (vis.length) { vis.forEach((c) => c.postMessage({ type: 'badge-sync' })); return null; }
+      return badgeGet().then((n) => badgeSet(n + 1));
+    }).catch(() => badgeGet().then((n) => badgeSet(n + 1))));
   }
   event.waitUntil(Promise.all(jobs));
 });

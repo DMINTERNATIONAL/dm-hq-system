@@ -2228,7 +2228,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .sv-grid{border-collapse:collapse;font-size:13.5px;min-width:100%}.sv-grid th{font-weight:500;color:var(--text-2);padding:6px 8px;font-size:12.5px;text-align:center}
 .sv-grid td{padding:8px;text-align:center;border-top:1px solid var(--border-soft)}.sv-grid td:first-child{text-align:left;min-width:90px}.sv-grid tr:nth-child(even) td{background:var(--border-soft)}
 .sv-gc{display:inline-flex;padding:4px;cursor:pointer}
-.sv-grid.sum td{padding:4px}.hc{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:30px;border-radius:6px;font-weight:700;font-size:12.5px;background:color-mix(in srgb,var(--svc) calc(var(--a) * 85%),transparent);color:var(--text)}
+.sv-grid.sum td{padding:4px}.sv-grid.sum .hc{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:30px;border-radius:6px;font-weight:700;font-size:12.5px;background:color-mix(in srgb,var(--svc) calc(var(--a) * 85%),transparent);color:var(--text)}
 .sv-files{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}.sv-file{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:6px 8px;font-size:13px;max-width:100%}
 .sv-file img{width:44px;height:44px;object-fit:cover;border-radius:6px}.sv-file a{cursor:pointer;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}.sv-file .fi{display:flex;color:var(--text-3)}
 .sv-fnav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 20px}.sv-fnav .cv-btn{height:42px;padding:0 22px}.sv-fnav .cv-btn.pri{background:var(--svc);border-color:var(--svc)}
@@ -8620,6 +8620,8 @@ if('serviceWorker' in navigator){
   /* 알림을 눌렀을 때 서비스 워커가 보내는 '이 화면 열기' */
   /* 앱 화면은 기기 저장본으로 바로 뜨고, 서비스 워커가 뒤에서 새 버전을 받아 두면 알려 준다 */
   navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='app-updated')showUpdateBanner()});
+  /* 앱을 보고 있을 때 채팅 알림이 오면 서비스 워커가 아이콘 숫자를 +1 하지 않고 진짜 수를 물어본다(11/11 — 읽었는데 숫자가 남던 것) */
+  navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='badge-sync'&&typeof cmBadges==='function'&&typeof CM!=='undefined'&&CM.inbox)cmBadges()});
   var dmLastAppCheck=Date.now();
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState!=='visible'||Date.now()-dmLastAppCheck<180000||!navigator.serviceWorker.controller)return;
@@ -9987,7 +9989,7 @@ function cmBoot(){
   cmStream('inbox','/chat/inbox/'+ME.phone,'',cmOnInbox);
   cmStream('act','/chat/act/'+ME.phone,'orderBy=%22%24key%22&limitToLast=200',function(d){CM.act=d||{};cmBadges();cmDeskCheck();if(cmOn('p-comm')&&CM.tab==='act')cmRenderAct()});
   return p}
-function cmOnInbox(d){CM.inbox=d||{};cmNoticeMaybe(CM.inbox);cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList()}
+function cmOnInbox(d){CM.inbox=d||{};cmNoticeMaybe(CM.inbox);cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList();if(CM.rid&&cmOn('p-comm-room'))cmMarkRead()}
 /* 폰에서 앱으로 돌아왔을 때(11/8, 시드니에서 '들어가면 30초 뒤에야 메시지가 뜬다'):
    폰이 앱을 재우는 동안 실시간 연결이 끊기는데, 연결 쪽은 그걸 한참(30초~) 뒤에야 알아채고 다시 붙는다. 그동안 목록·숫자가 옛것.
    → 돌아오면 ① 실시간 연결을 바로 끊고 다시 붙이고 ② 대화 목록과 보던 방의 최근 대화는 그 사이 한 번 바로 받아 그린다. */
@@ -10007,7 +10009,7 @@ function cmUnreadTotal(){var n=0;Object.keys(CM.inbox||{}).forEach(function(k){v
 function cmActNew(){return Object.keys(CM.act||{}).filter(function(k){return CM.act[k]&&!CM.act[k].done}).length}
 function cmBadges(){var n=cmUnreadTotal()+cmActNew();cmTopTabs();['BT-BADGE-comm','BT-BADGE-cm-chat','BT-BADGE-cm-act'].forEach(function(id,i){var b=$(id);if(!b)return;var v=i===0?n:(i===1?cmUnreadTotal():cmActNew());if(v>0){b.textContent=v>99?'99+':v;b.style.display='inline-block'}else b.style.display='none'});
   try{if(navigator.setAppBadge){if(n>0)navigator.setAppBadge(n);else navigator.clearAppBadge()}}catch(e){}
-  try{if(CM.inbox&&n!==CM._swBadge&&navigator.serviceWorker&&navigator.serviceWorker.controller){CM._swBadge=n;navigator.serviceWorker.controller.postMessage({type:'badge',n:n})}}catch(e){}
+  try{if(CM.inbox&&navigator.serviceWorker&&navigator.serviceWorker.controller)navigator.serviceWorker.controller.postMessage({type:'badge',n:n})}catch(e){}
   cmDeskBadge(n)}
 
 /* ── 소통 첫 화면 ── */
@@ -10213,7 +10215,7 @@ var CM_READ_T=null;
    10/28 진단: 방을 열어 둔 채 다른 창을 쓰면 새 글이 바로 '읽음'이 돼 독 숫자가 1 → 0 으로 곧장 지워졌다(보낸 사람의 '1'도 사라짐).
    카톡 PC처럼 창을 앞으로 가져와야 읽은 것으로 친다 */
 function cmAway(){return document.visibilityState!=='visible'||(!document.hasFocus()&&((typeof CM_DESK!=='undefined'&&CM_DESK)||!('ontouchstart' in window)))}
-function cmMarkRead(){if(!CM.rid||cmAway()||!cmOn('p-comm-room'))return;clearTimeout(CM_READ_T);CM_READ_T=setTimeout(function(){if(cmAway())return;var mx=0;Object.keys(CM.msgs).forEach(function(k){var m=CM.msgs[k];if(m&&m.s>mx)mx=m.s});var mine=CM.reads[ME.phone]||0;if(mx>mine){CM.reads[ME.phone]=mx;cmP('/chat/reads/'+CM.rid+'/'+ME.phone,mx);cmP('/chat/inbox/'+ME.phone+'/'+CM.rid+'/r',mx)}if(mx)cmActSeen(CM.rid,String(mx).padStart(9,'0'))},400)}
+function cmMarkRead(){if(!CM.rid||cmAway()||!cmOn('p-comm-room'))return;clearTimeout(CM_READ_T);CM_READ_T=setTimeout(function(){if(cmAway())return;var mx=0;Object.keys(CM.msgs).forEach(function(k){var m=CM.msgs[k];if(m&&m.s>mx)mx=m.s});var ib=(CM.inbox||{})[CM.rid],mine=Math.min(CM.reads[ME.phone]||0,ib?(ib.r||0):Infinity),rid=CM.rid;if(mx>mine&&!(CM._rdSent&&CM._rdSent.rid===rid&&CM._rdSent.s>=mx&&Date.now()-CM._rdSent.at<5000)){CM._rdSent={rid:rid,s:mx,at:Date.now()};CM.reads[ME.phone]=Math.max(CM.reads[ME.phone]||0,mx);if(ib)ib.r=Math.max(ib.r||0,mx);cmBadges();cmP('/chat/reads/'+rid+'/'+ME.phone,mx);cmP('/chat/inbox/'+ME.phone+'/'+rid+'/r',mx)}if(mx)cmActSeen(CM.rid,String(mx).padStart(9,'0'))},400)}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')cmMarkRead()});
 window.addEventListener('focus',function(){cmMarkRead()});
 
