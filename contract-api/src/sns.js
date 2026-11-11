@@ -174,8 +174,11 @@ export function makeSns(deps) {
       }
     }
     await dbPut(env, SEC(slot.id), secOf(j, null, String(st.nm || '')));
-    ctx.waitUntil(collect(env, slot.id).catch((e) => console.log('tt first', e && e.message)));
-    return page(true, `${slot.label} 틱톡 계정을 연결했어요. 잠시 뒤 DM 앱 검색 노출 → SNS 에서 숫자를 확인하세요.`);
+    /* 어느 틱톡 계정이 들어갔는지 바로 보여 준다 — 브라우저에 로그인된 다른 계정이 들어가는 실수를 그 자리에서 알게 */
+    const l = await collect(env, slot.id).catch((e) => { console.log('tt first', e && e.message); return null; });
+    const un = l && l.user && (l.user.username || l.user.name);
+    if (!un) return page(true, `${slot.label} 틱톡 계정을 연결했어요. 잠시 뒤 DM 앱 검색 노출 → SNS 에서 숫자를 확인하세요.`);
+    return page(true, `${slot.label} 칸에 틱톡 <b>@${htmlEsc(S(un, 40))}</b> 계정을 연결했어요.<br><br>다른 계정이 들어갔다면 DM 앱에서 이 칸의 ✕ 를 누르고, 틱톡에서 로그아웃한 뒤 맞는 계정으로 로그인해 다시 연결하세요.`);
   }
 
   async function stop(env, id) {
@@ -205,7 +208,7 @@ export function makeSns(deps) {
       if (!ready(env)) return { ok: false, error: '틱톡 개발자 앱 설정이 아직 안 됐어요' };
       if (!slotOf(b.slot)) return { ok: false, error: '연결할 계정 칸을 골라 주세요' };
       const state = await mkState(env, { ph: String(me.ph), nm: S(me.name, 30), slot: b.slot, owner: me.role === 'owner' || me.admin === true, exp: Date.now() + 15 * 60000 });
-      const q = new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, response_type: 'code', scope: SCOPE, redirect_uri: redirectUri(url), state });
+      const q = new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, response_type: 'code', scope: SCOPE, redirect_uri: redirectUri(url), state, disable_auto_auth: '1' }); /* 예전에 허용한 계정이라도 허용 화면을 꼭 띄워 어느 계정인지 보이게 */
       return { ok: true, url: AUTH + '?' + q };
     }
     if (path === '/seo/tt/stop') { if (!slotOf(b.slot)) return { ok: false, error: '계정 칸을 골라 주세요' }; await stop(env, b.slot); return { ok: true }; }
