@@ -20,6 +20,8 @@ export const SLOTS = [{ id: 'dm', label: 'DAY:MEAN' }, { id: 'bb', label: '바�
 const slotOf = (id) => SLOTS.find((x) => x.id === id) || null;
 const KEY = { latest: (id) => `seo/tt/${id}/latest.json`, hist: (id) => `seo/tt/${id}/hist.json` };
 const SEC = (id) => '/authSecrets/__tiktok/' + id;
+const AIK = (id) => `seo/tt/${id}/ai.json`;   /* AI 분석 — { report, at, base(분석한 숫자 시각), by } */
+const AI_WEEK_CAP = 30;   /* 한 주(월요일 시작)에 회사 전체 틱톡 AI 분석 상한 — 계정마다 하루 한 번이라 평소엔 14번 이하 */
 const te = new TextEncoder();
 const S = (v, n) => String(v == null ? '' : v).slice(0, n);
 const ymdK = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
@@ -43,11 +45,32 @@ export function ttFacts(latest, hist, now, label) {
   return L.join('\n');
 }
 
+/* AI 분석에 줄 글 — 계정 숫자 · 팔로워 흐름 · 영상 하나하나(제목 · 설명 포함) */
+const WDK = ['일', '월', '화', '수', '목', '금', '토'];
+export function ttAiFacts(label, latest, hist, now) {
+  const u = latest.user, V = latest.videos || [];
+  const whenK = (t) => { const d = new Date(t * 1000 + 9 * 3600e3); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}(${WDK[d.getUTCDay()]}) ${d.getUTCHours()}시`; };
+  const L = [`오늘: ${ymdK(now)}`, `[틱톡 회사 계정 — ${label} @${u.username || u.name}]`,
+    `팔로워 ${u.followers} · 팔로잉 ${u.following} · 받은 좋아요 합 ${u.likes} · 전체 영상 ${u.videos}개 (아래는 최근 ${V.length}개)`];
+  const H = (hist || []).slice(0, 30);
+  if (H.length > 1) L.push('팔로워 기록(최신이 앞): ' + H.map((h) => `${h.d.slice(5)} ${h.f}`).join(' · '));
+  else L.push('팔로워 기록: 오늘 처음 연결해서 아직 흐름이 없음');
+  if (V.length) {
+    const tot = V.reduce((a, v) => a + v.views, 0), sv = V.map((v) => v.views).sort((a, b) => a - b);
+    L.push(`최근 ${V.length}개 영상 조회 합 ${tot} · 평균 ${Math.round(tot / V.length)} · 중간값 ${sv[V.length >> 1]} · 좋아요 합 ${V.reduce((a, v) => a + v.likes, 0)} · 댓글 합 ${V.reduce((a, v) => a + v.comments, 0)} · 공유 합 ${V.reduce((a, v) => a + v.shares, 0)}`);
+    L.push('', '영상 목록 (최신순). 길이 0초는 틱톡이 길이를 안 준 것 — 사진(슬라이드) 게시물일 수 있음.', '게시 시각(한국) | 길이 | 조회 | 좋아요 | 댓글 | 공유 | 제목 · 설명');
+    for (const v of V) L.push([whenK(v.t), v.dur + '초', v.views, v.likes, v.comments, v.shares, S(v.title, 120).replace(/\s+/g, ' ')].join(' | '));
+  } else L.push('올린 영상 없음');
+  return L.join('\n');
+}
+
 export function makeSns(deps) {
-  const { dbGet, dbPut } = deps;
+  const { dbGet, dbPut, relayCall } = deps;
   const rGet = async (env, key) => { const o = await env.CHAT_MEDIA.get(key); return o ? o.json() : null; };
   const rPut = (env, key, v) => env.CHAT_MEDIA.put(key, JSON.stringify(v), { httpMetadata: { contentType: 'application/json' } });
   const ready = (env) => !!(env.TIKTOK_CLIENT_KEY && env.TIKTOK_CLIENT_SECRET);
+  const aiBusy = new Map();   /* 같은 계정 AI 분석을 동시에 두 번 하지 않게 (같은 Worker 안에서만) */
+  const weekKeyK = (ms) => { const d = new Date(ms + 9 * 3600e3); const back = (d.getUTCDay() + 6) % 7; return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - back)).toISOString().slice(0, 10); };
 
   /* state 서명 — 세션 · 구글 연결과 다른 접두어(tt|)라 서로 바꿔 쓸 수 없다 */
   async function hm(env, s) {
@@ -186,6 +209,7 @@ export function makeSns(deps) {
     if (sec && sec.atk && ready(env)) await fetch(API + '/oauth/revoke/', form({ client_key: env.TIKTOK_CLIENT_KEY, client_secret: env.TIKTOK_CLIENT_SECRET, token: sec.atk })).catch(() => {});
     await dbPut(env, SEC(id), null);
     await env.CHAT_MEDIA.delete(KEY.latest(id)).catch(() => {});
+    await env.CHAT_MEDIA.delete(AIK(id)).catch(() => {});   /* 다른 계정을 연결하면 예전 분석이 섞이지 않게 */
   }
 
   /* 경영팀만 — seo.js 가 경영팀 확인 후 넘긴다 */
@@ -200,7 +224,7 @@ export function makeSns(deps) {
           if (latest && Date.now() - Math.max(latest.at || 0, latest.errAt || 0) < 10 * 60000) note = '방금 불러왔어요. 10분 뒤에 다시 할 수 있어요';
           else latest = (await collect(env, id)) || latest;
         }
-        accts.push({ id, label, on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, hist: ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).slice(0, 60) });
+        accts.push({ id, label, on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, ai: await rGet(env, AIK(id)).catch(() => null), hist: ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).slice(0, 60) });
       }
       return { ok: true, ready: ready(env), accts, note };
     }
@@ -210,6 +234,34 @@ export function makeSns(deps) {
       const state = await mkState(env, { ph: String(me.ph), nm: S(me.name, 30), slot: b.slot, owner: me.role === 'owner' || me.admin === true, exp: Date.now() + 15 * 60000 });
       const q = new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, response_type: 'code', scope: SCOPE, redirect_uri: redirectUri(url), state, disable_auto_auth: '1' }); /* 예전에 허용한 계정이라도 허용 화면을 꼭 띄워 어느 계정인지 보이게 */
       return { ok: true, url: AUTH + '?' + q };
+    }
+    /* AI 분석 — 경영팀이 누를 때만. 계정마다 하루(한국 날짜) 한 번, 회사 전체 한 주 AI_WEEK_CAP 번 */
+    if (path === '/seo/tt/ai') {
+      const slot = slotOf(b.slot);
+      if (!slot) return { ok: false, error: '계정 칸을 골라 주세요' };
+      const cur = await rGet(env, AIK(slot.id)).catch(() => null);
+      if (!b.make) return { ok: true, ai: cur };
+      if (!relayCall) return { ok: false, error: 'AI 설정이 없어요' };
+      const now = Date.now();
+      if (cur && cur.at && ymdK(cur.at) === ymdK(now)) return { ok: false, error: '오늘 이미 분석했어요. 내일 다시 할 수 있어요', ai: cur };
+      const latest = await rGet(env, KEY.latest(slot.id)).catch(() => null);
+      if (!latest || !latest.user) return { ok: false, error: '아직 가져온 틱톡 숫자가 없어요. 먼저 연결하고 새로 불러오기를 눌러 주세요' };
+      if (aiBusy.has(slot.id)) return aiBusy.get(slot.id);
+      const job = (async () => {
+        const wk = weekKeyK(now), ck = 'seo/tt/_aicount.json';
+        const c = (await rGet(env, ck).catch(() => null)) || {};
+        const n = c.wk === wk ? +c.n || 0 : 0;
+        if (n >= AI_WEEK_CAP) return { ok: false, error: `이번 주 틱톡 AI 분석 한도(${AI_WEEK_CAP}번)를 다 썼어요. 다음 주 월요일에 다시 열려요` };
+        await rPut(env, ck, { wk, n: n + 1 });
+        const facts = ttAiFacts(slot.label, latest, await rGet(env, KEY.hist(slot.id)).catch(() => null), now);
+        const r = await relayCall(env, '/ai/tt-report', { facts }, { ph: me.ph, nm: me.name, x: '틱톡 분석 · ' + slot.label });
+        if (!r.body || !r.body.ok) return { ok: false, error: (r.body && r.body.error) || 'AI 분석을 하지 못했어요' };
+        const rec = { report: r.body.report || {}, at: Date.now(), base: latest.at, by: S(me.name, 30) };
+        await rPut(env, AIK(slot.id), rec);
+        return { ok: true, ai: rec };
+      })().finally(() => aiBusy.delete(slot.id));
+      aiBusy.set(slot.id, job);
+      return job;
     }
     if (path === '/seo/tt/stop') { if (!slotOf(b.slot)) return { ok: false, error: '계정 칸을 골라 주세요' }; await stop(env, b.slot); return { ok: true }; }
     return null;

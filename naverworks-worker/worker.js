@@ -131,6 +131,11 @@ export default {
     if (pathname === '/ai/ig-report' || pathname.endsWith('/ai/ig-report')) {
       return cors(await withAi(body, await handleAIIgReport(body, env)));
     }
+    // 틱톡 회사 계정 AI 분석 (경영팀이 누를 때만, Sonnet 5.5) — dm-contract-api 가 경영팀 확인 · 하루 한 번 제한 후 부른다
+    if (pathname === '/ai/tt-report' || pathname.endsWith('/ai/tt-report')) {
+      body.mode = 'tiktok';   /* 사본을 넘기면 토큰 기록(body.__ai)이 원본에 안 남는다 */
+      return cors(await withAi(body, await handleAIIgReport(body, env)));
+    }
     // 검색 노출(네이버 플레이스 · 구글) 주간 조사 — 웹 검색으로 기준 · 정책 변화를 찾고 이번 주 할 일을 쓴다 (dm-contract-api 가 매주 · 경영팀 요청 때 부른다)
     if (pathname === '/ai/seo-weekly' || pathname.endsWith('/ai/seo-weekly')) {
       return cors(await withAi(body, await handleAISeoWeekly(body, env)));
@@ -924,7 +929,7 @@ async function handleAIIgReport(body, env) {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
   if (!body.secret || body.secret !== env.WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401);
   if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'AI 미설정' }, 503);
-  const mode = body.mode === 'team' ? 'team' : 'person';
+  const mode = body.mode === 'team' ? 'team' : body.mode === 'tiktok' ? 'tiktok' : 'person';
   const facts = String(body.facts || '').slice(0, 40000);
   if (!facts) return json({ ok: false, error: '분석할 데이터가 없어요' }, 400);
   const common =
@@ -933,7 +938,17 @@ async function handleAIIgReport(body, env) {
     '- 혼내는 말투가 아니라 같이 성장하자는 코치 말투. 잘한 건 확실히 칭찬한다.\n' +
     '- 표본이 적거나(게시 3개 미만) 기간이 짧으면 단정하지 말고 "아직 판단하기 이르다"고 말한다.\n' +
     '- 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다.\n';
-  const sys = mode === 'team'
+  const ttSys = '너는 헤어살롱 회사(서울 홍대 · 합정의 DAY:MEAN 헤어살롱 · 에토 바버샵) 경영팀을 돕는 틱톡 마케팅 분석가야. 회사 틱톡 계정 하나의 숫자와 최근 영상 목록(게시 시각 · 길이 · 조회 · 좋아요 · 댓글 · 공유 · 제목과 설명)을 받아, 무엇이 잘 되고 무엇이 문제인지, 이번 주에 무엇을 할지 경영팀에게 알려 준다. 목표는 조회수 자체가 아니라 팔로우와 예약(매장 방문)으로 이어지는 것이다. 손님 중 외국인 관광객이 많을 수 있다(영어 제목이 많으면 그 점을 고려).\n\n규칙:\n' +
+    '- 아래 데이터에 있는 숫자와 사실만 근거로 쓴다. 데이터에 없는 수치(시청 시간 · 끝까지 본 비율 · 도달 · 프로필 방문 · 예약 수 등)는 지어내지 않는다. 틱톡 평균 같은 바깥 기준 숫자도 지어내지 않는다.\n' +
+    '- 조회가 높은 영상과 낮은 영상을 실제로 비교해서 차이를 찾는다: 다룬 시술 · 스타일(색 · 컷 · 펌 등), 제목 첫 문장의 방식(POV · 질문 · 설명 등), 언어(영어 · 한국어), 해시태그, 길이(사진 게시물 포함), 요일 · 시간대, 올린 간격. 근거가 된 영상은 날짜와 제목 앞부분으로 밝힌다.\n' +
+    '- 조회 대비 팔로워 · 댓글 · 공유가 적으면 그 숫자로 분명히 말한다.\n' +
+    '- 표본이 적으면(영상 5개 미만이거나 비교 그룹이 3개 미만) 단정하지 말고 "아직 판단하기 이르다"고 말한다. 팔로워 기록이 하루뿐이면 팔로워 흐름은 말하지 않는다.\n' +
+    '- 존댓말(해요체)로, 짧고 구체적으로. 한 항목은 한두 문장. 숫자를 넣는다. 혼내는 말투가 아니라 같이 키우자는 말투.\n' +
+    '- 올릴 글(캡션) 문장은 써 주지 않는다. 아이디어는 무엇을 · 어떻게 찍을지까지만.\n' +
+    '- 다른 설명 없이 JSON 하나만 출력한다. 코드블록 표시(```)도 쓰지 않는다.\n' +
+    '- 출력 형식: {"headline":"이 계정 지금 상태 한 문장","good":["잘 되는 것 — 근거 영상 · 숫자 (최대 4개)"],"problems":["문제 — 숫자로 (최대 4개)"],"todo":["이번 주에 할 일 3개 — 언제 · 무엇을 · 몇 개"],"ideas":[{"title":"찍을 영상 아이디어","why":"잘 된 영상(날짜 · 조회) 근거","how":"찍는 방법 · 장면 순서 2~3줄"}]}\n' +
+    '- ideas 는 정확히 3개. 지금까지 잘 된 영상의 주제 · 방식을 이어 가는 것으로만.';
+  const sys = mode === 'tiktok' ? ttSys : mode === 'team'
     ? '너는 헤어살롱 회사(DAY:MEAN · 에토바버샵) 경영팀을 돕는 인스타그램 마케팅 분석가야. 디자이너 · 인턴 개인 인스타 계정 전체의 최근 2주 숫자를 받아, 경영팀이 이번 주에 무엇을 챙겨야 하는지 알려 준다.\n\n규칙:\n' + common +
       '- 사람 이름은 데이터에 있는 이름 그대로 쓴다.\n' +
       '- 출력 형식: {"headline":"전체 흐름 한 문장","highlights":["좋은 흐름 (최대 4개)"],"concerns":["챙겨야 할 것 — 게시가 끊긴 사람, 반응이 크게 떨어진 사람 등 (최대 4개)"],"spotlight":[{"name":"이름","why":"이번 주 칭찬하거나 사례로 공유할 이유"}],"actions":["경영팀이 이번 주에 할 일 3개"]}\n' +
@@ -969,7 +984,12 @@ async function handleAIIgReport(body, env) {
     if (!rep || typeof rep !== 'object') return json({ ok: false, error: 'AI 답을 읽지 못했어요. 잠시 뒤 다시 눌러 주세요' }, 502);
     const strs = (v, n) => (Array.isArray(v) ? v : []).map((x) => String(x == null ? '' : x).slice(0, 400)).filter(Boolean).slice(0, n);
     const out = { headline: String(rep.headline || '').slice(0, 300) };
-    if (mode === 'team') {
+    if (mode === 'tiktok') {
+      out.good = strs(rep.good, 4); out.problems = strs(rep.problems, 4); out.todo = strs(rep.todo, 3);
+      out.ideas = (Array.isArray(rep.ideas) ? rep.ideas : []).slice(0, 3).map((x) => ({
+        title: String((x && x.title) || '').slice(0, 120), why: String((x && x.why) || '').slice(0, 400), how: String((x && x.how) || '').slice(0, 600),
+      })).filter((x) => x.title);
+    } else if (mode === 'team') {
       out.highlights = strs(rep.highlights, 4); out.concerns = strs(rep.concerns, 4); out.actions = strs(rep.actions, 3);
       out.spotlight = (Array.isArray(rep.spotlight) ? rep.spotlight : []).slice(0, 3).map((x) => ({ name: String((x && x.name) || '').slice(0, 30), why: String((x && x.why) || '').slice(0, 300) })).filter((x) => x.name);
     } else {

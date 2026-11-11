@@ -447,7 +447,7 @@ const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
-const snsRoute = makeSns({ dbGet, dbPut });
+const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
