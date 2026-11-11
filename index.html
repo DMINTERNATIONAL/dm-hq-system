@@ -5284,32 +5284,36 @@ function seoRivalView(k){var box=$('SEO-RV-'+k);if(!box)return;if(box.innerHTML)
 function seoRivalDel(k){if(!confirm('이 캡처를 지울까요?'))return;ctFetch('/seo/rival/del',{method:'POST',body:JSON.stringify({k:k})}).then(function(j){if(j&&j.ok){SEO.nums.rival=j.items;seoPaint()}else toast('지우지 못했어요')})}
 function seoRivalClear(){if(!confirm('경쟁 비교 캡처를 전부 지울까요?'))return;ctFetch('/seo/rival/clear',{method:'POST',body:'{}'}).then(function(j){if(j&&j.ok){SEO.nums.rival=[];seoPaint();toast('지웠어요')}else toast('지우지 못했어요')})}
 /* ── SNS (틱톡 회사 계정 — 공식 API 매일 자동 · 샤오홍슈 — 캡처) ── 주간 조사 때 AI가 같이 읽는다 */
-function seoSnsLoad(refresh){if(SEO.snsBusy)return;SEO.snsBusy=true;if(refresh)seoPaint();
-  ctFetch('/seo/sns',{method:'POST',body:JSON.stringify({refresh:!!refresh})}).then(function(j){SEO.snsBusy=false;if(!j||!j.ok){toast((j&&j.error)||'불러오지 못했어요');SEO.sns=SEO.sns||{ok:false,err:(j&&j.error)||'불러오지 못했어요'};seoPaint();return}
-    SEO.sns=j;if(j.note)toast(j.note);else if(refresh)toast(j.latest&&j.latest.err?'불러오다 문제가 생겼어요':'새로 불러왔어요');
-    if(j.ready&&!j.on)return seoTtPrep();seoPaint()}).catch(function(){SEO.snsBusy=false;seoPaint()})}
-/* 연결 주소는 미리 받아 둔다(누를 때 받으면 새 창이 막힘). 15분 지나면 못 쓴다 */
-function seoTtPrep(){return ctFetch('/seo/tt/start',{method:'POST',body:'{}'}).then(function(j){if(SEO.sns){SEO.sns.url=j&&j.ok?j.url:'';SEO.sns.urlAt=Date.now();SEO.sns.urlErr=j&&!j.ok?(j.error||''):''}seoPaint()}).catch(function(){seoPaint()})}
-function seoTtGo(){var S=SEO.sns;if(!S||!S.url)return false;if(Date.now()-(S.urlAt||0)>12*60000){seoTtPrep();toast('연결 준비를 새로 했어요. 한 번 더 눌러 주세요');return false}
-  SEO.ttWait=1;toast('틱톡 창에서 회사 계정으로 로그인하고 허용을 눌러 주세요. 끝나면 이 화면으로 돌아오세요');return true}
-function seoTtStop(){if(!confirm('틱톡 회사 계정 연결을 끊을까요?\n\n매일 숫자를 가져오지 않게 되고, 주간 조사도 틱톡을 빼고 해요. 지난 기록(팔로워 흐름)은 남아요.'))return;
-  ctFetch('/seo/tt/stop',{method:'POST',body:'{}'}).then(function(j){if(!j||!j.ok){toast((j&&j.error)||'끊지 못했어요');return}toast('연결을 끊었어요');SEO.sns=null;seoSnsLoad(false)})}
+function seoSnsLoad(refresh,slot){if(SEO.snsBusy)return;SEO.snsBusy=slot||'all';if(refresh)seoPaint();
+  ctFetch('/seo/sns',{method:'POST',body:JSON.stringify({refresh:!!refresh,slot:slot||''})}).then(function(j){SEO.snsBusy=false;if(!j||!j.ok){toast((j&&j.error)||'불러오지 못했어요');SEO.sns=SEO.sns||{ok:false,err:(j&&j.error)||'불러오지 못했어요'};seoPaint();return}
+    var A=j.accts||[];SEO.sns=j;if(j.note)toast(j.note);else if(refresh)toast(A.some(function(a){return (!slot||a.id===slot)&&a.latest&&a.latest.err})?'불러오다 문제가 생겼어요':'새로 불러왔어요');
+    if(j.ready&&A.some(function(a){return !a.on}))return seoTtPrep();seoPaint()}).catch(function(){SEO.snsBusy=false;seoPaint()})}
+/* 연결 주소는 계정 칸마다 미리 받아 둔다(누를 때 받으면 새 창이 막힘). 15분 지나면 못 쓴다 */
+function seoTtPrep(){var A=((SEO.sns||{}).accts||[]).filter(function(a){return !a.on});SEO.ttUrl=SEO.ttUrl||{};
+  return Promise.all(A.map(function(a){return ctFetch('/seo/tt/start',{method:'POST',body:JSON.stringify({slot:a.id})}).then(function(j){SEO.ttUrl[a.id]={url:j&&j.ok?j.url:'',at:Date.now(),err:j&&!j.ok?(j.error||''):''}}).catch(function(){})})).then(function(){seoPaint()})}
+function seoTtGo(id){var U=(SEO.ttUrl||{})[id];if(!U||!U.url)return false;if(Date.now()-(U.at||0)>12*60000){seoTtPrep();toast('연결 준비를 새로 했어요. 한 번 더 눌러 주세요');return false}
+  var a=((SEO.sns||{}).accts||[]).filter(function(x){return x.id===id})[0];SEO.ttWait=1;toast('틱톡 창에서 '+(a?a.label:'')+' 계정으로 로그인하고 허용을 눌러 주세요. 끝나면 이 화면으로 돌아오세요');return true}
+function seoTtStop(id,label){if(!confirm(label+' 틱톡 연결을 끊을까요?\n\n매일 숫자를 가져오지 않게 되고, 주간 조사도 이 계정을 빼고 해요. 지난 기록(팔로워 흐름)은 남아요.'))return;
+  ctFetch('/seo/tt/stop',{method:'POST',body:JSON.stringify({slot:id})}).then(function(j){if(!j||!j.ok){toast((j&&j.error)||'끊지 못했어요');return}toast('연결을 끊었어요');SEO.sns=null;seoSnsLoad(false)})}
 function seoDelta(now,old){if(old==null)return '';var d=now-old;if(!d)return '<span class="seo-dl">±0</span>';return '<span class="seo-dl '+(d>0?'up':'dn')+'">'+(d>0?'+':'')+seoN(d)+'</span>'}
-function seoTtCard(S){var h='<div class="card"><div class="seo-h">① 틱톡 — 회사 계정 <span>공식 API · 매일 새벽 5시 자동</span></div>';
+/* 틱톡 계정 카드 하나 (DAY:MEAN · 바버샵 각각) */
+function seoTtCard(S,A,no){var h='<div class="card"><div class="seo-h">'+no+' 틱톡 — '+seoEsc(A.label)+' <span>공식 API · 매일 새벽 5시 자동</span></div>';
   if(!S.ready)return h+'<div class="seo-off">아직 준비 안 됐어요 — 틱톡 개발자 앱을 만들어 서버에 키를 넣어야 해요. 김세운 님께 요청해 주세요.</div></div>';
-  if(!S.on){h+='<div class="def" style="line-height:1.7;margin-bottom:10px">회사 틱톡 계정을 <b>한 번만</b> 연결하면, 매일 팔로워 · 좋아요 · 영상별 조회수를 가져와서 주간 조사 때 AI가 <b>어떤 영상이 예약으로 이어질지</b> 봐요. 비밀번호는 틱톡 창에만 넣고 우리 앱에는 남지 않아요.</div>';
-    if(S.urlErr)h+='<div class="seo-errl" style="margin:0 0 8px">'+seoEsc(S.urlErr)+'</div>';
-    h+=S.url?'<a class="gbtn pri sm" style="display:inline-block;width:auto;text-decoration:none" href="'+seoEsc(S.url)+'" target="_blank" rel="noopener" onclick="return seoTtGo()">틱톡 연결하기</a>':'<button class="gbtn pri sm" style="width:auto" disabled>준비 중…</button>';
+  if(!A.on){var U=(SEO.ttUrl||{})[A.id]||{};
+    h+='<div class="def" style="line-height:1.7;margin-bottom:10px">'+seoEsc(A.label)+' 틱톡 계정을 <b>한 번만</b> 연결하면, 매일 팔로워 · 좋아요 · 영상별 조회수를 가져와서 주간 조사 때 AI가 <b>어떤 영상이 예약으로 이어질지</b> 봐요. 비밀번호는 틱톡 창에만 넣고 우리 앱에는 남지 않아요.'+
+      '<br><span class="seo-time2">틱톡 창에 다른 계정이 로그인돼 있으면 그 계정으로 연결돼요. 틱톡에서 로그아웃한 뒤 '+seoEsc(A.label)+' 계정으로 로그인해 주세요.</span></div>';
+    if(U.err)h+='<div class="seo-errl" style="margin:0 0 8px">'+seoEsc(U.err)+'</div>';
+    h+=U.url?'<a class="gbtn pri sm" style="display:inline-block;width:auto;text-decoration:none" href="'+seoEsc(U.url)+'" target="_blank" rel="noopener" onclick="return seoTtGo(\''+A.id+'\')">'+seoEsc(A.label)+' 틱톡 연결하기</a>':'<button class="gbtn pri sm" style="width:auto" disabled>준비 중…</button>';
     if(SEO.ttWait)h+=' <button class="gbtn sec sm" style="width:auto" onclick="SEO.ttWait=0;seoSnsLoad(false)">연결했어요 · 새로 보기</button>';
     return h+'</div>'}
-  var L=S.latest||{},U=L.user,H=S.hist||[],ago=function(n){var d=new Date(Date.now()-n*864e5+9*3600e3).toISOString().slice(0,10);for(var i=0;i<H.length;i++)if(H[i].d<=d)return H[i];return null},w1=ago(7);
-  h+='<div class="seo-rr" style="border-top:none;padding-top:0"><span>'+(U?'<b>@'+seoEsc(U.username||U.name)+'</b> ':'')+'<span class="seo-time2">'+(L.at?'마지막으로 가져옴 '+igAiWhen(L.at):'아직 못 가져왔어요')+(S.by?' · 연결 '+seoEsc(S.by):'')+'</span></span><span class="seo-btns"><button class="gbtn sec sm" onclick="seoSnsLoad(true)"'+(SEO.snsBusy?' disabled':'')+'>'+(SEO.snsBusy?'불러오는 중…':'새로 불러오기')+'</button><button class="igref-x" onclick="seoTtStop()" title="연결 끊기">✕</button></span></div>';
+  var L=A.latest||{},Us=L.user,H=A.hist||[],ago=function(n){var d=new Date(Date.now()-n*864e5+9*3600e3).toISOString().slice(0,10);for(var i=0;i<H.length;i++)if(H[i].d<=d)return H[i];return null},w1=ago(7),busy=SEO.snsBusy==='all'||SEO.snsBusy===A.id;
+  h+='<div class="seo-rr" style="border-top:none;padding-top:0"><span>'+(Us?'<b>@'+seoEsc(Us.username||Us.name)+'</b> ':'')+'<span class="seo-time2">'+(L.at?'마지막으로 가져옴 '+igAiWhen(L.at):'아직 못 가져왔어요')+(A.by?' · 연결 '+seoEsc(A.by):'')+'</span></span><span class="seo-btns"><button class="gbtn sec sm" onclick="seoSnsLoad(true,\''+A.id+'\')"'+(SEO.snsBusy?' disabled':'')+'>'+(busy?'불러오는 중…':'새로 불러오기')+'</button><button class="igref-x" onclick="seoTtStop(\''+A.id+'\',\''+seoEsc(A.label)+'\')" title="연결 끊기">✕</button></span></div>';
   if(L.err)h+='<div class="seo-errl" style="margin:4px 0 8px">⚠ '+seoEsc(L.err)+(/인증|token|401/i.test(L.err)?' — 연결을 끊고 다시 연결해 주세요.':'')+'</div>';
-  if(S.rtx&&S.rtx-Date.now()<30*864e5)h+='<div class="seo-errl" style="margin:4px 0 8px">연결이 '+Math.max(0,Math.round((S.rtx-Date.now())/864e5))+'일 뒤 끝나요. 끊고 다시 연결해 주세요.</div>';
-  if(U){h+='<table class="seo-tb"><tr><th></th><th>지금</th><th>7일 전보다</th></tr>'+
-      '<tr><td>팔로워</td><td><b>'+seoN(U.followers)+'</b></td><td>'+(w1?seoDelta(U.followers,w1.f):'-')+'</td></tr>'+
-      '<tr><td>받은 좋아요 합</td><td><b>'+seoN(U.likes)+'</b></td><td>'+(w1?seoDelta(U.likes,w1.l):'-')+'</td></tr>'+
-      '<tr><td>영상</td><td><b>'+seoN(U.videos)+'</b></td><td>'+(w1?seoDelta(U.videos,w1.v):'-')+'</td></tr></table>';
+  if(A.rtx&&A.rtx-Date.now()<30*864e5)h+='<div class="seo-errl" style="margin:4px 0 8px">연결이 '+Math.max(0,Math.round((A.rtx-Date.now())/864e5))+'일 뒤 끝나요. 끊고 다시 연결해 주세요.</div>';
+  if(Us){h+='<table class="seo-tb"><tr><th></th><th>지금</th><th>7일 전보다</th></tr>'+
+      '<tr><td>팔로워</td><td><b>'+seoN(Us.followers)+'</b></td><td>'+(w1?seoDelta(Us.followers,w1.f):'-')+'</td></tr>'+
+      '<tr><td>받은 좋아요 합</td><td><b>'+seoN(Us.likes)+'</b></td><td>'+(w1?seoDelta(Us.likes,w1.l):'-')+'</td></tr>'+
+      '<tr><td>영상</td><td><b>'+seoN(Us.videos)+'</b></td><td>'+(w1?seoDelta(Us.videos,w1.v):'-')+'</td></tr></table>';
     var pts=H.slice(0,30).reverse().map(function(x){return x.f});if(pts.length>2)h+='<div class="seo-tr"><span class="seo-trk">팔로워 흐름 <span class="seo-time2">최근 '+pts.length+'일</span></span>'+seoSpark(pts)+'</div>';
     if(!w1)h+='<div class="seo-time2" style="margin-top:6px">7일이 지나면 늘고 준 숫자가 보여요.</div>'}
   var V=(L.videos||[]).slice(0,12);
@@ -5318,7 +5322,7 @@ function seoTtCard(S){var h='<div class="card"><div class="seo-h">① 틱톡 —
   return h+'</div>'}
 var XHS_KIND={search:'검색 결과',ours:'우리 계정 통계'};
 function seoXhsCard(S){var I=S.xhs||[],old=I.length?Math.round((Date.now()-Math.max.apply(null,I.map(function(x){return x.at})))/864e5):null;
-  var h='<div class="card"><div class="seo-h">② 샤오홍슈 캡처 <span>한 달에 한 번 · 8장까지</span></div><div class="def" style="line-height:1.7;margin-bottom:8px">샤오홍슈는 숫자를 가져갈 공식 방법이 없어서 휴대폰으로 찍어 올려 주세요. 다음 조사 때 AI가 읽고 <b>중국 손님이 찾는 것 · 자주 보이는 매장 · 바로 올릴 게시글 초안(중국어 + 한국어 번역)</b>을 만들어요.<br>'+
+  var h='<div class="card"><div class="seo-h">'+(SEO.xNo||'②')+' 샤오홍슈 캡처 <span>한 달에 한 번 · 8장까지</span></div><div class="def" style="line-height:1.7;margin-bottom:8px">샤오홍슈는 숫자를 가져갈 공식 방법이 없어서 휴대폰으로 찍어 올려 주세요. 다음 조사 때 AI가 읽고 <b>중국 손님이 찾는 것 · 자주 보이는 매장 · 바로 올릴 게시글 초안(중국어 + 한국어 번역)</b>을 만들어요.<br>'+
     '<b>1.</b> 샤오홍슈 앱 검색창에 <b>弘大美发</b> · <b>合井美发</b> · <b>韩国烫发</b> 를 쳐서 결과 화면 캡처 → 종류 "검색 결과"<br><b>2.</b> 우리 계정 → 创作中心(크리에이터 센터) → 数据(통계) 화면 캡처 → 종류 "우리 계정 통계"<br>'+RIVAL_DAYS_TXT+'</div>';
   if(old!=null&&old>=30)h+='<div class="seo-errl" style="margin:0 0 8px">마지막으로 올린 지 '+old+'일 지났어요. 새로 찍어 올려 주세요.</div>';
   h+='<div class="seo-form"><label>종류<select id="SEO-XK"><option value="search"'+(SEO.xk!=='ours'?' selected':'')+'>검색 결과</option><option value="ours"'+(SEO.xk==='ours'?' selected':'')+'>우리 계정 통계</option></select></label><label>메모 (검색어 등)<input id="SEO-XN" maxlength="40" placeholder="예: 弘大美发"></label></div><div class="seo-btns" style="margin-top:8px"><label class="gbtn pri sm seo-up">캡처 올리기 (여러 장 가능)<input type="file" accept="image/*" multiple onchange="seoXhsPick(this)"></label>'+(I.length?'<button class="gbtn sec sm" onclick="seoXhsClear()">전부 지우기</button>':'')+'</div>';
@@ -5326,7 +5330,7 @@ function seoXhsCard(S){var I=S.xhs||[],old=I.length?Math.round((Date.now()-Math.
   return h+'</div>'}
 function seoSnsView(){var S=SEO.sns;if(!S){seoSnsLoad(false);return '<div class="card"><div class="seo-wait"><span class="igai-spin"></span>불러오는 중…</div></div>'}
   if(S.ok===false)return '<div class="card"><div class="def" style="color:var(--red)">'+seoEsc(S.err||'불러오지 못했어요')+' <a href="javascript:SEO.sns=null;seoPaint()">다시 시도</a></div></div>';
-  return '<div class="card"><div class="def" style="line-height:1.6">틱톡 · 샤오홍슈도 <b>예약을 늘리는 수단</b>으로 봐요. 여기 숫자와 캡처를 매주 조사 때 AI가 같이 읽고, <a href="javascript:seoTab(\'report\')">이번 리포트</a>에 SNS 카드로 정리해요.</div></div>'+seoTtCard(S)+seoXhsCard(S)}
+  return '<div class="card"><div class="def" style="line-height:1.6">틱톡 · 샤오홍슈도 <b>예약을 늘리는 수단</b>으로 봐요. 여기 숫자와 캡처를 매주 조사 때 AI가 같이 읽고, <a href="javascript:seoTab(\'report\')">이번 리포트</a>에 SNS 카드로 정리해요.</div></div>'+(function(){var A=S.accts||[],NO='①②③④',h='';A.forEach(function(a,i){h+=seoTtCard(S,a,NO.charAt(i))});SEO.xNo=NO.charAt(A.length);return h})()+seoXhsCard(S)}
 function seoXhsPick(inp){var fs=[].slice.call(inp.files||[]);inp.value='';if(!fs.length||!SEO.sns)return;var room=8-((SEO.sns.xhs||[]).length);if(room<=0){toast('8장까지예요. 지난 캡처를 지우고 올려 주세요');return}if(fs.length>room){toast(room+'장만 더 올릴 수 있어요. 앞의 '+room+'장만 올릴게요');fs=fs.slice(0,room)}
   var kind=SEO.xk=(($('SEO-XK')||{}).value)==='ours'?'ours':'search',note=(($('SEO-XN')||{}).value||'').trim(),done=0;toast('올리는 중… (0/'+fs.length+')');
   var next=function(i){if(i>=fs.length){toast(done+'장 올렸어요. 다음 조사 때 AI가 읽어요');seoPaint();return}
@@ -5338,10 +5342,11 @@ function seoXhsClear(){if(!confirm('샤오홍슈 캡처를 전부 지울까요?'
 /* 틱톡 창에서 돌아오면 연결 상태를 다시 본다 */
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&SEO.ttWait&&SEO.tab==='sns'){SEO.ttWait=0;setTimeout(function(){SEO.sns=null;seoPaint()},2500)}});
 /* 리포트의 SNS 카드 */
-function seoSnsReport(V){if(!V||!(V.tiktok||V.xhs))return '';var T=V.tiktok,X=V.xhs,h='<div class="card"><div class="seo-h">SNS <span>틱톡 · 샤오홍슈</span></div>';
-  if(T){h+='<div class="seo-sub" style="margin-top:0">틱톡 — 회사 계정</div>'+(T.summary?'<div class="seo-why">'+seoEsc(T.summary)+'</div>':'');
-    if((T.good||[]).length)h+='<div class="seo-sub">잘된 점</div>'+T.good.map(function(x){return '<div class="seo-why">· '+seoEsc(x)+'</div>'}).join('');
-    if((T.next||[]).length)h+='<div class="seo-sub">다음에 찍을 영상</div>'+T.next.map(function(x,i){return '<div class="seo-nx"><span class="seo-rv-n">'+(i+1)+'</span><div><b>'+seoEsc(x.idea)+'</b>'+(x.why?'<div class="seo-time2">'+seoEsc(x.why)+'</div>':'')+'</div></div>'}).join('')}
+function seoSnsReport(V){if(!V||!(V.tiktok||V.xhs))return '';var TL=Array.isArray(V.tiktok)?V.tiktok:V.tiktok?[V.tiktok]:[],T=TL.length,X=V.xhs,h='<div class="card"><div class="seo-h">SNS <span>틱톡 · 샤오홍슈</span></div>';
+  /* 틱톡은 계정마다(DAY:MEAN · 바버샵) 따로 — 예전 리포트는 한 덩어리 */
+  TL.forEach(function(t,k){h+='<div class="seo-sub"'+(k?'':' style="margin-top:0"')+'>틱톡 — '+seoEsc(t.acct||'회사 계정')+'</div>'+(t.summary?'<div class="seo-why">'+seoEsc(t.summary)+'</div>':'');
+    if((t.good||[]).length)h+='<div class="seo-sub">잘된 점</div>'+t.good.map(function(x){return '<div class="seo-why">· '+seoEsc(x)+'</div>'}).join('');
+    if((t.next||[]).length)h+='<div class="seo-sub">다음에 찍을 영상</div>'+t.next.map(function(x,i){return '<div class="seo-nx"><span class="seo-rv-n">'+(i+1)+'</span><div><b>'+seoEsc(x.idea)+'</b>'+(x.why?'<div class="seo-time2">'+seoEsc(x.why)+'</div>':'')+'</div></div>'}).join('')});
   if(X){h+='<div class="seo-sub"'+(T?'':' style="margin-top:0"')+'>샤오홍슈'+(X.from?' <span class="seo-time2">'+seoEsc(X.from)+' 기준</span>':'')+'</div>'+(X.summary?'<div class="seo-why">'+seoEsc(X.summary)+'</div>':'');
     if((X.wants||[]).length)h+='<div class="seo-sub">중국 손님이 찾는 것</div>'+X.wants.map(function(x){return '<div class="seo-why">· '+seoEsc(x)+'</div>'}).join('');
     if((X.rivals||[]).length)h+='<div class="seo-sub">자주 보이는 매장</div>'+X.rivals.map(function(x){return '<div class="seo-why">· <b>'+seoEsc(x.name)+'</b> — '+seoEsc(x.point)+'</div>'}).join('');

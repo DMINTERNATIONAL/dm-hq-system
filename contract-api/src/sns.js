@@ -1,9 +1,11 @@
-/* ═══ 검색 노출 — SNS (틱톡 회사 계정) ═══
+/* ═══ 검색 노출 — SNS (틱톡 회사 계정 · 두 개: DAY:MEAN · 바버샵) ═══
    틱톡 공식 API(Login Kit + Display API)로 회사 계정 숫자를 매일 한 번 가져온다. AI 를 쓰지 않는다(무료).
-   경영팀이 앱 '검색 노출 → SNS' 탭에서 한 번 '틱톡 연결'을 눌러 회사 계정으로 허용하면 된다.
-     잠긴 DB  /authSecrets/__tiktok = { rt 갱신 토큰, rtx 만료, atk 접근 토큰(24시간), atx 만료, oid open_id, at, by }
-     R2       seo/tt/latest.json   = { at, user{ name, username, followers, following, likes, videos }, videos[], err }
-              seo/tt/hist.json     = [{ d, f 팔로워, l 좋아요 합, v 영상 수 }]  하루 한 줄, 최신이 앞, 최대 180
+   경영팀이 앱 '검색 노출 → SNS' 탭의 계정 칸마다 '틱톡 연결'을 눌러 그 계정으로 허용하면 된다.
+   계정 칸(slot)은 SLOTS 에 고정 — dm(DAY:MEAN) · bb(바버샵). 칸마다 따로 저장한다.
+     잠긴 DB  /authSecrets/__tiktok/{slot} = { rt 갱신 토큰, rtx 만료, atk 접근 토큰(24시간), atx 만료, oid open_id, at, by }
+     R2       seo/tt/{slot}/latest.json   = { at, user{ name, username, followers, following, likes, videos }, videos[], err }
+              seo/tt/{slot}/hist.json     = [{ d, f 팔로워, l 좋아요 합, v 영상 수 }]  하루 한 줄, 최신이 앞, 최대 180
+   틱톡 개발자 앱은 Sandbox(심사 없음) — 연결할 틱톡 계정을 개발자 사이트 Target users 에 먼저 넣어야 한다.
    설정: wrangler.toml [vars] TIKTOK_CLIENT_KEY (공개값) + secret TIKTOK_CLIENT_SECRET.
          틱톡 개발자 앱의 Redirect URI = https://dm-contract-api.swavey2803.workers.dev/tt/callback
    샤오홍슈는 공식 API 가 없어 캡처만 쓴다(seo.js 의 /seo/xhs/*). */
@@ -14,16 +16,20 @@ const API = 'https://open.tiktokapis.com/v2';
 const SCOPE = 'user.info.basic,user.info.profile,user.info.stats,video.list';
 const USER_F = 'open_id,display_name,username,follower_count,following_count,likes_count,video_count';
 const VIDEO_F = 'id,title,video_description,create_time,share_url,duration,view_count,like_count,comment_count,share_count';
-const KEY = { latest: 'seo/tt/latest.json', hist: 'seo/tt/hist.json' };
+export const SLOTS = [{ id: 'dm', label: 'DAY:MEAN' }, { id: 'bb', label: '바버샵' }];
+const slotOf = (id) => SLOTS.find((x) => x.id === id) || null;
+const KEY = { latest: (id) => `seo/tt/${id}/latest.json`, hist: (id) => `seo/tt/${id}/hist.json` };
+const SEC = (id) => '/authSecrets/__tiktok/' + id;
 const te = new TextEncoder();
 const S = (v, n) => String(v == null ? '' : v).slice(0, n);
 const ymdK = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
 const htmlEsc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /* AI 에게 줄 틱톡 숫자 글 */
-export function ttFacts(latest, hist, now) {
-  if (!latest || !latest.user) return '\n[틱톡 — 회사 계정] 아직 연결 안 됨. 경영팀이 앱 "검색 노출 → SNS" 탭에서 틱톡을 연결하도록 할 일에 넣을 것.';
-  const u = latest.user, L = ['', `[틱톡 — 회사 계정 @${u.username || u.name}, 공식 API · ${ymdK(latest.at)} 기준]`];
+export function ttFacts(latest, hist, now, label) {
+  const lb = label || '회사 계정';
+  if (!latest || !latest.user) return `\n[틱톡 — ${lb}] 아직 연결 안 됨. 경영팀이 앱 "검색 노출 → SNS" 탭에서 ${lb} 틱톡을 연결하도록 할 일에 넣을 것.`;
+  const u = latest.user, L = ['', `[틱톡 — ${lb} @${u.username || u.name}, 공식 API · ${ymdK(latest.at)} 기준]`];
   const ago = (n) => (hist || []).find((h) => h.d <= ymdK(now - n * 864e5));
   const w1 = ago(7), w4 = ago(28);
   L.push(`- 팔로워 ${u.followers}${w1 ? ` (7일 전 ${w1.f})` : ''}${w4 ? ` (4주 전 ${w4.f})` : ''} · 받은 좋아요 합 ${u.likes}${w1 ? ` (7일 전 ${w1.l})` : ''} · 영상 ${u.videos}개`);
@@ -77,15 +83,15 @@ export function makeSns(deps) {
   };
 
   /* 회사 계정 숫자 가져오기 — 접근 토큰이 만료됐으면 갱신 토큰으로 새로 받는다 */
-  async function collect(env, fx) {
+  async function collect(env, id, fx) {
     const f = fx || fetch;
-    let sec = await dbGet(env, '/authSecrets/__tiktok').catch(() => null);
+    let sec = await dbGet(env, SEC(id)).catch(() => null);
     if (!sec || !sec.rt) return null;
-    const prev = (await rGet(env, KEY.latest).catch(() => null)) || {};
+    const prev = (await rGet(env, KEY.latest(id)).catch(() => null)) || {};
     try {
       if (!sec.atk || Date.now() > sec.atx) {
         sec = secOf(await token(env, f, { grant_type: 'refresh_token', refresh_token: sec.rt }), sec);
-        await dbPut(env, '/authSecrets/__tiktok', sec);
+        await dbPut(env, SEC(id), sec);
       }
       const H = { Authorization: 'Bearer ' + sec.atk };
       const ur = await f(API + '/user/info/?fields=' + USER_F, { headers: H });
@@ -105,14 +111,14 @@ export function makeSns(deps) {
         cursor = d.cursor;
       }
       const now = Date.now(), latest = { at: now, user, videos, err: '' };
-      await rPut(env, KEY.latest, latest);
-      const hist = ((await rGet(env, KEY.hist).catch(() => null)) || []).filter((h) => h.d !== ymdK(now));
+      await rPut(env, KEY.latest(id), latest);
+      const hist = ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).filter((h) => h.d !== ymdK(now));
       hist.unshift({ d: ymdK(now), f: user.followers, l: user.likes, v: user.videos });
-      await rPut(env, KEY.hist, hist.slice(0, 180));
+      await rPut(env, KEY.hist(id), hist.slice(0, 180));
       return latest;
     } catch (e) {
       const err = S((e && e.message) || e, 200);
-      await rPut(env, KEY.latest, { ...prev, err, errAt: Date.now() }).catch(() => {});
+      await rPut(env, KEY.latest(id), { ...prev, err, errAt: Date.now() }).catch(() => {});
       return { ...prev, err };
     }
   }
@@ -121,17 +127,25 @@ export function makeSns(deps) {
   async function tick(env) {
     const k = new Date(Date.now() + 9 * 3600e3);
     if (k.getUTCHours() !== 5 || k.getUTCMinutes() > 9 || !ready(env)) return null;
-    const l = await rGet(env, KEY.latest).catch(() => null);
-    if (l && Date.now() - Math.max(l.at || 0, l.errAt || 0) < 20 * 3600e3) return null;
-    return collect(env);
+    const out = {};
+    for (const { id } of SLOTS) {
+      const l = await rGet(env, KEY.latest(id)).catch(() => null);
+      if (l && Date.now() - Math.max(l.at || 0, l.errAt || 0) < 20 * 3600e3) continue;
+      out[id] = await collect(env, id).catch(() => null);
+    }
+    return out;
   }
 
   /* 주간 조사용 — 오래됐으면(20시간) 새로 가져온다 */
   async function forReport(env) {
     if (!ready(env)) return '';
-    let l = await rGet(env, KEY.latest).catch(() => null);
-    if (!l || Date.now() - (l.at || 0) > 20 * 3600e3) l = (await collect(env).catch(() => null)) || l;
-    return ttFacts(l, await rGet(env, KEY.hist).catch(() => null), Date.now());
+    let txt = '';
+    for (const { id, label } of SLOTS) {
+      let l = await rGet(env, KEY.latest(id)).catch(() => null);
+      if (!l || Date.now() - (l.at || 0) > 20 * 3600e3) l = (await collect(env, id).catch(() => null)) || l;
+      txt += ttFacts(l, await rGet(env, KEY.hist(id)).catch(() => null), Date.now(), label);
+    }
+    return txt;
   }
 
   async function callback(request, env, ctx, url) {
@@ -139,6 +153,8 @@ export function makeSns(deps) {
     if (err) return page(false, err === 'access_denied' ? '연결을 취소했어요. 다시 하려면 DM 앱 검색 노출 → SNS 에서 눌러 주세요.' : '틱톡이 연결을 거절했어요 (' + htmlEsc(S(err, 40)) + ')');
     const st = await readState(env, url.searchParams.get('state'));
     if (!st) return page(false, '연결 시간이 지났어요. DM 앱에서 다시 눌러 주세요.');
+    const slot = slotOf(st.slot);
+    if (!slot) return page(false, '어느 계정 칸인지 몰라요. DM 앱에서 다시 눌러 주세요.');
     const code = url.searchParams.get('code');
     if (!code) return page(false, '틱톡에서 받은 값이 없어요. 다시 시도해 주세요.');
     const u = await dbGet(env, '/users/' + encodeURIComponent(st.ph)).catch(() => null);
@@ -148,36 +164,51 @@ export function makeSns(deps) {
     const scopes = String(j.scope || '').split(',');
     const miss = ['user.info.stats', 'video.list'].filter((s) => scopes.indexOf(s) < 0);
     if (miss.length) return page(false, '숫자를 볼 권한이 빠졌어요. 다시 연결하면서 모든 항목을 허용해 주세요.');
-    await dbPut(env, '/authSecrets/__tiktok', secOf(j, null, String(st.nm || '')));
-    ctx.waitUntil(collect(env).catch((e) => console.log('tt first', e && e.message)));
-    return page(true, '틱톡 회사 계정을 연결했어요. 잠시 뒤 DM 앱 검색 노출 → SNS 에서 숫자를 확인하세요.');
+    /* 같은 틱톡 계정을 두 칸에 넣지 않게 — 틱톡은 이 브라우저에 로그인된 계정으로 바로 허용해 버리기 쉽다 */
+    for (const o of SLOTS) {
+      if (o.id === slot.id) continue;
+      const other = await dbGet(env, SEC(o.id)).catch(() => null);
+      if (other && other.oid && j.open_id && other.oid === j.open_id) {
+        await fetch(API + '/oauth/revoke/', form({ client_key: env.TIKTOK_CLIENT_KEY, client_secret: env.TIKTOK_CLIENT_SECRET, token: j.access_token })).catch(() => {});
+        return page(false, `이 틱톡 계정은 이미 ${o.label} 칸에 연결돼 있어요. 틱톡에서 로그아웃하고 ${slot.label} 계정으로 로그인한 뒤 다시 눌러 주세요.`);
+      }
+    }
+    await dbPut(env, SEC(slot.id), secOf(j, null, String(st.nm || '')));
+    ctx.waitUntil(collect(env, slot.id).catch((e) => console.log('tt first', e && e.message)));
+    return page(true, `${slot.label} 틱톡 계정을 연결했어요. 잠시 뒤 DM 앱 검색 노출 → SNS 에서 숫자를 확인하세요.`);
   }
 
-  async function stop(env) {
-    const sec = await dbGet(env, '/authSecrets/__tiktok').catch(() => null);
+  async function stop(env, id) {
+    const sec = await dbGet(env, SEC(id)).catch(() => null);
     if (sec && sec.atk && ready(env)) await fetch(API + '/oauth/revoke/', form({ client_key: env.TIKTOK_CLIENT_KEY, client_secret: env.TIKTOK_CLIENT_SECRET, token: sec.atk })).catch(() => {});
-    await dbPut(env, '/authSecrets/__tiktok', null);
-    await env.CHAT_MEDIA.delete(KEY.latest).catch(() => {});
+    await dbPut(env, SEC(id), null);
+    await env.CHAT_MEDIA.delete(KEY.latest(id)).catch(() => {});
   }
 
   /* 경영팀만 — seo.js 가 경영팀 확인 후 넘긴다 */
   async function route(path, b, env, me, url) {
     if (path === '/seo/sns') {
-      let latest = await rGet(env, KEY.latest).catch(() => null), note = '';
-      if (b.refresh) {
-        if (latest && Date.now() - Math.max(latest.at || 0, latest.errAt || 0) < 10 * 60000) note = '방금 불러왔어요. 10분 뒤에 다시 할 수 있어요';
-        else latest = (await collect(env)) || latest;
+      const accts = [];
+      let note = '';
+      for (const { id, label } of SLOTS) {
+        let latest = await rGet(env, KEY.latest(id)).catch(() => null);
+        const sec = await dbGet(env, SEC(id)).catch(() => null);
+        if (b.refresh && (!b.slot || b.slot === id) && sec && sec.rt) {
+          if (latest && Date.now() - Math.max(latest.at || 0, latest.errAt || 0) < 10 * 60000) note = '방금 불러왔어요. 10분 뒤에 다시 할 수 있어요';
+          else latest = (await collect(env, id)) || latest;
+        }
+        accts.push({ id, label, on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, hist: ((await rGet(env, KEY.hist(id)).catch(() => null)) || []).slice(0, 60) });
       }
-      const sec = await dbGet(env, '/authSecrets/__tiktok').catch(() => null);
-      return { ok: true, ready: ready(env), on: !!(sec && sec.rt), by: (sec && sec.by) || '', since: (sec && sec.at) || 0, rtx: (sec && sec.rtx) || 0, latest, hist: ((await rGet(env, KEY.hist).catch(() => null)) || []).slice(0, 60), note };
+      return { ok: true, ready: ready(env), accts, note };
     }
     if (path === '/seo/tt/start') {
       if (!ready(env)) return { ok: false, error: '틱톡 개발자 앱 설정이 아직 안 됐어요' };
-      const state = await mkState(env, { ph: String(me.ph), nm: S(me.name, 30), owner: me.role === 'owner' || me.admin === true, exp: Date.now() + 15 * 60000 });
+      if (!slotOf(b.slot)) return { ok: false, error: '연결할 계정 칸을 골라 주세요' };
+      const state = await mkState(env, { ph: String(me.ph), nm: S(me.name, 30), slot: b.slot, owner: me.role === 'owner' || me.admin === true, exp: Date.now() + 15 * 60000 });
       const q = new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, response_type: 'code', scope: SCOPE, redirect_uri: redirectUri(url), state });
       return { ok: true, url: AUTH + '?' + q };
     }
-    if (path === '/seo/tt/stop') { await stop(env); return { ok: true }; }
+    if (path === '/seo/tt/stop') { if (!slotOf(b.slot)) return { ok: false, error: '계정 칸을 골라 주세요' }; await stop(env, b.slot); return { ok: true }; }
     return null;
   }
 

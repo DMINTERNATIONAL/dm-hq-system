@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DM 캘린더 개인정보 처리방침</title>
-<meta name="description" content="DM INTERNATIONAL 사내 앱의 구글 캘린더 연동 기능이 어떤 정보를 어떻게 쓰는지 안내합니다.">
+<title>DM 앱 개인정보 처리방침 (캘린더 · 틱톡 연동)</title>
+<meta name="description" content="DM INTERNATIONAL 사내 앱의 구글 캘린더 · 틱톡 연동 기능이 어떤 정보를 어떻게 쓰는지 안내합니다.">
 <style>
 :root{--bg:#F8FAFC;--card:#fff;--t:#0F172A;--t2:#475569;--line:#E2E8F0;--acc:#1D4ED8}
 @media(prefers-color-scheme:dark){:root{--bg:#0B1220;--card:#111827;--t:#F1F5F9;--t2:#94A3B8;--line:#1F2937;--acc:#93C5FD}}
@@ -66,7 +66,22 @@ th{background:var(--bg);font-weight:700;white-space:nowrap}
 <h2>5. 구글 사용자 데이터 정책 준수</h2>
 <p>DM 앱이 구글 API 로 받은 정보를 쓰고 다른 앱으로 옮기는 방식은 '제한적 사용(Limited Use)' 요건을 포함한 <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API 서비스 사용자 데이터 정책</a>을 따릅니다.</p>
 
-<h2>6. 문의</h2>
+<h2 id="tiktok">6. 틱톡 회사 계정 연동 (검색 노출 → SNS)</h2>
+<p>경영팀은 DM 앱에서 <b>회사가 운영하는 틱톡 계정</b>(DAY:MEAN · 바버샵)을 틱톡 공식 API 로 연결할 수 있습니다. 직원 개인 계정은 연결하지 않습니다.</p>
+<table>
+<tr><th>정보</th><th>쓰는 곳</th></tr>
+<tr><td>계정 이름 · 아이디 · 팔로워 · 팔로잉 · 받은 좋아요 · 영상 수</td><td>회사 계정 성과를 매일 기록하고 변화를 보여 줍니다.</td></tr>
+<tr><td>공개 영상 목록(제목 · 올린 날 · 길이 · 조회 · 좋아요 · 댓글 수 · 공유 수 · 링크)</td><td>어떤 영상이 반응이 좋았는지 경영팀 화면과 주간 리포트에 정리합니다.</td></tr>
+<tr><td>틱톡 연결 키(접근 · 갱신 토큰)</td><td>위 숫자를 하루 한 번 가져오는 데만 씁니다.</td></tr>
+</table>
+<ul>
+<li>댓글 내용, 메시지, 팔로워 개인 정보는 받지 않습니다. 틱톡에 글이나 영상을 올리지 않습니다.</li>
+<li>연결 키는 회사 서버만 읽을 수 있는 잠긴 저장소에 보관하고, 숫자는 경영팀만 봅니다.</li>
+<li>DM 앱 <b>검색 노출 → SNS → 연결 끊기(✕)</b>를 누르면 연결 키를 지우고 틱톡에 권한 취소를 요청합니다. 틱톡 앱 설정 → 보안 → 앱 및 서비스 관리에서도 취소할 수 있습니다.</li>
+</ul>
+<p class="mut" lang="en">English summary: DM HQ is an internal tool. It connects only our company-owned TikTok accounts via the official Login Kit / Display API, reads profile stats and public video stats once a day for our management team, never posts content, never sells or shares data, and deletes tokens when the account is disconnected.</p>
+
+<h2>7. 문의</h2>
 <p>개인정보에 관한 문의 · 열람 · 삭제 요청은 DM INTERNATIONAL 경영팀(사내 메신저)으로 해 주세요.</p>
 
 <p class="mut" style="margin-top:28px">이 방침이 바뀌면 이 페이지에 바뀐 날짜와 함께 알립니다.</p>

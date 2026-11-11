@@ -30,8 +30,8 @@ GH_REF = "main"
 GOOGLE_CLIENT_ID = "363361161450-gigervf5v8rkel1g5vsackuh18gqasaq.apps.googleusercontent.com"
 # 틱톡 회사 계정 연결 (검색 노출 → SNS) — 틱톡 개발자 앱의 Client key (공개값). Client secret 은 secret TIKTOK_CLIENT_SECRET.
 #   developers.tiktok.com 앱 · Login Kit Redirect URI = https://dm-contract-api.swavey2803.workers.dev/tt/callback
-#   키를 받으면 아래 줄의 # 를 지우고 값을 넣는다. 없으면 SNS 탭에 "아직 준비 안 됐어요"가 보인다.
-# TIKTOK_CLIENT_KEY = ""
+#   Sandbox 라 연결할 틱톡 계정(DAY:MEAN · 바버샵)을 개발자 사이트 Target users 에 넣어 둬야 한다.
+TIKTOK_CLIENT_KEY = "sbawj96zbozni1s1og"   # Sandbox 앱 DM HQ (11/11) — 심사 통과해 Production 으로 바꾸면 그 키로
 VAPID_PUBLIC = "BB2j3AH4EDiULVEoDKLWE_Ma7SBvBZQoN3D5z-nwFhthblv2Zgym6zlD4KGWnuZHc3661_32XEiHfupWh2oymU4"
 
 # 같은 계정의 Worker 끼리는 HTTP 로 못 부른다(Cloudflare error 1042).

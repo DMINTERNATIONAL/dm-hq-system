@@ -514,7 +514,7 @@ export default {
     /* 검색 노출 조사 — 일요일 밤 10시(한국) 한 번 + 경영팀 '지금 조사하기' 요청. 조사는 2~6분 걸린다 */
     ctx.waitUntil(seoRoute.tick(env).then((r) => { if (r) console.log('seo', JSON.stringify(r)); }).catch((e) => console.log('seo', e && e.message)));
     /* 틱톡 회사 계정 숫자 — 매일 새벽 5시(한국) 한 번 (sns.js) */
-    ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', r.err ? 'err' : 'ok'); }).catch((e) => console.log('tt', e && e.message)));
+    ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', Object.keys(r).map((k) => k + ':' + (!r[k] ? 'none' : r[k].err ? 'err' : 'ok')).join(' ')); }).catch((e) => console.log('tt', e && e.message)));
   },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
