@@ -59,10 +59,27 @@ export function ttAiFacts(label, latest, hist, now) {
     const tot = V.reduce((a, v) => a + v.views, 0), sv = V.map((v) => v.views).sort((a, b) => a - b);
     L.push(`최근 ${V.length}개 영상 조회 합 ${tot} · 평균 ${Math.round(tot / V.length)} · 중간값 ${sv[V.length >> 1]} · 좋아요 합 ${V.reduce((a, v) => a + v.likes, 0)} · 댓글 합 ${V.reduce((a, v) => a + v.comments, 0)} · 공유 합 ${V.reduce((a, v) => a + v.shares, 0)}`);
     L.push('', '영상 목록 (최신순). 길이 0초는 틱톡이 길이를 안 준 것 — 사진(슬라이드) 게시물일 수 있음.', '게시 시각(한국) | 길이 | 조회 | 좋아요 | 댓글 | 공유 | 제목 · 설명');
-    for (const v of V) L.push([whenK(v.t), v.dur + '초', v.views, v.likes, v.comments, v.shares, S(v.title, 120).replace(/\s+/g, ' ')].join(' | '));
-  } else L.push('올린 영상 없음');
+    for (const v of V) L.push([whenK(v.t), v.dur + '초', v.views, v.likes, v.comments, v.shares, S(v.title, 500).replace(/\s+/g, ' ')].join(' | '));
+    /* 해시태그별 비교 — 올린 지 3~120일 된 영상끼리 (새 영상은 조회가 덜 쌓였고, 아주 옛날 것은 시기가 다르다) */
+    const C = V.filter((v) => { const a = now / 1000 - v.t; return v.t && a >= 3 * 86400 && a < 120 * 86400; });
+    const avg = (a) => (a.length ? Math.round(a.reduce((x, v) => x + v.views, 0) / a.length) : 0);
+    const T = {};
+    for (const v of C) for (const t of ttTags(v.title)) (T[t] = T[t] || []).push(v);
+    const rows = Object.keys(T).filter((t) => T[t].length >= 3).map((t) => { const w = T[t], wo = C.filter((v) => w.indexOf(v) < 0); return { t, n: w.length, a: avg(w), o: wo.length ? avg(wo) : null }; }).sort((p, q) => q.n - p.n).slice(0, 25);
+    if (rows.length) {
+      L.push('', `해시태그별 (올린 지 3~120일 된 영상 ${C.length}개, 3번 이상 쓴 태그) — 태그 | 쓴 영상 수 | 쓴 영상 평균 조회 | 안 쓴 영상 평균 조회`);
+      for (const r of rows) L.push(`${r.t} | ${r.n} | ${r.a} | ${r.o == null ? '(모든 영상에 씀 — 비교 불가)' : r.o}`);
+    }
+  }
+  if (!V.length) L.push('올린 영상 없음');
   return L.join('\n');
 }
+/* 캡션에서 해시태그 뽑기 (소문자, 끝 문장부호 뺌, 중복 없이) */
+export function ttTags(t) {
+  const m = String(t || '').match(/#[^\s#]+/g) || [];
+  return m.map((x) => x.toLowerCase().replace(/[.,!?…:;)\]]+$/, '')).filter((x, i, a) => x.length > 1 && a.indexOf(x) === i);
+}
+
 
 export function makeSns(deps) {
   const { dbGet, dbPut, relayCall } = deps;
@@ -129,7 +146,7 @@ export function makeSns(deps) {
         const vj = await vr.json().catch(() => ({}));
         if (!vr.ok || (vj.error && vj.error.code && vj.error.code !== 'ok')) throw new Error('틱톡 영상 목록 (' + S((vj.error && vj.error.code) || vr.status, 60) + ')');
         const d = vj.data || {};
-        for (const v of d.videos || []) videos.push({ id: S(v.id, 40), t: +v.create_time || 0, title: S(v.title || v.video_description, 120), url: /^https:\/\//.test(v.share_url || '') ? S(v.share_url, 300) : '', dur: +v.duration || 0, views: +v.view_count || 0, likes: +v.like_count || 0, comments: +v.comment_count || 0, shares: +v.share_count || 0 });
+        for (const v of d.videos || []) videos.push({ id: S(v.id, 40), t: +v.create_time || 0, title: S([v.video_description, v.title].map((x) => String(x || '')).sort((p, q) => q.length - p.length)[0], 1500),   /* 캡션 전체 — 해시태그가 끝에 붙어서 자르면 안 된다 */ url: /^https:\/\//.test(v.share_url || '') ? S(v.share_url, 300) : '', dur: +v.duration || 0, views: +v.view_count || 0, likes: +v.like_count || 0, comments: +v.comment_count || 0, shares: +v.share_count || 0 });
         if (!d.has_more || !d.cursor) break;
         cursor = d.cursor;
       }

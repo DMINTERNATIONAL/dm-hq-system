@@ -5310,7 +5310,7 @@ function seoTtCard(S,A,no){var h='<div class="card"><div class="seo-h">'+no+' �
   h+='<div class="seo-rr" style="border-top:none;padding-top:0"><span>'+(Us?'<b>@'+seoEsc(Us.username||Us.name)+'</b> ':'')+'<span class="seo-time2">'+(L.at?'마지막으로 가져옴 '+igAiWhen(L.at):'아직 못 가져왔어요')+(A.by?' · 연결 '+seoEsc(A.by):'')+'</span></span><span class="seo-btns"><button class="gbtn sec sm" onclick="seoSnsLoad(true,\''+A.id+'\')"'+(SEO.snsBusy?' disabled':'')+'>'+(busy?'불러오는 중…':'새로 불러오기')+'</button><button class="igref-x" onclick="seoTtStop(\''+A.id+'\',\''+seoEsc(A.label)+'\')" title="연결 끊기">✕</button></span></div>';
   if(L.err)h+='<div class="seo-errl" style="margin:4px 0 8px">⚠ '+seoEsc(L.err)+(/인증|token|401/i.test(L.err)?' — 연결을 끊고 다시 연결해 주세요.':'')+'</div>';
   if(A.rtx&&A.rtx-Date.now()<30*864e5)h+='<div class="seo-errl" style="margin:4px 0 8px">연결이 '+Math.max(0,Math.round((A.rtx-Date.now())/864e5))+'일 뒤 끝나요. 끊고 다시 연결해 주세요.</div>';
-  if(Us)h+=seoTtDiagView(seoTtDiag(L,H,Us,w1))+seoTtAiView(A)+'<div class="seo-sub">숫자</div>';
+  if(Us)h+=seoTtDiagView(seoTtDiag(L,H,Us,w1))+seoTtCapView(L)+seoTtAiView(A)+'<div class="seo-sub">숫자</div>';
   if(Us){h+='<table class="seo-tb"><tr><th></th><th>지금</th><th>7일 전보다</th></tr>'+
       '<tr><td>팔로워</td><td><b>'+seoN(Us.followers)+'</b></td><td>'+(w1?seoDelta(Us.followers,w1.f):'-')+'</td></tr>'+
       '<tr><td>받은 좋아요 합</td><td><b>'+seoN(Us.likes)+'</b></td><td>'+(w1?seoDelta(Us.likes,w1.l):'-')+'</td></tr>'+
@@ -5359,13 +5359,47 @@ function seoTtDiag(L,H,Us,w1){var V=(L.videos||[]).filter(function(v){return v.t
 function seoTtList(cls,ic,t,a,empty,raw){return '<div class="seo-dg '+cls+'"><div class="seo-dgh">'+ic+' '+t+'</div>'+(a&&a.length?'<ul>'+a.map(function(x){return '<li>'+(raw?x:seoEsc(x))+'</li>'}).join('')+'</ul>':'<div class="seo-time2">'+empty+'</div>')+'</div>'}
 function seoTtDiagView(D){if(!D)return '';return '<div class="seo-sub">숫자로 본 진단 <span class="seo-time2">매일 새 숫자로 자동 · 무료</span></div>'+
   seoTtList('gd','✅','잘 되는 것',D.g,'아직 눈에 띄게 잘 되는 건 없어요',1)+seoTtList('bd','⚠️','문제',D.b,'눈에 띄는 문제는 없어요',1)+(D.t.length?seoTtList('td','→','할 일',D.t,'',1):'')}
+/* 캡션 · 해시태그 진단 — 올린 지 3~120일 된 영상끼리 조회 평균을 비교 (무료). 같이 나타난 경향이지 원인 확정은 아니다 */
+function seoTtTags(t){var m=String(t||'').match(/#[^\s#]+/g)||[];return m.map(function(x){return x.toLowerCase().replace(/[.,!?…:;)\]]+$/,'')}).filter(function(x,i,a){return x.length>1&&a.indexOf(x)===i})}
+function seoTtCapView(L){var now=Date.now()/1e3,N=seoN,C=(L.videos||[]).filter(function(v){var a=now-v.t;return v.t&&a>=3*86400&&a<120*86400});
+  var h='<div class="seo-sub">캡션 · 해시태그 <span class="seo-time2">올린 지 3~120일 된 영상 '+C.length+'개끼리 조회 비교</span></div>';
+  if(C.length<6)return h+'<div class="seo-time2">비교할 영상이 6개는 있어야 해요 (지금 '+C.length+'개).</div>';
+  var avg=function(a){return a.length?Math.round(a.reduce(function(s,v){return s+v.views},0)/a.length):0},pct=function(a,o){return Math.round((a/o-1)*100)},G=[],B=[],tb='';
+  var cut=C.filter(function(v){return String(v.title||'').length>=118&&String(v.title||'').length<=120}).length;
+  if(cut>=3)return h+'<div class="seo-time2">지금 저장된 글이 120자에서 잘려 끝에 붙은 해시태그가 빠져 있어요 ('+cut+'개). 이대로 비교하면 틀려요 — <b>새로 불러오기</b>를 누르면 캡션 전체로 다시 비교해요.</div>';
+  /* 해시태그 하나하나 — 붙인 영상 vs 안 붙인 영상 */
+  var T={};C.forEach(function(v){seoTtTags(v.title).forEach(function(t){(T[t]=T[t]||[]).push(v)})});
+  var tags=Object.keys(T).filter(function(t){return T[t].length>=3&&T[t].length<=C.length-3}).map(function(t){var w=T[t],wo=C.filter(function(v){return w.indexOf(v)<0});return {t:t,n:w.length,a:avg(w),o:avg(wo)}}).filter(function(x){return x.o}).sort(function(a,b){return b.a/b.o-a.a/a.o});
+  var always=Object.keys(T).filter(function(t){return T[t].length>C.length-3&&T[t].length>=3}).sort(function(a,b){return T[b].length-T[a].length});
+  var up=tags.filter(function(x){return x.a>=x.o*1.3}),dn=tags.filter(function(x){return x.a<=x.o*0.75}).reverse();
+  if(up.length)G.push(up.slice(0,2).map(function(x){return '<b>'+seoEsc(x.t)+'</b> 붙인 영상 '+x.n+'개 평균 '+N(x.a)+'회 (안 붙인 영상 '+N(x.o)+'회보다 +'+pct(x.a,x.o)+'%)'}).join(' · '));
+  if(dn.length)B.push(dn.slice(0,2).map(function(x){return '<b>'+seoEsc(x.t)+'</b> 붙인 영상 '+x.n+'개 평균 '+N(x.a)+'회 (안 붙인 영상 '+N(x.o)+'회보다 '+pct(x.a,x.o)+'%)'}).join(' · '));
+  if(always.length)B.push(always.slice(0,5).map(function(t){return seoEsc(t)}).join(' ')+' — 거의 모든 영상에 똑같이 붙여서 효과를 비교할 수 없어요. 몇 개는 바꿔 가며 시험해 봐야 알아요');
+  /* 그룹 비교 — 2개 이상 그룹(각 3개 이상)일 때만 */
+  var body=function(v){return String(v.title||'').replace(/#[^\s#]+/g,'').replace(/@\S+/g,'').replace(/\s+/g,' ').trim()};
+  var cmp=function(name,f){var g={};C.forEach(function(v){var k=f(v);(g[k]=g[k]||[]).push(v)});var ks=Object.keys(g).filter(function(k){return g[k].length>=3});if(ks.length<2)return null;
+    var r=ks.map(function(k){return {k:k,n:g[k].length,a:avg(g[k])}}).sort(function(a,b){return b.a-a.a});
+    tb+='<tr><td colspan="3" class="seo-time2" style="padding-top:10px"><b>'+name+'</b></td></tr>'+r.map(function(x){return '<tr><td>'+x.k+'</td><td>'+x.n+'개</td><td><b>'+N(x.a)+'</b></td></tr>'}).join('');
+    var rest=[];r.slice(1).forEach(function(x){rest=rest.concat(g[x.k])});var o=avg(rest);return r[0].a>=o*1.2?{k:r[0].k,a:r[0].a,o:o}:null};
+  var c1=cmp('해시태그 개수',function(v){var n=seoTtTags(v.title).length;return n===0?'없음':n<=3?'1~3개':n<=6?'4~6개':'7개 이상'});
+  var c2=cmp('캡션 첫 문장',function(v){var b=body(v),f=(b.split(/[.!\n]/)[0]||'');return /^pov\b/i.test(b)?'POV로 시작':/\?/.test(f)?'질문으로 시작':/(%|\boff\b|event|이벤트|할인)/i.test(b)?'이벤트 · 할인 홍보':'설명으로 시작'});
+  var c3=cmp('캡션 길이 (해시태그 빼고)',function(v){var n=body(v).length;return n<50?'짧게 (50자 미만)':n<120?'보통 (50~120자)':'길게 (120자 이상)'});
+  var c4=cmp('캡션 언어',function(v){return /[가-힣]/.test(body(v))?'한국어 들어감':'영어만'});
+  [c1,c2,c3,c4].forEach(function(c,i){if(c)G.push(['해시태그 ','','',''][i]+'<b>'+c.k+'</b> 영상이 평균 '+N(c.a)+'회 — 나머지('+N(c.o)+'회)보다 +'+pct(c.a,c.o)+'%')});
+  if(!up.length&&!dn.length&&!c1&&!c2&&!c3&&!c4)G.push('캡션 · 해시태그에 따라 조회 차이가 크지 않아요 — 조회 차이는 영상 자체(주제 · 첫 장면)에서 나올 가능성이 커요');
+  h+=seoTtList('gd','📈','조회가 높았던 쪽',G,'눈에 띄게 높은 쪽은 없어요',1)+seoTtList('bd','📉','조회가 낮았던 쪽 · 비교 안 되는 것',B,'눈에 띄게 낮은 쪽은 없어요',1);
+  if(tags.length||tb)h+='<details class="seo-ko" style="margin-top:6px"><summary>표로 자세히 보기</summary>'+
+    (tags.length?'<table class="seo-tb"><tr><th>해시태그</th><th>쓴 영상</th><th>쓴 영상 평균</th><th>안 쓴 영상</th></tr>'+tags.slice(0,12).map(function(x){return '<tr><td>'+seoEsc(x.t)+'</td><td>'+x.n+'개</td><td><b>'+N(x.a)+'</b>'+seoDelta(x.a,x.o)+'</td><td>'+N(x.o)+'</td></tr>'}).join('')+'</table>':'')+
+    (tb?'<table class="seo-tb" style="margin-top:6px"><tr><th>무엇으로 나눴나</th><th>영상</th><th>평균 조회</th></tr>'+tb+'</table>':'')+'</details>';
+  h+='<div class="seo-time2" style="margin-top:6px">같이 나타난 경향이지 원인 확정은 아니에요. 틱톡은 시청 시간 · 끝까지 본 비율을 우리에게 주지 않아서 영상 첫 장면의 힘은 숫자로 못 봐요.</div>';
+  return h}
 /* 틱톡 AI 분석 — 영상 제목 · 내용까지 읽고 왜 잘 됐는지 · 무엇을 찍을지. 누를 때만, 계정마다 하루 한 번 */
 function seoTtAiView(A){var R=A.ai,busy=(SEO.ttAi||{})[A.id]==='making',ymd=function(t){return new Date(t+9*3600e3).toISOString().slice(0,10)},today=R&&R.at&&ymd(R.at)===ymd(Date.now());
   var h='<div class="seo-sub">AI 분석 <span class="seo-time2">영상 제목 · 내용까지 읽고 왜 잘 됐는지 · 무엇을 찍을지 — 누를 때만</span></div>';
   if(busy)return h+'<div class="seo-wait"><span class="igai-spin"></span><b>AI가 영상 '+((A.latest&&A.latest.videos)||[]).length+'개를 읽는 중이에요.</b> 30초~1분 걸려요.</div>';
   if(R&&R.report){var P=R.report;
     h+=(P.headline?'<div class="seo-tt" style="margin:2px 0 4px">'+seoEsc(P.headline)+'</div>':'')+
-      ((P.good||[]).length?seoTtList('gd','✅','잘 되는 것',P.good):'')+((P.problems||[]).length?seoTtList('bd','⚠️','문제',P.problems):'')+((P.todo||[]).length?seoTtList('td','→','이번 주 할 일',P.todo):'')+
+      ((P.good||[]).length?seoTtList('gd','✅','잘 되는 것',P.good):'')+((P.problems||[]).length?seoTtList('bd','⚠️','문제',P.problems):'')+((P.caption||[]).length?seoTtList('cp','✍️','캡션',P.caption):'')+((P.hashtags||[]).length?seoTtList('cp','#','해시태그',P.hashtags):'')+((P.todo||[]).length?seoTtList('td','→','이번 주 할 일',P.todo):'')+
       (P.ideas||[]).map(function(x,i){return '<div class="seo-how"><b>찍을 영상 '+(i+1)+'</b><div class="seo-tt">'+seoEsc(x.title)+'</div>'+(x.why?'<div class="seo-why">'+seoEsc(x.why)+'</div>':'')+(x.how?'<div class="seo-why">'+seoEsc(x.how)+'</div>':'')+'</div>'}).join('')+
       '<div class="seo-time2" style="margin-top:8px">'+igAiWhen(R.at)+' 분석'+(R.by?' · '+seoEsc(R.by):'')+(R.base?' · '+igAiWhen(R.base)+'에 가져온 숫자 기준':'')+'</div>'}
   h+=today?'<div class="seo-time2" style="margin-top:4px">오늘 분석했어요. 내일 새 숫자로 다시 할 수 있어요.</div>':
