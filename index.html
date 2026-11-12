@@ -5033,6 +5033,7 @@ function smLoad(){SM.busy=true;SM.err='';smPaint();
 function smSet(k,v){SM[k]=v;SM.shown=100;smPaint()}
 function smDate(t){if(!t)return '—';var d=new Date(t);return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')}
 /* esc() 는 다른 모듈의 (function(){…})() 안에만 있어 여기선 안 보인다 — 그대로 쓰면 목록을 그리다 ReferenceError, 오류 화면도 같은 이유로 못 그려 "불러오는 중…"에서 멈췄다(2026-11-12). 이 화면 전용으로 따로 둔다 */
+/* 화면 칸 id 는 SMEM-* — SM-LIST 는 '내 매출' 화면(p-sales-my)이 먼저 써서 getElementById 가 그쪽을 잡아 목록이 안 보였다(2026-11-12) */
 function smEsc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function smPaint(){var R=$('SM-ROOT');if(!R)return;
   if(SM.busy&&!SM.list){R.innerHTML='<div style="padding:30px 0;text-align:center;color:var(--text-3);font-size:13px">불러오는 중…</div>';return}
@@ -5043,10 +5044,10 @@ function smPaint(){var R=$('SM-ROOT');if(!R)return;
   var rows=all.filter(function(m){if(SM.f!=='all'&&m.p!==SM.f)return false;if(!q)return true;var ph=m.ph?('+'+m.ph.d+m.ph.n+' 0'+m.ph.n):'';return (m.name+' '+m.email+' '+ph).toLowerCase().indexOf(q)>=0});
   var tab=function(k,l){var on=SM.f===k;return '<button onclick="smSet(\'f\',\''+k+'\')" style="border:1px solid '+(on?'var(--blue)':'var(--border)')+';background:'+(on?'var(--blue)':'var(--card)')+';color:'+(on?'hsl(0 0% 100%)':'var(--text-2)')+';padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">'+l+' '+cnt[k]+'</button>'};
   var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px">'+tab('all','전체')+tab('email','이메일')+tab('kakao','카카오')+tab('google','Google')+'</div>';
-  h+='<input id="SM-Q" value="'+smEsc(SM.q)+'" oninput="SM.q=this.value;SM.shown=100;smPaintList()" placeholder="이름 · 이메일 · 휴대폰 검색" style="width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:11px 14px;font-size:14px;font-family:inherit;margin:0 0 12px">';
-  h+='<div id="SM-LIST"></div>';
+  h+='<input id="SMEM-Q" value="'+smEsc(SM.q)+'" oninput="SM.q=this.value;SM.shown=100;smPaintList()" placeholder="이름 · 이메일 · 휴대폰 검색" style="width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:11px 14px;font-size:14px;font-family:inherit;margin:0 0 12px">';
+  h+='<div id="SMEM-LIST"></div>';
   R.innerHTML=h;smPaintList(rows,P)}
-function smPaintList(rows,P){var L=$('SM-LIST');if(!L)return;
+function smPaintList(rows,P){var L=$('SMEM-LIST');if(!L)return;
   if(!rows){var all=SM.list||[],q=SM.q.trim().toLowerCase();P={email:'이메일',kakao:'카카오',google:'Google'};
     rows=all.filter(function(m){if(SM.f!=='all'&&m.p!==SM.f)return false;if(!q)return true;var ph=m.ph?('+'+m.ph.d+m.ph.n+' 0'+m.ph.n):'';return (m.name+' '+m.email+' '+ph).toLowerCase().indexOf(q)>=0})}
   if(!rows.length){L.innerHTML='<div style="padding:30px 0;text-align:center;color:var(--text-3);font-size:13px">'+((SM.list||[]).length?'찾는 회원이 없어요':'아직 가입한 회원이 없어요')+'</div>';return}
