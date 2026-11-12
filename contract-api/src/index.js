@@ -462,6 +462,24 @@ async function pushToPhones(env, phones, payload, opts = {}) {
    앱의 systemGrade 는 비어 있는 계정이 41/51 이라 그대로 못 쓴다.
    /contractRoles/{phone} 의 명시적 지정이 우선이고, 없으면 staff 다.
    기본을 staff 로 두면 새 기능이라 아무도 못 쓰는 상태에서 시작한다 — 안전한 방향. */
+/* ═══ 손님에게 보이는 디자이너 코드 (11/12) ═══
+   예전에는 상담 QR(?d=)과 /public/designers 에 디자이너 휴대폰 번호(= 로그인 아이디)가 그대로 나갔다.
+   이제 번호 대신 'd' + 12글자 코드를 쓴다. 같은 번호는 늘 같은 코드(SESSION_SECRET 으로 만든 HMAC)라 따로 저장할 필요가 없고,
+   코드만 보고 번호를 알아낼 수는 없다. 상담이 들어오면 서버가 /users 를 돌며 코드 → 번호로 바꿔 저장한다(상담함은 그대로 번호로 본다). */
+const DID_RE = /^d[A-Za-z0-9_-]{12}$/;
+async function did(env, ph) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.SESSION_SECRET || '')),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('did:' + String(ph))));
+  let b = ''; for (let i = 0; i < 9; i++) b += String.fromCharCode(sig[i]);
+  return 'd' + btoa(b).replace(/\+/g, '-').replace(/\//g, '_');   // 9바이트 → 12글자
+}
+async function didToPhone(env, code) {
+  const users = (await dbGet(env, '/users').catch(() => null)) || {};
+  for (const ph of Object.keys(users)) if (await did(env, ph) === code) return ph;
+  return '';
+}
+
 async function resolveRole(env, phone, user) {
   const explicit = await dbGet(env, '/contractRoles/' + phone).catch(() => null);
   if (explicit && explicit.role) return { role: explicit.role, branches: explicit.branches || [] };
@@ -860,7 +878,7 @@ export default {
           const isDesigner = x.role === '디자이너' || (Array.isArray(x.roles) && x.roles.indexOf('디자이너') >= 0);
           if (!isDesigner) continue;
           /* /users 에서 내보내는 것은 이 네 가지뿐이다. 늘리기 전에 손님에게 보여도 되는지 따져볼 것. */
-          const d = { ph, name: x.nick || x.name || '', branch: x.branch || '', enName: x.enName || '' };
+          const d = { ph, name: x.nick || x.name || '', branch: x.branch || '', enName: x.enName || '' };   // ph 는 맨 끝에 코드로 바꾼다
           /* profile 은 디자이너가 관리화면 '디자이너 소개'에 손님 보라고 직접 올린 칸만 담는다.
              공식 사이트(daymean-site) 디자이너·About 페이지가 쓴다. title(직급)은 가격표 조회 키다.
              재직 중인 디자이너 것만 나간다 — 퇴사자 프로필이 salonInfo 에 남아 있어도 안 나간다. */
@@ -892,6 +910,8 @@ export default {
           const rank = (d) => { const i = order.indexOf(d.ph); return i < 0 ? 999 : i; };
           list.sort((a, b) => rank(a) - rank(b));
         }
+        /* 휴대폰 번호는 내보내지 않는다 — 손님 화면 · 공식 사이트는 ph 를 디자이너를 가리키는 키로만 쓴다 */
+        for (const d of list) d.ph = await did(env, d.ph);
         return json({ ok: true, designers: list }, 200, origin);
       }
 
@@ -955,6 +975,8 @@ export default {
           else if (typeof v === 'object') { const c = cleanDeep(v, 0); if (c !== undefined && JSON.stringify(c).length <= 4000) rec[k] = c; }
         }
         if (!rec.date) rec.date = new Date().toISOString().slice(0, 10);
+        /* 디자이너 코드(d…) → 휴대폰 번호. 못 찾으면 비워 둔다(상담은 '담당 없음'으로 들어간다) */
+        if (typeof rec.designerPh === 'string' && DID_RE.test(rec.designerPh)) rec.designerPh = await didToPhone(env, rec.designerPh);
         await dbPush(env, '/consults', rec);
         return json({ ok: true }, 200, origin);
       }
@@ -1209,6 +1231,15 @@ export default {
           title: 'DM 알림 시험', body: '이 알림이 보이면 설정이 끝난 거예요.', url: './#p-dash', tag: 'push-test',
         });
         return json({ ok: true, ...r }, 200, origin);
+      }
+
+      /* 상담 QR 화면 — 고른 직원들의 디자이너 코드. 직원 로그인만(번호 → 코드 방향이라 새로 새는 것은 없다) */
+      if (path === '/qr/ids' && request.method === 'POST') {
+        const { phs } = await request.json().catch(() => ({}));
+        if (!Array.isArray(phs) || phs.length > 300) return json({ ok: false, error: '목록이 잘못됐어요' }, 400, origin);
+        const ids = {};
+        for (const ph of phs) if (typeof ph === 'string' && /^[0-9]{8,12}$/.test(ph)) ids[ph] = await did(env, ph);
+        return json({ ok: true, ids }, 200, origin);
       }
 
       /* 앱이 DB에 직접 붙을 때 쓰는 토큰. 1시간짜리라 앱이 주기적으로 다시 받아간다. */
