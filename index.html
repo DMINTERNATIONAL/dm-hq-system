@@ -5032,16 +5032,18 @@ function smLoad(){SM.busy=true;SM.err='';smPaint();
   .catch(function(e){SM.busy=false;SM.err=(e&&e.message)||'불러오지 못했어요';smPaint()})}
 function smSet(k,v){SM[k]=v;SM.shown=100;smPaint()}
 function smDate(t){if(!t)return '—';var d=new Date(t);return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')}
+/* esc() 는 다른 모듈의 (function(){…})() 안에만 있어 여기선 안 보인다 — 그대로 쓰면 목록을 그리다 ReferenceError, 오류 화면도 같은 이유로 못 그려 "불러오는 중…"에서 멈췄다(2026-11-12). 이 화면 전용으로 따로 둔다 */
+function smEsc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function smPaint(){var R=$('SM-ROOT');if(!R)return;
   if(SM.busy&&!SM.list){R.innerHTML='<div style="padding:30px 0;text-align:center;color:var(--text-3);font-size:13px">불러오는 중…</div>';return}
-  if(SM.err){R.innerHTML='<div style="padding:24px 0;color:var(--text-2);font-size:13px;line-height:1.6">'+esc(SM.err)+'<br><button onclick="smLoad()" style="margin-top:10px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:8px 14px;font-weight:700;font-family:inherit;cursor:pointer">다시 불러오기</button></div>';return}
+  if(SM.err){R.innerHTML='<div style="padding:24px 0;color:var(--text-2);font-size:13px;line-height:1.6">'+smEsc(SM.err)+'<br><button onclick="smLoad()" style="margin-top:10px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:8px 14px;font-weight:700;font-family:inherit;cursor:pointer">다시 불러오기</button></div>';return}
   var all=SM.list||[],P={email:'이메일',kakao:'카카오',google:'Google'};
   var cnt={all:all.length,email:0,kakao:0,google:0};all.forEach(function(m){if(cnt[m.p]!=null)cnt[m.p]++});
   var q=SM.q.trim().toLowerCase();
   var rows=all.filter(function(m){if(SM.f!=='all'&&m.p!==SM.f)return false;if(!q)return true;var ph=m.ph?('+'+m.ph.d+m.ph.n+' 0'+m.ph.n):'';return (m.name+' '+m.email+' '+ph).toLowerCase().indexOf(q)>=0});
   var tab=function(k,l){var on=SM.f===k;return '<button onclick="smSet(\'f\',\''+k+'\')" style="border:1px solid '+(on?'var(--blue)':'var(--border)')+';background:'+(on?'var(--blue)':'var(--card)')+';color:'+(on?'hsl(0 0% 100%)':'var(--text-2)')+';padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">'+l+' '+cnt[k]+'</button>'};
   var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px">'+tab('all','전체')+tab('email','이메일')+tab('kakao','카카오')+tab('google','Google')+'</div>';
-  h+='<input id="SM-Q" value="'+esc(SM.q)+'" oninput="SM.q=this.value;SM.shown=100;smPaintList()" placeholder="이름 · 이메일 · 휴대폰 검색" style="width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:11px 14px;font-size:14px;font-family:inherit;margin:0 0 12px">';
+  h+='<input id="SM-Q" value="'+smEsc(SM.q)+'" oninput="SM.q=this.value;SM.shown=100;smPaintList()" placeholder="이름 · 이메일 · 휴대폰 검색" style="width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:11px 14px;font-size:14px;font-family:inherit;margin:0 0 12px">';
   h+='<div id="SM-LIST"></div>';
   R.innerHTML=h;smPaintList(rows,P)}
 function smPaintList(rows,P){var L=$('SM-LIST');if(!L)return;
@@ -5050,9 +5052,9 @@ function smPaintList(rows,P){var L=$('SM-LIST');if(!L)return;
   if(!rows.length){L.innerHTML='<div style="padding:30px 0;text-align:center;color:var(--text-3);font-size:13px">'+((SM.list||[]).length?'찾는 회원이 없어요':'아직 가입한 회원이 없어요')+'</div>';return}
   var h='';rows.slice(0,SM.shown).forEach(function(m){
     h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin:0 0 8px">'
-      +'<div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;color:var(--text)">'+esc(m.name||'(이름 없음)')+'</b>'
-      +'<span style="font-size:11px;font-weight:700;color:var(--text-2);border:1px solid var(--border);border-radius:999px;padding:2px 8px">'+(P[m.p]||esc(m.p))+'</span></div>'
-      +((m.email||m.ph)?'<div style="margin-top:5px;font-size:13px;color:var(--text-2);line-height:1.6;word-break:break-all">'+(m.email?esc(m.email):'')+(m.email&&m.ph?' · ':'')+(m.ph?'+'+esc(m.ph.d)+' '+esc(m.ph.n):'')+'</div>':'')
+      +'<div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;color:var(--text)">'+smEsc(m.name||'(이름 없음)')+'</b>'
+      +'<span style="font-size:11px;font-weight:700;color:var(--text-2);border:1px solid var(--border);border-radius:999px;padding:2px 8px">'+(P[m.p]||smEsc(m.p))+'</span></div>'
+      +((m.email||m.ph)?'<div style="margin-top:5px;font-size:13px;color:var(--text-2);line-height:1.6;word-break:break-all">'+(m.email?smEsc(m.email):'')+(m.email&&m.ph?' · ':'')+(m.ph?'+'+smEsc(m.ph.d)+' '+smEsc(m.ph.n):'')+'</div>':'')
       +'<div style="margin-top:4px;font-size:11.5px;color:var(--text-3)">가입 '+smDate(m.at)+' · 최근 로그인 '+smDate(m.last)+'</div></div>'});
   if(rows.length>SM.shown)h+='<button onclick="SM.shown+=100;smPaintList()" style="width:100%;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:11px;font-weight:700;font-family:inherit;cursor:pointer">더 보기 ('+(rows.length-SM.shown)+'명 남음)</button>';
   L.innerHTML=h}
