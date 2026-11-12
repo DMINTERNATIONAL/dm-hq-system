@@ -21,7 +21,12 @@
  * 값은 화면 언어와 상관없이 한국어(사이트가 화면 글자만 번역) — 관리 앱이 이 값으로 거른다.
  */
 
-const ROLES = ['디자이너', '인턴', '매장 스태프'];
+/* 분야 — 11/12 밤 사용자 결정: 디자이너 · 인턴 · CS팀 · 경영팀. 면허는 디자이너 · 인턴만 묻는다 */
+const ROLES = ['디자이너', '인턴', 'CS팀', '경영팀'];
+const LICENSE_ROLES = ['디자이너', '인턴'];
+const EDU_ST = ['졸업', '재학', '휴학', '중퇴', '졸업 예정'];
+const FAMILY_REL = ['아버지', '어머니', '배우자', '형제자매', '자녀', '기타'];
+const YM_RE = /^(19|20)\d{2}\.(0[1-9]|1[0-2])$/;   // 2023.03
 const LICENSES = ['있음', '없음', '취득 예정'];
 const CAREERS = ['신입', '1년 미만', '1~3년', '3~5년', '5년 이상'];
 const STARTS = ['바로 가능', '1개월 안', '협의'];
@@ -36,10 +41,18 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;               // 32바이트 base64url
 const PHOTO_RE = /^[A-Za-z0-9_-]{22}\.(jpg|webp)$/;    // 16바이트 base64url + 확장자
 const PHOTO_MAX = 5 * 1024 * 1024;
 /* 지원자가 보내는 칸 — 이 밖의 칸은 버린다 (branch 는 11/12 밤에 없앰) */
-const TEXT = { name: 40, email: 100, portfolio: 300, prevSalon: 100, intro: 2000, why: 1500, hope: 1500 };
+const TEXT = { name: 40, email: 100, address: 200, portfolio: 300, intro: 2000, why: 1500, hope: 1500 };
+/* 여러 줄 칸 — { 줄 칸: [최대 글자 | 허용값 | 모양] }, 최대 줄 수.
+   가족은 관계 · 이름만 — 가족의 학력 · 직업 · 재산은 채용절차법 제4조의3 이 묻지 못하게 한다 */
+const LISTS = {
+  jobs: { max: 10, cols: { place: 60, role: 40, from: YM_RE, to: YM_RE, now: 'bool' }, need: ['place', 'from'] },
+  edu: { max: 5, cols: { school: 60, major: 40, status: EDU_ST, year: /^(19|20)\d{2}$/ }, need: ['school', 'status'] },
+  family: { max: 8, cols: { rel: FAMILY_REL, name: 20 }, need: ['rel'] },
+};
 const ENUM = { role: ROLES, license: LICENSES, career: CAREERS, start: STARTS };
-const FIELDS = ['role', 'name', 'birthYear', 'phone', 'email', 'sns', 'portfolio', 'license', 'career', 'prevSalon', 'start', 'intro', 'why', 'hope', 'photo', 'agree', 'lang'];
-const REQUIRED = ['role', 'name', 'birthYear', 'phone', 'license', 'career', 'start', 'intro', 'why', 'hope', 'photo', 'agree'];
+const FIELDS = ['role', 'name', 'birthYear', 'phone', 'email', 'address', 'sns', 'portfolio', 'license', 'career', 'jobs', 'edu', 'family', 'start', 'intro', 'why', 'hope', 'photo', 'agree', 'lang'];
+/* license 는 분야에 따라(checkSubmit), edu 는 1줄 이상, jobs 는 신입이 아니면 1줄 이상, family 는 선택 */
+const REQUIRED = ['role', 'name', 'birthYear', 'phone', 'address', 'career', 'start', 'intro', 'why', 'hope', 'photo', 'agree'];
 
 const b64u = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const rand = (n) => b64u(crypto.getRandomValues(new Uint8Array(n)));
@@ -104,6 +117,30 @@ export function makeRecruit(deps) {
         out[k] = list.length ? list : null;
         continue;
       }
+      if (k in LISTS) {
+        const L = LISTS[k];
+        if (!Array.isArray(v) || v.length > L.max) return { err: k };
+        const list = [];
+        for (const it of v) {
+          if (!it || typeof it !== 'object') return { err: k };
+          const row = {};
+          for (const c in L.cols) {
+            const rule = L.cols[c], x = it[c];
+            if (rule === 'bool') { if (x === true) row[c] = true; continue; }
+            if (x === undefined || x === null || x === '') continue;
+            if (typeof x !== 'string') return { err: k };
+            if (typeof rule === 'number') { const t = noTag(x).trim().slice(0, rule); if (t) row[c] = t; continue; }
+            if (Array.isArray(rule)) { if (rule.indexOf(x) < 0) return { err: k }; row[c] = x; continue; }
+            if (!rule.test(x.trim())) return { err: k };
+            row[c] = x.trim();
+          }
+          if (!Object.keys(row).length) continue;           // 빈 줄은 버림
+          if (L.need.some((c) => !row[c])) return { err: k }; // 반쯤 쓴 줄은 고쳐 달라고
+          list.push(row);
+        }
+        out[k] = list.length ? list : null;
+        continue;
+      }
       if (k === 'photo') { if (typeof v !== 'string' || !PHOTO_RE.test(v)) return { err: k }; out[k] = v; continue; }
       if (k === 'agree') { if (typeof v !== 'boolean') return { err: k }; out[k] = v; continue; }
       if (k === 'lang') { if (LANGS.indexOf(v) < 0) return { err: k }; out[k] = v; continue; }
@@ -115,6 +152,9 @@ export function makeRecruit(deps) {
   function checkSubmit(r) {
     for (const k of REQUIRED) if (r[k] === undefined || r[k] === null || r[k] === '') return k;
     if (r.agree !== true) return 'agree';
+    if (LICENSE_ROLES.indexOf(r.role) >= 0 && !r.license) return 'license';
+    if (!Array.isArray(r.edu) || !r.edu.length) return 'edu';
+    if (r.career !== '신입' && (!Array.isArray(r.jobs) || !r.jobs.length)) return 'jobs';
     const thisYear = new Date(Date.now() + 9 * 3600e3).getUTCFullYear();
     if (!/^\d{4}$/.test(r.birthYear) || +r.birthYear < 1900 || +r.birthYear > thisYear) return 'birthYear';
     if (String(r.phone).replace(/\D/g, '').length < 7) return 'phone';   // 숫자가 7개는 있어야 연락이 된다(해외 번호도 넉넉히)

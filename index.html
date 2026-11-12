@@ -5091,7 +5091,8 @@ var RA={list:null,busy:false,err:'',role:'all',st:'all',draft:{}};
 var RA_ST=[['new','접수'],['reviewing','검토 중'],['contacted','연락함'],['hired','합격'],['rejected','불합격']];
 /* 질문 셋 — 칸 이름과 지원서에 적힌 질문 그대로 */
 var RA_Q=[['intro','자기소개 (장점 · 단점)'],['why','DAY:MEAN 에 들어오고 싶은 이유'],['hope','입사 후 바라는 점']];
-var RA_ROLES=[['디자이너','designer'],['인턴','intern'],['매장 스태프','staff']];
+/* 분야 — 11/12 밤 사용자 결정. 둘째 값 = 지원서 링크 ?role= (사이트 lib/i18n/apply.ts ROLE_PARAM 과 같음) */
+var RA_ROLES=[['디자이너','designer'],['인턴','intern'],['CS팀','cs'],['경영팀','management']];
 var RA_LANG={ko:'한국어',en:'English',ja:'日本語',zh:'中文'};
 function raEsc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function raId(a){return String((a&&a.id)||'').replace(/[^A-Za-z0-9_-]/g,'')}
@@ -5113,6 +5114,11 @@ function raSns(s){if(!s||typeof s!=='object')return '';var t=String(s.t||'기타
   else if(t==='인스타그램'){var g=raIg(v);if(g){u=g.u;l=g.l}}
   else if(t==='틱톡'){var id=v.replace(/^@/,'').replace(/^(https?:\/\/)?(www\.)?tiktok\.com\/@?/i,'').replace(/[/?#].*$/,'');if(/^[A-Za-z0-9._]{1,30}$/.test(id)){u='https://www.tiktok.com/@'+id;l='@'+id}}
   return '<div style="margin:0 0 2px"><span style="color:var(--text-3);margin-right:6px">'+raEsc(t)+'</span>'+raLink(u,l)+'</div>'}
+/* 학력 · 경력 사항 · 가족 — 여러 줄 칸. 값은 사이트가 한국어로 저장(학적 상태 · 가족 관계) */
+function raList(v,f){return (Array.isArray(v)?v:[]).map(function(x){return x&&typeof x==='object'?f(x):''}).filter(Boolean).map(function(l){return '<div style="margin:0 0 2px">'+l+'</div>'}).join('')}
+function raEdu(e){return raEsc(e.school)+(e.major?' · '+raEsc(e.major):'')+' <span style="color:var(--text-3)">'+raEsc(e.status||'')+(e.year?' '+raEsc(e.year):'')+'</span>'}
+function raJob(j){return raEsc(j.place)+(j.role?' · '+raEsc(j.role):'')+' <span style="color:var(--text-3)">'+raEsc(j.from||'')+' ~ '+(j.now?'재직 중':raEsc(j.to||''))+'</span>'}
+function raFam(m){return '<span style="color:var(--text-3);margin-right:6px">'+raEsc(m.rel||'')+'</span>'+raEsc(m.name||'')}
 function raLink(u,l){return u?'<a href="'+raEsc(u)+'" target="_blank" rel="noopener noreferrer" style="color:var(--blue);word-break:break-all">'+raEsc(l||u)+'</a>':raEsc(l||'')}
 function raPaint(){var R=$('RA-ROOT');if(!R)return;
   var B='border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer';
@@ -5143,8 +5149,11 @@ function raCard(a){var id=raId(a),st=a.status||'new',ed=can('menu.recruitApps.ed
     +row('출생 연도',a.birthYear?raEsc(a.birthYear)+'년생':'')
     +row('연락처',tel?'<a href="tel:'+raEsc(tel)+'" style="color:var(--blue);font-weight:700">'+raEsc(a.phone)+'</a>':raEsc(a.phone))
     +row('이메일',a.email?'<a href="mailto:'+raEsc(a.email)+'" style="color:var(--blue)">'+raEsc(a.email)+'</a>':'')
+    +row('현 주소',raEsc(a.address))+row('가족',raList(a.family,raFam))
     +row('SNS',sns||(ig?raLink(ig.u,ig.l):''))+row('포트폴리오',pf?raLink(pf):raEsc(a.portfolio))
-    +row('면허',raEsc(a.license))+row('경력',raEsc(a.career))+row('최근 근무지',raEsc(a.prevSalon))+row('시작 가능',raEsc(a.start))+row('화면 언어',raEsc(RA_LANG[a.lang]||a.lang))
+    +row('학력',raList(a.edu,raEdu))+row('경력',raEsc(a.career))+row('경력 사항',raList(a.jobs,raJob))
+    /* 예전 칸(prevSalon) — 11/12 밤 이전에 들어온 지원서만 */
+    +row('최근 근무지',raEsc(a.prevSalon))+row('면허',raEsc(a.license))+row('시작 가능',raEsc(a.start))+row('화면 언어',raEsc(RA_LANG[a.lang]||a.lang))
     +'<div style="clear:both"></div>'+RA_Q.map(function(q){var v=a[q[0]];return v?'<div style="margin:10px 0 0"><div style="font-size:11.5px;font-weight:700;color:var(--text-2);margin:0 0 4px">'+q[1]+'</div><div style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);font-size:13px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word">'+raEsc(v)+'</div></div>':''}).join('');
   if(ed){var memo=RA.draft.hasOwnProperty(id)?RA.draft[id]:(a.memo||'');
     if(st!=='draft')h+='<div style="display:flex;gap:6px;align-items:center;margin:10px 0 0"><span style="font-size:12px;color:var(--text-3);flex:0 0 auto">상태</span><select onchange="raUpd(\''+id+'\',\'status\',this.value)" style="flex:1;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:9px;padding:7px 9px;font-size:13px;font-family:inherit">'+RA_ST.map(function(s){return '<option value="'+s[0]+'"'+(s[0]===st?' selected':'')+'>'+s[1]+'</option>'}).join('')+'</select></div>';
