@@ -80,7 +80,8 @@ function mailHtml(lines, code) {
 <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#6f6f6a">${esc(lines[2])}</p>
 </div>`;
 }
-async function resendMail(env, to, subject, html, text) {
+/* 채용 지원서 링크 메일(recruit.js)도 같은 길로 보낸다 — 보내는 주소 · 키를 한 곳에서만 관리하려고 */
+export async function resendMail(env, to, subject, html, text) {
   if (!env.RESEND_API_KEY) throw Object.assign(new Error('메일 설정 없음'), { code: 'mail' });
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',

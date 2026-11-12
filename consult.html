@@ -189,7 +189,14 @@ html,body{background:#fff;color:#0a0a0a;font-family:-apple-system,BlinkMacSystem
 /* 손님 화면이 DB를 직접 읽으면 필요 없는 것까지 브라우저로 내려온다.
    디자이너 이름 몇 개 때문에 전 직원 기록이 통째로 나가던 것을 서버 창구로 바꾼다. */
 var PUBLIC_API='https://dm-contract-api.swavey2803.workers.dev';
-function pubG(p){return fetch(PUBLIC_API+p,{cache:'no-store'}).then(function(r){return r.json()})}
+function pubG(p){return fetch(PUBLIC_API+p,{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){return p==='/public/salon'?withRetailPrices(j):j})}
+/* 점판 판매가 (2026-11-12 · CONTRACT §2) — 정가보다 최대 36% 낮아 공개 창구(/public/salon)에서 빠졌다.
+   매장 QR(?d=디자이너 코드)로 들어온 손님만 /public/retail-prices 로 받아 항목 id(없으면 배열 순번)로 합친다.
+   못 받으면(QR 없음 · 퇴사 디자이너 · 네트워크) 정가만 보인다. 한 번만 받아 여러 화면이 나눠 쓴다 */
+var RETAIL_PR=null;
+function withRetailPrices(j){var rt=j&&j.salon&&j.salon.store&&j.salon.store.retail;if(!Array.isArray(rt)||!PRESET||!PRESET.d)return j;
+  if(!RETAIL_PR)RETAIL_PR=fetch(PUBLIC_API+'/public/retail-prices?d='+encodeURIComponent(PRESET.d),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(x){return (x&&x.ok&&x.prices)||null}).catch(function(){return null});
+  return RETAIL_PR.then(function(pr){if(pr)rt.forEach(function(p,i){if(!p||typeof p!=='object')return;var k=(p.id!=null&&p.id!=='')?String(p.id):String(i);if(pr[k])p.price=pr[k]});return j})}
 /* 서버가 거절({ok:false})해도 '완료'가 뜨던 것 — 그러면 손님 상담이 사라진다. 실패는 실패로 넘긴다(2026-11-12) */
 function pubP(p,d){return fetch(PUBLIC_API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json().catch(function(){return null}).then(function(j){if(!r.ok||!j||j.ok===false)throw new Error((j&&j.error)||'HTTP '+r.status);return j})})}
 /* 기기 날짜(한국 자정~오전 9시에 어제로 찍히던 것) */
@@ -413,7 +420,7 @@ var RET_CAT='all',RET_PROD=0,RET_BRAND='all',RET_MODE='cat',RET_Q='';
 function retLbl(k){var lang=D.lang;var M={all:{ko:'전체',en:'All',zh:'全部',ja:'すべて'},cat:{ko:'카테고리',en:'Category',zh:'分类',ja:'カテゴリー'},brand:{ko:'브랜드',en:'Brand',zh:'品牌',ja:'ブランド'},search:{ko:'제품 · 브랜드 검색',en:'Search products',zh:'搜索产品 · 品牌',ja:'商品・ブランド検索'},none:{ko:'검색 결과가 없어요',en:'No results found',zh:'没有搜索结果',ja:'結果がありません'}};return (M[k]&&(M[k][lang]||M[k].ko))||''}
 function retPills(tabs,sel,fn){return '<div style="display:flex;gap:7px;overflow-x:auto;margin:0 -22px 22px;padding:0 22px;-webkit-overflow-scrolling:touch">'+tabs.map(function(tb){var on=sel===tb[0];return '<span onclick="'+fn+'(\''+String(tb[0]).replace(/\\/g,"\\\\").replace(/'/g,"\\'")+'\')" style="flex:0 0 auto;font-size:13px;padding:8px 16px;border-radius:30px;cursor:pointer;white-space:nowrap;'+(on?'background:#0a0a0a;color:#fff':'background:#f2f2f2;color:#777')+'">'+esc(tb[1])+'</span>'}).join('')+'</div>'}
 function pPhotos(p){return (Array.isArray(p.photos)&&p.photos.length)?p.photos:(p.photo?[p.photo]:[])}
-function pPriceHtml(p,big){if(!p.price&&!p.regular)return '';var reg=(p.regular&&p.regular!==p.price)?'<span style="color:#bbb;text-decoration:line-through;font-size:'+(big?'12px':'11px')+';margin-right:6px">'+esc(p.regular)+'</span>':'';return reg+'<span style="'+(reg?'color:#0a0a0a;font-weight:600':(big?'color:#444':'color:#666'))+'">'+esc(p.price||p.regular)+'</span>'}
+function pPriceHtml(p,big){if(!p.price&&!p.regular)return '';var reg=(p.price&&p.regular&&p.regular!==p.price)?'<span style="color:#bbb;text-decoration:line-through;font-size:'+(big?'12px':'11px')+';margin-right:6px">'+esc(p.regular)+'</span>':'';return reg+'<span style="'+(reg?'color:#0a0a0a;font-weight:600':(big?'color:#444':'color:#666'))+'">'+esc(p.price||p.regular)+'</span>'}
 function retCat(c){RET_CAT=c;drawRetail();var bb=$('browse-body');if(bb)bb.scrollTop=0}
 function retBrand(b){RET_BRAND=b;drawRetail();var bb=$('browse-body');if(bb)bb.scrollTop=0}
 function retMode(m){RET_MODE=m;if(m==='cat')RET_CAT='all';else RET_BRAND='all';drawRetail()}

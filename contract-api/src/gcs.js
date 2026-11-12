@@ -107,6 +107,14 @@ export async function gcsUpload(env, gToken, key, data, type) {
   if (!r.ok) throw new Error('올리기 실패 ' + r.status + ' ' + (await r.text()).slice(0, 120));
 }
 
+/* 지우기 — 채용 지원서 사진(recruit/…)을 지원서와 같이 파기할 때. 이미 없으면(404) 지운 것으로 본다 */
+export async function gcsDelete(env, gToken, key) {
+  const t = await gToken(env, 'https://www.googleapis.com/auth/devstorage.read_write');
+  const r = await fetch(`https://storage.googleapis.com/storage/v1/b/${enc(env.GCS_BUCKET)}/o/${enc(key)}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + t } });
+  if (!r.ok && r.status !== 404) throw new Error('사진 지우기 실패 ' + r.status);
+  return true;
+}
+
 /* 예전 사진(R2 p/ — 말풍선 · 보기 화면에 쓰는 사진)과 원본(R2 o/ — 원본으로 보낸 사진)을 서울 저장소 g/p/… · g/o/… 로 옮긴다(11/12).
    옮긴 것은 /authSecrets/__gcs/has/{키(. → ,)} 에 적어 두고, 받기 주소를 줄 때 거기 있으면 서울 주소를 준다.
    p/ 를 다 옮기면 o/(장당 최대 20MB라 한 번에 15개 · 80MB까지). 1분마다 돌아 앞 차례가 안 끝났으면(2분 안) 건너뛴다(겹쳐 돌던 것).

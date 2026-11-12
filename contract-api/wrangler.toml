@@ -9,6 +9,8 @@
 #   npx wrangler secret put TIKTOK_CLIENT_SECRET (틱톡 회사 계정 연결 — 개발자 앱 Client secret)
 #   npx wrangler secret put SITE_KEY           (홈페이지 회원 창구 /site/member/* — 홈페이지 Vercel 환경변수 DAYMEAN_SITE_KEY 와 같은 값)
 #   npx wrangler secret put RESEND_API_KEY     (홈페이지 가입·비밀번호 찾기 메일 — resend.com API 키, daymean.kr 도메인 인증 필요)
+#   npx wrangler secret put PATH_KEY           (사진 폴더 이름 HMAC 키 — workers/img-upload 의 PATH_KEY 와 반드시 같은 값.
+#                                               /admin/migrate-photo-paths 가 lookbook/{번호}/ 사진을 lookbook/p_{HMAC 16자리}/ 로 옮긴다)
 name = "dm-contract-api"
 main = "src/index.js"
 compatibility_date = "2026-09-30"
@@ -37,6 +39,10 @@ GOOGLE_CLIENT_ID = "363361161450-gigervf5v8rkel1g5vsackuh18gqasaq.apps.googleuse
 TIKTOK_CLIENT_KEY = "sbawj96zbozni1s1og"   # Sandbox 앱 DM HQ (11/11) — 심사 통과해 Production 으로 바꾸면 그 키로
 # 홈페이지 가입·비밀번호 찾기 메일의 보내는 사람 (Resend 에 인증한 도메인이어야 함)
 MAIL_FROM = "DAY:MEAN <cs@daymean.kr>"
+# 공식 사이트 주소 — /site/refresh 가 {SITE_URL}/api/revalidate 를 부른다(X-Site-Key = secret SITE_KEY). 도메인 연결 뒤 https://daymean.kr 로
+SITE_URL = "https://daymean-site.vercel.app"
+# 룩북 사진 공개 주소(workers/img-upload 의 PUBLIC_BASE 와 같은 값, 끝에 / 없이) — 사진 주소 옮기기가 이 주소의 사진만 건드린다
+LOOKBOOK_BASE = "https://pub-4d23477e957842bf953c231dbbd060fc.r2.dev"
 VAPID_PUBLIC = "BB2j3AH4EDiULVEoDKLWE_Ma7SBvBZQoN3D5z-nwFhthblv2Zgym6zlD4KGWnuZHc3661_32XEiHfupWh2oymU4"
 
 # 같은 계정의 Worker 끼리는 HTTP 로 못 부른다(Cloudflare error 1042).
@@ -49,6 +55,12 @@ service = "dm-naverworks-relay"
 [[r2_buckets]]
 binding = "CHAT_MEDIA"
 bucket_name = "dm-chat-media"
+
+# 룩북 · 프로필 사진 (공개 r2.dev — workers/img-upload 가 올리는 그 버킷).
+#   여기서는 /admin/migrate-photo-paths 가 예전 번호 폴더 사진을 옮기고 지울 때만 쓴다
+[[r2_buckets]]
+binding = "LOOKBOOK"
+bucket_name = "daymean-lookbook"
 
 # 5분마다: 채팅 '다시 알림'
 [triggers]

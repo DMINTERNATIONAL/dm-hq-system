@@ -19,7 +19,7 @@ import { makeChat } from './chat.js';
 import { opsText } from './opsmsg.js';
 import { makeOpCost } from './opcost.js';
 import { makeMedia, serveMedia, roomTag, mediaUrl } from './media.js';
-import { gcsCopy, gcsSetup, gcsMigrate } from './gcs.js';
+import { gcsCopy, gcsSetup, gcsMigrate, gcsSign, gcsUpload, gcsDelete } from './gcs.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
@@ -27,7 +27,9 @@ import { makeIgReport } from './igreport.js';
 import { makeAiUsage, budgetFor, monthKey } from './aiusage.js';
 import { makeSeo } from './seo.js';
 import { makeSns } from './sns.js';
-import { makeMembers } from './members.js';
+import { makeMembers, resendMail } from './members.js';
+import { makeRecruit } from './recruit.js';
+import { makePhotoMig } from './photomig.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -154,6 +156,22 @@ async function dbCas(env, path, fn) {
   if (w.status === 412) return false;
   if (!w.ok) throw new Error('DB 쓰기 실패 ' + w.status);
   return true;
+}
+/* dbCas 와 같지만 결과를 셋으로 나눈다 — 'ok' 썼음 · 'nochange' 바꿀 게 없음 · 'conflict' 그 사이 누가 먼저 바꿈(412).
+   사진 주소 옮기기(photomig.js)가 '바꿀 게 없다'와 '다시 해야 한다'를 구분해야 해서 따로 둔다. */
+async function dbCasPut(env, path, fn) {
+  const t = await accessToken(env);
+  const url = `${env.FIREBASE_URL}${path}.json?access_token=${t}`;
+  const r = await fetch(url, { cache: 'no-store', headers: { 'X-Firebase-ETag': 'true' } });
+  if (!r.ok) throw new Error('DB 읽기 실패 ' + r.status);
+  const tag = r.headers.get('ETag');
+  const v = fn(await r.json());
+  if (v === undefined) return 'nochange';
+  if (!tag) return 'conflict';
+  const w = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'if-match': tag }, body: JSON.stringify(v) });
+  if (w.status === 412) return 'conflict';
+  if (!w.ok) throw new Error('DB 쓰기 실패 ' + w.status);
+  return 'ok';
 }
 /* 키 목록만 받아온다. 계정마다 따로 조회하면 요청 수가 계정 수만큼 늘어난다. */
 async function dbKeys(env, path) {
@@ -714,6 +732,18 @@ const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
+/* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
+const recruitRoute = makeRecruit({
+  dbGet, dbPatch, dbPush, dbCas, rlHit, ipKey, ipOf, sameStr, noTag, sha256hex, canManageStaff, sendMail: resendMail,
+  botPost: (env, ctx, text) => chatRoute.botPost(env, ctx, text),
+  gcs: {
+    upload: (env, key, data, type) => gcsUpload(env, gToken, key, data, type),
+    sign: (env, key, sec) => gcsSign(env, 'GET', key, { expires: sec }),
+    del: (env, key) => gcsDelete(env, gToken, key),
+  },
+});
+let _rcpChk = 0;
+const photoMig = makePhotoMig({ dbGet, dbPatch, casPut: dbCasPut });
 const mediaRoute = makeMedia({ dbGet, gToken, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -805,6 +835,15 @@ export default {
     if (env.GCS_BUCKET && Date.now() - _gcsChk > 6 * 3600e3) { _gcsChk = Date.now(); ctx.waitUntil(gcsSetup(env, gToken).then((r) => { console.log('gcs', JSON.stringify(r)); if (!r.ok) _gcsChk = Date.now() - 5.5 * 3600e3; return dbPut(env, '/authSecrets/__gcs/setup', { ...r, at: Date.now() }); }).catch((e) => console.log('gcs', e && e.message))); }
     /* 예전 사진 서울로 옮기기 (gcs.js) — 1분에 40장씩, 다 옮긴 뒤엔 30분마다 새로 생긴 것만 */
     if (env.GCS_BUCKET) ctx.waitUntil(gcsMigrate(env, { dbGet, dbPut, dbPatch, gToken }).then((r) => { if (r) console.log('gcsmig', JSON.stringify(r)); }).catch((e) => console.log('gcsmig', e && e.message)));
+    /* 채용 지원서 파기(작성 중 30일 · 제출 1년 · 안 붙은 사진 하루, recruit.js) — 하루 한 번.
+       서버가 켜질 때마다 DB 표시(__rcp)로 오늘 했는지 보고, 그 뒤엔 6시간마다만 본다(1분마다 DB 를 읽지 않게) */
+    if (Date.now() - _rcpChk > 6 * 3600e3) {
+      _rcpChk = Date.now();
+      ctx.waitUntil((async () => {
+        const did = await dbCas(env, '/authSecrets/__rcp', (cur) => (cur && Date.now() - (+cur || 0) < 20 * 3600e3 ? undefined : Date.now()));
+        if (did) console.log('recruit purge', JSON.stringify(await recruitRoute.purge(env)));
+      })().catch((e) => console.log('recruit purge', e && e.message)));
+    }
     ctx.waitUntil(opCostRoute.tick(env).then((r) => { if (r) console.log('opcost', JSON.stringify(r)); }).catch((e) => console.log('opcost', e && e.message)));
     /* 틱톡 회사 계정 숫자 — 매일 새벽 5시(한국) 한 번 (sns.js) */
     ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', Object.keys(r).map((k) => k + ':' + (!r[k] ? 'none' : r[k].err ? 'err' : 'ok')).join(' ')); }).catch((e) => console.log('tt', e && e.message)));
@@ -914,10 +953,18 @@ export default {
              공식 사이트(daymean-site) 디자이너·About 페이지가 쓴다. title(직급)은 가격표 조회 키다.
              재직 중인 디자이너 것만 나간다 — 퇴사자 프로필이 salonInfo 에 남아 있어도 안 나간다. */
           const pi = infos[ph];
+          /* 공식 사이트에서만 숨기기 (11/12) — 목록에서 빼면 그 디자이너 QR 상담(?d=)이 이름을 못 찾으므로
+             빼지 않고 표시만 같이 내보낸다. 사이트가 목록 · 소개에서 거른다. */
+          if (pi && typeof pi === 'object' && pi.hidden === true) d.hidden = true;
           if (pi && typeof pi === 'object') {
             const pf = {};
             for (const k of ['title', 'enName', 'bio', 'naver', 'insta', 'photo']) {
               if (typeof pi[k] === 'string' && pi[k]) pf[k] = pi[k];
+            }
+            /* 예전 영문 이름 — 사이트 주소(/designers/{영문이름})가 바뀌어도 옛 주소를 새 주소로 넘기려고. 글자만 · 각 40자 · 5개까지 */
+            if (Array.isArray(pi.enOld)) {
+              const eo = pi.enOld.filter((x) => typeof x === 'string' && x.trim()).slice(0, 5).map((x) => x.trim().slice(0, 40));
+              if (eo.length) pf.enOld = eo;
             }
             /* 디자인(디자이너 개인 작업물) 갤러리 — 손님 보라고 올린 사진. 사진 주소와 필터용 칸만 내보낸다.
                이게 빠져 있어서 10/1 부터 QR 상담 화면의 디자이너 '디자인' 갤러리가 비어 있었다. */
@@ -946,20 +993,8 @@ export default {
         return json({ ok: true, designers: list }, 200, origin);
       }
 
-      /* 공식 사이트 채용 페이지 인원 집계 — 숫자만 내보낸다. 이름·연락처는 어떤 경우에도 안 나간다. */
-      if (path === '/public/team' && request.method === 'GET') {
-        const brand = url.searchParams.get('brand') || 'DAY:MEAN';
-        const users = (await dbGet(env, '/users').catch(() => null)) || {};
-        let designers = 0, interns = 0, mentored = 0;
-        for (const ph of Object.keys(users)) {
-          const x = users[ph] || {};
-          if (x.brand !== brand || x.status === '퇴사') continue;
-          const roles = Array.isArray(x.roles) ? x.roles : [];
-          if (x.role === '디자이너' || roles.indexOf('디자이너') >= 0) designers++;
-          if (x.role === '인턴' || roles.indexOf('인턴') >= 0) { interns++; if (x.mentorId) mentored++; }
-        }
-        return json({ ok: true, designers, interns, mentored }, 200, origin);
-      }
+      /* /public/team(채용 페이지 인원 집계)은 11/12 밤에 없앴다 — 사용자 결정으로 직원 수를 공개하지 않는다.
+         관리 앱 · 상담지 · 사이트 어디도 부르지 않는다(확인함). */
 
       /* 매장 정보 — 손님에게 보여줄 것만 골라 준다.
          salonInfo 안에는 designerOrder(직원 전화번호 목록)가 섞여 있어 통째로 줄 수 없다. */
@@ -969,7 +1004,46 @@ export default {
         for (const k of ['store','priceTable','setMenus','retailCats','membership','heroes','lookbook']) {
           if (sal[k] !== undefined) out[k] = sal[k];
         }
+        /* 점판 판매가(price)는 빼고 내보낸다 (11/12) — 매장 판매가가 정가보다 최대 36% 낮아, 공개 창구에 실리면
+           공식 사이트 HTML · 검색엔진에 그대로 남아 살롱 전용 브랜드 가격 정책과 부딪힌다. 정가(regular)는 둔다.
+           판매가는 매장 QR 손님에게만 /public/retail-prices?d= 로 준다. */
+        if (out.store && typeof out.store === 'object' && out.store.retail && typeof out.store.retail === 'object') {
+          const strip = (it) => { if (!it || typeof it !== 'object') return it; const { price, ...rest } = it; return rest; };
+          const rt = out.store.retail;
+          out.store = { ...out.store, retail: Array.isArray(rt) ? rt.map(strip) : Object.fromEntries(Object.entries(rt).map(([k, v]) => [k, strip(v)])) };
+        }
         return json({ ok: true, salon: out }, 200, origin);
+      }
+
+      /* 점판 판매가 — 매장 QR(?d=디자이너 코드)로 들어온 손님 화면만. 지금 재직 중인 디자이너의 코드일 때만 준다.
+         코드는 72비트 HMAC 이라 하나씩 넣어 보며 맞히는 건 안 된다. 손님마다 달라질 수 있어 캐시에 두지 않는다.
+         id = 점판 항목의 id(관리 앱이 붙인 고정값), 없으면 배열 순번 — 사이트 · 상담지가 같은 규칙으로 합친다. */
+      if (path === '/public/retail-prices' && request.method === 'GET') {
+        const nostore = (obj, st) => new Response(JSON.stringify(obj), { status: st, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...cors(origin) } });
+        const code = String(url.searchParams.get('d') || '');
+        if (!DID_RE.test(code)) return nostore({ ok: false }, 403);
+        const users = (await dbGet(env, '/users').catch(() => null)) || {};
+        let found = false;
+        for (const ph of Object.keys(users)) {
+          const x = users[ph] || {};
+          if (x.status === '퇴사') continue;
+          const isDesigner = x.role === '디자이너' || (Array.isArray(x.roles) && x.roles.indexOf('디자이너') >= 0);
+          if (!isDesigner) continue;
+          if (await did(env, ph) === code) { found = true; break; }
+        }
+        if (!found) return nostore({ ok: false }, 403);
+        const rt = await dbGet(env, '/salonInfo/store/retail').catch(() => null);
+        const prices = {};
+        if (rt && typeof rt === 'object') {
+          for (const [i, it] of Object.entries(rt)) {   // 배열이면 키가 '0','1'… 순번 그대로
+            if (!it || typeof it !== 'object') continue;
+            const pr = it.price == null ? '' : String(it.price).trim();
+            if (!pr) continue;
+            const id = typeof it.id === 'string' && it.id ? it.id : String(i);
+            prices[id] = pr;
+          }
+        }
+        return nostore({ ok: true, prices }, 200);
       }
 
       /* 상담 접수 — 손님이 직접 쓰던 경로를 서버가 받는다. 받을 항목을 정해 두고 그 외는 버린다. */
@@ -1010,6 +1084,13 @@ export default {
         if (typeof rec.designerPh === 'string' && DID_RE.test(rec.designerPh)) rec.designerPh = await didToPhone(env, rec.designerPh);
         await dbPush(env, '/consults', rec);
         return json({ ok: true }, 200, origin);
+      }
+
+      /* 채용 지원서 — 공식 사이트 서버만(X-Site-Key). 사진 올리기 · 임시 저장 · 제출 · 불러오기 (recruit.js)
+         예전 한 번에 내기(/public/apply)는 사이트가 안 쓰므로 없앴다 — 사이트는 /public/apply/save 만 부른다 */
+      if (path.startsWith('/public/apply/') && request.method === 'POST') {
+        const r = await recruitRoute.site(path, request, env, ctx);
+        if (r) return json(r[1], r[0], origin);
       }
 
       /* AI 추천 — 릴레이 비밀키를 브라우저에 주지 않고 서버가 들고 호출한다.
@@ -1279,6 +1360,33 @@ export default {
         const ids = {};
         for (const ph of phs) if (typeof ph === 'string' && /^[0-9]{8,12}$/.test(ph)) ids[ph] = await did(env, ph);
         return json({ ok: true, ids }, 200, origin);
+      }
+
+      /* 공식 사이트 바로 반영 (11/12) — 관리 앱 '매장 정보 관리'가 저장할 때마다 조용히 부른다.
+         사이트는 5분마다 저절로 새로 받지만(revalidate 300), 저장하고 사이트를 열어 본 직원이 '안 바뀌었다'고 다시 고치는 일이 잦았다.
+         사이트의 캐시 비우기 창구는 SITE_KEY 를 알아야 열리므로 키는 서버에만 두고 여기서 대신 부른다.
+         한 사람 10초에 한 번 — 연달아 저장해도 사이트 서버를 두드리지 않게. 실패해도 저장은 이미 끝난 것이다. */
+      if (path === '/site/refresh' && request.method === 'POST') {
+        if (!env.SITE_URL || !env.SITE_KEY) return json({ ok: false, error: '사이트 연결이 설정되지 않았습니다' }, 503, origin);
+        const who = String(me.ph || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 20) || 'x';
+        if (!(await rlHit(env, 'sr_' + who, 1, 10 * 1000))) return json({ ok: false, error: 'rate' }, 429, origin);
+        try {
+          const r = await fetch(String(env.SITE_URL).replace(/\/+$/, '') + '/api/revalidate', {
+            method: 'POST', headers: { 'X-Site-Key': env.SITE_KEY }, signal: AbortSignal.timeout(8000),
+          });
+          return json({ ok: r.ok }, r.ok ? 200 : 502, origin);
+        } catch (e) { return json({ ok: false }, 502, origin); }
+      }
+
+      /* 채용 지원서 보기 · 상태 · 메모 · 삭제 — 경영팀 · 관리자 (recruit.js) */
+      { const rr = await recruitRoute.route(path, request, env, me, json, origin, url); if (rr) return rr; }
+
+      /* 사진 주소에서 전화번호 빼기 — 경영팀 · 관리자. 기본은 dry(세기만). 자세한 순서는 photomig.js */
+      if (path === '/admin/migrate-photo-paths' && request.method === 'POST') {
+        if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        const res = await photoMig(request, env, json, origin);
+        if (res.status === 200) await dbPush(env, '/auditLogs', { at: Date.now(), by: String(me.ph || 'admin'), byName: me.name || '', action: 'photo.migrate' }).catch(() => {});
+        return res;
       }
 
       /* 앱이 DB에 직접 붙을 때 쓰는 토큰. 1시간짜리라 앱이 주기적으로 다시 받아간다. */

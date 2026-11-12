@@ -1,6 +1,7 @@
 # DAY:MEAN 이미지 업로드 Worker
 # 배포: cd workers/img-upload && npx wrangler deploy
 # 시크릿: npx wrangler secret put UPLOAD_TOKEN  (관리자 업로드용 토큰)
+#         npx wrangler secret put PATH_KEY      (사진 폴더 이름용 — 아래 참고)
 name = "daymean-img-upload"
 main = "src/index.js"
 compatibility_date = "2026-06-24"
@@ -17,3 +18,11 @@ PUBLIC_BASE = "https://pub-4d23477e957842bf953c231dbbd060fc.r2.dev"
 
 # UPLOAD_TOKEN 은 vars 가 아니라 secret 으로 설정:
 #   npx wrangler secret put UPLOAD_TOKEN
+
+# PATH_KEY 도 secret (11/12):
+#   npx wrangler secret put PATH_KEY
+#   X-Ph 가 전화번호 모양이면 폴더를 lookbook/p_{HMAC-SHA256(PATH_KEY, 번호) 16진 앞 16자리} 로 만든다
+#   (공개 사진 주소에 디자이너 번호가 실리지 않게).
+#   contract-api 의 PATH_KEY 와 반드시 같은 값 — 그쪽 /admin/migrate-photo-paths 가 예전 사진을 같은 폴더로 옮긴다.
+#   한 번 정하면 바꾸지 말 것: 바꾸면 같은 디자이너 사진이 새 폴더로 갈라진다(예전 주소는 그대로 살아 있지만).
+#   넣지 않으면 예전처럼 번호 폴더에 올린다.
