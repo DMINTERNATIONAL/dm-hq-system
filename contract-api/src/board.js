@@ -24,6 +24,9 @@ const isHq = (ph, u) => OWNER_PHONES.includes(String(ph)) || (u && (u.systemGrad
 const isEdu = (u) => u && (u.academyRole === '교육자' || u.role === '스탭장');
 const id36 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const okId = (s) => /^[A-Za-z0-9_-]{1,40}$/.test(String(s || ''));
+/* 게시판 id — 지점 게시판은 'br_합정점' 처럼 한글이 들어간다(boards() 가 그렇게 만든다). 예전엔 okId 로 검사해서
+   지점 게시판의 글쓰기 · 댓글 · 읽음 · 첨부가 전부 '게시판 정보가 올바르지 않습니다'로 막혔다(11/12 점검) */
+const okBid = (s) => /^[A-Za-z0-9_가-힣-]{1,40}$/.test(String(s || ''));
 
 export const DEFAULT_BOARDS = {
   notice: { n: '공지사항', w: 'mgr', o: 1 },
@@ -59,7 +62,7 @@ export function makeBoard(deps) {
   }
   const canSee = (b, ph, u) => !b.br || isHq(ph, u) || (u && u.branch === b.br);
   const canWrite = (b, ph, u) => canSee(b, ph, u) && (b.w === 'all' || isMgr(ph, u) || (b.w === 'edu' && isEdu(u)));
-  async function boardOf(env, bid) { if (!okId(bid)) throw new Error('게시판 정보가 올바르지 않습니다'); const b = await dbGet(env, '/board/meta/' + bid); if (!b) throw new Error('없는 게시판입니다'); return b; }
+  async function boardOf(env, bid) { if (!okBid(bid)) throw new Error('게시판 정보가 올바르지 않습니다'); const b = await dbGet(env, '/board/meta/' + bid); if (!b) throw new Error('없는 게시판입니다'); return b; }
   async function audience(env, b) {
     const { el } = await eligible(env);
     return Object.keys(el).filter((ph) => canSee(b, ph, el[ph]));
@@ -73,18 +76,27 @@ export function makeBoard(deps) {
     if (!t) throw new Error('제목을 입력해 주세요');
     const keyOk = (v) => /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
     const md = Array.isArray(body.md) ? body.md.slice(0, 30).map((m) => { const o = { w: m.w | 0, h: m.h | 0, sz: m.sz | 0 }; for (const k of ['u', 'o', 'v', 'f']) if (keyOk(m[k])) o[k] = String(m[k]); if (m.n) o.n = clip(m.n, 120); if (m.d) o.d = Math.round(+m.d || 0); return o; }).filter((m) => m.u || m.v || m.f) : null;
-    const must = body.must && isMgr(ph, u) ? { due: Number(body.must.due) || 0 } : null;
-    const pin = !!body.pin && isMgr(ph, u);
-    const editing = body.pid && okId(body.pid);
+    const mgr = isMgr(ph, u);
+    let must = body.must && mgr ? { due: Number(body.must.due) || 0 } : null;
+    let pin = !!body.pin && mgr;
+    if (body.pid && !okId(body.pid)) throw new Error('글 정보가 올바르지 않습니다');
+    const editing = !!body.pid;
     const pid = editing ? String(body.pid) : 'p' + id36();
     if (editing) {
       const old = await dbGet(env, `/board/posts/${bid}/${pid}`);
       if (!old) throw new Error('글을 찾지 못했습니다');
-      if (old.by !== ph && !isMgr(ph, u)) throw new Error('내가 쓴 글만 고칠 수 있습니다');
+      if (old.by !== ph && !mgr) throw new Error('내가 쓴 글만 고칠 수 있습니다');
+      /* 관리자가 아닌 작성자가 고치면 관리자가 걸어 둔 필독 · 고정은 그대로. '기존 마감 그대로'(keep)면 마감 유지 */
+      if (!mgr) { must = old.must || null; pin = !!old.pin; }
+      else if (must && body.must.keep && old.must) must = old.must;
       await dbPatch(env, `/board/posts/${bid}/${pid}`, { t, x, md, must, pin: pin || null, ed: nowMs() });
-      return { pid };
+      /* 필독을 껐으면 각자 '내 활동'에 남은 필독 확인 칸을 치운다 */
+      if (old.must && !must) await clearMustAct(env, b, bid, pid);
+      /* 고치면서 필독을 새로 켰으면 새 글처럼 알린다(예전엔 아무에게도 안 갔다) */
+      if (!(must && !old.must)) return { pid };
+    } else {
+      await dbPut(env, `/board/posts/${bid}/${pid}`, { t, x, by: ph, bn: nameOf(u), at: nowMs(), md, must, pin: pin || null, cc: 0 });
     }
-    await dbPut(env, `/board/posts/${bid}/${pid}`, { t, x, by: ph, bn: nameOf(u), at: nowMs(), md, must, pin: pin || null, cc: 0 });
     /* 새 글 알림 — 필독은 모두, 일반 글은 '게시판 알림 끔'이 아닌 사람에게 */
     const muted = (await dbGet(env, '/board/mute/' + bid).catch(() => null)) || {};
     const targets = (await audience(env, b)).filter((p) => p !== ph && (must || !muted[p]));
@@ -103,17 +115,27 @@ export function makeBoard(deps) {
   async function delPost(env, me, body) {
     const u = await meUser(env, me); const ph = String(me.ph);
     const bid = String(body.bid || ''), pid = String(body.pid || '');
-    await boardOf(env, bid);
+    if (!okId(pid)) throw new Error('글 정보가 올바르지 않습니다');
+    const b = await boardOf(env, bid);
     const old = await dbGet(env, `/board/posts/${bid}/${pid}`);
     if (!old) throw new Error('글을 찾지 못했습니다');
     if (old.by !== ph && !isMgr(ph, u)) throw new Error('내가 쓴 글만 지울 수 있습니다');
     await dbPatch(env, '/', { [`board/posts/${bid}/${pid}`]: null, [`board/cmt/${bid}/${pid}`]: null, [`board/reads/${bid}/${pid}`]: null });
+    /* 지운 필독 글이 '내 활동'에 '확인해 주세요'로 남지 않게 */
+    if (old.must) await clearMustAct(env, b, bid, pid).catch(() => {});
     return {};
+  }
+
+  async function clearMustAct(env, b, bid, pid) {
+    const up = {};
+    for (const p of await audience(env, b)) up[`chat/act/${p}/b_${bid}_${pid}`] = null;
+    if (Object.keys(up).length) await dbPatch(env, '/', up);
   }
 
   async function readPost(env, me, body) {
     const u = await meUser(env, me);
     const bid = String(body.bid || ''), pid = String(body.pid || '');
+    if (!okId(pid)) throw new Error('글 정보가 올바르지 않습니다');
     const b = await boardOf(env, bid);
     if (!canSee(b, String(me.ph), u)) throw new Error('볼 수 없는 게시판입니다');
     await dbPatch(env, '/', { [`board/reads/${bid}/${pid}/${me.ph}`]: nowMs(), [`chat/act/${me.ph}/b_${bid}_${pid}/done`]: body.ack ? 1 : null });
@@ -128,6 +150,7 @@ export function makeBoard(deps) {
     let base, title, url, people, owner;
     if (body.bid) {
       const bid = String(body.bid), pid = String(body.pid || '');
+      if (!okId(pid)) throw new Error('글 정보가 올바르지 않습니다');
       const b = await boardOf(env, bid);
       if (!canSee(b, ph, u)) throw new Error('볼 수 없는 게시판입니다');
       const p = await dbGet(env, `/board/posts/${bid}/${pid}`);
@@ -215,7 +238,13 @@ export function makeBoard(deps) {
     try {
       let out;
       switch (path) {
-        case '/board/list': await meUser(env, me); out = { boards: await boards(env) }; break;
+        case '/board/list': {
+          await meUser(env, me);
+          /* mu: 내가 알림을 끈 게시판 — PC 앱이 새 글 알림을 띄울지 정할 때 쓴다 */
+          const mt = (await dbGet(env, '/board/mute').catch(() => null)) || {}; const mu = {};
+          for (const k of Object.keys(mt)) if (mt[k] && mt[k][me.ph]) mu[k] = 1;
+          out = { boards: await boards(env), mu }; break;
+        }
         case '/board/post': out = await post(env, ctx, me, body); break;
         case '/board/delete': out = await delPost(env, me, body); break;
         case '/board/read': out = await readPost(env, me, body); break;
