@@ -10,7 +10,7 @@
  * 진행률도 촘촘해진다. 조각은 마지막만 빼고 크기가 같아야 한다(R2 규칙). Worker 한 번에 받는 한도는 100MB.
  */
 
-import { gcsGetUrl, gcsPutUrl } from './gcs.js';
+import { gcsGetUrl, gcsPutUrl, hasKey } from './gcs.js';
 
 const te = new TextEncoder();
 const LIMIT = { p: 12 * 1024 * 1024, o: 20 * 1024 * 1024, v: 300 * 1024 * 1024, f: 50 * 1024 * 1024 };
@@ -84,6 +84,14 @@ export async function serveMedia(request, env, path) {
 
 export function makeMedia(deps) {
   const { dbGet } = deps;
+  /* 서울로 옮긴 예전 사진 목록(gcs.js gcsMigrate) — 2분씩 기억 */
+  let _has = null, _hasAt = 0;
+  async function movedTo(env, key) {
+    if (!env.GCS_BUCKET || !key.startsWith('p/')) return null;
+    if (!_has || Date.now() - _hasAt > 120000) { _has = (await dbGet(env, '/authSecrets/__gcs/has').catch(() => null)) || {}; _hasAt = Date.now(); }
+    let o = _has; for (const seg of hasKey(key).split('/')) { o = o && o[seg]; if (!o) return null; }
+    return 'g/' + key;
+  }
   /* 채팅방이면 방 참여자, 'board:{게시판}' · 'survey:{설문}' 이면 그걸 볼 수 있는 사람 (board.js) */
   async function mustMember(env, me, rid) {
     if (me.admin) throw new Error('본사 관리자 입구는 쓸 수 없습니다');
@@ -149,7 +157,7 @@ export function makeMedia(deps) {
         const out = {};
         const mine = (key) => key.startsWith(`p/${tag}/`) || key.startsWith(`o/${tag}/`) || key.startsWith(`g/p/${tag}/`) || key.startsWith(`g/o/${tag}/`);
         const ks = (b.keys || []).slice(0, 100).map(String).filter(mine);
-        await Promise.all(ks.map(async (key) => { out[key] = await mediaUrl(env, base, key); }));
+        await Promise.all(ks.map(async (key) => { const g = await movedTo(env, key); out[key] = g ? await gcsGetUrl(env, g) : await mediaUrl(env, base, key); }));
         return json({ ok: true, urls: out, ttl: URL_TTL }, 200, origin);
       }
       return json({ ok: false, error: '없는 기능입니다' }, 404, origin);

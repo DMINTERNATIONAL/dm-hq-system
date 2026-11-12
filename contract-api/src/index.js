@@ -19,7 +19,7 @@ import { makeChat } from './chat.js';
 import { opsText } from './opsmsg.js';
 import { makeOpCost } from './opcost.js';
 import { makeMedia, serveMedia, roomTag, mediaUrl } from './media.js';
-import { gcsCopy, gcsSetup } from './gcs.js';
+import { gcsCopy, gcsSetup, gcsMigrate } from './gcs.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
@@ -803,6 +803,8 @@ export default {
     /* 운영 비용 수집 — 매일 새벽 4시 40분(한국) 한 번 (opcost.js) */
     /* 구글 서울 사진 저장소 설정(CORS · 원본 90일) 확인 — 서버가 켜질 때마다 한 번, 그 뒤 6시간마다 (gcs.js) */
     if (env.GCS_BUCKET && Date.now() - _gcsChk > 6 * 3600e3) { _gcsChk = Date.now(); ctx.waitUntil(gcsSetup(env, gToken).then((r) => { console.log('gcs', JSON.stringify(r)); if (!r.ok) _gcsChk = Date.now() - 5.5 * 3600e3; return dbPut(env, '/authSecrets/__gcs/setup', { ...r, at: Date.now() }); }).catch((e) => console.log('gcs', e && e.message))); }
+    /* 예전 사진 서울로 옮기기 (gcs.js) — 1분에 40장씩, 다 옮긴 뒤엔 30분마다 새로 생긴 것만 */
+    if (env.GCS_BUCKET) ctx.waitUntil(gcsMigrate(env, { dbGet, dbPut, dbPatch, gToken }).then((r) => { if (r) console.log('gcsmig', JSON.stringify(r)); }).catch((e) => console.log('gcsmig', e && e.message)));
     ctx.waitUntil(opCostRoute.tick(env).then((r) => { if (r) console.log('opcost', JSON.stringify(r)); }).catch((e) => console.log('opcost', e && e.message)));
     /* 틱톡 회사 계정 숫자 — 매일 새벽 5시(한국) 한 번 (sns.js) */
     ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', Object.keys(r).map((k) => k + ':' + (!r[k] ? 'none' : r[k].err ? 'err' : 'ok')).join(' ')); }).catch((e) => console.log('tt', e && e.message)));

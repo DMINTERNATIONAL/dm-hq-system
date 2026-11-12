@@ -84,3 +84,44 @@ export async function gcsSetup(env, gToken) {
   if (!r.ok) return { ok: false, error: '버킷 설정 실패 ' + r.status + ' ' + (await r.text()).slice(0, 200) };
   return { ok: true, set: true, location: c.location };
 }
+
+/* 서버가 바로 올리기 (예전 사진 옮기기) — 저장 머리글(Cache-Control)까지 같이 */
+export async function gcsUpload(env, gToken, key, data, type) {
+  const t = await gToken(env, 'https://www.googleapis.com/auth/devstorage.read_write');
+  const bd = 'dmb' + Math.random().toString(36).slice(2);
+  const meta = JSON.stringify({ name: key, contentType: type, cacheControl: CACHE_HDR });
+  const body = new Blob([te.encode(`--${bd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${bd}\r\nContent-Type: ${type}\r\n\r\n`), data, te.encode(`\r\n--${bd}--`)]);
+  const r = await fetch(`https://storage.googleapis.com/upload/storage/v1/b/${enc(env.GCS_BUCKET)}/o?uploadType=multipart&fields=name`, { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': `multipart/related; boundary=${bd}` }, body });
+  if (!r.ok) throw new Error('올리기 실패 ' + r.status + ' ' + (await r.text()).slice(0, 120));
+}
+
+/* 예전 사진(R2 p/ — 말풍선 · 보기 화면에 쓰는 사진)을 서울 저장소 g/p/… 로 옮긴다(11/12).
+   옮긴 것은 /authSecrets/__gcs/has/{키(. → ,)} 에 적어 두고, 받기 주소를 줄 때 거기 있으면 서울 주소를 준다.
+   옛 앱이 아직 R2 에 올리는 사진도 있어서 다 옮긴 뒤에도 30분마다 다시 훑는다. 원본(o/) · 동영상 · 파일은 그대로 R2 */
+export const hasKey = (key) => key.replace(/\./g, ',');
+export async function gcsMigrate(env, { dbGet, dbPut, dbPatch, gToken }) {
+  if (!env.GCS_BUCKET) return null;
+  const P = '/authSecrets/__gcs/mig';
+  const st = (await dbGet(env, P).catch(() => null)) || {};
+  if (st.done && Date.now() - (st.at || 0) < 30 * 60e3) return null;
+  const cur = st.done ? null : st.cur || null;
+  const ls = await env.CHAT_MEDIA.list({ prefix: 'p/', cursor: cur || undefined, limit: 40 });
+  const keys = ls.objects.map((o) => o.key);
+  const have = {};
+  await Promise.all(keys.map(async (k) => { have[k] = await dbGet(env, '/authSecrets/__gcs/has/' + hasKey(k)).catch(() => null); }));
+  const fail = Array.isArray(st.fail) ? st.fail.filter((k) => !keys.includes(k)) : [];
+  const up = {}; let n = st.n || 0, moved = 0;
+  for (const k of keys) {
+    if (have[k]) continue;
+    try {
+      const g = await env.CHAT_MEDIA.get(k);
+      if (!g) continue;
+      await gcsUpload(env, gToken, 'g/' + k, await g.arrayBuffer(), (g.httpMetadata && g.httpMetadata.contentType) || 'image/jpeg');
+      up['authSecrets/__gcs/has/' + hasKey(k)] = 1; n++; moved++;
+    } catch (e) { if (fail.length < 300) fail.push(k); }
+  }
+  if (Object.keys(up).length) await dbPatch(env, '/', up);
+  const next = { n, fail, cur: ls.truncated ? ls.cursor : null, done: !ls.truncated, at: Date.now() };
+  await dbPut(env, P, next);
+  return { moved, ...next, fail: fail.length };
+}

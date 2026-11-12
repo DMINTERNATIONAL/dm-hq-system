@@ -237,6 +237,11 @@ export function makeChat(deps) {
       return o;
     }).filter((m) => m.u || m.v || m.f) : null;
     if (md && !md.length) throw new Error('첨부 파일 정보가 올바르지 않습니다');
+    /* 서울 저장소 사진은 말풍선용 주소(7일)를 메시지에 같이 넣는다 — 받는 사람 앱이 서버(미국 경유 1~2초)에 다시 묻지 않고 바로 받는다(11/12) */
+    if (md && env.GCS_BUCKET) {
+      const d0 = new Date(); d0.setUTCHours(0, 0, 0, 0);
+      await Promise.all(md.map(async (m) => { const k = m.t || m.u; if (k && k.startsWith('g/')) { m.tu = await signedUrl(env, '', k); m.te = d0.getTime() + 7 * 864e5 - 3600e3; } }));
+    }
     let poll = null;
     if (k === 'poll') {
       const opts = (Array.isArray(body.poll && body.poll.o) ? body.poll.o : []).map((o) => clip(o, 60).trim()).filter(Boolean).slice(0, 10);
