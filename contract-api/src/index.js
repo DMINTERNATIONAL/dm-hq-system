@@ -929,8 +929,9 @@ export default {
            X-Client-IP(손님 IP)로 센다 — 안 보내면 사이트 서버 IP 로 넉넉히(10분 60건) 센다. */
         const siteOk = !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
         const cip = siteOk ? String(request.headers.get('X-Client-IP') || '').slice(0, 64) : '';
-        /* 지금은 사이트가 키를 안 보내 사이트 접수가 모두 Vercel IP 하나로 잡힌다. 매장 와이파이(손님 여럿이 한 IP)도 있어 30건으로 둔다(2026-11-12) */
-        const rlMax = siteOk && !cip ? 60 : 30;
+        /* 지금은 사이트가 키를 안 보내 사이트 접수가 모두 Vercel IP 하나로 잡히고, 매장 와이파이도 손님 여럿이 한 IP 다.
+           진짜 손님은 절대 안 걸리게 넉넉히 두고, 프로그램으로 수천 건 퍼붓는 것만 막는다(사용자 결정 2026-11-12: 30건은 적다) */
+        const rlMax = 100;
         if (!(await rlHit(env, 'cs_' + await ipKey(cip || ipOf(request)), rlMax, 10 * 60 * 1000)))
           return json({ ok: false, error: '잠시 후 다시 시도해 주세요 (접수가 너무 많아요)' }, 429, origin);
         /* consult.html 첫 방문 submit() 과 공식 사이트 /api/consult 가 보내고, 상담함(index.html)이 읽는 필드.
