@@ -95,33 +95,47 @@ export async function gcsUpload(env, gToken, key, data, type) {
   if (!r.ok) throw new Error('올리기 실패 ' + r.status + ' ' + (await r.text()).slice(0, 120));
 }
 
-/* 예전 사진(R2 p/ — 말풍선 · 보기 화면에 쓰는 사진)을 서울 저장소 g/p/… 로 옮긴다(11/12).
+/* 예전 사진(R2 p/ — 말풍선 · 보기 화면에 쓰는 사진)과 원본(R2 o/ — 원본으로 보낸 사진)을 서울 저장소 g/p/… · g/o/… 로 옮긴다(11/12).
    옮긴 것은 /authSecrets/__gcs/has/{키(. → ,)} 에 적어 두고, 받기 주소를 줄 때 거기 있으면 서울 주소를 준다.
-   옛 앱이 아직 R2 에 올리는 사진도 있어서 다 옮긴 뒤에도 30분마다 다시 훑는다. 원본(o/) · 동영상 · 파일은 그대로 R2 */
+   p/ 를 다 옮기면 o/(장당 최대 20MB라 한 번에 15개 · 80MB까지). 1분마다 돌아 앞 차례가 안 끝났으면(2분 안) 건너뛴다(겹쳐 돌던 것).
+   옛 앱이 아직 R2 에 올리는 사진도 있어서 다 옮긴 뒤에도 30분마다 다시 훑는다. 동영상 · 파일은 그대로 R2 */
 export const hasKey = (key) => key.replace(/\./g, ',');
+const MIG = [{ pre: 'p/', path: '/authSecrets/__gcs/mig', n: 40, bytes: 80e6 }, { pre: 'o/', path: '/authSecrets/__gcs/migo', n: 15, bytes: 80e6 }];
 export async function gcsMigrate(env, { dbGet, dbPut, dbPatch, gToken }) {
   if (!env.GCS_BUCKET) return null;
-  const P = '/authSecrets/__gcs/mig';
-  const st = (await dbGet(env, P).catch(() => null)) || {};
-  if (st.done && Date.now() - (st.at || 0) < 30 * 60e3) return null;
+  for (const M of MIG) {
+    const st = (await dbGet(env, M.path).catch(() => null)) || {};
+    if (st.done && Date.now() - (st.at || 0) < 30 * 60e3) continue;
+    if (st.run && Date.now() - st.run < 120e3) return null;
+    await dbPatch(env, M.path, { run: Date.now() });
+    try { return { pre: M.pre, ...(await migStep(env, M, st, { dbGet, dbPatch, gToken })) }; }
+    finally { await dbPatch(env, M.path, { run: null }).catch(() => {}); }
+  }
+  return null;
+}
+async function migStep(env, M, st, { dbGet, dbPatch, gToken }) {
   const cur = st.done ? null : st.cur || null;
-  const ls = await env.CHAT_MEDIA.list({ prefix: 'p/', cursor: cur || undefined, limit: 40 });
+  const ls = await env.CHAT_MEDIA.list({ prefix: M.pre, cursor: cur || undefined, limit: M.n });
   const keys = ls.objects.map((o) => o.key);
   const have = {};
   await Promise.all(keys.map(async (k) => { have[k] = await dbGet(env, '/authSecrets/__gcs/has/' + hasKey(k)).catch(() => null); }));
   const fail = Array.isArray(st.fail) ? st.fail.filter((k) => !keys.includes(k)) : [];
-  const up = {}; let n = st.n || 0, moved = 0;
-  for (const k of keys) {
+  const up = {}; let n = st.n || 0, moved = 0, bytes = 0, stopAt = -1;
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
     if (have[k]) continue;
+    if (bytes > M.bytes) { stopAt = i; break; }
     try {
       const g = await env.CHAT_MEDIA.get(k);
       if (!g) continue;
-      await gcsUpload(env, gToken, 'g/' + k, await g.arrayBuffer(), (g.httpMetadata && g.httpMetadata.contentType) || 'image/jpeg');
+      const buf = await g.arrayBuffer(); bytes += buf.byteLength;
+      await gcsUpload(env, gToken, 'g/' + k, buf, (g.httpMetadata && g.httpMetadata.contentType) || 'image/jpeg');
       up['authSecrets/__gcs/has/' + hasKey(k)] = 1; n++; moved++;
     } catch (e) { if (fail.length < 300) fail.push(k); }
   }
   if (Object.keys(up).length) await dbPatch(env, '/', up);
-  const next = { n, fail, cur: ls.truncated ? ls.cursor : null, done: !ls.truncated, at: Date.now() };
-  await dbPut(env, P, next);
-  return { moved, ...next, fail: fail.length };
+  /* 크기 한도로 중간에 멈췄으면 커서를 그대로 둬서 다음 차례에 같은 묶음을 다시 본다(옮긴 건 건너뜀) */
+  const next = stopAt >= 0 ? { n, fail, cur: cur, done: false, at: Date.now() } : { n, fail, cur: ls.truncated ? ls.cursor : null, done: !ls.truncated, at: Date.now() };
+  await dbPatch(env, M.path, next);
+  return { moved, mb: Math.round(bytes / 1e5) / 10, ...next, fail: fail.length };
 }

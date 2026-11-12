@@ -87,7 +87,7 @@ export function makeMedia(deps) {
   /* 서울로 옮긴 예전 사진 목록(gcs.js gcsMigrate) — 2분씩 기억 */
   let _has = null, _hasAt = 0;
   async function movedTo(env, key) {
-    if (!env.GCS_BUCKET || !key.startsWith('p/')) return null;
+    if (!env.GCS_BUCKET || !/^[po]\//.test(key)) return null;
     if (!_has || Date.now() - _hasAt > 120000) { _has = (await dbGet(env, '/authSecrets/__gcs/has').catch(() => null)) || {}; _hasAt = Date.now(); }
     let o = _has; for (const seg of hasKey(key).split('/')) { o = o && o[seg]; if (!o) return null; }
     return 'g/' + key;

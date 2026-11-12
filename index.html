@@ -11745,10 +11745,24 @@ function cmMediaName(k){if(CM_FNAMES[k])return CM_FNAMES[k];var ext=(String(k).m
 function cmMediaFile(k){var c=CM_FILES[k];if(c)return c.p;var o={};o.p=cmUrl(k).then(function(u){return fetch(u)}).then(function(r){if(!r.ok)throw new Error('파일을 받지 못했어요');return r.blob()}).then(function(b){o.f=new File([b],cmMediaName(k),{type:b.type||(/\.(mp4|mov)$/i.test(k)?'video/mp4':'image/jpeg')});return o.f});o.p.catch(function(){delete CM_FILES[k]});CM_FILES[k]=o;return o.p}
 function cmCanShareFile(f){try{return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]}))}catch(e){return false}}
 function cmSaveBlob(f,k){if(typeof CM_DESK!=='undefined'&&CM_DESK)return cmDeskSave(f,f.name).catch(function(){if(k)cmOpenOrig(k)});var u=URL.createObjectURL(f);var a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u)},4000);toast('저장했어요');return Promise.resolve()}
-/* 말풍선의 저장 버튼 — 보기 화면을 열지 않고 바로 내려받는다(여러 장이면 차례로). [[키, 이름]] */
-function cmQuickSave(btn,enc){if(btn.disabled)return;var list=[];try{list=JSON.parse(decodeURIComponent(enc))}catch(e){}if(!list.length)return;btn.disabled=true;btn.classList.add('ing');var i=0;
-  (function next(){if(i>=list.length){btn.disabled=false;btn.classList.remove('ing');return}var it=list[i++];if(it[1])CM_FNAMES[it[0]]=it[1];
-    cmMediaFile(it[0]).then(function(f){return cmSaveBlob(f,it[0])},function(){toast('보관 기간(90일)이 지났거나 받을 수 없는 파일이에요')}).then(function(){delete CM_FILES[it[0]];next()})})()}
+/* 말풍선의 저장 버튼 — 보기 화면을 열지 않고 바로 내려받는다(여러 장이면 한꺼번에). [[키, 이름]] */
+function cmQuickSave(btn,enc){if(btn.disabled)return;var list=[];try{list=JSON.parse(decodeURIComponent(enc))}catch(e){}if(!list.length)return;btn.disabled=true;btn.classList.add('ing');
+  cmSaveMany(list).finally(function(){btn.disabled=false;btn.classList.remove('ing')})}
+/* 여러 장 한꺼번에 저장(11/12, 카톡처럼) — 4장씩 동시에 받아 둔 뒤
+   아이폰: 공유 창 한 번(맨 위 '이미지 N개 저장')으로 사진첩에. 공유 창은 누른 순간에만 열려서, 다 받으면 '사진 N장 저장' 버튼을 한 번 더 누르게 한다.
+   PC 앱: 다운로드 폴더에 차례로 / 그 밖(안드로이드 · 웹): 차례로 내려받기. [[키, 이름]] */
+function cmSaveMany(list){if(!list.length)return Promise.resolve();var desk=typeof CM_DESK!=='undefined'&&CM_DESK,ios=!desk&&pushIsIOS();
+  if(list.length===1&&!ios){var k1=list[0][0];if(list[0][1])CM_FNAMES[k1]=list[0][1];return cmMediaFile(k1).then(function(f){return cmSaveBlob(f,k1)},function(){toast('보관 기간이 지났거나 받을 수 없는 파일이에요')})}
+  var out=new Array(list.length),bad=0,got=0,i=0,n=list.length;var tick=function(){if(n>1)toast('사진 받는 중… '+got+' / '+n)};tick();
+  function worker(){if(i>=n)return Promise.resolve();var j=i++,it=list[j];if(it[1])CM_FNAMES[it[0]]=it[1];
+    return cmMediaFile(it[0]).then(function(f){out[j]=f},function(){bad++}).then(function(){got++;tick();return worker()})}
+  return Promise.all([worker(),worker(),worker(),worker()]).then(function(){var fs=out.filter(Boolean);
+    if(!fs.length){alert('보관 기간이 지났거나 받을 수 없는 사진이에요');return}
+    var miss=bad?' (받지 못한 '+bad+'장 빼고)':'';
+    if(ios&&cmCanShareFiles(fs)){cmSheetTop((fs.length>1?'사진 '+fs.length+'장':'사진')+' 준비됐어요'+miss,[[fs.length>1?'사진 '+fs.length+'장 저장':'저장',function(){navigator.share({files:fs}).catch(function(){})}]]);return}
+    var q=Promise.resolve();fs.forEach(function(f,x){q=q.then(function(){return Promise.resolve(cmSaveBlob(f,list[x]&&list[x][0])).catch(function(){})}).then(function(){return new Promise(function(r){setTimeout(r,desk?50:350)})})});
+    return q.then(function(){if(fs.length>1)toast('사진 '+fs.length+'장 저장했어요'+miss);list.forEach(function(it){delete CM_FILES[it[0]]})})})}
+function cmCanShareFiles(fs){try{return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:fs}))}catch(e){return false}}
 function cmMediaAct(btn,k,act){if(typeof CM_DESK!=='undefined'&&CM_DESK){var c0=CM_FILES[k],lb=btn.textContent;if(c0&&c0.f){cmSaveBlob(c0.f,k);return}btn.textContent='받는 중…';btn.disabled=true;
     cmMediaFile(k).then(function(f){btn.textContent=lb;btn.disabled=false;cmSaveBlob(f,k)}).catch(function(){btn.textContent=lb;btn.disabled=false;cmOpenOrig(k)});return}
   var c=CM_FILES[k];var wantShare=act==='share'||(act==='save'&&pushIsIOS());
@@ -11837,7 +11851,14 @@ function cmSheetTop(title,items){var bg=document.createElement('div');bg.classNa
   document.body.appendChild(bg);return bg}
 /* 저장 — 아이폰은 앱이 사진첩에 직접 못 넣어서 공유 창(맨 위 '이미지 저장' · '비디오 저장')을 연다. 공유 창은 누른 순간에만 열려서
    파일을 미리 받아 두고, 아직이면 받는 동안 돌고 → 다 받으면 한 번 더 누르게 한다 */
-function cmMvSave(btn,k){if(!k)return;var desk=typeof CM_DESK!=='undefined'&&CM_DESK,ios=pushIsIOS(),c=CM_FILES[k];
+/* 이 메시지의 사진들(저장할 키 — 원본이 있으면 원본) [[키, 이름]] */
+function cmMvMsgPics(cur){var m=cur&&cur.meta;if(!m||!m.k||cur.kind!=='p')return [];var msg=cmMsgOf(m);if(!msg||!msg.md)return [];
+  return msg.md.filter(function(x){return x&&x.u&&!x.v&&!x.f&&!cmHidden(x)}).map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']})}
+function cmMvSave(btn,k){var bg=btn&&btn.closest('.cm-viewer'),cur=bg&&bg._cur,all=cmMvMsgPics(cur);
+  if(all.length>1){var orig=all.some(function(x){return /^(g\/)?o\//.test(x[0])});
+    return cmSheetTop('사진 저장',[['이 사진만 저장',function(){cmMvSave1(btn,k)}],['사진 '+all.length+'장 모두 저장'+(orig?' (원본)':''),function(){cmSaveMany(all)}]])}
+  return cmMvSave1(btn,k)}
+function cmMvSave1(btn,k){if(!k)return;var desk=typeof CM_DESK!=='undefined'&&CM_DESK,ios=pushIsIOS(),c=CM_FILES[k];
   if(c&&c.f){if(!desk&&ios&&cmCanShareFile(c.f))navigator.share({files:[c.f]}).catch(function(){});else cmSaveBlob(c.f,k);return}
   if(btn.classList.contains('ing'))return;btn.classList.add('ing');
   cmMediaFile(k).then(function(f){btn.classList.remove('ing');if(!desk&&ios)toast('준비됐어요. 한 번 더 눌러 주세요');else cmSaveBlob(f,k)}).catch(function(){btn.classList.remove('ing');if(desk)cmOpenOrig(k);else alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
