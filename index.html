@@ -11579,15 +11579,23 @@ function cmMediaHtml(m){var md=(m.md||[]).filter(function(x){return x&&!cmHidden
   var h='';
   docs.forEach(function(x){var nm=x.n||'파일';var ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file" onclick="event.stopPropagation();cmFileView(\''+x.f+'\',\''+encodeURIComponent(nm)+'\','+(x.sz||0)+')"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · 90일 보관</small></span><button class="cm-fsv" title="저장" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify([[x.f,nm]]))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'});
   vids.forEach(function(x){var dur=x.d?Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'';h+='<div class="cm-vid" onclick="event.stopPropagation();cmPlay(\''+x.v+'\')">'+(x.u?'<img data-mk="'+x.u+'" alt="">':'')+'<span>동영상 '+dur+'</span></div>'});
-  if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'" alt="" decoding="async" style="'+sz+'" onclick="event.stopPropagation();cmView(\''+encodeURIComponent(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
+  if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'"'+(x.t&&x.t!==x.u?' data-mu="'+x.u+'"':'')+' alt="" decoding="async" style="'+sz+'" onpointerdown="cmWarm(\''+x.u+'\')" onmouseenter="cmWarm(\''+x.u+'\')" onclick="event.stopPropagation();cmView(\''+encodeURIComponent(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
   return h}
 var CM_UFLY={};
-function cmFillMedia(root,rid){var need=[];root.querySelectorAll('img[data-mk]').forEach(function(im){var k=im.getAttribute('data-mk');var c=CM.urls[k];if(im.getAttribute('src'))return;if(c&&c.exp>Date.now()+60000)im.src=c.u;else if(need.indexOf(k)<0&&!CM_UFLY[k])need.push(k)});
+function cmFillMedia(root,rid){var need=[];var ok=function(k){var c=CM.urls[k];return c&&c.exp>Date.now()+60000};
+  root.querySelectorAll('img[data-mk]').forEach(function(im){var k=im.getAttribute('data-mk');var mu=im.getAttribute('data-mu');
+    /* 큰 사진 주소도 같이 받아 둔다 — 누를 때 서버에 한 번 더 묻지 않게 */
+    if(mu&&!ok(mu)&&need.indexOf(mu)<0&&!CM_UFLY[mu])need.push(mu);
+    if(im.getAttribute('src'))return;if(ok(k))im.src=CM.urls[k].u;else if(need.indexOf(k)<0&&!CM_UFLY[k])need.push(k)});
   if(!need.length)return Promise.resolve();
   /* 서버가 한 번에 100개까지만 주소를 줘서 나눠 받는다(모아 보기는 수백 장) */
   var ch=[];for(var i=0;i<need.length;i+=100)ch.push(need.slice(i,i+100));
   need.forEach(function(k){CM_UFLY[k]=1});
   return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).finally(function(){keys.forEach(function(k){delete CM_UFLY[k]})}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});(root.isConnected?root:document).querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.getAttribute('src'))im.src=c.u})}).catch(function(){})}))}
+/* 사진을 누르기 시작할 때(손가락이 닿거나 마우스를 올릴 때) 큰 사진을 미리 받기 시작한다 — 보기 화면이 열릴 때쯤엔 이미 받는 중 */
+var CM_WARM={};
+function cmWarm(k){if(!k||CM_WARM[k])return;CM_WARM[k]=1;var go=function(u){var im=new Image();try{im.fetchPriority='high'}catch(e){}im.decoding='async';im.src=u;CM_WARM[k]=im};
+  var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)go(c.u);else cmUrl(k).then(go).catch(function(){delete CM_WARM[k]})}
 function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};return u})}
 function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove();CM_FILES={}">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
 /* 사진 · 동영상 보기 화면의 저장 · 공유.
@@ -11749,11 +11757,13 @@ function cmView(enc,i){var fromMsg=typeof enc==='string',pics=fromMsg?JSON.parse
   var zp=bg.querySelector('.mv-zp');
   var zooms=[].map.call(slides,function(sl,k){return cmZoomable(sl,sl.firstChild,tr,function(sc){if(k===i&&zp)zp.textContent=Math.round(sc*100)+'%';if(sc>1.6)hiRes(k)})});
   /* 말풍선에서 이미 받은 작은 사진을 먼저 보여 주고, 보통 사진이 다 받아지면 바꿔 끼운다 */
-  function swap(im,u){if(im.getAttribute('src')===u)return;var pre=new Image();pre.onload=function(){im.src=u};pre.src=u}
+  function swap(im,u){if(im.getAttribute('src')===u){done(im);return}var pre=new Image();try{pre.fetchPriority='high'}catch(e){}pre.onload=function(){im.src=u;done(im)};pre.onerror=function(){done(im)};pre.src=u}
+  /* 저장 · 공유용 파일은 보이는 사진을 다 받은 뒤에 받는다. 예전엔 열자마자 같이 받아(원본이면 몇 MB) 보이는 사진이 늦게 떴다(11/12) */
+  function done(im){im._full=1;if(im._pend){var k=im._pend;im._pend=null;setTimeout(function(){cmMediaFile(k).catch(function(){})},150)}}
   function load(k){if(k<0||k>=pics.length)return;var im=slides[k].firstChild,x=pics[k];if(im._ld)return;im._ld=1;var c=x.t&&CM.urls[x.t];if(c&&c.exp>Date.now())im.src=c.u;cmUrl(x.u).then(function(u){if(!im._hi)swap(im,u)}).catch(function(){})}
   /* 많이 확대하면 원본(사진 · 원본으로 보낸 것)으로 — 브라우저가 못 그리는 HEIC 등은 그대로 */
   function hiRes(k){var x=pics[k],im=slides[k].firstChild;if(im._hi||!x.o||!/\.(jpe?g|png|webp|gif)$/i.test(x.o))return;im._hi=1;cmUrl(x.o).then(function(u){swap(im,u)}).catch(function(){})}
-  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});if(zp)zp.textContent=Math.round(((zooms[i]&&zooms[i].s)||1)*100)+'%';var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
+  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});if(zp)zp.textContent=Math.round(((zooms[i]&&zooms[i].s)||1)*100)+'%';var x=pics[i],sk=x.o||x.u,cim=slides[i].firstChild;if(cim._full)cmMediaFile(sk).catch(function(){});else{cim._pend=sk;setTimeout(function(){if(cim._pend)done(cim)},6000)}
     cmMvSet(bg,{kind:'p',mk:x.u,sk:sk,x:x,meta:cmMediaMeta(x.u)});load(i);load(i+1);load(i-1)}
   tr.scrollLeft=i*tr.clientWidth;upd();requestAnimationFrame(function(){tr.scrollLeft=i*tr.clientWidth});
   var tm=null;tr.addEventListener('scroll',function(){load(Math.floor(tr.scrollLeft/tr.clientWidth));load(Math.ceil(tr.scrollLeft/tr.clientWidth));clearTimeout(tm);tm=setTimeout(function(){var k=Math.round(tr.scrollLeft/(tr.clientWidth||1));if(k!==i&&k>=0&&k<pics.length){i=k;upd()}},90)},{passive:true});

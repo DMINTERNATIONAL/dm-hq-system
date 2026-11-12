@@ -60,7 +60,7 @@ export async function serveMedia(request, env, path) {
   obj.writeHttpMetadata(h);
   h.set('etag', obj.httpEtag);
   h.set('Accept-Ranges', 'bytes');
-  h.set('Cache-Control', 'private, max-age=21600');
+  h.set('Cache-Control', 'private, max-age=21600, immutable');
   h.set('Access-Control-Allow-Origin', '*');
   if (!('body' in obj) || !obj.body) return new Response(null, { status: 304, headers: h });
   let status = 200;
