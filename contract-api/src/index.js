@@ -24,6 +24,7 @@ import { makeIgReport } from './igreport.js';
 import { makeAiUsage } from './aiusage.js';
 import { makeSeo } from './seo.js';
 import { makeSns } from './sns.js';
+import { makeMembers } from './members.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -449,6 +450,7 @@ const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => 
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
+const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
@@ -579,6 +581,17 @@ export default {
         });
         delete u.pw;                 // 혹시 남아 있어도 내보내지 않는다
         return json({ ok: true, token, role, branches, expiresIn: ttl, user: u }, 200, origin);
+      }
+
+      /* ═══ 홈페이지 고객 회원 (members.js) — 홈페이지 서버만 부른다(X-Site-Key) ═══ */
+      if (path.startsWith('/site/member/') && request.method === 'POST') {
+        try {
+          const [st, body] = await memberRoute.site(request, env, path);
+          return json(body, st, origin);
+        } catch (e) {
+          if (e && e.code === 'mail') return json({ ok: false, error: 'mail' }, 503, origin);
+          throw e;
+        }
       }
 
       /* ═══ 고객 상담 페이지(consult.html)용 — 로그인 없는 공개 창구 ═══
@@ -786,6 +799,12 @@ export default {
       me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
+
+      /* 홈페이지 회원 목록 — 경영팀 · 관리자 (고객 이메일·휴대폰이라 직원 전체에 열지 않는다) */
+      if (path === '/members' && request.method === 'GET') {
+        if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        return json({ ok: true, members: await memberRoute.list(env) }, 200, origin);
+      }
 
       /* 원격 로그아웃 — 경영팀 · 관리자 */
       if (path === '/auth/revoke' && request.method === 'POST') {
