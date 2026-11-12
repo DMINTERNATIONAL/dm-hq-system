@@ -377,15 +377,20 @@ async function cleanupStaleBreaks(env) {
     const endT = Math.min(now, b.endsAt + BREAK_GRACE_MS);
     const usedMin = b.startedAt ? Math.round((endT - b.startedAt) / 60000) : 60;
     const overMin = Math.max(0, Math.floor((endT - b.endsAt) / 60000));
+    // 기록 날짜·시각도 '끝난 시각' 기준 (cron 이 5분마다라 그만큼 늦게 찍히지 않게)
+    const kE = new Date(endT + 9 * 60 * 60 * 1000);
+    const eY = kE.getUTCFullYear(), eM = kE.getUTCMonth() + 1, eD = kE.getUTCDate(), eh = kE.getUTCHours(), em = kE.getUTCMinutes();
+    const eDate = eY + '-' + (eM < 10 ? '0' : '') + eM + '-' + (eD < 10 ? '0' : '') + eD;
+    const eTime = (eh < 10 ? '0' : '') + eh + ':' + (em < 10 ? '0' : '') + em;
     const record = {
       userId: phone,
       userName: b.name || '',
       brand: b.brand || '',
       branch: b.branch || '',
-      date: dateStr,
-      time: timeStr,
-      year: y,
-      month: m,
+      date: eDate,
+      time: eTime,
+      year: eY,
+      month: eM,
       usedMin: usedMin,
       overtime: overMin + '분 초과 (자동 종료)',
       autoEnded: true,
@@ -417,8 +422,8 @@ async function cleanupStaleBreaks(env) {
           endedAt: endT,
           usedMin: usedMin,
           overMin: overMin,
-          date: dateStr,
-          time: timeStr
+          date: eDate,
+          time: eTime
         })
       });
     } catch (e) { console.log('breakAutoEnded put err', e); }
