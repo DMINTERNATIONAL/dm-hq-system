@@ -1856,7 +1856,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-m.me .cm-tm{align-items:flex-start}
 .cm-chip .bd-cn{font-style:normal;font-size:10.5px;font-weight:800;color:#fff;background:#EF4444;border-radius:99px;padding:1px 6px;margin-left:3px}
 .cm-cp{display:none}
-@media (hover:hover) and (pointer:fine){.cm-cp{display:block;align-self:center;flex:0 0 auto;opacity:0;border:0;background:var(--cm-bg);color:var(--cm-ink2);font-size:11px;font-weight:600;line-height:1;font-family:inherit;padding:5px 8px;border-radius:8px;cursor:pointer;transition:opacity .12s}.cm-line:hover .cm-cp,.cm-cp:focus-visible{opacity:1}.cm-line:not(:hover) .cm-cp:not(:focus-visible){opacity:0;pointer-events:none}.cm-cp:hover{color:var(--cm-blue)}}
+@media (hover:hover) and (pointer:fine){.cm-cp{display:block;align-self:center;flex:0 0 auto;opacity:0;border:0;background:var(--cm-bg);color:var(--cm-ink2);font-size:11px;font-weight:600;line-height:1;font-family:inherit;padding:5px 8px;border-radius:8px;cursor:pointer;transition:none}.cm-line.hv .cm-cp,.cm-cp:focus-visible{opacity:1;transition:opacity .1s}.cm-line:not(.hv) .cm-cp:not(:focus-visible){opacity:0;pointer-events:none}.cm-cp:hover{color:var(--cm-blue)}}
 .cm-tm b{color:#D97706;font-weight:800}
 .cm-rp{font-size:12px;border-left:3px solid #CBD5E1;padding:1px 0 1px 7px;margin-bottom:5px;color:var(--cm-ink2);opacity:.9}
 .cm-m.me .cm-rp{border-color:rgba(255,255,255,.6);color:#E0EAFF}
@@ -11148,6 +11148,7 @@ function cmMsgHtml(list,opts){
     h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div>'+(m.x&&!it.pending&&!m.del&&!m.hid?'<button class="cm-cp" title="답장" onmousedown="event.preventDefault()" onclick="event.stopPropagation();this.blur();cmDoReply(\''+key+'\','+(opts.thread?'\''+opts.thread+'\'':'null')+')">답장</button>':'')+'</div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
+/* PC 말풍선 옆 '답장' — CSS :hover 대신 마우스 움직임으로 직접 켜고 끈다. PC 앱(맥 WebKit·윈도 WebView2)에서는 :hover 가 늦게 풀려 마우스를 옮겨도 버튼이 남아 있었다(11/12). 한 번에 한 줄만 켜지고, 스크롤·창 벗어남·포커스 잃음이면 바로 끈다 */(function(){var cur=null;function set(l){if(l===cur)return;if(cur)cur.classList.remove('hv');cur=l;if(l)l.classList.add('hv')}document.addEventListener('pointerover',function(e){if(e.pointerType&&e.pointerType!=='mouse')return;var t=e.target;set(t&&t.closest?t.closest('.cm-line'):null)},true);document.addEventListener('pointerout',function(e){if(!e.relatedTarget)set(null)},true);document.addEventListener('scroll',function(){set(null)},true);window.addEventListener('blur',function(){set(null)})})();
 var CM_PENDING={};
 /* 보낸 글이 실시간으로 먼저 도착하면(서버 답보다 빠를 때가 많다) 같은 말풍선이 잠깐 두 개 보였다가 하나가 사라지며 화면이 튀었다.
    보낸 뒤 새로 들어온 내 글 중 내용이 같은 것을 찾아 바로 바꿔 끼운다 */
