@@ -42,7 +42,8 @@ const extOf = (name, type) => {
 
 /* 서명 주소 */
 export async function signedUrl(env, base, key) {
-  const e = Math.floor(Date.now() / 1000) + URL_TTL;
+  /* 만료 시각을 1시간 단위로 맞춘다 — 같은 시간대에 다시 받은 주소가 똑같아야 브라우저가 이미 받은 사진을 다시 안 받는다(11/12 'PC에서 사진이 늦게 뜸') */
+  const e = Math.ceil((Date.now() / 1000 + URL_TTL) / 3600) * 3600;
   return `${base}/m/${key}?e=${e}&s=${await sign(env, key + '|' + e)}`;
 }
 

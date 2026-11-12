@@ -1854,6 +1854,8 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-m.me .cm-b .mn{color:var(--cm-me-ink,#fff);background:rgba(255,255,255,.24)}
 .cm-tm{font-size:10.5px;color:var(--cm-ink3);white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;flex:0 0 auto}
 .cm-m.me .cm-tm{align-items:flex-start}
+.cm-cp{display:none}
+@media (hover:hover) and (pointer:fine){.cm-cp{display:block;align-self:center;flex:0 0 auto;opacity:0;border:0;background:var(--cm-bg);color:var(--cm-ink2);font-size:11px;font-weight:600;line-height:1;font-family:inherit;padding:5px 8px;border-radius:8px;cursor:pointer;transition:opacity .12s}.cm-line:hover .cm-cp,.cm-cp:focus-visible{opacity:1}.cm-cp:hover{color:var(--cm-blue)}}
 .cm-tm b{color:#D97706;font-weight:800}
 .cm-rp{font-size:12px;border-left:3px solid #CBD5E1;padding:1px 0 1px 7px;margin-bottom:5px;color:var(--cm-ink2);opacity:.9}
 .cm-m.me .cm-rp{border-color:rgba(255,255,255,.6);color:#E0EAFF}
@@ -1909,6 +1911,9 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-viewer .va{display:flex;gap:6px}
 .cm-viewer .vbody{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding-bottom:var(--sab)}
 .cm-viewer img,.cm-viewer video{max-width:100%;max-height:100%;object-fit:contain}
+.cm-viewer.cm-of .vbody{padding:0;overflow:hidden}.cm-ofile{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff}
+.cm-ofile iframe{width:100%;height:100%;border:0;background:#fff}.cm-ofile.zm{cursor:grab}.cm-ofile.zm.drag{cursor:grabbing}
+.cm-of .vt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .cm-swipe{align-self:stretch;width:100%;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:none}.cm-swipe::-webkit-scrollbar{display:none}
 .cm-slide{flex:0 0 100%;width:100%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .cm-b.card{background:transparent;box-shadow:none;padding:0;max-width:280px;width:280px}
@@ -1957,6 +1962,11 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .mv-pill button{width:48px;height:42px;border:none;border-radius:11px;background:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .mv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:none;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:30px;cursor:pointer;z-index:1}
 .mv-nav.l{left:12px}.mv-nav.r{right:12px}
+.mv-zm{position:absolute;right:14px;bottom:calc(84px + var(--sab));display:flex;align-items:center;gap:2px;padding:3px;border-radius:12px;background:rgba(30,30,30,.72);z-index:2;transition:opacity .2s}
+.mv-zm button{border:0;background:transparent;color:#fff;font-family:inherit;font-size:17px;min-width:34px;height:32px;border-radius:9px;cursor:pointer}.mv-zm button:hover{background:rgba(255,255,255,.14)}
+.mv-zm .mv-zp{font-size:12px;font-weight:600;min-width:52px}
+.cm-mv.bare .mv-zm{opacity:0;pointer-events:none}
+.cm-slide.zm{cursor:grab}.cm-slide.zm.drag{cursor:grabbing}.cm-slide img{-webkit-user-drag:none;user-select:none}
 .cm-sheet-bg.cm-top{z-index:720}
 .cm-sh-info{padding:12px 16px;font-size:13px;color:var(--cm-ink3);border-top:1px solid var(--cm-line)}
 /* 모아 보기 */
@@ -2415,6 +2425,7 @@ html.dm-dark .cm-fs-row .ic{background:#2C2C2E;color:#9CA5B2}
 html.dm-dark .cm-fs-row.bad .ic{background:#442123;color:#EB8181}
 html.dm-dark .cm-fs-row.bad .nm small{color:#EB8181}
 html.dm-dark .cm-fs-note{color:#EB8181}
+html.dm-dark .cm-ofile iframe{background:#1C1C1E}
 html.dm-dark .cm-card{background:#1C1C1E}
 html.dm-dark .cm-opt i{background:#213045}
 html.dm-dark .cm-findbar{background:#1C1C1E}
@@ -11075,7 +11086,7 @@ function cmMsgHtml(list,opts){
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     /* 보내는 중인 글도 '1'(안 읽은 사람 수)을 바로 — 진짜 글이 도착할 때까지 0.5~1초 늦게 떴다(10/27) */
     var un=opts.thread?0:(it.pending?Math.max(0,Object.keys((CM.room&&CM.room.m)||{}).length-1):cmUnread(m));
-    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div></div>'+cmRx(m,key,opts.thread)+'</div></div>';
+    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div>'+(m.x&&!it.pending&&!m.del&&!m.hid?'<button class="cm-cp" title="복사" onclick="event.stopPropagation();cmCopy(\''+key+'\','+(opts.thread?'\''+opts.thread+'\'':'null')+')">복사</button>':'')+'</div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
 var CM_PENDING={};
@@ -11180,7 +11191,7 @@ function cmBindPress(box){box.querySelectorAll('.cm-line .cm-b').forEach(functio
   b.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;t=setTimeout(function(){t=null;cmMenu(key,root,b)},450)},{passive:true});
   b.addEventListener('touchmove',function(e){if(t&&(Math.abs(e.touches[0].clientX-sx)>8||Math.abs(e.touches[0].clientY-sy)>8)){clearTimeout(t);t=null}},{passive:true});
   b.addEventListener('touchend',function(){if(t){clearTimeout(t);t=null}});
-  b.addEventListener('contextmenu',function(e){e.preventDefault();cmMenu(key,root,b)});
+  b.addEventListener('contextmenu',function(e){if(cmSelIn(b))return;e.preventDefault();cmMenu(key,root,b)});
   var th=b.querySelector('.cm-th');if(th)th.addEventListener('click',function(e){e.stopPropagation();cmOpenThread(key)});
   if(!root&&box.id!=='CM-TMSGS'){var rq=b.querySelector('.cm-rp'),rn=b.querySelector('.cm-rpn');
     if(rq)rq.addEventListener('click',function(e){e.stopPropagation();var m=cmMsgBy(key);if(m&&m.rp&&m.rp.key)cmOpenReplies(m.rp.key)});
@@ -11198,7 +11209,11 @@ function cmMenu(key,root,el){cmCloseMenu();var m=cmMsgBy(key,root);if(!m||m.del|
   setTimeout(function(){document.addEventListener('click',function h(e){if(!pop.contains(e.target)){cmCloseMenu();document.removeEventListener('click',h,true)}},true)},0)}
 function cmDoReply(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m)return;if(root){cmOpenThread(root);return}
   if(CM.rpRoot&&cmOn('p-comm-thread')){CM.reply={key:key,bn:m.bn,x:(m.x||'사진').slice(0,80)};cmReplyBar('CM-TCOMP');var rt=$('CM-TCOMP-TA');if(rt)rt.focus();return}CM.reply={key:key,bn:m.bn,x:(m.x||'사진').slice(0,80)};cmReplyBar('CM-COMP');var ta=$('CM-COMP-TA');if(ta)ta.focus()}
-function cmCopy(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m||!m.x)return;try{navigator.clipboard.writeText(m.x).then(function(){toast('복사했어요')},function(){toast('복사하지 못했어요')})}catch(e){toast('복사하지 못했어요')}}
+/* 복사 — 말풍선 안에서 글 일부를 골라 두었으면 그 부분만, 아니면 메시지 전체(11/12 'PC에서 글 바로 복사') */
+function cmSelIn(el){try{var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return '';return el.contains(s.getRangeAt(0).commonAncestorContainer)?String(s):''}catch(e){return ''}}
+function cmCopy(key,root){var ln=document.querySelector('.cm-line[data-key="'+key+'"] .cm-b');var part=ln?cmSelIn(ln):'';cmCloseMenu();var m=cmMsgBy(key,root);if(!m||!m.x)return;cmClip(part||m.x,part?'고른 글을 복사했어요':'복사했어요')}
+function cmClip(t,msg){var ok=function(){toast(msg||'복사했어요')},old=function(){try{var ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();var r=document.execCommand('copy');ta.remove();return r}catch(e){return false}};
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,function(){if(old())ok();else copyManual(t)});return}}catch(e){}if(old())ok();else copyManual(t)}
 function cmPin(key){cmCloseMenu();cmApi('pin',{rid:CM.rid,key:key}).then(function(){toast('방 공지로 올렸어요')}).catch(function(e){alert(e.message)})}
 function cmReact(key,r,root){cmApi('react',{rid:CM.rid,key:key,r:r,root:root||null}).catch(function(e){alert(e.message)})}
 function cmSheet(html){var bg=document.createElement('div');bg.className='cm-sheet-bg';bg.onclick=function(e){if(e.target===bg)bg.remove()};bg.innerHTML='<div class="cm-sheet">'+html+'</div>';document.body.appendChild(bg);return bg}
@@ -11360,6 +11375,9 @@ function cmReadAll(){var up={};Object.keys(CM.inbox||{}).forEach(function(k){var
    동영상: 카톡처럼 폰에서 먼저 줄여서(일반 720p · 고화질 1080p, 원본은 그대로) o/ 에 올림(최대 300MB, 10MB 조각으로),
    첫 장면을 사진으로 따로 올려 미리보기로 씀. */
 CM.urls={};
+/* 말풍선 · 모아 보기용 작은 사진(긴 변 480). 보통 사진(1600)을 말풍선 크기로 받느라 PC 에서 사진이 늦게 떴다(11/12).
+   실패해도 보내기는 막지 않는다(없으면 보통 사진을 보여 줌) */
+function cmThumb(rid,s){if(!s||Math.max(s.w,s.h)<=640)return Promise.resolve(null);return cmShrink(s.blob,480,.72).then(function(t){return t?cmUpload(rid,t.blob,'p','thumb.jpg'):null}).catch(function(){return null})}
 function cmShrink(file,maxd,q){return new Promise(function(res){var url=URL.createObjectURL(file);var img=new Image();img.onload=function(){var w=img.naturalWidth,h=img.naturalHeight,s=Math.min(1,maxd/Math.max(w,h));var cw=Math.round(w*s),ch=Math.round(h*s);var cv=document.createElement('canvas');cv.width=cw;cv.height=ch;cv.getContext('2d').drawImage(img,0,0,cw,ch);URL.revokeObjectURL(url);cv.toBlob(function(b){res(b?{blob:b,w:cw,h:ch}:null)},'image/jpeg',q)};img.onerror=function(){URL.revokeObjectURL(url);res(null)};img.src=url})}
 function cmPoster(file){return new Promise(function(res){var url=URL.createObjectURL(file);var v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';var done=false;function fin(x){if(done)return;done=true;URL.revokeObjectURL(url);res(x)}
   v.onloadeddata=function(){try{v.currentTime=Math.min(0.5,(v.duration||1)/2)}catch(e){fin(null)}};
@@ -11528,7 +11546,7 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
     if(kind==='v'){cmAwake(1);return cmVideoPrep(f,quality||'normal',function(p){step('줄이는 중',p)}).then(function(r){step('올리는 중',0);
       return cmPoster(r.blob).then(function(pv){return pv||r.blob===f?pv:cmPoster(f)}).then(function(pv){var pj=pv&&pv.blob?cmUpload(rid,pv.blob,'p','poster.jpg'):Promise.resolve(null);return pj.then(function(pk){return cmUpload(rid,r.blob,'v',r.name,prog).then(function(vk){md[ix]={v:vk,u:pk||undefined,w:pv&&pv.w||0,h:pv&&pv.h||0,d:pv&&pv.d||0,sz:r.blob.size,n:r.name}})})})}).finally(function(){cmAwake(0)})}
     if(kind==='f')return cmUpload(rid,f,'f',f.name,files.length===1?prog:null).then(function(fk){md[ix]={f:fk,n:f.name,sz:f.size};done++;prog(done/files.length)});
-    return cmShrink(f,pq[1],pq[2]).then(function(s){if(!s)throw new Error(f.name+' 사진을 읽지 못했어요');return cmUpload(rid,s.blob,'p','photo.jpg').then(function(pk){var it={u:pk,w:s.w,h:s.h,sz:s.blob.size};if(kind!=='o')return it;return cmUpload(rid,f,'o',f.name).then(function(ok){it.o=ok;it.sz=f.size;it.n=f.name;return it})})}).then(function(it){md[ix]=it;done++;prog(done/files.length)})});
+    return cmShrink(f,pq[1],pq[2]).then(function(s){if(!s)throw new Error(f.name+' 사진을 읽지 못했어요');return Promise.all([cmUpload(rid,s.blob,'p','photo.jpg'),cmThumb(rid,s)]).then(function(r2){var pk=r2[0];var it={u:pk,w:s.w,h:s.h,sz:s.blob.size};if(r2[1])it.t=r2[1];if(kind!=='o')return it;return cmUpload(rid,f,'o',f.name).then(function(ok){it.o=ok;it.sz=f.size;it.n=f.name;return it})})}).then(function(it){md[ix]=it;done++;prog(done/files.length)})});
   Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(root0)body.root=root0;if(rp0)body.rp=rp0;
     /* 다 올리면 진짜 메시지 모양(사진)으로 바꿔 두고, 실시간으로 들어올 때까지 그 자리에 둔다(사라졌다 나타나던 것) */
     if(CM_PENDING[tmp])CM_PENDING[tmp].m=Object.assign({},CM_PENDING[tmp].m,{x:'',k:body.k,md:body.md});paint();return cmApi('send',body)}).then(function(r){var have=r&&r.key&&(root0?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp];paint()},8000);paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert('보내지 못했어요\n\n'+e.message)})}
@@ -11537,13 +11555,15 @@ function cmMediaHtml(m){var md=(m.md||[]).filter(function(x){return x&&!cmHidden
   var h='';
   docs.forEach(function(x){var nm=x.n||'파일';var ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file" onclick="event.stopPropagation();cmFileView(\''+x.f+'\',\''+encodeURIComponent(nm)+'\','+(x.sz||0)+')"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · 90일 보관</small></span><button class="cm-fsv" title="저장" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify([[x.f,nm]]))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'});
   vids.forEach(function(x){var dur=x.d?Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'';h+='<div class="cm-vid" onclick="event.stopPropagation();cmPlay(\''+x.v+'\')">'+(x.u?'<img data-mk="'+x.u+'" alt="">':'')+'<span>동영상 '+dur+'</span></div>'});
-  if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+x.u+'" alt="" style="'+sz+'" onclick="event.stopPropagation();cmView(\''+encodeURIComponent(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
+  if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'" alt="" decoding="async" style="'+sz+'" onclick="event.stopPropagation();cmView(\''+encodeURIComponent(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
   return h}
-function cmFillMedia(root,rid){var need=[];root.querySelectorAll('img[data-mk]').forEach(function(im){var k=im.getAttribute('data-mk');var c=CM.urls[k];if(im.getAttribute('src'))return;if(c&&c.exp>Date.now()+60000)im.src=c.u;else if(need.indexOf(k)<0)need.push(k)});
+var CM_UFLY={};
+function cmFillMedia(root,rid){var need=[];root.querySelectorAll('img[data-mk]').forEach(function(im){var k=im.getAttribute('data-mk');var c=CM.urls[k];if(im.getAttribute('src'))return;if(c&&c.exp>Date.now()+60000)im.src=c.u;else if(need.indexOf(k)<0&&!CM_UFLY[k])need.push(k)});
   if(!need.length)return Promise.resolve();
   /* 서버가 한 번에 100개까지만 주소를 줘서 나눠 받는다(모아 보기는 수백 장) */
   var ch=[];for(var i=0;i<need.length;i+=100)ch.push(need.slice(i,i+100));
-  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});root.querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.src)im.src=c.u})}).catch(function(){})}))}
+  need.forEach(function(k){CM_UFLY[k]=1});
+  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).finally(function(){keys.forEach(function(k){delete CM_UFLY[k]})}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});(root.isConnected?root:document).querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.getAttribute('src'))im.src=c.u})}).catch(function(){})}))}
 function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};return u})}
 function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove();CM_FILES={}">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
 /* 사진 · 동영상 보기 화면의 저장 · 공유.
@@ -11576,22 +11596,35 @@ function cmMediaBtns(k){var e=String(k).replace(/'/g,'');return '<button onclick
    순서대로 넘길 수 있고(누른 사진에서 시작), 지금 장과 양옆 장만 미리 받는다. PC 는 ← → 키 · 이전/다음 버튼 */
 /* 사진 확대 — 두 손가락으로 벌려 확대(1~5배), 확대한 채로 한 손가락으로 이동, 두 번 톡 = 2.5배 ↔ 원래대로(PC 는 더블클릭).
    확대한 동안에는 옆으로 넘어가지 않고, 원래 크기로 돌아오면 다시 넘길 수 있다(10/27 '이미지 확대 안 됨') */
-function cmZoomable(slide,img,tr){var s=1,tx=0,ty=0,st=null,lastTap=0;img.style.transformOrigin='50% 50%';img.style.willChange='transform';
-  function apply(anim){img.style.transition=anim?'transform .22s ease-out':'none';img.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';tr.style.overflowX=s>1.01?'hidden':'auto'}
+/* PC(11/12 '사진 확대가 잘 안 됨'): 마우스 휠 · 트랙패드 두 손가락 벌리기 = 마우스 있는 곳 기준 확대, 확대한 채로 끌어서 이동,
+   더블클릭 = 2.5배 ↔ 원래대로, 화면 아래 － ＋ 버튼 · 키보드 + - 0. 많이 확대하면 원본이 있는 사진은 원본으로 바꿔 끼운다(onZoom) */
+function cmZoomable(slide,img,tr,onZoom){var s=1,tx=0,ty=0,st=null,lastTap=0,MAX=6;img.style.transformOrigin='50% 50%';img.style.willChange='transform';img.draggable=false;
+  function apply(anim){img.style.transition=anim?'transform .22s ease-out':'none';img.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';tr.style.overflowX=s>1.01?'hidden':'auto';slide.classList.toggle('zm',s>1.01);if(onZoom)onZoom(s)}
   function clamp(){if(s<=1.01){s=1;tx=0;ty=0;return}var r=slide.getBoundingClientRect(),w=img.offsetWidth*s,h=img.offsetHeight*s,mx=Math.max(0,(w-r.width)/2),my=Math.max(0,(h-r.height)/2);tx=Math.max(-mx,Math.min(mx,tx));ty=Math.max(-my,Math.min(my,ty))}
-  function zoomAt(x,y){var r=slide.getBoundingClientRect();if(s>1.01){s=1;tx=0;ty=0}else{var px=x-(r.left+r.width/2),py=y-(r.top+r.height/2);s=2.5;tx=-px*(s-1);ty=-py*(s-1);clamp()}apply(true)}
+  /* 화면의 (x,y) 점이 확대 뒤에도 그 자리에 있도록 */
+  function zoomTo(ns,x,y,anim){var r=slide.getBoundingClientRect();if(x==null){x=r.left+r.width/2;y=r.top+r.height/2}ns=Math.max(1,Math.min(MAX,ns));var px=x-(r.left+r.width/2),py=y-(r.top+r.height/2);tx=px-(px-tx)*ns/s;ty=py-(py-ty)*ns/s;s=ns;clamp();apply(anim)}
+  function zoomAt(x,y){if(s>1.01){s=1;tx=0;ty=0;apply(true)}else zoomTo(2.5,x,y,true)}
   slide.addEventListener('touchstart',function(e){
     if(e.touches.length===2){var a=e.touches[0],b=e.touches[1];st={m:'pinch',d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,s:s,tx:tx,ty:ty,cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2};tr.style.overflowX='hidden';e.preventDefault();return}
     if(e.touches.length!==1)return;var t=e.touches[0],now=Date.now();
     if(now-lastTap<300){e.preventDefault();lastTap=0;st=null;zoomAt(t.clientX,t.clientY);return}
     lastTap=now;if(s>1.01)st={m:'pan',x:t.clientX,y:t.clientY,tx:tx,ty:ty}},{passive:false});
   slide.addEventListener('touchmove',function(e){if(!st)return;
-    if(st.m==='pinch'&&e.touches.length===2){e.preventDefault();var a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),ns=Math.max(1,Math.min(5,st.s*d/st.d)),r=slide.getBoundingClientRect();
+    if(st.m==='pinch'&&e.touches.length===2){e.preventDefault();var a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),ns=Math.max(1,Math.min(MAX,st.s*d/st.d)),r=slide.getBoundingClientRect();
       var cx=st.cx-(r.left+r.width/2),cy=st.cy-(r.top+r.height/2);tx=cx-(cx-st.tx)*ns/st.s+((a.clientX+b.clientX)/2-st.cx);ty=cy-(cy-st.ty)*ns/st.s+((a.clientY+b.clientY)/2-st.cy);s=ns;apply(false)}
     else if(st.m==='pan'&&e.touches.length===1){e.preventDefault();var t=e.touches[0];tx=st.tx+(t.clientX-st.x);ty=st.ty+(t.clientY-st.y);clamp();apply(false)}},{passive:false});
   slide.addEventListener('touchend',function(e){if(!e.touches.length&&st){st=null;clamp();apply(true)}else if(e.touches.length===1&&st&&st.m==='pinch'){var t=e.touches[0];st={m:'pan',x:t.clientX,y:t.clientY,tx:tx,ty:ty}}});
   slide.addEventListener('dblclick',function(e){zoomAt(e.clientX,e.clientY)});
-  return {reset:function(){if(s!==1||tx||ty){s=1;tx=0;ty=0;apply(false)}}}}
+  /* 휠: 옆으로 미는 트랙패드 동작(원래 크기일 때)은 사진 넘기기로 남겨 둔다. ctrlKey = 맥 트랙패드 벌리기 · Ctrl+휠 */
+  slide.addEventListener('wheel',function(e){if(!e.ctrlKey&&s<=1.01&&Math.abs(e.deltaX)>Math.abs(e.deltaY))return;e.preventDefault();
+    if(!e.ctrlKey&&s>1.01&&e.deltaMode===0&&Math.abs(e.deltaX)>Math.abs(e.deltaY)*1.5){tx-=e.deltaX;clamp();apply(false);return}
+    var dy=e.deltaMode===1?e.deltaY*33:e.deltaY;zoomTo(s*Math.exp(-dy*(e.ctrlKey?0.012:0.0022)),e.clientX,e.clientY,false)},{passive:false});
+  /* 마우스로 끌어서 이동 — 끈 뒤의 클릭은 막대 숨기기로 치지 않는다 */
+  slide.addEventListener('pointerdown',function(e){if(e.pointerType!=='mouse'||e.button||s<=1.01)return;e.preventDefault();var o={x:e.clientX,y:e.clientY,tx:tx,ty:ty,mv:false};slide.classList.add('drag');try{slide.setPointerCapture(e.pointerId)}catch(x){}
+    slide.onpointermove=function(ev){var dx=ev.clientX-o.x,dy=ev.clientY-o.y;if(Math.abs(dx)+Math.abs(dy)>4)o.mv=true;tx=o.tx+dx;ty=o.ty+dy;clamp();apply(false)};
+    slide.onpointerup=slide.onpointercancel=function(){slide.onpointermove=slide.onpointerup=slide.onpointercancel=null;slide.classList.remove('drag');if(o.mv){var v=slide.closest('.cm-viewer');if(v)v._noTap=Date.now()}}});
+  img.addEventListener('dragstart',function(e){e.preventDefault()});
+  return {reset:function(){if(s!==1||tx||ty){s=1;tx=0;ty=0;apply(false)}},by:function(f){zoomTo(f?s*f:1,null,null,true)},get s(){return s}}}
 /* ══ 사진 · 동영상 보기 — 카톡 모양 (11/8 사용자 요청: 카톡 캡처 기준) ══
    위: ‹ 닫기 · 보낸 사람 + 보낸 시각 ›(누르면 그 메시지로) · 모아 보기(네모)
    아래: 저장 · [휴지통 · 편집 · …] · 공유(채팅방으로 전달 / 다른 앱으로). 사진을 한 번 누르면 위아래 막대가 숨었다 나타난다.
@@ -11617,7 +11650,7 @@ function cmMvOpen(inner){var bg=document.createElement('div');bg.className='cm-v
   document.body.appendChild(bg);
   bg.addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||!bg.contains(b))return;e.stopPropagation();cmMvAct(bg,b.getAttribute('data-a'),b)});
   /* 한 번 누르면 막대 숨기기 · 보이기 (두 번 누르기는 확대라 잠깐 기다렸다 판단) */
-  var tt=null;bg.querySelector('.vbody').addEventListener('click',function(e){if(e.target.closest('video,button'))return;if(tt){clearTimeout(tt);tt=null;return}tt=setTimeout(function(){tt=null;bg.classList.toggle('bare')},280)});
+  var tt=null;bg.querySelector('.vbody').addEventListener('click',function(e){if(e.target.closest('video,button'))return;if(bg._noTap&&Date.now()-bg._noTap<400)return;if(tt){clearTimeout(tt);tt=null;return}tt=setTimeout(function(){tt=null;bg.classList.toggle('bare')},280)});
   return bg}
 function cmMvSet(bg,cur){bg._cur=cur;var m=cur.meta;bg.querySelector('.mv-who b').textContent=m?m.bn||'':'';bg.querySelector('.mv-who small').textContent=m?cmMvTime(m.at)+(m.k?' ›':''):'';
   bg.querySelector('[data-a=edit]').style.display=cur.kind==='p'?'':'none'}
@@ -11686,18 +11719,39 @@ function cmRoomPics(){var src=CM.msgs||{},out=[];Object.keys(src).sort().forEach
 function cmView(enc,i){var fromMsg=typeof enc==='string',pics=fromMsg?JSON.parse(decodeURIComponent(enc)):enc;var start=pics[i];
   if(fromMsg){var all=cmRoomPics(),j=-1;if(start)for(var q=0;q<all.length;q++)if(all[q].u===start.u){j=q;break}if(j>=0){pics=all;i=j}}
   var touch='ontouchstart' in window;
-  var bg=cmMvOpen('<div class="cm-swipe">'+pics.map(function(){return '<div class="cm-slide"><img alt=""></div>'}).join('')+'</div>'+(pics.length>1&&!touch?'<button class="mv-nav l" onclick="this.closest(\'.cm-viewer\')._go(-1)">‹</button><button class="mv-nav r" onclick="this.closest(\'.cm-viewer\')._go(1)">›</button>':''));
+  var bg=cmMvOpen('<div class="cm-swipe">'+pics.map(function(){return '<div class="cm-slide"><img alt=""></div>'}).join('')+'</div>'+(pics.length>1&&!touch?'<button class="mv-nav l" onclick="this.closest(\'.cm-viewer\')._go(-1)">‹</button><button class="mv-nav r" onclick="this.closest(\'.cm-viewer\')._go(1)">›</button>':'')+
+    (touch?'':'<div class="mv-zm"><button aria-label="축소" onclick="this.closest(\'.cm-viewer\')._zm(1/1.5)">－</button><button class="mv-zp" aria-label="원래 크기" onclick="this.closest(\'.cm-viewer\')._zm(0)">100%</button><button aria-label="확대" onclick="this.closest(\'.cm-viewer\')._zm(1.5)">＋</button></div>'));
   var tr=bg.querySelector('.cm-swipe'),slides=tr.children;
-  var zooms=[].map.call(slides,function(sl){return cmZoomable(sl,sl.firstChild,tr)});
-  function load(k){if(k<0||k>=pics.length)return;var im=slides[k].firstChild;if(im.getAttribute('src')||im._ld)return;im._ld=1;cmUrl(pics[k].u).then(function(u){im.src=u})}
-  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
+  var zp=bg.querySelector('.mv-zp');
+  var zooms=[].map.call(slides,function(sl,k){return cmZoomable(sl,sl.firstChild,tr,function(sc){if(k===i&&zp)zp.textContent=Math.round(sc*100)+'%';if(sc>1.6)hiRes(k)})});
+  /* 말풍선에서 이미 받은 작은 사진을 먼저 보여 주고, 보통 사진이 다 받아지면 바꿔 끼운다 */
+  function swap(im,u){if(im.getAttribute('src')===u)return;var pre=new Image();pre.onload=function(){im.src=u};pre.src=u}
+  function load(k){if(k<0||k>=pics.length)return;var im=slides[k].firstChild,x=pics[k];if(im._ld)return;im._ld=1;var c=x.t&&CM.urls[x.t];if(c&&c.exp>Date.now())im.src=c.u;cmUrl(x.u).then(function(u){if(!im._hi)swap(im,u)}).catch(function(){})}
+  /* 많이 확대하면 원본(사진 · 원본으로 보낸 것)으로 — 브라우저가 못 그리는 HEIC 등은 그대로 */
+  function hiRes(k){var x=pics[k],im=slides[k].firstChild;if(im._hi||!x.o||!/\.(jpe?g|png|webp|gif)$/i.test(x.o))return;im._hi=1;cmUrl(x.o).then(function(u){swap(im,u)}).catch(function(){})}
+  function upd(){zooms.forEach(function(z,k){if(k!==i)z.reset()});if(zp)zp.textContent=Math.round(((zooms[i]&&zooms[i].s)||1)*100)+'%';var x=pics[i],sk=x.o||x.u;cmMediaFile(sk).catch(function(){});
     cmMvSet(bg,{kind:'p',mk:x.u,sk:sk,x:x,meta:cmMediaMeta(x.u)});load(i);load(i+1);load(i-1)}
   tr.scrollLeft=i*tr.clientWidth;upd();requestAnimationFrame(function(){tr.scrollLeft=i*tr.clientWidth});
   var tm=null;tr.addEventListener('scroll',function(){load(Math.floor(tr.scrollLeft/tr.clientWidth));load(Math.ceil(tr.scrollLeft/tr.clientWidth));clearTimeout(tm);tm=setTimeout(function(){var k=Math.round(tr.scrollLeft/(tr.clientWidth||1));if(k!==i&&k>=0&&k<pics.length){i=k;upd()}},90)},{passive:true});
   bg._go=function(d){var k=Math.max(0,Math.min(pics.length-1,i+d));tr.scrollTo({left:k*tr.clientWidth,behavior:'smooth'})};
-  var key=function(e){if(!bg.isConnected){document.removeEventListener('keydown',key);return}if(document.querySelector('.cm-ed,.cm-top'))return;if(e.key==='ArrowLeft')bg._go(-1);else if(e.key==='ArrowRight')bg._go(1);else if(e.key==='Escape')cmMvClose(bg)};
+  bg._zm=function(f){if(zooms[i])zooms[i].by(f)};
+  var key=function(e){if(!bg.isConnected){document.removeEventListener('keydown',key);return}if(document.querySelector('.cm-ed,.cm-top'))return;var z=zooms[i]&&zooms[i].s>1.01;
+    if(e.key==='ArrowLeft'&&!z)bg._go(-1);else if(e.key==='ArrowRight'&&!z)bg._go(1);else if(e.key==='Escape'){if(z)bg._zm(0);else cmMvClose(bg)}
+    else if(e.key==='+'||e.key==='='){e.preventDefault();bg._zm(1.5)}else if(e.key==='-'||e.key==='_'){e.preventDefault();bg._zm(1/1.5)}else if(e.key==='0'){bg._zm(0)}};
   document.addEventListener('keydown',key)}
-function cmOpenOrig(k){cmUrl(k).then(function(u){window.open(u,'_blank')}).catch(function(e){alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
+/* 파일 · 원본 열기 — 예전엔 서명 주소를 새 탭으로 열어서 주소창 · 탭 제목에 서버 주소(…workers.dev, 계정 이름이 들어 있음)가 보였다(11/12).
+   이제는 파일을 받아 앱 안에서 연다: 사진 · PDF · 글 파일은 앱 안 화면, 그 밖(엑셀 · 한글 · 압축 등)은 이름 붙여 내려받기 */
+function cmOpenOrig(k){var nm=cmMediaName(k),ext=((nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'').toLowerCase();
+  var kind=/^(jpe?g|png|gif|webp|bmp|avif)$/.test(ext)?'img':ext==='pdf'?'pdf':/^(txt|csv|json|md|log)$/.test(ext)?'txt':'';
+  var bg=null;if(kind){bg=cmOverlay('<div class="cm-ofile"><p>불러오는 중…</p></div>');bg.classList.add('cm-of');bg.querySelector('.vt').textContent=nm}else toast('파일을 받는 중이에요…');
+  cmMediaFile(k).then(function(f){if(!kind)return cmSaveBlob(f,null);if(!bg.isConnected)return;
+    var u=URL.createObjectURL(kind==='pdf'?new Blob([f],{type:'application/pdf'}):kind==='txt'?new Blob([f],{type:'text/plain;charset=utf-8'}):f);
+    var box=bg.querySelector('.cm-ofile');box.innerHTML=kind==='img'?'<img alt="">':'<iframe title="'+cmEsc(nm)+'"></iframe>';box.firstChild.src=u;
+    if(kind==='img')cmZoomable(box,box.firstChild,box);
+    bg.querySelector('.va').innerHTML=cmMediaBtns(k);
+    /* 닫으면 받아 둔 파일을 메모리에서 비운다 */
+    var mo=new MutationObserver(function(){if(!bg.isConnected){mo.disconnect();URL.revokeObjectURL(u)}});mo.observe(document.body,{childList:true})})
+  .catch(function(){if(bg)bg.remove();alert('보관 기간(90일)이 지났거나 열 수 없는 파일이에요')})}
 function cmPlay(k){var bg=cmMvOpen('<video controls playsinline autoplay></video>');bg.classList.add('vid');var meta=cmMediaMeta(k);cmMvSet(bg,{kind:'v',mk:k,sk:k,x:meta&&meta.x,meta:meta});
   var v=bg.querySelector('video'),gone=function(){bg.querySelector('.vbody').innerHTML='<p style="color:#fff;text-align:center;padding:20px">보관 기간(90일)이 지났거나 열 수 없는 동영상이에요</p>'};
   cmUrl(k).then(function(u){v.src=u}).catch(gone);v.onerror=gone;
@@ -11719,7 +11773,7 @@ function cmDrawer(tab){var rid=CM.rid;if(!rid)return;tab=tab||'m';var old=docume
     var h='',last='';rows.forEach(function(r,ix){var d=day(r.it.at);if(d!==last){h+=(last?'</div>':'')+'<div class="gal-day">'+d+'</div><div class="'+(tab==='f'?'gal-files':'gal-grid')+'">';last=d}
       var x=r.x,exp=(x.v||x.f)&&r.it.at<old90;
       if(tab==='f'){var nm=x.n||'파일',ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file gal-f'+(exp?' exp':'')+'" data-ix="'+ix+'"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · '+cmEsc(r.it.bn||'')+(exp?' · 보관 기간 지남':'')+'</small></span></div>'}
-      else h+='<div class="gal-c'+(exp?' exp':'')+'" data-ix="'+ix+'">'+(x.u?'<img data-mk="'+x.u+'" alt="" loading="lazy">':'')+(x.v?'<span class="gal-v">▶'+(x.d?' '+Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'')+'</span>':'')+(exp?'<span class="gal-x">기간 지남</span>':'')+'</div>'});
+      else h+='<div class="gal-c'+(exp?' exp':'')+'" data-ix="'+ix+'">'+(x.u?'<img data-mk="'+(x.t||x.u)+'" alt="" loading="lazy" decoding="async">':'')+(x.v?'<span class="gal-v">▶'+(x.d?' '+Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'')+'</span>':'')+(exp?'<span class="gal-x">기간 지남</span>':'')+'</div>'});
     body.innerHTML=h+'</div>';body._rows=rows;cmFillMedia(body,rid)}
   bg._paint=paint;
   bg.addEventListener('click',function(e){if(e.target.closest('[data-g=close]')){bg.remove();return}
