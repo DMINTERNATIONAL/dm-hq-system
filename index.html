@@ -11434,13 +11434,13 @@ function cmReadAll(){var up={};Object.keys(CM.inbox||{}).forEach(function(k){var
 
 
 /* ── 사진 · 동영상 ──
-   보통 사진: 폰에서 긴 변 2560px 로 줄여 p/ 에 올림(계속 보관). 원본: 그대로 o/ 에 올리고 줄인 사진도 같이(90일).
+   보통 사진: 폰에서 긴 변 2560px(고화질 4096) 로 줄여 p/ 에 올림(계속 보관). 원본: 그대로 o/ 에 올리고 줄인 사진도 같이(90일).
    동영상: 카톡처럼 폰에서 먼저 줄여서(일반 720p · 고화질 1080p, 원본은 그대로) o/ 에 올림(최대 300MB, 10MB 조각으로),
    첫 장면을 사진으로 따로 올려 미리보기로 씀. */
 CM.urls={};
-/* 말풍선 · 모아 보기용 작은 사진(긴 변 480). 보통 사진(1600)을 말풍선 크기로 받느라 PC 에서 사진이 늦게 떴다(11/12).
+/* 말풍선 · 모아 보기용 작은 사진(긴 변 800 — 말풍선 240px × 화면 배율 3 에서도 선명하게, 11/12 480→800). 보통 사진(1600)을 말풍선 크기로 받느라 PC 에서 사진이 늦게 떴다(11/12).
    실패해도 보내기는 막지 않는다(없으면 보통 사진을 보여 줌) */
-function cmThumb(rid,s){if(!s||Math.max(s.w,s.h)<=640)return Promise.resolve(null);return cmShrink(s.blob,480,.72).then(function(t){return t?cmUpload(rid,t.blob,'p','thumb.jpg'):null}).catch(function(){return null})}
+function cmThumb(rid,s){if(!s||Math.max(s.w,s.h)<=960)return Promise.resolve(null);return cmShrink(s.blob,800,.78).then(function(t){return t?cmUpload(rid,t.blob,'p','thumb.jpg'):null}).catch(function(){return null})}
 function cmShrink(file,maxd,q){return new Promise(function(res){var url=URL.createObjectURL(file);var img=new Image();img.onload=function(){var w=img.naturalWidth,h=img.naturalHeight,s=Math.min(1,maxd/Math.max(w,h));var cw=Math.round(w*s),ch=Math.round(h*s);var cv=document.createElement('canvas');cv.width=cw;cv.height=ch;cv.getContext('2d').drawImage(img,0,0,cw,ch);URL.revokeObjectURL(url);cv.toBlob(function(b){res(b?{blob:b,w:cw,h:ch}:null)},'image/jpeg',q)};img.onerror=function(){URL.revokeObjectURL(url);res(null)};img.src=url})}
 function cmPoster(file){return new Promise(function(res){var url=URL.createObjectURL(file);var v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';var done=false;function fin(x){if(done)return;done=true;URL.revokeObjectURL(url);res(x)}
   v.onloadeddata=function(){try{v.currentTime=Math.min(0.5,(v.duration||1)/2)}catch(e){fin(null)}};
@@ -11516,7 +11516,8 @@ function cmDropFiles(dt,thread){var fs=[];
   document.addEventListener('dragleave',function(e){if(!hasFiles(e))return;depth=Math.max(0,depth-1);if(!depth)show(false)});
   document.addEventListener('drop',function(e){if(!hasFiles(e))return;depth=0;show(false);if(!inRoom())return;e.preventDefault();cmDropFiles(e.dataTransfer,cmOn('p-comm-thread'))})})();
 /* 사진 화질 — 일반(기본) · 고화질 · 원본. 바꾸면 그다음부터 그게 기본이 된다 */
-var CM_PQ={normal:['일반',1600,.8],high:['고화질',2560,.9],orig:['원본',1600,.8]};
+/* 11/12 '사진이 흐림' — 일반 1600 은 아이폰·맥 화면(긴 변 2500~2800)보다 작아 꽉 채우면 늘어나 보였다. 일반을 2560 으로 올리고, 빠르기는 큰 사진 미리 받기로 메운다 */
+var CM_PQ={normal:['일반',2560,.82],high:['고화질',4096,.9],orig:['원본',2560,.82]};
 function cmPq(){try{var v=localStorage.getItem('cm_pq');return CM_PQ[v]?v:'normal'}catch(e){return 'normal'}}
 function cmPhotoPreview(files,thread){if(files.length>30){alert('사진은 한 번에 30장까지 보낼 수 있어요');files=files.slice(0,30)}
   var urls=files.map(function(f){return URL.createObjectURL(f)});var q=cmPq();
@@ -11626,15 +11627,23 @@ function cmFillMedia(root,rid){var need=[];var ok=function(k){var c=CM.urls[k];r
     /* 큰 사진 주소도 같이 받아 둔다 — 누를 때 서버에 한 번 더 묻지 않게 */
     if(mu&&!ok(mu)&&need.indexOf(mu)<0&&!CM_UFLY[mu])need.push(mu);
     if(im.getAttribute('src'))return;if(ok(k))im.src=CM.urls[k].u;else if(need.indexOf(k)<0&&!CM_UFLY[k])need.push(k)});
-  if(!need.length)return Promise.resolve();
+  if(!need.length){cmWarmObs(root);return Promise.resolve()}
   /* 서버가 한 번에 100개까지만 주소를 줘서 나눠 받는다(모아 보기는 수백 장) */
   var ch=[];for(var i=0;i<need.length;i+=100)ch.push(need.slice(i,i+100));
   need.forEach(function(k){CM_UFLY[k]=1});
-  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).finally(function(){keys.forEach(function(k){delete CM_UFLY[k]})}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});(root.isConnected?root:document).querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.getAttribute('src'))im.src=c.u})}).catch(function(){})}))}
+  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).finally(function(){keys.forEach(function(k){delete CM_UFLY[k]})}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});(root.isConnected?root:document).querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.getAttribute('src'))im.src=c.u})}).catch(function(){})})).then(function(){cmWarmObs(root)})}
 /* 사진을 누르기 시작할 때(손가락이 닿거나 마우스를 올릴 때) 큰 사진을 미리 받기 시작한다 — 보기 화면이 열릴 때쯤엔 이미 받는 중 */
 var CM_WARM={};
-function cmWarm(k){if(!k||CM_WARM[k])return;CM_WARM[k]=1;var go=function(u){var im=new Image();try{im.fetchPriority='high'}catch(e){}im.decoding='async';im.src=u;CM_WARM[k]=im};
-  var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)go(c.u);else cmUrl(k).then(go).catch(function(){delete CM_WARM[k]})}
+function cmWarm(k,cb){var fin=function(){if(cb){var f=cb;cb=null;f()}};if(!k||CM_WARM[k]){fin();return}CM_WARM[k]=1;var go=function(u){var im=new Image();try{im.fetchPriority=cb?'low':'high'}catch(e){}im.decoding='async';im.onload=im.onerror=fin;im.src=u;CM_WARM[k]=im};
+  var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)go(c.u);else cmUrl(k).then(go).catch(function(){delete CM_WARM[k];fin()})}
+/* 화면에 보이는 말풍선 사진은 큰 사진을 미리 받아 둔다(2장씩 차례로, 낮은 우선순위) — 누르면 바로 선명하게(11/12).
+   데이터 절약 모드 · 2G 에서는 안 한다. 모아 보기 같은 사진 목록은 너무 많아서 제외(말풍선 .cm-pics 만) */
+var CM_WQ=[],CM_WN=0,CM_IO=null,CM_IOL=[];
+function cmWarmQ(){while(CM_WN<2&&CM_WQ.length){var im=CM_WQ.shift();var mu=im.getAttribute('data-mu');if(!im.isConnected||!mu||CM_WARM[mu])continue;CM_WN++;cmWarm(mu,function(){CM_WN--;cmWarmQ()})}}
+function cmWarmObs(root){if(!root||!('IntersectionObserver' in window))return;var cn=navigator.connection;if(cn&&(cn.saveData||/2g/.test(cn.effectiveType||'')))return;
+  if(!CM_IO)CM_IO=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;CM_IO.unobserve(e.target);CM_WQ.push(e.target)});cmWarmQ()},{rootMargin:'300px 0px'});
+  CM_IOL=CM_IOL.filter(function(im){if(im.isConnected)return true;CM_IO.unobserve(im);return false});
+  root.querySelectorAll('.cm-pics img[data-mu]').forEach(function(im){if(im._wo)return;im._wo=1;CM_IOL.push(im);CM_IO.observe(im)})}
 function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};return u})}
 function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove();CM_FILES={}">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
 /* 사진 · 동영상 보기 화면의 저장 · 공유.
