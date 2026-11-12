@@ -1856,7 +1856,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-m.me .cm-tm{align-items:flex-start}
 .cm-chip .bd-cn{font-style:normal;font-size:10.5px;font-weight:800;color:#fff;background:#EF4444;border-radius:99px;padding:1px 6px;margin-left:3px}
 .cm-cp{display:none}
-@media (hover:hover) and (pointer:fine){.cm-cp{display:block;align-self:center;flex:0 0 auto;opacity:0;border:0;background:var(--cm-bg);color:var(--cm-ink2);font-size:11px;font-weight:600;line-height:1;font-family:inherit;padding:5px 8px;border-radius:8px;cursor:pointer;transition:opacity .12s}.cm-line:hover .cm-cp,.cm-cp:focus-visible{opacity:1}.cm-cp:hover{color:var(--cm-blue)}}
+@media (hover:hover) and (pointer:fine){.cm-cp{display:block;align-self:center;flex:0 0 auto;opacity:0;border:0;background:var(--cm-bg);color:var(--cm-ink2);font-size:11px;font-weight:600;line-height:1;font-family:inherit;padding:5px 8px;border-radius:8px;cursor:pointer;transition:opacity .12s}.cm-line:hover .cm-cp,.cm-cp:focus-visible{opacity:1}.cm-line:not(:hover) .cm-cp:not(:focus-visible){opacity:0;pointer-events:none}.cm-cp:hover{color:var(--cm-blue)}}
 .cm-tm b{color:#D97706;font-weight:800}
 .cm-rp{font-size:12px;border-left:3px solid #CBD5E1;padding:1px 0 1px 7px;margin-bottom:5px;color:var(--cm-ink2);opacity:.9}
 .cm-m.me .cm-rp{border-color:rgba(255,255,255,.6);color:#E0EAFF}
@@ -11107,7 +11107,7 @@ function cmMsgHtml(list,opts){
     m._k=key;var me=m.by===String(ME.phone);var cont=prev&&prev.by===m.by&&m.at-prev.at<180000&&prev.k!=='sys';
     /* 보내는 중인 글도 '1'(안 읽은 사람 수)을 바로 — 진짜 글이 도착할 때까지 0.5~1초 늦게 떴다(10/27) */
     var un=opts.thread?0:(it.pending?Math.max(0,Object.keys((CM.room&&CM.room.m)||{}).length-1):cmUnread(m));
-    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div>'+(m.x&&!it.pending&&!m.del&&!m.hid?'<button class="cm-cp" title="복사" onclick="event.stopPropagation();cmCopy(\''+key+'\','+(opts.thread?'\''+opts.thread+'\'':'null')+')">복사</button>':'')+'</div>'+cmRx(m,key,opts.thread)+'</div></div>';
+    h+='<div class="cm-m'+(me?' me':'')+(cont?' cont':'')+(it.pending?' cm-pending'+(it.slow?' cm-slow':''):'')+(nw?' cm-new':'')+'" data-key="'+key+'">'+cmAv(m.bn,m.by,true)+'<div class="cm-col"><div class="who">'+cmEsc(m.bn)+'</div><div class="cm-line" data-key="'+key+'"'+(opts.thread?' data-root="'+opts.thread+'"':'')+'>'+cmBody(m,me)+'<div class="cm-tm">'+(un?'<b class="cm-unread" onclick="event.stopPropagation();cmReaders(\''+key+'\')">'+un+'</b>':'')+(it.pending&&it.slow?'보내는 중':cmHM(m.at))+'</div>'+(m.x&&!it.pending&&!m.del&&!m.hid?'<button class="cm-cp" title="답장" onmousedown="event.preventDefault()" onclick="event.stopPropagation();this.blur();cmDoReply(\''+key+'\','+(opts.thread?'\''+opts.thread+'\'':'null')+')">답장</button>':'')+'</div>'+cmRx(m,key,opts.thread)+'</div></div>';
     prev=m});
   return h}
 var CM_PENDING={};
