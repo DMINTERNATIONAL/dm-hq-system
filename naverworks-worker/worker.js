@@ -67,7 +67,7 @@ async function fbFetch(env, url, opts) {
   if (t) url += (url.includes('?') ? '&' : '?') + 'access_token=' + t;
   return fetch(url, opts);
 }
-const BREAK_GRACE_MS = 5 * 60 * 1000; // 60분 + 5분 그레이스 = 65분 후 자동 종료
+const BREAK_GRACE_MS = 10 * 60 * 1000; // 종료 예정 시각 + 10분 지나면 자동 종료 (앱과 같은 기준, 2026-11-12)
 
 export default {
   async scheduled(event, env, ctx) {
@@ -370,10 +370,13 @@ async function cleanupStaleBreaks(env) {
     const b = ba[phone];
     if (!b || !b.endsAt) continue;
 
-    // 종료 시각이 5분 이상 지난 것만 자동 정리 (= 시작 후 65분+)
+    // 종료 시각이 10분 이상 지난 것만 자동 정리
     if (now - b.endsAt < BREAK_GRACE_MS) continue;
 
-    // 1) /break.json 에 60분 사용 기록 추가
+    // 1) /break.json 에 실제 사용 시간 기록 — 끝난 시각은 자동 종료 시점(종료 예정+10분)으로 고정
+    const endT = Math.min(now, b.endsAt + BREAK_GRACE_MS);
+    const usedMin = b.startedAt ? Math.round((endT - b.startedAt) / 60000) : 60;
+    const overMin = Math.max(0, Math.floor((endT - b.endsAt) / 60000));
     const record = {
       userId: phone,
       userName: b.name || '',
@@ -383,7 +386,8 @@ async function cleanupStaleBreaks(env) {
       time: timeStr,
       year: y,
       month: m,
-      usedMin: 60,
+      usedMin: usedMin,
+      overtime: overMin + '분 초과 (자동 종료)',
       autoEnded: true,
       ts: now
     };
@@ -410,7 +414,9 @@ async function cleanupStaleBreaks(env) {
         body: JSON.stringify({
           ts: now,
           startedAt: b.startedAt,
-          endedAt: b.endsAt,
+          endedAt: endT,
+          usedMin: usedMin,
+          overMin: overMin,
           date: dateStr,
           time: timeStr
         })
