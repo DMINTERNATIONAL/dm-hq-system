@@ -19,7 +19,7 @@
  *   /chat/reads/{rid}/{폰}   내가 읽은 번호 — 말풍선 옆 '안 읽은 사람 수' 계산용
  *   /chat/act/{폰}/{id}      내 활동 { k mention · reply · all, rid, key, x, bn, at, done }
  *
- * 방 종류: notice 전체 공지 · hq 경영팀 · br 지점 · dm 1:1 · grp 직접 만든 방 · me 나와의 채팅
+ * 방 종류: notice 전체 공지 · hq 경영팀 · ops 업무 알림(발주·환불·가발·내수 — 네이버웍스 봇 대신, 경영팀) · br 지점 · dm 1:1 · grp 직접 만든 방 · me 나와의 채팅
  */
 
 const MANAGER_GRADES = ['경영팀', '관리자'];
@@ -154,10 +154,10 @@ export function makeChat(deps) {
     const meta = (await dbGet(env, '/chat/meta').catch(() => null)) || {};
     if (!force && meta.syncedAt && nowMs() - meta.syncedAt < 5 * 60 * 1000) return { skipped: true };
     const { el } = await eligible(env);
-    const want = { notice: { t: 'notice', n: '전체 공지', m: {} }, hq: { t: 'hq', n: '경영팀', m: {} } };
+    const want = { notice: { t: 'notice', n: '전체 공지', m: {} }, hq: { t: 'hq', n: '경영팀', m: {} }, ops: { t: 'ops', n: '업무 알림', m: {} } };
     for (const [ph, u] of Object.entries(el)) {
       want.notice.m[ph] = 1;
-      if (isHqUser(ph, u)) want.hq.m[ph] = 1;
+      if (isHqUser(ph, u)) { want.hq.m[ph] = 1; want.ops.m[ph] = 1; }
       if (u.branch && u.branch !== '본사') {
         const rid = 'br_' + safeKey((u.brand || '') + '_' + u.branch);
         want[rid] = want[rid] || { t: 'br', n: (u.brand ? u.brand + ' ' : '') + u.branch, m: {} };
@@ -550,6 +550,31 @@ export function makeChat(deps) {
     await dbPatch(env, '/', up);
     await sysMsg(env, rid, `${nameOf(u)}님이 방을 만들었습니다`);
     return { rid };
+  }
+
+  /* 업무 알림 방에 봇 글 올리기 — 발주 · 환불 · 가발 공동구매 · 내수 알림(예전엔 네이버웍스 봇).
+     보내는 사람은 'bot'. 방이 아직 없으면(처음) 자동방 맞추기를 한 번 돌려 만든다. 알림은 일반 채팅과 같은 규칙(방 알림 끈 사람 · 휴무자 빼고) */
+  async function botPost(env, ctx, text) {
+    const rid = 'ops';
+    const x = clip(text, 3000).trim();
+    if (!x) return { skipped: true };
+    let room = await dbGet(env, '/chat/rooms/ops').catch(() => null);
+    if (!room) { await syncAuto(env, true); room = await dbGet(env, '/chat/rooms/ops').catch(() => null); }
+    if (!room || !room.m || !Object.keys(room.m).length) return { skipped: true };
+    const seq = await nextSeq(env, rid);
+    const at = nowMs(), key = pad(seq), bn = '업무 알림';
+    const preview = clip(x.split('\n')[0], 80);
+    const up = { [`chat/msgs/${rid}/${key}`]: { s: seq, by: 'bot', bn, at, k: 't', x }, [`chat/rooms/${rid}/last`]: { x: preview, by: 'bot', bn, at, k: 't' } };
+    for (const p of Object.keys(room.m)) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = bn; }
+    await dbPatch(env, '/', up);
+    const muted = room.mute || {};
+    const job = (async () => {
+      const quietSet = await quietPhones(env);
+      const targets = Object.keys(room.m).filter((p) => !muted[p] && !quietSet.has(p));
+      if (targets.length) await pushToPhones(env, targets, { title: '업무 알림', body: clip(x.replace(/\n+/g, ' · '), 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid, chat: true }).catch(() => {});
+    })().catch(() => {});
+    if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
+    return { key };
   }
 
   async function sysMsg(env, rid, text) {
@@ -948,5 +973,6 @@ export function makeChat(deps) {
   route.runReminders = runReminders;
   route.runScheduled = runScheduled;
   route.eligible = eligible;
+  route.botPost = botPost;
   return route;
 }

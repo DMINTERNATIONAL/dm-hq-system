@@ -16,6 +16,7 @@
 
 import { sendOne, subId } from './push.js';
 import { makeChat } from './chat.js';
+import { opsText } from './opsmsg.js';
 import { makeMedia, serveMedia, roomTag, signedUrl } from './media.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
@@ -1157,10 +1158,15 @@ export default {
       if (path.startsWith('/relay/') && request.method === 'POST') {
         const b = await request.json().catch(() => ({}));
         if (path === '/relay/notify') {
+          /* 업무 알림 — 앱 '업무 알림' 방(경영팀)에 항상 올리고, 네이버웍스 봇은 켜져 있을 때만 같이 보낸다(옮기는 동안 둘 다) */
+          const type = String(b.type || '').slice(0, 30);
+          const order = b.order && typeof b.order === 'object' ? b.order : null;
+          let app = null;
+          if (type !== 'test') app = await chatRoute.botPost(env, ctx, opsText({ type, order: order || {} })).catch((e) => ({ error: e.message }));
           const cfg = await nwCfg(env);
-          if (!cfg || !cfg.enabled) return json({ ok: true, skipped: true }, 200, origin);
-          const r = await relayCall(env, '', { type: String(b.type || '').slice(0, 30), order: b.order || null });
-          return json(r.body, r.status, origin);
+          if (!cfg || !cfg.enabled) return json({ ok: true, app, works: 'off' }, 200, origin);
+          const r = await relayCall(env, '', { type, order });
+          return json({ ...(r.body || {}), app }, r.status, origin);
         }
         if (path === '/relay/polish') { const r = await relayCall(env, '/ai/polish', { raw: String(b.raw || '').slice(0, 4000), date: String(b.date || '').slice(0, 12) }, { ph: me.ph, nm: me.name, x: '상담 메모', ctx }); return json(r.body, r.status, origin); }
         if (path === '/relay/naesu') {
