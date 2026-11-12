@@ -26,7 +26,7 @@ const isHq = (ph, u) => OWNER_PHONES.includes(String(ph)) || (u && (u.systemGrad
 const isEdu = (u) => u && (u.academyRole === '교육자' || u.role === '스탭장');
 const id36 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const okId = (s) => /^[A-Za-z0-9_-]{1,40}$/.test(String(s || ''));
-const KEY_RE = /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/;
+const KEY_RE = /^(g\/)?[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/;
 const isInt = Number.isInteger;
 
 export const QKINDS = ['short', 'long', 'one', 'many', 'drop', 'file', 'scale', 'rating', 'grid', 'cgrid', 'date', 'time'];

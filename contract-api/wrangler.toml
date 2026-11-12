@@ -19,6 +19,7 @@ mode = "smart"
 
 [vars]
 FIREBASE_URL = "https://dm-orders-4792a-default-rtdb.firebaseio.com"
+GCS_BUCKET = "dm-orders-4792a-chat-seoul"  # 채팅 사진 — 구글 서울 저장소 (gcs.js)
 # Firebase 웹 API 키 — 공개값이다(비밀 아님). 커스텀 토큰을 ID 토큰으로 바꿀 때만 쓴다.
 FIREBASE_WEB_KEY = "AIzaSyB1kisg-779cQZMkcT_s3PsRLmHHBlOwOM"
 # 월 재수집을 GitHub Actions 로 돌린다 (핸드SOS 가 Cloudflare 발신을 막아 직접 못 긁는다)

@@ -228,7 +228,7 @@ export function makeChat(deps) {
     if ((k === 'ack' || k === 'poll') && !(isManagerUser(ph, u) || room.by === ph)) throw new Error('확인 요청 · 투표는 방 만든 사람 · 경영팀 · 관리자만 만들 수 있습니다');
     const x = clip(body.x, 5000).trim();
     /* 첨부: u 화면에 보일 사진(보통 화질 또는 동영상 첫 장면) · t 말풍선용 작은 사진 · o 원본 사진 · v 동영상 · f 파일 — 값은 저장소 키 */
-    const keyOk = (v) => /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
+    const keyOk = (v) => /^(g\/)?[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
     const md = Array.isArray(body.md) ? body.md.slice(0, 30).map((m) => {
       const o = { w: m.w | 0, h: m.h | 0, sz: m.sz | 0 };
       for (const k of ['u', 't', 'o', 'v', 'f']) if (keyOk(m[k])) o[k] = String(m[k]);
@@ -412,10 +412,10 @@ export function makeChat(deps) {
     if (room.t === 'notice' && !isManagerUser(ph, u)) throw new Error('전체 공지방은 경영팀 · 관리자만 쓸 수 있습니다');
     const t = clip(body.t, 60).trim(), x = clip(body.x, 3000).trim();
     if (!t) throw new Error('제목을 입력해 주세요');
-    const keyOk = (v) => /^p\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
+    const keyOk = (v) => /^(g\/)?p\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
     const md = (Array.isArray(body.md) ? body.md : []).slice(0, 5).filter((m) => m && keyOk(m.u)).map((m) => ({ u: String(m.u), w: m.w | 0, h: m.h | 0 }));
     const tag = await deps.roomTag(rid);
-    if (md.some((m) => !m.u.startsWith(`p/${tag}/`))) throw new Error('사진 정보가 올바르지 않습니다');
+    if (md.some((m) => !m.u.startsWith(`p/${tag}/`) && !m.u.startsWith(`g/p/${tag}/`))) throw new Error('사진 정보가 올바르지 않습니다');
     const nid = 'n' + rid36();
     const sent = await send(env, ctx, me, { rid, k: 't', x: `[공지] ${t}${x ? '\n' + clip(x, 300) : ''}` });
     const doc = { rid, t, x, by: ph, bn: nameOf(u), at: nowMs(), key: sent.key };
@@ -843,6 +843,12 @@ export function makeChat(deps) {
           for (const it of srcMd) {
             const o = { w: it.w, h: it.h, sz: it.sz, n: it.n, d: it.d };
             for (const f of ['u', 't', 'o', 'v', 'f']) if (it[f]) {
+              /* 구글 서울 저장소 사진은 버킷 안에서 복사 (gcs.js) */
+              if (it[f].startsWith('g/')) {
+                const nk = it[f].replace(/^g\/([po])\/[^/]+\//, `g/$1/${tag}/`).replace(/(\.[A-Za-z0-9]+)$/, '_f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) + '$1');
+                if (await deps.gcsCopy(env, it[f], nk)) o[f] = nk;
+                continue;
+              }
               const src = await env.CHAT_MEDIA.get(it[f]);
               if (!src) continue;
               const nk = it[f].replace(/^([po])\/[^/]+\//, `$1/${tag}/`).replace(/(\.[A-Za-z0-9]+)$/, '_f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) + '$1');

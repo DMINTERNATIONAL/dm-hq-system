@@ -11524,8 +11524,17 @@ function cmPut(path,type,body){var n=0;
     return ctFetch(path,{method:'PUT',headers:{'Content-Type':type},body:body,signal:ac?ac.signal:undefined}).then(function(r){clearTimeout(t);if(!r||!r.ok){var e=new Error((r&&r.error)||'올리지 못했습니다');if(r&&/허가|너무 큽|로그인|번호/.test(r.error||''))e.stop=1;throw e}return r},function(e){clearTimeout(t);throw e})
       .catch(function(e){if(e.stop||n>=4)throw (e&&e.name==='AbortError'?new Error('인터넷이 너무 느려서 올리지 못했어요'):e.message==='Failed to fetch'||e.message==='Load failed'?new Error('인터넷 연결이 끊겨 올리지 못했어요'):e);return new Promise(function(res){setTimeout(res,n*2000)}).then(go)})}
   return go()}
+/* 사진은 구글 서울 저장소에 바로 올린다(g:1 — 서버가 서명한 PUT 주소). 미국(Cloudflare LAX)을 안 거쳐서 빠르다(11/12) */
+function cmGcsPut(st,blob,onProg){var n=0;
+  function go(){n++;return new Promise(function(res,rej){var x=new XMLHttpRequest();x.open('PUT',st.url);Object.keys(st.h||{}).forEach(function(k){x.setRequestHeader(k,st.h[k])});x.timeout=Math.max(60000,blob.size/40);
+    if(onProg&&x.upload)x.upload.onprogress=function(e){if(e.lengthComputable)onProg(e.loaded/e.total)};
+    x.onload=function(){if(x.status>=200&&x.status<300){if(onProg)onProg(1);res(st.key)}else{var e=new Error('올리지 못했습니다 ('+x.status+')');if(x.status===400||x.status===403)e.stop=1;rej(e)}};
+    x.onerror=function(){rej(new Error('인터넷 연결이 끊겨 올리지 못했어요'))};x.ontimeout=function(){rej(new Error('인터넷이 너무 느려서 올리지 못했어요'))};x.send(blob)})
+    .catch(function(e){if(e.stop||n>=4)throw e;return new Promise(function(r){setTimeout(r,n*2000)}).then(go)})}
+  return go()}
 function cmUpload(rid,blob,kind,name,onProg){var type=blob.type||'application/octet-stream';
-  return cmApi('up/start',{rid:rid,kind:kind,name:name||'',type:type,size:blob.size}).then(function(st){
+  return cmApi('up/start',{rid:rid,kind:kind,name:name||'',type:type,size:blob.size,g:1}).then(function(st){
+    if(st.mode==='gcs')return cmGcsPut(st,blob,onProg);
     if(st.mode==='single')return cmPut('/chat/up/put?key='+encodeURIComponent(st.key)+'&tk='+st.tk,type,blob).then(function(){if(onProg)onProg(1);return st.key});
     var ps=st.partSize,n=Math.ceil(blob.size/ps),parts=[],sent=0,nx=0,dead=0;
     function worker(){if(nx>=n||dead)return Promise.resolve();var i=++nx,c=blob.slice((i-1)*ps,i*ps);
@@ -12529,7 +12538,7 @@ function svInputHtml(q,a,ro,qr){var id=q.id,dis=ro?' disabled':'',rs=SV.rs,ord=(
   if(q.k==='grid'||q.k==='cgrid'){var A=Array.isArray(a)?a:[];return '<div class="sv-gwrap"><table class="sv-grid"><tr><th></th>'+ord.map(function(j){return '<th>'+cmEsc(q.o[j])+'</th>'}).join('')+'</tr>'+(q.r||[]).map(function(rr,ri){return '<tr><td>'+cmEsc(rr)+'</td>'+ord.map(function(j){var on=q.k==='grid'?A[ri]===j:Array.isArray(A[ri])&&A[ri].indexOf(j)>=0;return '<td><span class="sv-gc'+(on?' on':'')+'"'+set('svGridSet(\''+id+'\','+ri+','+j+')')+'><span class="mk '+(q.k==='grid'?'one':'many')+'"></span></span></td>'}).join('')+'</tr>'}).join('')+'</table></div>'}
   if(q.k==='date')return '<input type="date" class="sv-in sv-dt" value="'+cmEsc(a||'')+'"'+dis+' onchange="svSetA(\''+id+'\',this.value||null)">';
   if(q.k==='time')return '<input type="time" class="sv-in sv-dt" value="'+cmEsc(a||'')+'"'+dis+' onchange="svSetA(\''+id+'\',this.value||null)">';
-  if(q.k==='file'){var F=Array.isArray(a)?a:[];return '<div class="sv-files">'+F.map(function(f,i){var im=/^p\//.test(f.k);return '<div class="sv-file">'+(im?'<img data-mk="'+cmEsc(f.k)+'">':'<span class="fi">'+svIc('<path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/>',18)+'</span>')+'<a onclick="svFileOpen(\''+cmEsc(f.k)+'\')">'+cmEsc(f.n||'파일')+'</a>'+(ro?'':'<button class="cv-ib sm" onclick="svFileDel(\''+id+'\','+i+')" aria-label="빼기">'+svIc(SVI.x,16)+'</button>')+'</div>'}).join('')+(ro||F.length>=(q.mx||1)?'':'<button class="cv-btn" onclick="svFileAdd(\''+id+'\')">'+svIc(SVI.up,16)+' '+(q.img?'사진':'파일')+' 추가</button><span class="sv-note">최대 '+(q.mx||1)+'개</span>')+'</div>'}
+  if(q.k==='file'){var F=Array.isArray(a)?a:[];return '<div class="sv-files">'+F.map(function(f,i){var im=/^(g\/)?p\//.test(f.k);return '<div class="sv-file">'+(im?'<img data-mk="'+cmEsc(f.k)+'">':'<span class="fi">'+svIc('<path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/>',18)+'</span>')+'<a onclick="svFileOpen(\''+cmEsc(f.k)+'\')">'+cmEsc(f.n||'파일')+'</a>'+(ro?'':'<button class="cv-ib sm" onclick="svFileDel(\''+id+'\','+i+')" aria-label="빼기">'+svIc(SVI.x,16)+'</button>')+'</div>'}).join('')+(ro||F.length>=(q.mx||1)?'':'<button class="cv-btn" onclick="svFileAdd(\''+id+'\')">'+svIc(SVI.up,16)+' '+(q.img?'사진':'파일')+' 추가</button><span class="sv-note">최대 '+(q.mx||1)+'개</span>')+'</div>'}
   return ''}
 function svSetA(id,v,redraw){var rs=SV.rs;if(v===null||v===''||v==null)delete rs.a[id];else rs.a[id]=v;if(rs.err[id]){delete rs.err[id];redraw=1}svLsSave();if(redraw)svFillKeep()}
 function svFillKeep(){var y=window.scrollY;svFillDraw();window.scrollTo(0,y)}
@@ -12650,7 +12659,7 @@ function svSummaryHtml(sv,rows,pub){var h='';(sv.qs||[]).forEach(function(q){
       h+='</div>'+(q.ll||q.hl?'<div class="sv-scl"><span>'+cmEsc(q.ll||'')+'</span><span>'+cmEsc(q.hl||'')+'</span></div>':'')}
     else if(q.k==='grid'||q.k==='cgrid'){var g=(q.r||[]).map(function(){return q.o.map(function(){return 0})}),gm=1;vals.forEach(function(v){(v||[]).forEach(function(x,ri){if(!g[ri])return;(Array.isArray(x)?x:[x]).forEach(function(j){if(j!=null&&g[ri][j]!=null){g[ri][j]++;gm=Math.max(gm,g[ri][j])}})})});
       h+='<div class="sv-gwrap"><table class="sv-grid sum"><tr><th></th>'+q.o.map(function(o){return '<th>'+cmEsc(o)+'</th>'}).join('')+'</tr>'+(q.r||[]).map(function(r,ri){return '<tr><td>'+cmEsc(r)+'</td>'+q.o.map(function(o,j){var x=g[ri][j];return '<td title="'+cmEsc(r)+' · '+cmEsc(o)+': '+x+'명"><span class="hc" style="--a:'+(x/gm).toFixed(2)+(x/gm>.55?';color:#fff':'')+'">'+x+'</span></td>'}).join('')+'</tr>'}).join('')+'</table></div>'}
-    else if(q.k==='file'){var fs=[];vals.forEach(function(v){(v||[]).forEach(function(f){fs.push(f)})});h+='<div class="sv-files">'+fs.slice(0,60).map(function(f){return '<div class="sv-file">'+(/^p\//.test(f.k)?'<img data-mk="'+cmEsc(f.k)+'">':'')+'<a onclick="svFileOpen(\''+cmEsc(f.k)+'\')">'+cmEsc(f.n||'파일')+'</a></div>'}).join('')+'</div>'}
+    else if(q.k==='file'){var fs=[];vals.forEach(function(v){(v||[]).forEach(function(f){fs.push(f)})});h+='<div class="sv-files">'+fs.slice(0,60).map(function(f){return '<div class="sv-file">'+(/^(g\/)?p\//.test(f.k)?'<img data-mk="'+cmEsc(f.k)+'">':'')+'<a onclick="svFileOpen(\''+cmEsc(f.k)+'\')">'+cmEsc(f.n||'파일')+'</a></div>'}).join('')+'</div>'}
     else h+=svTextList(svTally(vals));
     h+='</div>'});return h}
 function svTextList(t){var more=t.length>40;return '<div class="sv-tl">'+t.slice(0,40).map(function(x){return '<div><span>'+svLink(x[0])+'</span>'+(x[1]>1?'<b>'+x[1]+'</b>':'')+'</div>'}).join('')+'</div>'+(more?'<div class="sv-note">외 '+(t.length-40)+'개 — 엑셀로 받아 모두 볼 수 있어요</div>':'')}

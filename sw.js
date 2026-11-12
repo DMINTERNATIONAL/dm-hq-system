@@ -9,6 +9,7 @@ const APP_KEY = new URL('./index.html', self.registration.scope).href;
 const MEDIA_CACHE = 'dm-media';
 const MEDIA_HOST = 'dm-contract-api.swavey2803.workers.dev';
 const MEDIA_MAX = 1000;
+const GCS_HOST = 'storage.googleapis.com'; // 11/12부터 새 사진은 구글 서울 저장소 (g/ 경로)
 let mediaTrim = 0;
 async function mediaFetch(req, url) {
   const key = url.origin + url.pathname;
@@ -95,7 +96,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 채팅 사진(서명 주소) — 기기 저장본 먼저
-  if (url.hostname === MEDIA_HOST && url.pathname.startsWith('/m/') && !event.request.headers.get('range')) {
+  if (((url.hostname === MEDIA_HOST && url.pathname.startsWith('/m/')) || (url.hostname === GCS_HOST && /^\/[^/]+\/g\/[po]\//.test(url.pathname))) && !event.request.headers.get('range')) {
     event.respondWith(mediaFetch(event.request, url).catch(() => fetch(event.request)));
     return;
   }

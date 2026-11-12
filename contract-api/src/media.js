@@ -10,6 +10,8 @@
  * 진행률도 촘촘해진다. 조각은 마지막만 빼고 크기가 같아야 한다(R2 규칙). Worker 한 번에 받는 한도는 100MB.
  */
 
+import { gcsGetUrl, gcsPutUrl } from './gcs.js';
+
 const te = new TextEncoder();
 const LIMIT = { p: 12 * 1024 * 1024, o: 20 * 1024 * 1024, v: 300 * 1024 * 1024, f: 50 * 1024 * 1024 };
 const PART = 10 * 1024 * 1024;
@@ -40,6 +42,11 @@ const extOf = (name, type) => {
   return 'bin';
 };
 
+/* 받기 주소 — g/ 로 시작하면 구글 서울 저장소(gcs.js), 아니면 R2 */
+export async function mediaUrl(env, base, key) {
+  if (key.startsWith('g/') && env.GCS_BUCKET) return gcsGetUrl(env, key);
+  return signedUrl(env, base, key);
+}
 /* 서명 주소 */
 export async function signedUrl(env, base, key) {
   /* 만료 시각을 하루 단위로 맞춘다 — 하루 동안 같은 주소라 기기에 저장된 사진을 그대로 다시 쓴다(11/12 1시간 → 하루, '사진이 너무 느림').
@@ -99,8 +106,14 @@ export function makeMedia(deps) {
         if (size > LIMIT[kind]) throw new Error(`너무 큽니다 (최대 ${Math.round(LIMIT[kind] / 1048576)}MB)`);
         await mustMember(env, me, rid);
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-        const key = `${kind === 'p' ? 'p' : 'o'}/${await roomTag(rid)}/${id}.${extOf(b.name, b.type)}`;
         const type = String(b.type || 'application/octet-stream').slice(0, 80);
+        /* 사진(보통 · 작은 · 원본)은 구글 서울 저장소로 앱이 바로 올린다 — 새 앱(b.g)만. 동영상 · 파일은 R2 */
+        if ((kind === 'p' || kind === 'o') && b.g && env.GCS_BUCKET && /^image\//.test(type)) {
+          const gkey = `g/${kind}/${await roomTag(rid)}/${id}.${extOf(b.name, b.type)}`;
+          const put = await gcsPutUrl(env, gkey, type, LIMIT[kind]);
+          return json({ ok: true, key: gkey, mode: 'gcs', url: put.url, h: put.h }, 200, origin);
+        }
+        const key = `${kind === 'p' ? 'p' : 'o'}/${await roomTag(rid)}/${id}.${extOf(b.name, b.type)}`;
         if (size <= PART) return json({ ok: true, key, mode: 'single', tk: await ticket(env, key, '') }, 200, origin);
         const up = await env.CHAT_MEDIA.createMultipartUpload(key, { httpMetadata: { contentType: type } });
         return json({ ok: true, key, mode: 'multi', uid: up.uploadId, partSize: PART, tk: await ticket(env, key, up.uploadId) }, 200, origin);
@@ -134,8 +147,9 @@ export function makeMedia(deps) {
         const tag = await roomTag(rid);
         const base = url.origin;
         const out = {};
-        const ks = (b.keys || []).slice(0, 100).map(String).filter((key) => key.startsWith(`p/${tag}/`) || key.startsWith(`o/${tag}/`));
-        await Promise.all(ks.map(async (key) => { out[key] = await signedUrl(env, base, key); }));
+        const mine = (key) => key.startsWith(`p/${tag}/`) || key.startsWith(`o/${tag}/`) || key.startsWith(`g/p/${tag}/`) || key.startsWith(`g/o/${tag}/`);
+        const ks = (b.keys || []).slice(0, 100).map(String).filter(mine);
+        await Promise.all(ks.map(async (key) => { out[key] = await mediaUrl(env, base, key); }));
         return json({ ok: true, urls: out, ttl: URL_TTL }, 200, origin);
       }
       return json({ ok: false, error: '없는 기능입니다' }, 404, origin);

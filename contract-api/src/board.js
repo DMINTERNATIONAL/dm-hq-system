@@ -74,7 +74,7 @@ export function makeBoard(deps) {
     if (!canWrite(b, ph, u)) throw new Error(b.w === 'mgr' ? '이 게시판은 경영팀 · 관리자만 쓸 수 있습니다' : '이 게시판에 글을 쓸 수 없습니다');
     const t = clip(body.t, 100).trim(), x = clip(body.x, 20000).trim();
     if (!t) throw new Error('제목을 입력해 주세요');
-    const keyOk = (v) => /^[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
+    const keyOk = (v) => /^(g\/)?[po]\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(String(v || ''));
     const md = Array.isArray(body.md) ? body.md.slice(0, 30).map((m) => { const o = { w: m.w | 0, h: m.h | 0, sz: m.sz | 0 }; for (const k of ['u', 'o', 'v', 'f']) if (keyOk(m[k])) o[k] = String(m[k]); if (m.n) o.n = clip(m.n, 120); if (m.d) o.d = Math.round(+m.d || 0); return o; }).filter((m) => m.u || m.v || m.f) : null;
     const mgr = isMgr(ph, u);
     let must = body.must && mgr ? { due: Number(body.must.due) || 0 } : null;

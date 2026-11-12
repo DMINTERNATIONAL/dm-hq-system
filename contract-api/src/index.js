@@ -18,7 +18,8 @@ import { sendOne, subId } from './push.js';
 import { makeChat } from './chat.js';
 import { opsText } from './opsmsg.js';
 import { makeOpCost } from './opcost.js';
-import { makeMedia, serveMedia, roomTag, signedUrl } from './media.js';
+import { makeMedia, serveMedia, roomTag, mediaUrl } from './media.js';
+import { gcsCopy, gcsSetup } from './gcs.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
@@ -99,6 +100,7 @@ async function accessToken(env) {
 
 /* 다른 구글 API(모니터링 등)용 토큰 — 범위별로 따로 받아 둔다 (opcost.js) */
 const _gscope = {};
+let _gcsChk = 0;
 async function gToken(env, scope) {
   const c = _gscope[scope];
   if (c && c.exp > Date.now() + 60000) return c.v;
@@ -702,7 +704,7 @@ function cleanSignup(p, phone) {
 }
 
 /* ═══ 라우팅 ═══ */
-const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
+const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl: mediaUrl, gcsCopy: (env, s, d) => gcsCopy(env, gToken, s, d), relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, dbCas, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
@@ -799,6 +801,8 @@ export default {
     /* 검색 노출 조사 — 일요일 밤 10시(한국) 한 번 + 경영팀 '지금 조사하기' 요청. 조사는 2~6분 걸린다 */
     ctx.waitUntil(seoRoute.tick(env).then((r) => { if (r) console.log('seo', JSON.stringify(r)); }).catch((e) => console.log('seo', e && e.message)));
     /* 운영 비용 수집 — 매일 새벽 4시 40분(한국) 한 번 (opcost.js) */
+    /* 구글 서울 사진 저장소 설정(CORS · 원본 90일) 확인 — 서버가 켜질 때마다 한 번, 그 뒤 6시간마다 (gcs.js) */
+    if (env.GCS_BUCKET && Date.now() - _gcsChk > 6 * 3600e3) { _gcsChk = Date.now(); ctx.waitUntil(gcsSetup(env, gToken).then((r) => { console.log('gcs', JSON.stringify(r)); if (!r.ok) _gcsChk = Date.now() - 5.5 * 3600e3; return dbPut(env, '/authSecrets/__gcs/setup', { ...r, at: Date.now() }); }).catch((e) => console.log('gcs', e && e.message))); }
     ctx.waitUntil(opCostRoute.tick(env).then((r) => { if (r) console.log('opcost', JSON.stringify(r)); }).catch((e) => console.log('opcost', e && e.message)));
     /* 틱톡 회사 계정 숫자 — 매일 새벽 5시(한국) 한 번 (sns.js) */
     ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', Object.keys(r).map((k) => k + ':' + (!r[k] ? 'none' : r[k].err ? 'err' : 'ok')).join(' ')); }).catch((e) => console.log('tt', e && e.message)));
