@@ -107,9 +107,15 @@ export function audience(cal, ev, users, cfg) {
 }
 
 export function makeCalendar(deps) {
-  const { dbGet, dbPut, dbDelete, pushToPhones } = deps;
+  const { dbGet, dbPut, dbDelete, dbCas, pushToPhones } = deps;
 
-  /* 1분마다: 알림 시각이 된 일정을 보내고, 반복 일정은 다음 알림을 넣는다 */
+  /* 1분마다: 알림 시각이 된 일정을 보내고, 반복 일정은 다음 알림을 넣는다.
+     (11/12) 예전에는 큐를 먼저 지우고 일정을 읽어 다음 반복을 넣었다 — 그 사이 하나라도 실패하면 반복 일정 알림이 영영 끊겼고,
+     지우는 순간 앱이 새로 넣은 알림 시각까지 같이 지워졌다. 이제는
+       1) 일정을 읽는다(실패하면 큐는 그대로 — 다음 분에 다시)
+       2) 큐 칸을 '읽었을 때와 같으면'(ETag) 다음 알림으로 바꾼다(없으면 지운다). 그새 앱이 새로 넣었으면 건드리지 않는다.
+          겹쳐 돈 다른 실행이 먼저 바꿨어도 여기서 걸러져서 두 번 보내지 않는다
+       3) 바꾸기에 성공한 것만 보낸다. 한 일정에서 오류가 나도 다음 일정은 계속한다 */
   async function runReminders(env) {
     const q = (await dbGet(env, '/calendar/remq').catch(() => null)) || {};
     const now = Date.now();
@@ -117,26 +123,36 @@ export function makeCalendar(deps) {
     if (!due.length) return 0;
     const users = (await dbGet(env, '/users').catch(() => null)) || {};
     const cfg = (await dbGet(env, '/calendar/cfg').catch(() => null)) || {};
+    let sent = 0;
     for (const [key, v] of due) {
-      await dbDelete(env, '/calendar/remq/' + key);          // 먼저 지운다 — 타이머가 겹쳐도 두 번 보내지 않게
-      const ev = await dbGet(env, '/calendar/ev/' + v.cal + '/' + v.id).catch(() => null);
-      if (!ev) continue;
-      /* 알림 시각이 바뀐 일정(앱이 다시 넣은 것)과 엇갈렸으면 이번 것은 버린다 */
-      const cur = nextReminder(ev, +v.at - 60 * 1000);
-      if (!cur || Math.abs(cur.at - +v.at) > 60 * 1000) continue;
-      if (now - +v.at < 30 * 60 * 1000) {                    // 서버가 오래 멈췄다 깨면 30분 넘게 지난 알림은 보내지 않는다
-        const to = audience(v.cal, ev, users, cfg);
-        await pushToPhones(env, to, {
-          title: '일정 · ' + clip(ev.t, 40),
-          body: whenText(ev, cur.date) + (ev.loc ? ' · ' + clip(ev.loc, 30) : ''),
-          url: './#cal/' + cur.date,
-          tag: 'cal-' + v.id,
-        }).catch(() => {});
+      try {
+        const at = +v.at;
+        if (!v.cal || !v.id) { await dbCas(env, '/calendar/remq/' + key, (c) => (c && +c.at === at ? null : undefined)); continue; }
+        const ev = await dbGet(env, '/calendar/ev/' + v.cal + '/' + v.id);   // 실패하면 throw → 큐는 그대로
+        /* 알림 시각이 바뀐 일정(앱이 다시 넣은 것)과 엇갈렸으면 이번 것은 보내지 않고, 지금부터의 다음 알림으로 맞춘다 */
+        const cur = ev ? nextReminder(ev, at - 60 * 1000) : null;
+        const fire = !!cur && Math.abs(cur.at - at) <= 60 * 1000;
+        const nx = ev ? nextReminder(ev, fire ? at + 1000 : now) : null;
+        const took = await dbCas(env, '/calendar/remq/' + key, (c) => {
+          if (!c || +c.at !== at) return undefined;          // 그새 앱이 새 시각을 넣었거나 다른 실행이 이미 처리했다
+          return nx ? { ...c, at: nx.at, cal: v.cal, id: v.id } : null;
+        });
+        if (!took || !fire) continue;
+        if (now - at < 30 * 60 * 1000) {                      // 서버가 오래 멈췄다 깨면 30분 넘게 지난 알림은 보내지 않는다
+          const to = audience(v.cal, ev, users, cfg);
+          await pushToPhones(env, to, {
+            title: '일정 · ' + clip(ev.t, 40),
+            body: whenText(ev, cur.date) + (ev.loc ? ' · ' + clip(ev.loc, 30) : ''),
+            url: './#cal/' + cur.date,
+            tag: 'cal-' + v.id,
+          }).catch((e) => console.log('cal push', key, e && e.message));
+          sent++;
+        }
+      } catch (e) {
+        console.log('cal reminder', key, e && e.message);
       }
-      const nx = nextReminder(ev, +v.at + 1000);
-      if (nx) await dbPut(env, '/calendar/remq/' + key, { at: nx.at, cal: v.cal, id: v.id });
     }
-    return due.length;
+    return sent;
   }
 
   /* 초대 알림 — 앱이 일정을 저장한 뒤 새로 넣은 참석자에게 보낸다. 일정에 실제로 들어 있는 참석자에게만. */

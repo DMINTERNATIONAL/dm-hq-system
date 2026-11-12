@@ -238,15 +238,21 @@ export function makeIgReport(deps) {
     const lock = wk + '/' + id;
     if (making.has(lock)) return making.get(lock);
     const job = (async () => {
-      /* 비용 안전장치 — 한 주에 회사 전체 WEEK_CAP 번까지 (평소엔 계정 수 + 전체 1 = 30여 번) */
+      /* 비용 안전장치 — 한 주에 회사 전체 WEEK_CAP 번까지 (평소엔 계정 수 + 전체 1 = 30여 번).
+         (11/12) 만들어진 것만 센다 — 예전에는 부르기 전에 세서 AI 가 실패한 것까지 한도를 깎았다.
+         대신 실패가 끝없이 반복되지 않게 실패는 따로(_fail) 같은 한도까지만 둔다 */
       const cnt = (await rGet(env, rKey(wk, '_count')).catch(() => null)) || { n: 0 };
       if (cnt.n >= WEEK_CAP) return { ok: false, error: `이번 주 AI 리포트 한도(${WEEK_CAP}번)를 다 썼어요. 다음 주 월요일에 다시 열려요` };
+      const fails = (await rGet(env, rKey(wk, '_fail')).catch(() => null)) || { n: 0 };
+      if (fails.n >= WEEK_CAP) return { ok: false, error: '이번 주에는 AI 리포트 오류가 너무 많아 잠시 멈췄어요. 경영팀에 알려 주세요' };
       const built = await build();
       const facts = built && typeof built === 'object' ? built.facts : built;
       if (!facts) return { ok: false, error: '아직 수집된 인스타 데이터가 없어요' };
-      await rPut(env, rKey(wk, '_count'), { n: cnt.n + 1 });
-      const r = await relayCall(env, '/ai/ig-report', { mode: id === '_team' ? 'team' : 'person', facts }, who);
-      if (!r.body || !r.body.ok) return { ok: false, error: (r.body && r.body.error) || 'AI 리포트를 만들지 못했어요' };
+      const r = await relayCall(env, '/ai/ig-report', { mode: id === '_team' ? 'team' : 'person', facts }, who).catch((e) => ({ body: { ok: false, error: e && e.message } }));
+      /* 세기 직전에 다시 읽는다 — AI 를 기다리는 사이 다른 사람 리포트가 센 것을 덮지 않게 */
+      const bump = async (k) => { const c = (await rGet(env, rKey(wk, k)).catch(() => null)) || { n: 0 }; await rPut(env, rKey(wk, k), { n: (+c.n || 0) + 1 }).catch(() => {}); };
+      if (!r.body || !r.body.ok) { await bump('_fail'); return { ok: false, error: (r.body && r.body.error) || 'AI 리포트를 만들지 못했어요' }; }
+      await bump('_count');
       const report = r.body.report || {};
       if (Array.isArray(report.hashtags)) {
         const allow = (built && built.allow) || new Set();

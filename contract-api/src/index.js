@@ -21,7 +21,7 @@ import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
 import { makeIgReport } from './igreport.js';
-import { makeAiUsage } from './aiusage.js';
+import { makeAiUsage, budgetFor, monthKey } from './aiusage.js';
 import { makeSeo } from './seo.js';
 import { makeSns } from './sns.js';
 import { makeMembers } from './members.js';
@@ -154,6 +154,69 @@ async function dbPush(env, path, value) {
   });
   if (!r.ok) throw new Error('DB 추가 실패 ' + r.status);
   return r.json();     // { name: '-Oxxxx' }
+}
+
+/* ═══ 횟수 제한 (11/12) ═══
+   로그인 없는 창구(상담 접수 · AI 추천 · 가입 · 로그인)는 누구나 부를 수 있다. 같은 곳에서 너무 많이 오면 막는다.
+   members.js 의 allow 와 같은 방식 — 잠긴 /authSecrets/__rl/{키} = { t 창 시작, n 횟수 }, ETag 로 센다.
+   DB 가 잠깐 안 되면 막지 않는다(손님 · 직원이 못 쓰는 쪽이 더 나쁘다). IP 는 원문 대신 해시 앞 24자로만 남긴다. */
+const RL_BASE = '/authSecrets/__rl/';
+async function sha256hex(s) {
+  const d = await crypto.subtle.digest('SHA-256', enc.encode(String(s)));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const ipOf = (request) => String(request.headers.get('CF-Connecting-IP') || '').slice(0, 64);
+const ipKey = async (ip) => (await sha256hex('ip:' + ip)).slice(0, 24);
+/* 한 번 센다. 창 안에서 max 번을 넘으면 false (그때는 세지 않는다) */
+async function rlHit(env, key, max, win) {
+  const now = Date.now();
+  let ok = true;
+  for (let i = 0; i < 3; i++) {
+    ok = true;
+    const done = await dbCas(env, RL_BASE + key, (cur) => {
+      if (!cur || now - (+cur.t || 0) > win) return { t: now, n: 1 };
+      if ((+cur.n || 0) >= max) { ok = false; return undefined; }
+      return { t: cur.t, n: (+cur.n || 0) + 1 };
+    }).catch(() => true);
+    if (done || !ok) break;     // 쓰기 성공 또는 한도 초과. false 이면서 ok 면 동시에 누가 써서(412) 다시 센다
+  }
+  return ok;
+}
+/* 세지 않고 지금 막혀 있는지만 본다 (로그인 실패 수처럼 '틀렸을 때만' 세는 것) */
+async function rlBlocked(env, key, max, win) {
+  const cur = await dbGet(env, RL_BASE + key).catch(() => null);
+  return !!(cur && Date.now() - (+cur.t || 0) <= win && (+cur.n || 0) >= max);
+}
+
+/* ═══ 로그인 비밀번호 대입 막기 (11/12) ═══
+   계정(전화번호 · 본사 관리자 입구)마다 10분 안에 5번 틀리면 10분 잠근다. 맞히면 처음부터.
+   같은 곳(IP)에서는 여러 계정을 합쳐 10분에 30번 틀리면 잠깐 막는다(매장 와이파이는 여럿이 같이 쓰므로 넉넉히).
+   기록: 잠긴 /authSecrets/__lf/{전화번호 | admin} = { t 첫 실패, n 횟수, lockTo 잠금 끝 } */
+const LF_BASE = '/authSecrets/__lf/';
+const LF_MAX = 5, LF_WIN = 10 * 60 * 1000, LF_LOCK = 10 * 60 * 1000;
+const IPF_MAX = 30, IPF_WIN = 10 * 60 * 1000;
+const LF_MSG = '비밀번호를 5번 틀려 10분 동안 로그인할 수 없습니다. 잠시 뒤에 다시 시도해주세요';
+const IPF_MSG = '로그인 시도가 너무 많습니다. 10분 뒤에 다시 시도해주세요';
+async function lfGet(env, who) {
+  return dbGet(env, LF_BASE + who).catch(() => null);
+}
+const lfLocked = (rec) => !!(rec && +rec.lockTo > Date.now());
+/* 틀린 횟수 하나 더. 이번에 잠기면 true */
+async function lfFail(env, who) {
+  const now = Date.now();
+  let locked = false;
+  for (let i = 0; i < 3; i++) {
+    locked = false;
+    const done = await dbCas(env, LF_BASE + who, (cur) => {
+      if (cur && +cur.lockTo > now) { locked = true; return undefined; }
+      const fresh = !cur || now - (+cur.t || 0) > LF_WIN;
+      const n = (fresh ? 0 : +cur.n || 0) + 1;
+      if (n >= LF_MAX) { locked = true; return { t: now, n: 0, lockTo: now + LF_LOCK }; }
+      return { t: fresh ? now : +cur.t, n };
+    }).catch(() => true);
+    if (done || locked) break;
+  }
+  return locked;
 }
 
 /* ═══ 비밀번호 ═══
@@ -336,6 +399,19 @@ async function meterAi(env, path, body, who) {
   const job = aiUsageRoute.log(env, path, ai, who).catch(() => {});
   if (who && who.ctx) who.ctx.waitUntil(job); else await job;
 }
+/* 손님 AI 추천만 — 이번 달 AI 비용이 예산(aiusage.js, 경영팀이 정한 값)을 넘었으면 true.
+   직원이 쓰는 AI 는 예전처럼 알림만 하고 막지 않는다. 읽기가 안 되면 막지 않는다. */
+async function recoOverBudget(env) {
+  const ym = monthKey(Date.now());
+  const [cfg, sum] = await Promise.all([
+    dbGet(env, '/authSecrets/__ai/cfg').catch(() => null),
+    dbGet(env, '/authSecrets/__ai/sum/' + ym).catch(() => null),
+  ]);
+  const budget = budgetFor(cfg || {}, ym);
+  if (!budget || !sum) return false;
+  const rate = cfg && +cfg.krw > 0 ? +cfg.krw : 1400;
+  return (+sum.usd || 0) * rate >= budget;
+}
 
 /* ═══ 알림 보내기 ═══
    전화번호 목록의 모든 기기로 보낸다. 폰에서 구독이 사라진 것(404·410)은 지운다.
@@ -352,8 +428,12 @@ async function pushToPhones(env, phones, payload, opts = {}) {
   const now = Date.now();
   let skipped = 0;
   const aliveAll = opts.chat ? ((await dbGet(env, '/pushAlive').catch(() => null)) || {}) : {};
-  for (const ph of [...new Set(phones.map(String))]) {
-    const m = await dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null);
+  const uniq = [...new Set(phones.map(String))];
+  /* 받는 사람이 많으면(전체 공지 · 회사 캘린더 알림 등) 사람마다 읽지 않고 /pushSubs 를 한 번에 읽는다.
+     사람마다 읽으면 외부 요청이 사람 수만큼 늘어 무료 한도(요청 하나에 50개)에 걸린다(gcal.js 참고). 몇 명이면 따로 읽는 게 가볍다 */
+  const allSubs = uniq.length > 4 ? ((await dbGet(env, '/pushSubs').catch(() => null)) || {}) : null;
+  for (const ph of uniq) {
+    const m = allSubs ? allSubs[ph] : await dbGet(env, '/pushSubs/' + encodeURIComponent(ph)).catch(() => null);
     const alive = aliveAll[ph] || null;
     /* 맥 · PC 앱을 쓰는 중(30초 안에 /pushAlive/{폰}/pc — 컴퓨터를 3분 안에 만졌을 때만 남긴다)이면 그 사람 휴대폰으로는 채팅 알림을 보내지 않는다(카톡처럼, 10/28) */
     const pcOn = !!(alive && +alive.pc > now - 30000);
@@ -386,6 +466,56 @@ async function resolveRole(env, phone, user) {
   const explicit = await dbGet(env, '/contractRoles/' + phone).catch(() => null);
   if (explicit && explicit.role) return { role: explicit.role, branches: explicit.branches || [] };
   return { role: 'staff', branches: [] };
+}
+
+/* ═══ 발행 다시 보내기 막기 (11/12) ═══
+   네트워크가 끊겨 답을 못 받은 앱이 다시 보내면 계약서 · 명세서가 두 장(번호 둘) 나갔다.
+   앱이 발행 버튼 한 번 누를 때마다 rid(무작위 문자열)를 붙여 보내면, 같은 사람이 24시간 안에 같은 rid 로 다시 보낼 때
+   새로 발행하지 않고 처음 것을 돌려준다(replay: true). rid 는 선택 — 없으면 예전처럼 매번 발행한다.
+   잠긴 /authSecrets/__rid/{rid} = { st 'pending'|'done', at 받은 시각, by 발행한 사람 폰, kind, id, number, stripped? }
+   문서 내용은 여기 다시 담지 않는다 — 돌려줄 때 /contracts · /statements 의 그 문서를 읽는다(스냅샷은 바뀌지 않는다). */
+const RID_BASE = '/authSecrets/__rid/';
+const RID_TTL = 24 * 3600 * 1000, RID_PENDING = 2 * 60 * 1000;
+/* 없으면 '', 형식이 틀리면 false */
+function ridOf(body) {
+  if (body.rid === undefined || body.rid === null || body.rid === '') return '';
+  return typeof body.rid === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(body.rid) ? body.rid : false;
+}
+/* { state: 'new' } 이번에 발행 · 'done' 이미 발행됨(rec) · 'busy' 같은 rid 가 지금 처리 중 · 'other' 다른 사람 · 종류의 rid */
+async function ridClaim(env, rid, kind, by) {
+  const now = Date.now();
+  let out = { state: 'new' };
+  for (let i = 0; i < 3; i++) {
+    out = { state: 'new' };
+    const took = await dbCas(env, RID_BASE + rid, (cur) => {
+      if (cur && now - (+cur.at || 0) < RID_TTL) {
+        if (cur.by !== by || cur.kind !== kind) { out = { state: 'other' }; return undefined; }
+        if (cur.st === 'done') { out = { state: 'done', rec: cur }; return undefined; }
+        /* 처리 중 — 2분 넘게 안 끝났으면 그 요청은 죽은 것으로 보고 다시 받는다 */
+        if (now - (+cur.at || 0) < RID_PENDING) { out = { state: 'busy' }; return undefined; }
+      }
+      return { st: 'pending', at: now, by, kind };
+    });
+    if (took || out.state !== 'new') return out;
+  }
+  return { state: 'busy' };
+}
+async function ridDone(env, rid, kind, by, res) {
+  await dbPut(env, RID_BASE + rid, { st: 'done', at: Date.now(), by, kind, ...res }).catch(() => {});
+}
+async function ridRelease(env, rid) {
+  await dbDelete(env, RID_BASE + rid).catch(() => {});
+}
+
+/* 계약 모듈 창구 — 역할을 토큰이 아니라 지금 DB 값으로 판정하는 곳 */
+const CONTRACT_PATH = /^\/(?:branch\/update|auditlogs|counters(?:\/|$)|contracts(?:\/|$)|roles$|statements(?:\/|$)|collect\/)/;
+/* 지금 역할 — 퇴사했거나 계정이 없으면 null. 로그인 때와 같은 resolveRole 을 쓴다 */
+async function liveRole(env, me) {
+  const ph = String(me.ph || '');
+  if (!/^[0-9]{8,12}$/.test(ph)) return null;
+  const u = await dbGet(env, '/users/' + encodeURIComponent(ph));
+  if (!u || u.status === '퇴사') return null;
+  return resolveRole(env, ph, u);
 }
 
 async function auditLog(env, entry) {
@@ -441,10 +571,103 @@ function stripSensitive(v, hit) {
   return v;
 }
 
+/* ═══ 공개 창구 입력 다듬기 (11/12) ═══
+   손님이 쓴 글이 관리 화면에 그대로 그려지므로 < > 는 걷어낸다(따옴표는 손님 글에 흔해서 둔다).
+   DB 키로 못 쓰는 글자(. # $ [ ] /)가 든 키는 버린다 — 안 그러면 저장 자체가 실패한다. */
+const noTag = (s) => String(s).replace(/[<>]/g, '');
+const BAD_KEY = /[.#$\[\]\/]/;
+function strList(v, maxN, maxLen) {
+  if (!Array.isArray(v)) return null;
+  const out = [];
+  for (const x of v) {
+    if (typeof x !== 'string' && typeof x !== 'number') continue;
+    const s = noTag(x).trim().slice(0, maxLen);
+    if (s) out.push(s);
+    if (out.length >= maxN) break;
+  }
+  return out;
+}
+function cleanHistory(v) {
+  if (Array.isArray(v)) return strList(v, 30, 100);
+  if (!v || typeof v !== 'object') return null;
+  const out = {};
+  let n = 0;
+  for (const [k, x] of Object.entries(v)) {
+    if (!k || k.length > 60 || BAD_KEY.test(k)) continue;
+    if (typeof x === 'string') out[noTag(k)] = noTag(x).slice(0, 100);
+    else if (typeof x === 'number' && Number.isFinite(x)) out[noTag(k)] = x;
+    else continue;
+    if (++n >= 30) break;
+  }
+  return out;
+}
+/* 깊이 3 · 항목 50개 · 글자 500자까지. 못 쓰는 값은 undefined */
+function cleanDeep(v, depth) {
+  if (typeof v === 'string') return noTag(v).slice(0, 500);
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'boolean') return v;
+  if (!v || typeof v !== 'object' || depth >= 3) return undefined;
+  if (Array.isArray(v)) {
+    const a = [];
+    for (const x of v.slice(0, 50)) { const c = cleanDeep(x, depth + 1); if (c !== undefined) a.push(c); }
+    return a;
+  }
+  const o = {};
+  for (const [k, x] of Object.entries(v).slice(0, 50)) {
+    if (!k || k.length > 60 || BAD_KEY.test(k)) continue;
+    const c = cleanDeep(x, depth + 1);
+    if (c !== undefined) o[noTag(k)] = c;
+  }
+  return o;
+}
+
+/* 직원 가입 신청서 — 앱(index.html doSignup)이 보내는 칸만, 글자로만 받는다.
+   이름 · 지점 같은 칸에 < > " ' ` 가 들어갈 일은 없다(관리 화면에 그려질 때 스크립트 통로가 된다) — 걷어낸다. */
+const noQ = (s) => String(s).replace(/[<>"'`]/g, '').trim();
+const SIGNUP_STR = { name: 20, nick: 10, brand: 30, branch: 30, role: 20, address: 200, level: 20 };
+function cleanSignup(p, phone) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return { err: '가입 정보가 올바르지 않습니다' };
+  const out = {};
+  for (const [k, max] of Object.entries(SIGNUP_STR)) {
+    const v = p[k];
+    if (v === undefined || v === null || v === '') continue;
+    if (typeof v !== 'string') return { err: '가입 정보 형식이 올바르지 않습니다 (' + k + ')' };
+    const s = noQ(v).slice(0, max);
+    if (s) out[k] = s;
+  }
+  for (const k of ['name', 'brand', 'branch', 'role']) if (!out[k]) return { err: '이름 · 브랜드 · 지점 · 직급을 입력해주세요' };
+  if (p.birthDate !== undefined && p.birthDate !== null && p.birthDate !== '') {
+    if (typeof p.birthDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.birthDate.trim())) return { err: '생년월일 형식이 올바르지 않습니다' };
+    out.birthDate = p.birthDate.trim();
+  }
+  if (p.ig_username !== undefined && p.ig_username !== null && p.ig_username !== '') {
+    if (typeof p.ig_username !== 'string') return { err: '인스타 아이디 형식이 올바르지 않습니다' };
+    const ig = p.ig_username.trim().replace(/^@/, '');
+    if (!/^[A-Za-z0-9._]{1,30}$/.test(ig)) return { err: '인스타 아이디는 영문 · 숫자 · 마침표 · 밑줄만 쓸 수 있어요' };
+    out.ig_username = ig;
+  }
+  if (p.emergency !== undefined && p.emergency !== null) {
+    const e = p.emergency;
+    if (typeof e !== 'object' || Array.isArray(e)) return { err: '비상 연락처 형식이 올바르지 않습니다' };
+    if ((e.name != null && typeof e.name !== 'string') || (e.phone != null && typeof e.phone !== 'string' && typeof e.phone !== 'number'))
+      return { err: '비상 연락처 형식이 올바르지 않습니다' };
+    out.emergency = { name: noQ(e.name || '').slice(0, 20), phone: String(e.phone || '').replace(/\D/g, '').slice(0, 15) };
+  }
+  if (p.week !== undefined && p.week !== null && p.week !== '') {
+    const w = typeof p.week === 'number' ? p.week : typeof p.week === 'string' && /^\d{1,3}$/.test(p.week.trim()) ? +p.week : NaN;
+    if (!Number.isInteger(w) || w < 1 || w > 200) return { err: '주차 형식이 올바르지 않습니다' };
+    out.week = w;
+  }
+  out.phone = phone;
+  out.status = 'pending';
+  out.date = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);   // 신청일은 서버 시계(한국 날짜)로
+  return { profile: out };
+}
+
 /* ═══ 라우팅 ═══ */
 const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
-const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, pushToPhones });
+const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, dbCas, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
@@ -471,21 +694,39 @@ const won = (n) => (+n || 0).toLocaleString('ko-KR');
 async function runSalesFixPush(env) {
   const q = await dbGet(env, '/salesFixQ').catch(() => null);
   if (!q) return 0;
-  const byPh = {}, revBy = {};
+  /* 보내고 나서 지운다(11/12 — 예전에는 먼저 지워서 보내다 실패하면 알림이 사라졌다).
+     겹쳐 돌아 두 번 보내지 않게 잠금을 잡는다(2분 지나면 풀린 걸로 본다) */
+  const now = Date.now();
+  const locked = await dbCas(env, '/authSecrets/__sfxlock', (cur) => (cur && now - (+cur.t || 0) < 2 * 60 * 1000 ? undefined : { t: now })).catch(() => false);
+  if (!locked) return 0;
+  try {
+  const byPh = {}, revBy = {}, keysOf = {}, junk = {};
   for (const [key, v] of Object.entries(q)) {
-    await dbDelete(env, '/salesFixQ/' + encodeURIComponent(key));   // 먼저 지운다 — 겹쳐 돌아도 두 번 안 보내게
-    if (v && v.ph && v.date) { const m = v.kind === 'rev' ? revBy : byPh; (m[v.ph] || (m[v.ph] = [])).push(v.date); }
+    if (v && v.ph && v.date) {
+      const m = v.kind === 'rev' ? revBy : byPh;
+      (m[v.ph] || (m[v.ph] = [])).push(v.date);
+      const kk = (v.kind === 'rev' ? 'r:' : 'f:') + v.ph;
+      (keysOf[kk] || (keysOf[kk] = [])).push(key);
+    } else junk[key] = null;
   }
+  /* 한 사람 몫을 보냈으면 그 사람 줄만 지운다. 보내다 오류가 나면 남겨 두고 다음 분에 다시 */
+  const clear = async (kk) => {
+    const w = {};
+    for (const key of keysOf[kk] || []) w[key] = null;
+    if (Object.keys(w).length) await dbPatch(env, '/salesFixQ', w).catch((e) => console.log('salesfix clear', e && e.message));
+  };
+  if (Object.keys(junk).length) await dbPatch(env, '/salesFixQ', junk).catch(() => {});
   const md = (d) => +d.slice(5, 7) + '/' + +d.slice(8, 10);
   // 버그로 잘못 고쳤다가 처음 입력으로 되돌린 날 (11/5)
   for (const [ph, dates] of Object.entries(revBy)) {
     const ds = [...new Set(dates)].sort();
-    await pushToPhones(env, [ph], {
+    const sent = await pushToPhones(env, [ph], {
       title: '핸드SOS 매출 오류 버그가 수정되었어요',
       body: md(ds[0]) + (ds.length > 1 ? ' 외 ' + (ds.length - 1) + '일' : '') + ' 매출이 처음 입력하신 값으로 돌아갔어요',
       url: './#sales/fix',
       tag: 'salesfix-rev',
-    }).catch(() => {});
+    }).then(() => true, (e) => { console.log('salesfix push', e && e.message); return false; });
+    if (sent) await clear('r:' + ph);
   }
   for (const [ph, dates] of Object.entries(byPh)) {
     const ds = [...new Set(dates)].sort();
@@ -495,14 +736,18 @@ async function runSalesFixPush(env) {
       const f = first.diffs[0];
       body = md(ds[0]) + ' · ' + (FIX_LABEL[f.k] || f.k) + ' ' + won(f.from) + '→' + won(f.to) + '원' + (first.diffs.length > 1 ? ' 외 ' + (first.diffs.length - 1) + '건' : '');
     } else body = md(ds[0]) + (ds.length > 1 ? ' 외 ' + (ds.length - 1) + '일' : '') + ' · 눌러서 확인해 주세요';
-    await pushToPhones(env, [ph], {
+    const sent = await pushToPhones(env, [ph], {
       title: '매출이 핸드SOS와 달라 수정되었어요',
       body: body + ' · 핸드SOS가 틀렸다면 경영팀에 문의해 주세요',
       url: './#sales/fix',
       tag: 'salesfix',
-    }).catch(() => {});
+    }).then(() => true, (e) => { console.log('salesfix push', e && e.message); return false; });
+    if (sent) await clear('f:' + ph);
   }
   return Object.keys(byPh).length + Object.keys(revBy).length;
+  } finally {
+    await dbDelete(env, '/authSecrets/__sfxlock').catch(() => {});
+  }
 }
 
 export default {
@@ -540,25 +785,24 @@ export default {
       { const cm = path.match(/^\/ttc\/(dm|bb)\/(\d{5,30})$/); if (cm && (request.method === 'GET' || request.method === 'HEAD')) return snsRoute.cover(env, cm[1], cm[2]); }
       { const gm = path.match(/^\/go\/(dm|bb)\/?$/); if (gm && (request.method === 'GET' || request.method === 'HEAD')) return snsRoute.go(request, env, ctx, gm[1]); }
 
-      /* 자체 점검 — 키·인증·DB 접근이 살아 있는지 (내용은 반환하지 않음) */
-      if (path === '/selftest') {
-        const sa = JSON.parse(env.FIREBASE_SA);
-        await accessToken(env);
-        await dbGet(env, '/naesuProducts/커리쉴/o');
-        return json({
-          ok: true, projectId: sa.project_id, googleAuth: 'ok', dbRead: 'ok',
-          sessionSecretSet: !!env.SESSION_SECRET, lockedPaths: LOCKED,
-        }, 200, origin);
-      }
-
       /* 로그인 → 토큰 발급.
          비밀번호 대조를 브라우저가 아니라 여기서 한다. */
       if (path === '/auth/login' && request.method === 'POST') {
         const { phone, pw, remember } = await request.json().catch(() => ({}));
         if (!phone || !pw) return json({ ok: false, error: '전화번호와 비밀번호가 필요합니다' }, 400, origin);
+        /* 같은 곳에서 너무 많이 틀렸으면 비밀번호를 대조해 보지도 않는다 */
+        const ipk = 'lf_' + await ipKey(ipOf(request));
+        if (await rlBlocked(env, ipk, IPF_MAX, IPF_WIN)) return json({ ok: false, error: IPF_MSG }, 429, origin);
         const ph = encodeURIComponent(String(phone));
         const u = await dbGet(env, '/users/' + ph);
-        if (!u) return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
+        if (!u) {
+          await rlHit(env, ipk, 1e9, IPF_WIN);
+          return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
+        }
+        /* 계정마다 잠금 — 키로 쓸 수 있는 번호(숫자)일 때만. users 키는 전부 숫자 전화번호다 */
+        const lfWho = /^[0-9]{8,12}$/.test(String(phone)) ? String(phone) : '';
+        const lfRec = lfWho ? await lfGet(env, lfWho) : null;
+        if (lfLocked(lfRec)) return json({ ok: false, error: LF_MSG, lockedUntil: +lfRec.lockTo }, 429, origin);
 
         /* 해시가 있으면 해시로, 아직 안 옮긴 계정은 평문으로 확인하고 그 자리에서 전환한다.
            전환 기간에 아무도 로그인 못 하는 구간이 생기지 않게 두 길을 다 연다. */
@@ -566,7 +810,12 @@ export default {
         let ok = false, upgrade = false;
         if (sec && sec.hash) ok = await pwVerify(sec, pw);
         else if (u.pw != null) { ok = sameStr(u.pw, pw); upgrade = ok; }
-        if (!ok) return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
+        if (!ok) {
+          await rlHit(env, ipk, 1e9, IPF_WIN);
+          if (lfWho && await lfFail(env, lfWho)) return json({ ok: false, error: LF_MSG, lockedUntil: Date.now() + LF_LOCK }, 429, origin);
+          return json({ ok: false, error: '전화번호 또는 비밀번호가 맞지 않습니다' }, 401, origin);
+        }
+        if (lfRec) await dbDelete(env, LF_BASE + lfWho).catch(() => {});   // 맞혔으면 틀린 횟수는 처음부터
         if (u.status === '퇴사') return json({ ok: false, error: '퇴사 처리된 계정입니다' }, 403, origin);
         if (upgrade) await pwUpgrade(env, phone, pw);
 
@@ -675,6 +924,15 @@ export default {
       /* 상담 접수 — 손님이 직접 쓰던 경로를 서버가 받는다. 받을 항목을 정해 두고 그 외는 버린다. */
       if (path === '/public/consult' && request.method === 'POST') {
         const b = await request.json().catch(() => ({}));
+        if (!b || typeof b !== 'object' || Array.isArray(b)) return json({ ok: false, error: '요청을 읽지 못했어요' }, 400, origin);
+        /* 같은 곳(IP)에서 10분에 10건까지. 공식 사이트 서버는 손님 대신 부르므로 X-Site-Key 가 맞으면
+           X-Client-IP(손님 IP)로 센다 — 안 보내면 사이트 서버 IP 로 넉넉히(10분 60건) 센다. */
+        const siteOk = !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
+        const cip = siteOk ? String(request.headers.get('X-Client-IP') || '').slice(0, 64) : '';
+        /* 지금은 사이트가 키를 안 보내 사이트 접수가 모두 Vercel IP 하나로 잡힌다. 매장 와이파이(손님 여럿이 한 IP)도 있어 30건으로 둔다(2026-11-12) */
+        const rlMax = siteOk && !cip ? 60 : 30;
+        if (!(await rlHit(env, 'cs_' + await ipKey(cip || ipOf(request)), rlMax, 10 * 60 * 1000)))
+          return json({ ok: false, error: '잠시 후 다시 시도해 주세요 (접수가 너무 많아요)' }, 429, origin);
         /* consult.html 첫 방문 submit() 과 공식 사이트 /api/consult 가 보내고, 상담함(index.html)이 읽는 필드.
            처음 만들 때 snsType~history 가 빠져 있어서 10/1 부터 첫 방문 상담의 시술·시간·분위기·
            유입경로·SNS·국가·시술이력이 버려졌다. 필드를 늘리고 줄일 때는 세 곳을 같이 볼 것. */
@@ -685,10 +943,15 @@ export default {
         for (const k of pick) {
           const v = b[k];
           if (v === undefined || v === null) continue;
-          if (typeof v === 'string') rec[k] = v.slice(0, 2000);
-          else if (typeof v === 'number' || typeof v === 'boolean') rec[k] = v;
-          /* 배열·객체(services, mood, history)는 받되 크기를 묶는다 — 공개 창구라 누구나 부를 수 있다. */
-          else if (typeof v === 'object' && JSON.stringify(v).length <= 4000) rec[k] = v;
+          /* services · mood 는 고른 항목 이름 목록 — 글자 목록으로만 받는다(30개 · 각 100자). 배열이 아니면 버린다 */
+          if (k === 'services' || k === 'mood') { const a = strList(v, 30, 100); if (a) rec[k] = a; continue; }
+          /* history 는 { 시술: '3개월' } — 크기 · 키 모양을 본다 */
+          if (k === 'history') { const h = cleanHistory(v); if (h) rec[k] = h; continue; }
+          if (typeof v === 'string') rec[k] = noTag(v).slice(0, 2000);
+          else if (typeof v === 'number') { if (Number.isFinite(v)) rec[k] = v; }
+          else if (typeof v === 'boolean') rec[k] = v;
+          /* 그 밖의 배열·객체(concerns, styles, products)는 받되 크기를 묶는다 — 공개 창구라 누구나 부를 수 있다. */
+          else if (typeof v === 'object') { const c = cleanDeep(v, 0); if (c !== undefined && JSON.stringify(c).length <= 4000) rec[k] = c; }
         }
         if (!rec.date) rec.date = new Date().toISOString().slice(0, 10);
         await dbPush(env, '/consults', rec);
@@ -710,13 +973,30 @@ export default {
           }
         }
 
+        /* AI 비용 안전장치 (11/12) — 캐시에 없어서 AI 를 실제로 부를 때만 센다.
+           같은 곳(IP)에서 10분에 10번 · 회사 전체 하루(첫 호출부터 24시간) 300번 ·
+           AI 사용량 화면에서 정한 이번 달 예산을 넘었으면 쉰다(예산을 안 정했으면 안 막는다). */
+        if (!(await rlHit(env, 'rc_' + await ipKey(ipOf(request)), 10, 10 * 60 * 1000)))
+          return json({ ok: false, error: '잠시 후 다시 시도해 주세요' }, 429, origin);
+        if (await recoOverBudget(env)) return json({ ok: false, error: '지금은 AI 추천을 쉬고 있어요' }, 503, origin);
+        if (!(await rlHit(env, 'rc_day', 300, 24 * 3600 * 1000)))
+          return json({ ok: false, error: '오늘은 AI 추천을 더 할 수 없어요' }, 429, origin);
+
         const cfg = await nwCfg(env);
         if (!cfg) return json({ ok: false, error: 'AI 설정이 없어요' }, 503, origin);
+        /* 보내는 양도 묶는다 — 입력 토큰이 곧 비용이다 */
+        const lang = String(b.lang || 'ko').slice(0, 5);
+        const summary = typeof b.summary === 'string' ? b.summary.slice(0, 3000) : '';
+        const products = (Array.isArray(b.products) ? b.products : []).slice(0, 200).map((p) => (p && typeof p === 'object' ? {
+          name: String(p.name == null ? '' : p.name).slice(0, 100),
+          price: typeof p.price === 'number' ? p.price : String(p.price == null ? '' : p.price).slice(0, 30),
+          desc: String(p.desc == null ? '' : p.desc).slice(0, 400),
+        } : null)).filter(Boolean);
         /* 같은 계정의 Worker 는 HTTP 로 못 부른다(error 1042). 서비스 바인딩으로 넘긴다.
            바인딩이 없는 환경에서는 예전처럼 URL 로 간다. */
         const relayReq = new Request(String(cfg.url).replace(/\/+$/, '') + '/ai/recommend', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret: cfg.secret, summary: b.summary, lang: b.lang, products: b.products }),
+          body: JSON.stringify({ secret: cfg.secret, summary, lang, products }),
         });
         const r = env.AI_RELAY ? await env.AI_RELAY.fetch(relayReq) : await fetch(relayReq);
         let t = await r.text();
@@ -734,17 +1014,25 @@ export default {
          이미 쓰는 번호면 거부한다. 안 그러면 남의 번호로 신청해서 그 사람 비밀번호를 갈아치울 수 있다. */
       if (path === '/auth/signup' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
+        if (!body || typeof body !== 'object') return json({ ok: false, error: '요청을 읽지 못했습니다' }, 400, origin);
         const phone = String(body.phone || '').trim();
-        const pw = String(body.pw || '');
-        const profile = body.profile || {};
+        if (typeof body.pw !== 'string') return json({ ok: false, error: '비밀번호는 4자 이상이어야 합니다' }, 400, origin);
+        const pw = body.pw;
         if (!/^[0-9]{8,12}$/.test(phone)) return json({ ok: false, error: '전화번호 형식이 올바르지 않습니다' }, 400, origin);
         if (pw.length < 4) return json({ ok: false, error: '비밀번호는 4자 이상이어야 합니다' }, 400, origin);
+        if (pw.length > 200) return json({ ok: false, error: '비밀번호가 너무 깁니다' }, 400, origin);
+        /* 신청서는 정해 둔 칸만 글자로 받는다 (cleanSignup) */
+        const cs = cleanSignup(body.profile, phone);
+        if (cs.err) return json({ ok: false, error: cs.err }, 400, origin);
+        const profile = cs.profile;
+        /* 같은 곳(IP)에서 1시간에 15건까지 — 입사 첫날 매장 와이파이로 여럿이 같이 신청해도 되게 넉넉히 */
+        if (!(await rlHit(env, 'su_' + await ipKey(ipOf(request)), 15, 3600 * 1000)))
+          return json({ ok: false, error: '가입 신청이 너무 많습니다. 잠시 후 다시 시도해주세요' }, 429, origin);
         const ph = encodeURIComponent(phone);
         const existing = await dbGet(env, '/users/' + ph).catch(() => null);
         if (existing) return json({ ok: false, error: '이미 등록된 전화번호입니다. 로그인해주세요.' }, 409, origin);
         const dup = await dbGet(env, '/pending/' + ph).catch(() => null);
         if (dup) return json({ ok: false, error: '이미 가입 신청이 접수되어 있습니다.' }, 409, origin);
-        delete profile.pw;
         await dbPut(env, '/pending/' + ph, profile);
         await pwSet(env, phone, pw);
         return json({ ok: true }, 200, origin);
@@ -779,9 +1067,19 @@ export default {
       if (path === '/auth/adminlogin' && request.method === 'POST') {
         const { pw } = await request.json().catch(() => ({}));
         if (!pw) return json({ ok: false, error: '비밀번호를 입력해주세요' }, 400, origin);
+        /* 비밀번호 대입 막기 — 직원 로그인과 같다. 입구가 하나라 'admin' 하나로 센다 */
+        const ipk = 'lf_' + await ipKey(ipOf(request));
+        if (await rlBlocked(env, ipk, IPF_MAX, IPF_WIN)) return json({ ok: false, error: IPF_MSG }, 429, origin);
+        const lfRec = await lfGet(env, 'admin');
+        if (lfLocked(lfRec)) return json({ ok: false, error: LF_MSG, lockedUntil: +lfRec.lockTo }, 429, origin);
         const sec = await dbGet(env, '/authSecrets/__admin').catch(() => null);
         if (!sec || !sec.hash) return json({ ok: false, error: '관리자 비밀번호가 아직 설정되지 않았습니다. 경영팀 계정에서 설정해주세요.' }, 503, origin);
-        if (!(await pwVerify(sec, pw))) return json({ ok: false, error: '비밀번호가 올바르지 않습니다' }, 401, origin);
+        if (!(await pwVerify(sec, pw))) {
+          await rlHit(env, ipk, 1e9, IPF_WIN);
+          if (await lfFail(env, 'admin')) return json({ ok: false, error: LF_MSG, lockedUntil: Date.now() + LF_LOCK }, 429, origin);
+          return json({ ok: false, error: '비밀번호가 올바르지 않습니다' }, 401, origin);
+        }
+        if (lfRec) await dbDelete(env, LF_BASE + 'admin').catch(() => {});
         const now = Math.floor(Date.now() / 1000);
         const token = await signToken(env, {
           ph: 'admin', name: '관리자', role: 'staff', branches: [], admin: true,
@@ -799,6 +1097,18 @@ export default {
       me.phone = me.ph;   // 토큰에는 ph 로 들어 있다. 둘 다 쓰이므로 여기서 맞춰 둔다.
 
       if (path === '/me') return json({ ok: true, me }, 200, origin);
+
+      /* 자체 점검 — 키·인증·DB 접근이 살아 있는지 (내용은 반환하지 않음). 경영팀 · 관리자만 (11/12 — 예전에는 공개) */
+      if (path === '/selftest') {
+        if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
+        const sa = JSON.parse(env.FIREBASE_SA);
+        await accessToken(env);
+        await dbGet(env, '/naesuProducts/커리쉴/o');
+        return json({
+          ok: true, projectId: sa.project_id, googleAuth: 'ok', dbRead: 'ok',
+          sessionSecretSet: !!env.SESSION_SECRET, lockedPaths: LOCKED,
+        }, 200, origin);
+      }
 
       /* 홈페이지 회원 목록 — 경영팀 · 관리자 (고객 이메일·휴대폰이라 직원 전체에 열지 않는다) */
       if (path === '/members' && request.method === 'GET') {
@@ -1011,6 +1321,18 @@ export default {
         return json({ ok: true, result: out }, 200, origin);
       }
 
+      /* ═══ 계약 모듈 역할은 지금 값으로 (11/12) ═══
+         토큰 안의 role 은 로그인할 때 박아 둔 것이라 '로그인 유지'면 30일 동안 그대로다.
+         그 사이 퇴사하거나 /roles 에서 역할을 내려도 계약서 · 명세서를 계속 볼 수 있었다.
+         아래 창구(계약서 · 명세서 · 채번 · 역할 · 감사 로그 · 재수집)는 요청마다 /users 와 /contractRoles 를 다시 읽어
+         그 값으로 판정한다(요청 하나 안에서만 한 번 읽는다). 본사 관리자 입구는 원래 staff 라 그대로 둔다. */
+      if (CONTRACT_PATH.test(path) && !me.admin) {
+        const live = await liveRole(env, me);
+        if (!live) return json({ ok: false, error: '퇴사 처리되었거나 없는 계정입니다' }, 403, origin);
+        me.role = live.role;
+        me.branches = live.branches;
+      }
+
       /* 지점 계약 기본값 수정 — owner 만. 변경 전후를 감사 로그에 남긴다.
          brands 는 외부 쓰기가 막혀 있어 이 경로가 유일한 수정 통로다. */
       if (path === '/branch/update' && request.method === 'POST') {
@@ -1088,29 +1410,51 @@ export default {
         const hit = [];
         const safeValues = stripSensitive(values || {}, hit);
 
+        const rid = ridOf(body);
+        if (rid === false) return json({ ok: false, error: 'rid 형식이 올바르지 않습니다' }, 400, origin);
+
         const branch = await dbGet(env, `/brands/${brandId}/branches/${branchId}`);
         if (!branch) return json({ ok: false, error: '지점을 찾을 수 없습니다' }, 404, origin);
         const brandDefaults = (await dbGet(env, `/brands/${brandId}/defaults`)) || {};
 
-        const year = new Date().getFullYear();
-        const number = await nextNumber(env, `${brandId.toUpperCase()}-${year}`, 4);
+        /* 같은 발행 버튼 누름(rid)이 다시 오면 새로 발행하지 않고 처음 결과를 돌려준다 */
+        if (rid) {
+          const cl = await ridClaim(env, rid, 'contract', String(me.phone));
+          if (cl.state === 'done') {
+            const c = await dbGet(env, '/contracts/' + cl.rec.id).catch(() => null);
+            return json({ ok: true, id: cl.rec.id, number: cl.rec.number, contract: c ? { id: cl.rec.id, ...c } : null, stripped: cl.rec.stripped || [], replay: true }, 200, origin);
+          }
+          if (cl.state === 'busy') return json({ ok: false, error: '같은 발행을 처리하고 있습니다. 잠시 후 목록을 확인해주세요' }, 409, origin);
+          if (cl.state === 'other') return json({ ok: false, error: '이미 다른 요청에 쓰인 rid 입니다' }, 409, origin);
+        }
+        let issued = false;
+        try {
+          /* 발행번호 연도는 한국 날짜 기준 (11/12 — 예전에는 UTC 라 1월 1일 0~9시 발행이 지난해 번호로 나갔다). 이미 나간 번호는 그대로 */
+          const year = new Date(Date.now() + 9 * 3600e3).getUTCFullYear();
+          const number = await nextNumber(env, `${brandId.toUpperCase()}-${year}`, 4);
 
-        /* 발행번호는 채번 후에 정해지므로 스냅샷에 여기서 박아 넣는다.
-           그러지 않으면 재다운로드 때 문서번호 칸이 비어서 나온다. */
-        if (safeValues.terms && typeof safeValues.terms === 'object') safeValues.terms.documentNumber = number;
+          /* 발행번호는 채번 후에 정해지므로 스냅샷에 여기서 박아 넣는다.
+             그러지 않으면 재다운로드 때 문서번호 칸이 비어서 나온다. */
+          if (safeValues.terms && typeof safeValues.terms === 'object') safeValues.terms.documentNumber = number;
 
-        const rec = {
-          number, brandId, branchId, templateVersion,
-          staffName: String(staffName).trim(),
-          status: 'issued',
-          issuedAt: Date.now(),
-          issuedBy: { phone: me.phone, name: me.name || '', role: me.role },
-          snapshot: { branch, brandDefaults, values: safeValues },
-        };
-        const id = (await dbPush(env, '/contracts', rec)).name;   // dbPush 는 {name} 을 돌려준다
-        await auditLog(env, { kind: 'contract.issue', by: me.phone, contractId: id, number,
-          brandId, branchId, staffName: rec.staffName, stripped: hit.length ? hit : undefined });
-        return json({ ok: true, id, number, contract: { id, ...rec }, stripped: hit }, 200, origin);
+          const rec = {
+            number, brandId, branchId, templateVersion,
+            staffName: String(staffName).trim(),
+            status: 'issued',
+            issuedAt: Date.now(),
+            issuedBy: { phone: me.phone, name: me.name || '', role: me.role },
+            snapshot: { branch, brandDefaults, values: safeValues },
+          };
+          const id = (await dbPush(env, '/contracts', rec)).name;   // dbPush 는 {name} 을 돌려준다
+          issued = true;
+          if (rid) await ridDone(env, rid, 'contract', String(me.phone), { id, number, stripped: hit });
+          await auditLog(env, { kind: 'contract.issue', by: me.phone, contractId: id, number,
+            brandId, branchId, staffName: rec.staffName, stripped: hit.length ? hit : undefined });
+          return json({ ok: true, id, number, contract: { id, ...rec }, stripped: hit }, 200, origin);
+        } catch (e) {
+          if (rid && !issued) await ridRelease(env, rid);   // 발행 전에 실패했으면 같은 rid 로 다시 할 수 있게
+          throw e;
+        }
       }
 
       /* 계약서 목록 */
@@ -1227,34 +1571,55 @@ export default {
         const hit = [];
         const safe = (v) => stripSensitive(v, hit);
 
+        const rid = ridOf(body);
+        if (rid === false) return json({ ok: false, error: 'rid 형식이 올바르지 않습니다' }, 400, origin);
+
         const branch = await dbGet(env, `/brands/${brandId}/branches/${branchId}`);
         if (!branch) return json({ ok: false, error: '지점을 찾을 수 없습니다' }, 404, origin);
 
-        const ym = String(period).replace('-', '');
-        const number = await nextNumber(env, `${brandId.toUpperCase()}-${ym}`, 4);
+        /* 같은 발행 버튼 누름(rid)이 다시 오면 새로 발행하지 않고 처음 결과를 돌려준다 */
+        if (rid) {
+          const cl = await ridClaim(env, rid, 'statement', String(me.phone));
+          if (cl.state === 'done') {
+            const c = await dbGet(env, '/statements/' + cl.rec.id).catch(() => null);
+            return json({ ok: true, id: cl.rec.id, number: cl.rec.number, statement: c ? { id: cl.rec.id, ...c } : null, replay: true }, 200, origin);
+          }
+          if (cl.state === 'busy') return json({ ok: false, error: '같은 발행을 처리하고 있습니다. 잠시 후 목록을 확인해주세요' }, 409, origin);
+          if (cl.state === 'other') return json({ ok: false, error: '이미 다른 요청에 쓰인 rid 입니다' }, 409, origin);
+        }
+        let issued = false;
+        try {
+          const ym = String(period).replace('-', '');
+          const number = await nextNumber(env, `${brandId.toUpperCase()}-${ym}`, 4);
 
-        const rec = {
-          number, brandId, branchId, period,
-          staffPhone: staffPhone ? String(staffPhone) : '',
-          staffName: String(staffName).trim(),
-          birthDate: birthDate ? String(birthDate) : '',
-          status: 'issued',
-          displayMode: displayMode || (branch.contractDefaults || {}).displayMode || 'gross',
-          issuedAt: Date.now(),
-          issuedBy: { phone: me.phone, name: me.name || '', role: me.role },
-          snapshot: {
-            branch,
-            terms: safe(terms || (branch.contractDefaults || {})),
-            input: safe(input || {}),
-            result: safe(result),
-          },
-          netPayout: Number(result.netPayout) || 0,
-          grossSales: Number((result.totals || {}).grossSales) || 0,
-        };
-        const id = (await dbPush(env, '/statements', rec)).name;
-        await auditLog(env, { kind: 'statement.issue', by: me.phone, statementId: id, number,
-          brandId, branchId, period, staffName: rec.staffName, netPayout: rec.netPayout });
-        return json({ ok: true, id, number, statement: { id, ...rec } }, 200, origin);
+          const rec = {
+            number, brandId, branchId, period,
+            staffPhone: staffPhone ? String(staffPhone) : '',
+            staffName: String(staffName).trim(),
+            birthDate: birthDate ? String(birthDate) : '',
+            status: 'issued',
+            displayMode: displayMode || (branch.contractDefaults || {}).displayMode || 'gross',
+            issuedAt: Date.now(),
+            issuedBy: { phone: me.phone, name: me.name || '', role: me.role },
+            snapshot: {
+              branch,
+              terms: safe(terms || (branch.contractDefaults || {})),
+              input: safe(input || {}),
+              result: safe(result),
+            },
+            netPayout: Number(result.netPayout) || 0,
+            grossSales: Number((result.totals || {}).grossSales) || 0,
+          };
+          const id = (await dbPush(env, '/statements', rec)).name;
+          issued = true;
+          if (rid) await ridDone(env, rid, 'statement', String(me.phone), { id, number });
+          await auditLog(env, { kind: 'statement.issue', by: me.phone, statementId: id, number,
+            brandId, branchId, period, staffName: rec.staffName, netPayout: rec.netPayout });
+          return json({ ok: true, id, number, statement: { id, ...rec } }, 200, origin);
+        } catch (e) {
+          if (rid && !issued) await ridRelease(env, rid);
+          throw e;
+        }
       }
 
       /* 명세서 목록 — 기간·대상자로 좁힐 수 있다 */

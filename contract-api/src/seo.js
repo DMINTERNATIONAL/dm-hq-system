@@ -40,12 +40,30 @@ export function kst(ts) {
   return { y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), dow: d.getUTCDay(),
     ymd: `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`, id: `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}-${p(d.getUTCHours())}${p(d.getUTCMinutes())}` };
 }
-/* 이번 1분에 돌려야 하나 — 일요일 22:00~22:09 사이 + 오늘 만든 게 없을 때, 또는 요청이 있을 때 */
-export function shouldRun(now, idx, pending) {
-  if (pending) return 'manual';
+/* 이번 주 자동 조사가 시작되는 시각(직전 일요일 22:00 한국) */
+export function weekStart(now) {
   const k = kst(now);
-  if (k.dow === 0 && k.h === 22 && k.mi < 10 && !(idx && idx[0] && String(idx[0].id).startsWith(k.ymd))) return 'weekly';
-  return '';
+  const day0 = Date.UTC(k.y, k.mo - 1, k.d) - 9 * 3600e3;          // 오늘 0시(한국)
+  let ws = day0 - k.dow * 864e5 + 22 * 3600e3;
+  if (ws > now) ws -= 7 * 864e5;
+  return ws;
+}
+const WEEKLY_SPAN = 6 * 3600e3;     // 일요일 22시 ~ 월요일 새벽 4시 안에서만 자동으로 (다시) 돌린다
+const RETRY_GAP = 3600e3;           // 실패하면 1시간 뒤에 다시
+const RETRY_MAX = 3;                // 한 주에 자동 시도는 3번까지
+/* 이번 1분에 돌려야 하나 — 요청이 있을 때, 또는 일요일 22시부터 이번 주 리포트가 없을 때.
+   (11/12) 예전에는 22:00~22:09 동안 실패하면 1분마다 다시 돌았다(웹 검색 AI 를 최대 10번). 이제 실패하면 1시간 쉬고, 한 주에 3번까지.
+   err = seo/_err.json { at, err, trig, wk 그 주 시작, wn 그 주 자동 실패 수, wat 마지막 자동 실패 시각 } */
+export function shouldRun(now, idx, pending, err) {
+  if (pending) return 'manual';
+  const ws = weekStart(now);
+  if (now - ws >= WEEKLY_SPAN) return '';
+  if (idx && idx[0] && +idx[0].at >= ws) return '';               // 이번 주 것이 이미 있다 (자동이든 바로 조사든)
+  if (err && +err.wk === ws && +err.wn > 0) {
+    if (+err.wn >= RETRY_MAX) return '';
+    if (now - (+err.wat || 0) < RETRY_GAP) return '';
+  }
+  return 'weekly';
 }
 const urlOk = (v) => { const s = String(v || '').trim(); return /^https?:\/\/[^\s]+$/.test(s) ? s.slice(0, 400) : ''; };
 
@@ -200,7 +218,14 @@ export function makeSeo(deps) {
       }).catch(() => {});
       return { ok: true, id };
     } catch (e) {
-      await rPut(env, KEY.err, { at: Date.now(), err: String((e && e.message) || e).slice(0, 300), trig }).catch(() => {});
+      /* 자동 조사 실패는 그 주 몇 번째인지 센다 — shouldRun 이 1시간 쉬고 3번에서 멈춘다 */
+      /* 바로 조사가 실패해도 그 주 자동 실패 수(wn)는 이어 간다 */
+      const prevErr = await rGet(env, KEY.err).catch(() => null);
+      const at = Date.now(), wk = weekStart(at);
+      const same = prevErr && +prevErr.wk === wk;
+      const wn = (same ? +prevErr.wn || 0 : 0) + (trig === 'weekly' ? 1 : 0);
+      const wat = trig === 'weekly' ? at : (same ? +prevErr.wat || 0 : 0);
+      await rPut(env, KEY.err, { at, err: String((e && e.message) || e).slice(0, 300), trig, wk, wn, wat }).catch(() => {});
       return { ok: false, err: String((e && e.message) || e) };
     } finally {
       await rDel(env, KEY.run).catch(() => {});
@@ -209,12 +234,12 @@ export function makeSeo(deps) {
 
   /* 1분 크론에서 부른다 — 대부분은 R2 두 번 읽고 끝 */
   async function tick(env) {
-    const k = kst(Date.now());
+    const now = Date.now();
     const pending = await rGet(env, KEY.pend).catch(() => null);
-    const weeklyWindow = k.dow === 0 && k.h === 22 && k.mi < 10;
+    const weeklyWindow = now - weekStart(now) < WEEKLY_SPAN;
     if (!pending && !weeklyWindow) return null;
-    const idx = weeklyWindow ? await rGet(env, KEY.idx).catch(() => null) : null;
-    const why = shouldRun(Date.now(), idx, pending);
+    const [idx, err] = weeklyWindow && !pending ? await Promise.all([rGet(env, KEY.idx).catch(() => null), rGet(env, KEY.err).catch(() => null)]) : [null, null];
+    const why = shouldRun(now, idx, pending, err);
     if (!why) return null;
     return run(env, why, pending ? pending.by : '');
   }

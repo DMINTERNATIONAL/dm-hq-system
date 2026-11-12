@@ -153,10 +153,12 @@ export function toG(ev, cal, id) {
     g.start = { date: s, dateTime: null, timeZone: null };
     g.end = { date: addD(e, 1), dateTime: null, timeZone: null };
   } else {
-    let et = ev.et || ev.st;
+    let et = ev.et || ev.st, ed = e;
     if (e === s && et < ev.st) et = ev.st;
+    /* 같은 날 23:59 에 끝나는 일정은 자정 끝(다음 날 00:00)으로 — fromG 가 받은 자정 끝을 23:59 로 바꿔 둔 것을 되돌린다 */
+    if (e === s && et === '23:59') { ed = addD(e, 1); et = '00:00'; }
     g.start = { dateTime: s + 'T' + ev.st + ':00+09:00', timeZone: 'Asia/Seoul', date: null };
-    g.end = { dateTime: e + 'T' + et + ':00+09:00', timeZone: 'Asia/Seoul', date: null };
+    g.end = { dateTime: ed + 'T' + et + ':00+09:00', timeZone: 'Asia/Seoul', date: null };
   }
   if (!inst) g.recurrence = recOut(ev, ad);   // 반복 중 하나(인스턴스)에는 반복을 줄 수 없다
   if (!gOrigin) g.reminders = { useDefault: false, overrides: [] };   // 알림은 DM 이 보낸다(두 번 울리지 않게)
@@ -227,6 +229,9 @@ export function fromG(g, cur, who) {
   } else if (g.start && g.start.dateTime) {
     const a = kst(g.start.dateTime), b = kst((g.end && g.end.dateTime) || g.start.dateTime);
     o.ad = 0; o.s = a.d; o.st = a.t; o.e = b.d < a.d ? a.d : b.d; o.et = b.t;
+    /* 자정에 끝나는 일정(22:00~24:00) — 구글은 끝을 '다음 날 00:00' 으로 준다. 그대로 두면 앱이 이틀짜리 종일 막대로 그린다.
+       앱의 시간 칸(input type=time · calTm)은 '24:00' 을 못 받으므로 같은 날 23:59 로 둔다. 구글로 보낼 때(toG) 다시 다음 날 00:00 으로 바꾼다 */
+    if (o.et === '00:00' && o.e === addD(o.s, 1)) { o.e = o.s; o.et = '23:59'; }
   } else return null;
   if (!isDate(o.s)) return null;
   o.t = clip(g.summary || '(제목 없음)', 200);
@@ -263,6 +268,14 @@ function mkState(deps, env, budget) {
       return { ok: r.ok, status: r.status, j };
     },
     mapDel(mk) { delete S.map[mk]; delete S.dirty[mk]; S.w['authSecrets/__gcalx/map/' + mk] = null; S.w['calendar/gcal/on/' + mk] = null; },
+    /* 바뀐 칸만 적어 둔다(echo/{id} · st · pt · acl/{폰} · sub/{폰} · n). 끝에 그 칸만 PATCH 한다 (11/12).
+       예전에는 map/{캘린더} 를 통째로 덮어써서, 1분 크론과 앱의 '가져오기'가 겹치면 한쪽이 적은 echo · st 를 다른 쪽이 지웠다.
+       dirty[mk] === true 는 이번에 새로 만든 캘린더 — 통째로 쓴다 */
+    leaf(mk, sub, val) {
+      if (S.dirty[mk] === true) return;
+      if (!S.dirty[mk] || typeof S.dirty[mk] !== 'object') S.dirty[mk] = {};
+      S.dirty[mk][sub] = val;
+    },
   };
   return S;
 }
@@ -358,7 +371,7 @@ async function reconcile(env, S, users, cfg, sel) {
     const l = await S.g(tok, 'GET', `/calendars/${enc(m.gid)}/events?maxResults=50&showDeleted=true`);
     m.st = (l.j && l.j.nextSyncToken) || '';
     await S.g(tok, 'PATCH', `/users/me/calendarList/${enc(m.gid)}?colorRgbFormat=true`, { backgroundColor: w.c, foregroundColor: '#ffffff', defaultReminders: [] });
-    S.map[mk] = m; S.dirty[mk] = 1; S.w['calendar/gcal/on/' + mk] = 1;
+    S.map[mk] = m; S.dirty[mk] = true; S.w['calendar/gcal/on/' + mk] = 1;
     const evs = (await S.get('/calendar/ev/' + enc(w.k)).catch(() => null)) || {};
     for (const [id, ev] of Object.entries(evs)) {
       if (!ev || !ev.s) continue;
@@ -377,7 +390,7 @@ async function reconcile(env, S, users, cfg, sel) {
     const tok = await gTok(env, S, m.own);
     if (!tok) continue;
     const r = await S.g(tok, 'PATCH', `/calendars/${enc(m.gid)}`, { summary: w.n });
-    if (r.ok) { m.n = w.n; S.dirty[mk] = 1; } else if (transient(r)) return false;
+    if (r.ok) { m.n = w.n; S.leaf(mk, 'n', w.n); } else if (transient(r)) return false;
   }
 
   /* 4) 공유(ACL) — 빠진 사람 · 이메일 바뀐 사람 빼고, 새 멤버 넣고, 권한 바뀐 사람 고친다. 알림 메일은 안 보낸다 */
@@ -393,7 +406,7 @@ async function reconcile(env, S, users, cfg, sel) {
       if (!tok) break;
       const r = await S.g(tok, 'DELETE', `/calendars/${enc(m.gid)}/acl/${enc('user:' + a.e)}`);
       if (!r.ok && transient(r)) return false;
-      delete m.acl[ph]; S.dirty[mk] = 1;
+      delete m.acl[ph]; S.leaf(mk, 'acl/' + ph, null);
     }
     for (const [ph, role] of Object.entries(w.mem)) {
       const a = m.acl[ph];
@@ -403,7 +416,7 @@ async function reconcile(env, S, users, cfg, sel) {
       if (!tok) break;
       const r = a ? await S.g(tok, 'PATCH', `/calendars/${enc(m.gid)}/acl/${enc('user:' + a.e)}?sendNotifications=false`, { role })
         : await S.g(tok, 'POST', `/calendars/${enc(m.gid)}/acl?sendNotifications=false`, { role, scope: { type: 'user', value: conn[ph] } });
-      if (r.ok) { m.acl[ph] = { r: role, e: conn[ph] }; S.dirty[mk] = 1; }
+      if (r.ok) { m.acl[ph] = { r: role, e: conn[ph] }; S.leaf(mk, 'acl/' + ph, m.acl[ph]); }
       else if (transient(r)) return false;
       else console.log('gcal acl', r.status, JSON.stringify(r.j || {}).slice(0, 200));
     }
@@ -421,7 +434,7 @@ async function reconcile(env, S, users, cfg, sel) {
         const tok = await gTok(env, S, ph);
         if (tok) { const r = await S.g(tok, 'DELETE', `/users/me/calendarList/${enc(m.gid)}`); if (!r.ok && transient(r)) return false; }
       }
-      delete m.sub[ph]; S.dirty[mk] = 1;
+      delete m.sub[ph]; S.leaf(mk, 'sub/' + ph, null);
     }
     for (const ph of Object.keys(w.mem)) {
       if (m.sub[ph] || !m.acl[ph]) continue;
@@ -429,7 +442,7 @@ async function reconcile(env, S, users, cfg, sel) {
       const tok = await gTok(env, S, ph);
       if (!tok) continue;
       const r = await S.g(tok, 'POST', '/users/me/calendarList?colorRgbFormat=true', { id: m.gid, backgroundColor: w.c, foregroundColor: '#ffffff', selected: true, defaultReminders: [] });
-      if (r.ok || r.status === 409) { m.sub[ph] = conn[ph]; S.dirty[mk] = 1; }
+      if (r.ok || r.status === 409) { m.sub[ph] = conn[ph]; S.leaf(mk, 'sub/' + ph, conn[ph]); }
       else if (transient(r)) return false;
       else console.log('gcal sub', r.status, JSON.stringify(r.j || {}).slice(0, 200));
     }
@@ -464,7 +477,7 @@ async function pushOne(env, S, key) {
       if (r.status === 404) r = await ins(alt);
     }
   }
-  if (r.ok && r.j && r.j.updated) { (m.echo = m.echo || {})[r.j.id || gid] = r.j.updated; S.dirty[mk] = 1; return true; }
+  if (r.ok && r.j && r.j.updated) { const eid = r.j.id || gid; (m.echo = m.echo || {})[eid] = r.j.updated; S.leaf(mk, 'echo/' + eid, r.j.updated); return true; }
   if (transient(r)) return false;
   console.log('gcal push', key, r.status, JSON.stringify(r.j || {}).slice(0, 300));
   return true;                                   // 구글이 받지 않는 일정 — 버린다(계속 다시 보내지 않게)
@@ -493,7 +506,7 @@ async function poll(env, S, mk) {
   const echo = m.echo || {}, ch = [];
   for (const g of items) {
     if (!g || !g.id || !/^[A-Za-z0-9_]+$/.test(g.id)) continue;
-    if (echo[g.id] !== undefined) { const mine = echo[g.id] === g.updated; delete echo[g.id]; if (mine) continue; }   // 우리가 보낸 것
+    if (echo[g.id] !== undefined) { const mine = echo[g.id] === g.updated; delete echo[g.id]; S.leaf(mk, 'echo/' + g.id, null); if (mine) continue; }   // 우리가 보낸 것
     ch.push(g);
   }
   if (ch.length) {
@@ -542,9 +555,9 @@ async function poll(env, S, mk) {
     }
   }
   m.echo = echo;
-  if (next) m.st = next;
+  if (next) { m.st = next; S.leaf(mk, 'st', next); }
   m.pt = Date.now();
-  S.dirty[mk] = 1;
+  S.leaf(mk, 'pt', m.pt);
 }
 
 /* 모은 DB 쓰기를 한 번에 */
@@ -552,9 +565,12 @@ async function flush(deps, env, S) {
   for (const mk of Object.keys(S.dirty)) {
     const m = S.map[mk];
     if (!m) continue;
+    const base = 'authSecrets/__gcalx/map/' + mk;
     const ks = Object.keys(m.echo || {});
-    if (ks.length > 150) for (const k of ks.slice(0, ks.length - 150)) delete m.echo[k];
-    S.w['authSecrets/__gcalx/map/' + mk] = m;
+    if (ks.length > 150) for (const k of ks.slice(0, ks.length - 150)) { delete m.echo[k]; S.leaf(mk, 'echo/' + k, null); }
+    if (S.dirty[mk] === true) { S.w[base] = m; continue; }        // 새로 만든 캘린더 — 통째로
+    if (base in S.w) continue;                                     // 지운 캘린더(mapDel) — 칸을 쓰면 반쪽짜리가 되살아난다
+    for (const [sub, val] of Object.entries(S.dirty[mk] || {})) S.w[base + '/' + sub] = val === undefined ? null : val;
   }
   /* 연결 비밀은 통째로 덮지 않는다 — 그 사이 다시 연결했으면 새 갱신 토큰을 옛것으로 덮게 된다. af 로 어느 토큰 것인지 표시 */
   for (const who of Object.keys(S.secDirty)) {
