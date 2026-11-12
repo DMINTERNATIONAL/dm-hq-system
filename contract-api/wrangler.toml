@@ -35,7 +35,7 @@ GOOGLE_CLIENT_ID = "363361161450-gigervf5v8rkel1g5vsackuh18gqasaq.apps.googleuse
 #   Sandbox 라 연결할 틱톡 계정(DAY:MEAN · 바버샵)을 개발자 사이트 Target users 에 넣어 둬야 한다.
 TIKTOK_CLIENT_KEY = "sbawj96zbozni1s1og"   # Sandbox 앱 DM HQ (11/11) — 심사 통과해 Production 으로 바꾸면 그 키로
 # 홈페이지 가입·비밀번호 찾기 메일의 보내는 사람 (Resend 에 인증한 도메인이어야 함)
-MAIL_FROM = "DAY:MEAN <no-reply@daymean.kr>"
+MAIL_FROM = "DAY:MEAN <cs@daymean.kr>"
 VAPID_PUBLIC = "BB2j3AH4EDiULVEoDKLWE_Ma7SBvBZQoN3D5z-nwFhthblv2Zgym6zlD4KGWnuZHc3661_32XEiHfupWh2oymU4"
 
 # 같은 계정의 Worker 끼리는 HTTP 로 못 부른다(Cloudflare error 1042).
