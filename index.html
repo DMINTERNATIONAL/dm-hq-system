@@ -1890,7 +1890,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-lp{display:flex;flex-direction:column;margin-top:8px;border-radius:12px;overflow:hidden;background:rgba(15,23,42,.04);border:1px solid rgba(15,23,42,.08);text-decoration:none;color:inherit;max-width:260px}.cm-m.me .cm-lp{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.25)}.cm-lp img{width:100%;height:150px;object-fit:cover;display:block;background:#E2E8F0}.cm-lp span{display:flex;flex-direction:column;gap:2px;padding:8px 10px}.cm-lp b{font-size:13px;font-weight:700;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.cm-lp em{font-style:normal;font-size:12px;opacity:.75;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.cm-lp small{font-size:11px;opacity:.6}.cm-schedbar{display:flex;align-items:center;gap:8px;margin:6px 10px 0;padding:8px 12px;border-radius:12px;background:#E0F2FE;color:#075985;font-size:12.5px;cursor:pointer}.cm-schedbar b{font-size:11px;background:#0EA5E9;color:#fff;border-radius:6px;padding:2px 6px}.cm-schedbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cm-schedbar em{font-style:normal;opacity:.6}.cm-row.pinned{background:#F8FAFC}
 .cm-file{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.9);border:1px solid var(--cm-line);border-radius:14px;padding:10px 12px;margin-bottom:3px;max-width:260px;cursor:pointer;color:var(--cm-ink)}.cm-file .ic{flex:0 0 38px;height:46px;border-radius:8px;background:#EEF2F8;color:#475569;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}.cm-file .nm{min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left}.cm-file .nm b{font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all}.cm-file .nm small{font-size:11px;color:var(--cm-ink3)}
 .cm-file{position:relative}.cm-fsv{flex:none;margin-left:auto;width:30px;height:30px;border:0;border-radius:50%;background:none;color:var(--cm-ink3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s}.cm-fsv:hover{background:var(--cm-line);color:var(--cm-ink)}
-.cm-pics{position:relative}.cm-psv{position:absolute;right:6px;bottom:6px;width:32px;height:32px;border:0;border-radius:50%;background:rgba(15,23,42,.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transform:scale(.85);transition:opacity .15s,transform .15s}.cm-pics:hover .cm-psv,.cm-psv:focus{opacity:1;transform:none}
+.cm-pics{position:relative}.cm-pics.exp{cursor:default}.cm-pics.exp img{opacity:.35;filter:blur(3px)}.cm-expl{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:12px;font-weight:700;color:#334155;pointer-events:none}.cm-psv{position:absolute;right:6px;bottom:6px;width:32px;height:32px;border:0;border-radius:50%;background:rgba(15,23,42,.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transform:scale(.85);transition:opacity .15s,transform .15s}.cm-pics:hover .cm-psv,.cm-psv:focus{opacity:1;transform:none}
 .cm-fsv svg,.cm-psv svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.cm-fsv.ing,.cm-psv.ing{opacity:1;animation:cmSvSpin 1s linear infinite}
 @keyframes cmSvSpin{50%{opacity:.35}}
 @media(hover:none){.cm-psv{display:none}}
@@ -2423,6 +2423,7 @@ html.dm-dark .cm-schedbar{background:#213645;color:#9CD9FA}
 html.dm-dark .cm-row.pinned{background:#242426}
 html.dm-dark .cm-file{background:rgba(28,28,30,0.9)}
 html.dm-dark .cm-file .ic{background:#2C2C2E;color:#9CA5B2}
+html.dm-dark .cm-expl{color:#B3BAC3}
 html.dm-dark .cm-fs-row .ic{background:#2C2C2E;color:#9CA5B2}
 html.dm-dark .cm-fs-row.bad .ic{background:#442123;color:#EB8181}
 html.dm-dark .cm-fs-row.bad .nm small{color:#EB8181}
@@ -2527,6 +2528,7 @@ html.dm-dark [style^="color:#666" i],html.dm-dark [style*=";color:#666" i],html.
 html.dm-dark [style^="color:#aaa" i],html.dm-dark [style*=";color:#aaa" i],html.dm-dark [style*="; color:#aaa" i]{color:#909090!important}
 html.dm-dark [style^="color:#555" i],html.dm-dark [style*=";color:#555" i],html.dm-dark [style*="; color:#555" i]{color:#AAAAAA!important}
 html.dm-dark [style^="color:#888" i],html.dm-dark [style*=";color:#888" i],html.dm-dark [style*="; color:#888" i]{color:#888888!important}
+html.dm-dark [style^="color:#c00" i],html.dm-dark [style*=";color:#c00" i],html.dm-dark [style*="; color:#c00" i]{color:#F98686!important}
 html.dm-dark [style^="color:#444" i],html.dm-dark [style*=";color:#444" i],html.dm-dark [style*="; color:#444" i]{color:#BBBBBB!important}
 html.dm-dark [style^="color:#bbb" i],html.dm-dark [style*=";color:#bbb" i],html.dm-dark [style*="; color:#bbb" i]{color:#888888!important}
 html.dm-dark [style^="color:#333" i],html.dm-dark [style*=";color:#333" i],html.dm-dark [style*="; color:#333" i]{color:#CCCCCC!important}
@@ -2785,6 +2787,7 @@ html.dm-dark [style*="border-color:#dbeafe" i]{border-color:#264269!important}
 html.dm-dark [style*="border-color:#bbf7d0" i]{border-color:#26673E!important}
 html.dm-dark [style*="border-color:#d0e4f7" i]{border-color:#284767!important}
 html.dm-dark [style*="border:1px solid #eee" i]{border:1px solid #2C2C2E!important}
+html.dm-dark [style^="color: rgb(204, 0, 0)" i],html.dm-dark [style*=";color: rgb(204, 0, 0)" i],html.dm-dark [style*="; color: rgb(204, 0, 0)" i]{color:#F98686!important}
 html.dm-dark [style^="color: rgb(6, 95, 70)" i],html.dm-dark [style*=";color: rgb(6, 95, 70)" i],html.dm-dark [style*="; color: rgb(6, 95, 70)" i]{color:#A9FAE3!important}
 html.dm-dark [style*="border:1px solid #ddd" i]{border:1px solid #2C2C2E!important}
 html.dm-dark [style*="border:1px solid #111" i]{border:1px solid #3A3A3C!important}
@@ -11138,7 +11141,7 @@ function cmOpenRoom(rid,thRoot){
      requestAnimationFrame(function(){requestAnimationFrame(go2)});setTimeout(go2,150)})();
   if(!CM.room){var cr=cmCacheGet('r_'+rid),cm=cmCacheGet('m_'+rid),cd=cmCacheGet('d_'+rid);if(cr&&cm){CM.room=cr;CM.msgs=cm;CM.reads=cd||{};cmRoomHead();cmRenderMsgs()}}
   cmStream('room','/chat/rooms/'+rid,'',function(d){CM.room=d;cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
-  cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});var ks=Object.keys(CM.msgs).sort().slice(-40),keep={};ks.forEach(function(k){keep[k]=CM.msgs[k]});cmCacheSet('m_'+rid,keep);cmRenderMsgs()});
+  cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});var ks=Object.keys(CM.msgs).sort().slice(-100),keep={};ks.forEach(function(k){keep[k]=CM.msgs[k]});cmCacheSet('m_'+rid,keep);cmRenderMsgs()});
   cmStream('reads','/chat/reads/'+rid,'',function(d){CM.reads=d||{};cmCacheSet('d_'+rid,CM.reads);cmRenderMsgs()});
   if(thRoot)setTimeout(function(){cmOpenThread(thRoot)},300)}
 /* 넓은 화면: 대화방 안에 왼쪽 목록. 작게 보기는 목록 페이지를 그대로 왼쪽에 두므로(cm-dock) 대화방만 */
@@ -11211,7 +11214,9 @@ function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.
   var keys=Object.keys(CM.msgs).sort();CM.firstKey=keys[0]||null;
   var list=keys.map(function(k){return {k:k,m:CM.msgs[k]}});
   var used={};Object.keys(CM_PENDING).forEach(function(k){var p=CM_PENDING[k];if(p.rid!==CM.rid||p.root)return;var hk=cmPendKey(p,CM.msgs,used);if(hk){used[hk]=1;delete CM_PENDING[k];return}list.push({k:k,m:p.m,pending:true,slow:Date.now()-p.m.at>2000})});
-  var more=(keys.length>=60&&!CM.older)||CM.older==='more'?'<button class="cm-more" onclick="cmLoadOlder()">이전 대화 더 보기</button>':'';
+  CM._canOlder=(keys.length>=60&&!CM.older)||CM.older==='more';
+  var more=CM._canOlder?'<button class="cm-more" onclick="cmLoadOlder()">'+(CM._olderBusy?'이전 대화 불러오는 중…':'이전 대화 더 보기')+'</button>':'';
+  if(!box._osc){box._osc=1;box.addEventListener('scroll',function(){if(box.scrollTop<800)cmOlderAuto()},{passive:true})}
   var prevH=box.scrollHeight,prevT=box.scrollTop;
   if(CM.find.on){box.innerHTML=cmFindHtml();box.removeAttribute('data-first');return}
   var first=box.getAttribute('data-drawn')!==CM.rid;if(first){list.forEach(function(it){CM_SEEN['r:'+CM.rid+'|'+it.k]=1});box.setAttribute('data-drawn',CM.rid)}
@@ -11220,9 +11225,12 @@ function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.
   cmBindPress(box);cmFillMedia(box);
   if(near){box.scrollTop=box.scrollHeight;box.setAttribute('data-first','1')}else if(CM._keepTop){box.scrollTop=box.scrollHeight-prevH+prevT;CM._keepTop=false}
   if(CM.jumpTo&&keys.length){var jk=CM.jumpTo;if(CM.msgs[jk]){CM.jumpTo=null;setTimeout(function(){cmJump(jk)},30)}else if(keys[0]>jk&&!CM._jumpLoading&&CM.older!==true){CM._jumpLoading=true;cmLoadOlder();setTimeout(function(){CM._jumpLoading=false},1500)}else if(CM.older===true){CM.jumpTo=null}}
-  cmMarkRead()}
-function cmLoadOlder(){if(!CM.firstKey)return;var rid=CM.rid;
-  fbG(cmSeg('/chat/msgs/'+rid)+'.json?orderBy=%22$key%22&endAt=%22'+CM.firstKey+'%22&limitToLast=61').then(function(d){if(CM.rid!==rid)return;var n=0;Object.keys(d||{}).forEach(function(k){if(!CM.msgs[k]){CM.msgs[k]=d[k];n++}});CM.older=n>=60?'more':true;CM._keepTop=true;cmRenderMsgs()})}
+  cmMarkRead();if(box.scrollTop<800&&!near)cmOlderAuto()}
+/* 카톡처럼 대화는 처음까지 계속 볼 수 있게 — 위쪽 끝 가까이 올리면 100개씩 저절로 더 불러온다(11/12). 버튼도 그대로 둔다 */
+function cmOlderAuto(){if(!CM._canOlder||CM._olderBusy||CM.find.on||!cmOn('p-comm-room'))return;cmLoadOlder()}
+function cmLoadOlder(){if(!CM.firstKey||CM._olderBusy)return;var rid=CM.rid;CM._olderBusy=true;var b=document.querySelector('#CM-MSGS .cm-more');if(b)b.textContent='이전 대화 불러오는 중…';
+  fbG(cmSeg('/chat/msgs/'+rid)+'.json?orderBy=%22$key%22&endAt=%22'+CM.firstKey+'%22&limitToLast=101').then(function(d){CM._olderBusy=false;if(CM.rid!==rid)return;var n=0;Object.keys(d||{}).forEach(function(k){if(!CM.msgs[k]){CM.msgs[k]=d[k];n++}});CM.older=n>=100?'more':true;CM._keepTop=true;cmRenderMsgs()})
+  .catch(function(){CM._olderBusy=false;var b=document.querySelector('#CM-MSGS .cm-more');if(b)b.textContent='이전 대화 더 보기'})}
 function cmJump(key){var e=document.querySelector('#CM-MSGS [data-key="'+key+'"]');if(e){e.scrollIntoView({block:'center'});e.classList.add('sel');setTimeout(function(){e.classList.remove('sel')},1500)}else toast('이전 대화에 있어요. 위로 올려 \'더 보기\'를 눌러 주세요')}
 /* 방에서 이미 본 @부름 · 답장은 내 활동에서도 확인 처리 (확인 요청 · 필독 · 설문 · 나중에 · 다시 알림은 직접 처리해야 남는다) */
 function cmActSeen(rid,uptoKey,root){var up={};Object.keys(CM.act||{}).forEach(function(id){var a=CM.act[id];if(!a||a.done||a.rid!==rid)return;if(['mention','all','reply'].indexOf(a.k)<0)return;
@@ -11285,6 +11293,15 @@ function cmHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeA
 function cmPatch(box,html){var tmp=document.createElement('div');tmp.innerHTML=html;var nu=[].slice.call(tmp.children);var pool={};
   [].forEach.call(box.children,function(o){var h=o.getAttribute('data-h');if(h)(pool[h]=pool[h]||[]).push(o)});
   var fin=nu.map(function(n){var h=cmHash(n.outerHTML.replace(/ cm-new/g,''));var keep=pool[h]&&pool[h].shift();if(keep)return keep;n.setAttribute('data-h',h);return n});
+  /* 단톡방에서 누가 읽을 때마다 '안 읽은 수'(3→2)가 바뀌어 말풍선이 새것으로 갈렸고, 그 안 사진이 빈칸에서 다시 받아졌다(11/12 '단톡방 사진이 훨씬 느림').
+     같은 메시지의 옛 말풍선에 이미 뜬 사진이 있으면 그 사진(이미 받아 그린 것)을 새 말풍선으로 옮긴다 */
+  var used=[];fin.forEach(function(n){if(n.parentNode===box)used.push(n)});var oldBy={};
+  [].forEach.call(box.children,function(o){var k=o.getAttribute('data-key');if(k&&used.indexOf(o)<0&&o.querySelector('img[src]'))oldBy[k]=o});
+  fin.forEach(function(n){if(n.parentNode===box)return;var k=n.getAttribute('data-key'),o=k&&oldBy[k];if(!o)return;var have={};
+    o.querySelectorAll('img[data-mk][src]').forEach(function(im){have[im.getAttribute('data-mk')]=im});
+    n.querySelectorAll('img[data-mk]').forEach(function(im){var old=have[im.getAttribute('data-mk')];if(!old)return;delete have[im.getAttribute('data-mk')];
+      [].slice.call(im.attributes).forEach(function(at){if(old.getAttribute(at.name)!==at.value)old.setAttribute(at.name,at.value)});
+      [].slice.call(old.attributes).forEach(function(at){if(at.name!=='src'&&!im.hasAttribute(at.name))old.removeAttribute(at.name)});im.parentNode.replaceChild(old,im)})});
   fin.forEach(function(n,i){if(box.children[i]!==n)box.insertBefore(n,box.children[i]||null)});
   while(box.children.length>fin.length)box.removeChild(box.lastChild)}
 /* 바뀐 곳만 고친다 — 채팅 목록을 통째로 갈아 끼우면(읽음 처리 · 새 메시지 때마다) 아이폰에서 한 순간 깜빡였다 */
@@ -11488,7 +11505,9 @@ function cmReadAll(){var up={};Object.keys(CM.inbox||{}).forEach(function(k){var
    보통 사진: 폰에서 긴 변 2560px(고화질 4096) 로 줄여 p/ 에 올림(계속 보관). 원본: 그대로 o/ 에 올리고 줄인 사진도 같이(90일).
    동영상: 카톡처럼 폰에서 먼저 줄여서(일반 720p · 고화질 1080p, 원본은 그대로) o/ 에 올림(최대 300MB, 10MB 조각으로),
    첫 장면을 사진으로 따로 올려 미리보기로 씀. */
-CM.urls={};
+/* 사진 주소(서명, 2~3일 유효)는 기기에 저장해 둔다 — 방을 다시 열 때 서버(미국 경유, 1~2초)에 다시 묻지 않고 바로 띄운다(11/12) */
+CM.urls=(function(){try{var o=JSON.parse(localStorage.getItem('cm_urls')||'{}'),n=Date.now()+60000,r={};Object.keys(o).forEach(function(k){if(o[k]&&o[k].exp>n)r[k]=o[k]});return r}catch(e){return {}}})();
+var CM_URLS_T=null;function cmUrlsSave(){clearTimeout(CM_URLS_T);CM_URLS_T=setTimeout(function(){try{var ks=Object.keys(CM.urls),n=Date.now()+60000,o={};ks.slice(-3000).forEach(function(k){if(CM.urls[k].exp>n)o[k]=CM.urls[k]});localStorage.setItem('cm_urls',JSON.stringify(o))}catch(e){}},1500)}
 /* 말풍선 · 모아 보기용 작은 사진(긴 변 800 — 말풍선 240px × 화면 배율 3 에서도 선명하게, 11/12 480→800). 보통 사진(1600)을 말풍선 크기로 받느라 PC 에서 사진이 늦게 떴다(11/12).
    실패해도 보내기는 막지 않는다(없으면 보통 사진을 보여 줌) */
 function cmThumb(rid,s){if(!s||Math.max(s.w,s.h)<=960)return Promise.resolve(null);return cmShrink(s.blob,800,.78).then(function(t){return t?cmUpload(rid,t.blob,'p','thumb.jpg'):null}).catch(function(){return null})}
@@ -11665,11 +11684,15 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
   Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(root0)body.root=root0;if(rp0)body.rp=rp0;
     /* 다 올리면 진짜 메시지 모양(사진)으로 바꿔 두고, 실시간으로 들어올 때까지 그 자리에 둔다(사라졌다 나타나던 것) */
     if(CM_PENDING[tmp])CM_PENDING[tmp].m=Object.assign({},CM_PENDING[tmp].m,{x:'',k:body.k,md:body.md});paint();return cmApi('send',body)}).then(function(r){var have=r&&r.key&&(root0?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp];paint()},8000);paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert('보내지 못했어요\n\n'+e.message)})}
+var CM_PIC_DAYS=30;
+function cmPicExp(at){return !!at&&Date.now()-at>CM_PIC_DAYS*864e5}
+function cmExpToast(){toast('보관 기간('+CM_PIC_DAYS+'일)이 지난 사진이에요')}
 function cmMediaHtml(m){var md=(m.md||[]).filter(function(x){return x&&!cmHidden(x)});if(!md.length)return '';
   var vids=md.filter(function(x){return x.v}),pics=md.filter(function(x){return x.u&&!x.v}),docs=md.filter(function(x){return x.f});
   var h='';
   docs.forEach(function(x){var nm=x.n||'파일';var ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file" onclick="event.stopPropagation();cmFileView(\''+x.f+'\',\''+encodeURIComponent(nm)+'\','+(x.sz||0)+')"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · 90일 보관</small></span><button class="cm-fsv" title="저장" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify([[x.f,nm]]))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'});
   vids.forEach(function(x){var dur=x.d?Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'';h+='<div class="cm-vid" onclick="event.stopPropagation();cmPlay(\''+x.v+'\')">'+(x.u?'<img data-mk="'+x.u+'" alt="">':'')+'<span>동영상 '+dur+'</span></div>'});
+  if(pics.length&&cmPicExp(m.at)){var cls0=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';h+='<div class="cm-pics exp '+cls0+'" onclick="event.stopPropagation();cmExpToast()">'+pics.map(function(x){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'" alt="" decoding="async" style="'+sz+'">'}).join('')+'<span class="cm-expl">보관 기간 만료</span></div>';pics=[]}
   if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'"'+(x.t&&x.t!==x.u?' data-mu="'+x.u+'"':'')+' alt="" decoding="async" style="'+sz+'" onpointerdown="cmWarm(\''+x.u+'\')" onmouseenter="cmWarm(\''+x.u+'\')" onclick="event.stopPropagation();cmView(\''+encodeURIComponent(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
   return h}
 var CM_UFLY={};
@@ -11682,7 +11705,7 @@ function cmFillMedia(root,rid){var need=[];var ok=function(k){var c=CM.urls[k];r
   /* 서버가 한 번에 100개까지만 주소를 줘서 나눠 받는다(모아 보기는 수백 장) */
   var ch=[];for(var i=0;i<need.length;i+=100)ch.push(need.slice(i,i+100));
   need.forEach(function(k){CM_UFLY[k]=1});
-  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).finally(function(){keys.forEach(function(k){delete CM_UFLY[k]})}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});(root.isConnected?root:document).querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.getAttribute('src'))im.src=c.u})}).catch(function(){})})).then(function(){cmWarmObs(root)})}
+  return Promise.all(ch.map(function(keys){return cmApi('media-urls',{rid:rid||CM.rid,keys:keys}).finally(function(){keys.forEach(function(k){delete CM_UFLY[k]})}).then(function(r){var exp=Date.now()+(r.ttl||21600)*1000-300000;Object.keys(r.urls||{}).forEach(function(k){CM.urls[k]={u:r.urls[k],exp:exp}});cmUrlsSave();(root.isConnected?root:document).querySelectorAll('img[data-mk]').forEach(function(im){var c=CM.urls[im.getAttribute('data-mk')];if(c&&!im.getAttribute('src'))im.src=c.u})}).catch(function(){})})).then(function(){cmWarmObs(root)})}
 /* 사진을 누르기 시작할 때(손가락이 닿거나 마우스를 올릴 때) 큰 사진을 미리 받기 시작한다 — 보기 화면이 열릴 때쯤엔 이미 받는 중 */
 var CM_WARM={};
 function cmWarm(k,cb){var fin=function(){if(cb){var f=cb;cb=null;f()}};if(!k||CM_WARM[k]){fin();return}CM_WARM[k]=1;var go=function(u){var im=new Image();try{im.fetchPriority=cb?'low':'high'}catch(e){}im.decoding='async';im.onload=im.onerror=fin;im.src=u;CM_WARM[k]=im};
@@ -11695,7 +11718,7 @@ function cmWarmObs(root){if(!root||!('IntersectionObserver' in window))return;va
   if(!CM_IO)CM_IO=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;CM_IO.unobserve(e.target);CM_WQ.push(e.target)});cmWarmQ()},{rootMargin:'300px 0px'});
   CM_IOL=CM_IOL.filter(function(im){if(im.isConnected)return true;CM_IO.unobserve(im);return false});
   root.querySelectorAll('.cm-pics img[data-mu]').forEach(function(im){if(im._wo)return;im._wo=1;CM_IOL.push(im);CM_IO.observe(im)})}
-function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};return u})}
+function cmUrl(k){var c=CM.urls[k];if(c&&c.exp>Date.now()+60000)return Promise.resolve(c.u);return cmApi('media-urls',{rid:CM.rid,keys:[k]}).then(function(r){var u=r.urls&&r.urls[k];if(!u)throw new Error('파일을 열 수 없어요');CM.urls[k]={u:u,exp:Date.now()+(r.ttl||21600)*1000-300000};cmUrlsSave();return u})}
 function cmOverlay(inner){var bg=document.createElement('div');bg.className='cm-viewer';bg.innerHTML='<div class="vbar"><button onclick="this.closest(\'.cm-viewer\').remove();CM_FILES={}">닫기</button><span class="vt"></span><span class="va"></span></div><div class="vbody">'+inner+'</div>';document.body.appendChild(bg);return bg}
 /* 사진 · 동영상 보기 화면의 저장 · 공유.
    파일은 방 사람만 여는 서명 주소라 주소를 공유하지 않고 파일 자체를 받아 넘긴다.
@@ -11895,16 +11918,16 @@ function cmDrawer(tab){var rid=CM.rid;if(!rid)return;tab=tab||'m';var old=docume
   var bg=document.createElement('div');bg.className='cm-viewer cm-gal';
   bg.innerHTML='<div class="gal-top"><button class="mv-c" data-g="close" aria-label="닫기">'+CM_SVG.back+'</button><b>'+cmEsc(cmRoomName(rid,CM.room))+'</b><span class="gal-n"></span></div><div class="gal-tabs"><button data-t="m">사진 · 동영상</button><button data-t="f">파일</button></div><div class="gal-body"><p class="gal-empty">불러오는 중…</p></div>';
   document.body.appendChild(bg);var body=bg.querySelector('.gal-body'),items=null,pics=[];
-  var old90=Date.now()-90*864e5;
+  var old90=Date.now()-90*864e5,old30=Date.now()-CM_PIC_DAYS*864e5;
   function day(at){var d=new Date(at);return d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일'}
   function paint(){bg.querySelectorAll('.gal-tabs button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===tab)});if(!items)return;
     var rows=[];items.forEach(function(it){(it.md||[]).forEach(function(x){if(!x||cmHidden(x))return;var isF=!!x.f;if((tab==='f')!==isF)return;rows.push({x:x,it:it})})});
     bg.querySelector('.gal-n').textContent=rows.length?rows.length+'개':'';
     if(!rows.length){body.innerHTML='<p class="gal-empty">'+(tab==='f'?'아직 주고받은 파일이 없어요':'아직 주고받은 사진 · 동영상이 없어요')+'</p>';return}
     /* 사진 보기에서 넘길 순서는 오래된 → 최근 */
-    pics=rows.filter(function(r){return !r.x.v&&!r.x.f}).map(function(r){return r.x}).reverse();
+    pics=rows.filter(function(r){return !r.x.v&&!r.x.f&&r.it.at>=old30}).map(function(r){return r.x}).reverse();
     var h='',last='';rows.forEach(function(r,ix){var d=day(r.it.at);if(d!==last){h+=(last?'</div>':'')+'<div class="gal-day">'+d+'</div><div class="'+(tab==='f'?'gal-files':'gal-grid')+'">';last=d}
-      var x=r.x,exp=(x.v||x.f)&&r.it.at<old90;
+      var x=r.x,exp=r.it.at<((x.v||x.f)?old90:old30);
       if(tab==='f'){var nm=x.n||'파일',ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file gal-f'+(exp?' exp':'')+'" data-ix="'+ix+'"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · '+cmEsc(r.it.bn||'')+(exp?' · 보관 기간 지남':'')+'</small></span></div>'}
       else h+='<div class="gal-c'+(exp?' exp':'')+'" data-ix="'+ix+'">'+(x.u?'<img data-mk="'+(x.t||x.u)+'" alt="" loading="lazy" decoding="async">':'')+(x.v?'<span class="gal-v">▶'+(x.d?' '+Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'')+'</span>':'')+(exp?'<span class="gal-x">기간 지남</span>':'')+'</div>'});
     body.innerHTML=h+'</div>';body._rows=rows;cmFillMedia(body,rid)}
@@ -11912,7 +11935,7 @@ function cmDrawer(tab){var rid=CM.rid;if(!rid)return;tab=tab||'m';var old=docume
   bg.addEventListener('click',function(e){if(e.target.closest('[data-g=close]')){bg.remove();return}
     var t=e.target.closest('[data-t]');if(t){tab=t.getAttribute('data-t');body.scrollTop=0;paint();return}
     var c=e.target.closest('[data-ix]');if(!c||!body._rows)return;var r=body._rows[+c.getAttribute('data-ix')],x=r.x;
-    if(x.f)return cmFileView(x.f,encodeURIComponent(x.n||'파일'),x.sz||0);if(x.v)return cmPlay(x.v);var j=pics.indexOf(x);cmView(pics,j<0?0:j)});
+    if(x.f)return cmFileView(x.f,encodeURIComponent(x.n||'파일'),x.sz||0);if(x.v)return cmPlay(x.v);if(r.it.at<old30)return cmExpToast();var j=pics.indexOf(x);cmView(pics,j<0?0:j)});
   paint();
   cmApi('gallery',{rid:rid}).then(function(r){return r.items||[]}).catch(function(){
     /* 서버가 아직 옛 버전이면 예전처럼 방 메시지에서 뽑는다 */
@@ -12448,8 +12471,12 @@ function svSendPick(){var e=SV.ed;if(!e.sv.t.trim()){toast('설문 제목을 입
 
 /* ── 응답하기 ── 미리보기도 같은 화면(mode 'pv') */
 function svAnswer(arg){var m=String(arg).split('/'),sid=m[0];if(m[1]==='r')return svEdit(sid,'r');if(m[1]==='v')return svSumOpen(sid);go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
-  bdApi('/survey/mine',{sid:sid}).then(function(r){if(r.editor&&!r.target)return svEdit(sid);svFillStart({sid:sid,sv:r.sv,a:r.a||{},answered:r.answered,quiz:r.quiz,mode:'live'})})
-  .catch(function(e){p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
+  bdApi('/survey/mine',{sid:sid}).then(function(r){
+    /* 이미 응답했거나 마감된 설문은 내 활동의 '1'을 지운다 — 응답 지우기 뒤 되살아났거나 마감돼서 더 답할 수 없는 설문이 계속 남아 있었다(11/12 민경) */
+    var ac=(CM.act||{})['s_'+sid];if(ac&&!ac.done&&r.target&&(r.answered||svClosed(r.sv))){ac.done=1;cmP('/chat/act/'+ME.phone+'/s_'+sid+'/done',1);cmBadges();if(CM.tab==='act'&&cmOn('p-comm'))cmRenderAct()}
+    if(r.editor&&!r.target)return svEdit(sid);svFillStart({sid:sid,sv:r.sv,a:r.a||{},answered:r.answered,quiz:r.quiz,mode:'live'})})
+  .catch(function(e){var ac=(CM.act||{})['s_'+sid];if(ac&&!ac.done&&/없는 설문|대상이 아닙니다/.test(e.message||'')){ac.done=1;cmP('/chat/act/'+ME.phone+'/s_'+sid+'/done',1);cmBadges()}
+    p.innerHTML='<div class="cm-head"><button class="cm-tb" onclick="svLeave()">‹</button></div><div class="cm-empty">'+cmEsc(e.message)+'</div>'})}
 /* 결과만 공개받은 사람 — 요약만 연다 */
 function svSumOpen(sid){go('p-comm-sv');svBot(false);var p=$('p-comm-sv');p.innerHTML='<div class="sk"></div>';
   bdApi('/survey/summary',{sid:sid}).then(function(r){r.sv.set=r.sv.set||{};SV.rs={sid:sid,sv:r.sv,a:{},mode:'view',view:'sum',sum:r};svFillDraw()})

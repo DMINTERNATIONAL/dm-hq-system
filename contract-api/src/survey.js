@@ -365,9 +365,12 @@ export function makeSurvey(deps) {
     const ed = isEditor(sv, ph, u);
     if (!(sv.tp && sv.tp[ph]) && !ed) throw new Error('이 설문 대상이 아닙니다');
     const out = { sv: { ...sv, tp: undefined, co: undefined, n: Object.keys(sv.tp || {}).length }, editor: ed, target: !!(sv.tp && sv.tp[ph]) };
-    if (sv.anon) { out.answered = !!(await dbGet(env, `/surveyAns/${sid}/_who/${ph}`).catch(() => null)); return out; }
+    /* 이미 답했거나 마감된 설문은 내 활동 '1'을 지운다(11/12 — 응답 지우기 뒤 되살아나거나, 마감돼 답할 수 없는데 계속 남던 것) */
+    const clearAct = async () => { if (!out.target || !(out.answered || closed(sv))) return; const a = await dbGet(env, `/chat/act/${ph}/s_${sid}`).catch(() => null); if (a && !a.done) await dbPut(env, `/chat/act/${ph}/s_${sid}/done`, 1).catch(() => {}); };
+    if (sv.anon) { out.answered = !!(await dbGet(env, `/surveyAns/${sid}/_who/${ph}`).catch(() => null)); await clearAct(); return out; }
     const r = await dbGet(env, `/surveyAns/${sid}/${ph}`).catch(() => null);
     out.answered = !!r; out.a = r ? normA(sv, r.a) : null; out.at = r ? r.at : 0;
+    await clearAct();
     if (r && sv.set && sv.set.quiz && (sv.set.rel === 'now' || sv.rel)) out.quiz = await myQuiz(env, sv, { ...r, a: out.a }, sid);
     return out;
   }

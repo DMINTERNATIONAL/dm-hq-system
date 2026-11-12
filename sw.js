@@ -4,6 +4,28 @@
 
 const CACHE_NAME = 'dm-cache-v2';
 const APP_KEY = new URL('./index.html', self.registration.scope).href;
+// 채팅 사진: 한 번 받은 것은 기기에 저장해 두고 다음부터 바로 띄운다(카톡처럼, 11/12).
+// 주소 뒤 서명(?e=&s=)은 날마다 바뀌므로 파일 이름(경로)만으로 찾는다. 동영상(구간 요청)은 저장 안 함.
+const MEDIA_CACHE = 'dm-media';
+const MEDIA_HOST = 'dm-contract-api.swavey2803.workers.dev';
+const MEDIA_MAX = 1000;
+let mediaTrim = 0;
+async function mediaFetch(req, url) {
+  const key = url.origin + url.pathname;
+  const cache = await caches.open(MEDIA_CACHE);
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  const res = await fetch(url.href, { mode: 'cors', credentials: 'omit' });
+  const type = res.headers.get('content-type') || '';
+  const len = +(res.headers.get('content-length') || 0);
+  if (res.status === 200 && /^image\//.test(type) && (!len || len < 15 * 1024 * 1024)) {
+    cache.put(key, res.clone()).then(() => {
+      if (++mediaTrim % 50) return;
+      return cache.keys().then((ks) => Promise.all(ks.slice(0, Math.max(0, ks.length - MEDIA_MAX)).map((k) => cache.delete(k))));
+    }).catch(() => {});
+  }
+  return res;
+}
 
 self.addEventListener('install', (event) => {
   // 즉시 활성화 (대기 안 함)
@@ -16,7 +38,7 @@ self.addEventListener('activate', (event) => {
       // 옛날 캐시 삭제
       caches.keys().then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE_NAME && k !== 'dm-nav').map((k) => caches.delete(k))
+          keys.filter((k) => k !== CACHE_NAME && k !== 'dm-nav' && k !== MEDIA_CACHE).map((k) => caches.delete(k))
         )
       ),
       // 모든 탭에서 즉시 새 SW 사용
@@ -69,6 +91,12 @@ self.addEventListener('fetch', (event) => {
         return fresh.then((r) => r ? r.clone() : fetch(event.request));
       }).catch(() => fetch(event.request))
     );
+    return;
+  }
+
+  // 채팅 사진(서명 주소) — 기기 저장본 먼저
+  if (url.hostname === MEDIA_HOST && url.pathname.startsWith('/m/') && !event.request.headers.get('range')) {
+    event.respondWith(mediaFetch(event.request, url).catch(() => fetch(event.request)));
     return;
   }
 

@@ -3,7 +3,7 @@
  *
  * 룩북 버킷처럼 공개 주소를 쓰면 주소만 알면 누구나 열 수 있다. 여기 파일은 방 사람만 봐야 하므로
  *   올리기: 로그인 + 방 참여 확인 후 '올리기 허가표'(서명)를 주고, 그 표로만 올린다.
- *   보기:   방 참여 확인 후 6시간짜리 서명 주소를 준다. <img>·<video> 는 머리글을 못 보내서
+ *   보기:   방 참여 확인 후 2~3일짜리 서명 주소를 준다(하루 단위로 같은 주소). <img>·<video> 는 머리글을 못 보내서
  *           로그인 토큰 대신 파일마다 서명을 붙인다(토큰이 주소에 남지 않게).
  * 키: p/{방 태그}/… 보통 사진(계속 보관) · o/{방 태그}/… 원본 사진·동영상·파일(90일 뒤 자동 삭제 — 버킷 수명 규칙)
  * 10MB 넘는 파일은 10MB 조각으로 나눠 올린다 — 조각이 작으면 끊겨도 그 조각만 다시 보내면 되고(폰 · 해외 회선),
@@ -14,7 +14,7 @@ const te = new TextEncoder();
 const LIMIT = { p: 12 * 1024 * 1024, o: 20 * 1024 * 1024, v: 300 * 1024 * 1024, f: 50 * 1024 * 1024 };
 const PART = 10 * 1024 * 1024;
 const MAX_PARTS = Math.ceil(LIMIT.v / PART) + 1;
-const URL_TTL = 6 * 3600;
+const URL_TTL = 2 * 86400; /* 최소 남은 시간(앱이 이만큼 믿고 쓴다). 실제로는 2~3일 */
 
 function b64u(bytes) {
   let s = ''; const b = new Uint8Array(bytes);
@@ -42,8 +42,9 @@ const extOf = (name, type) => {
 
 /* 서명 주소 */
 export async function signedUrl(env, base, key) {
-  /* 만료 시각을 1시간 단위로 맞춘다 — 같은 시간대에 다시 받은 주소가 똑같아야 브라우저가 이미 받은 사진을 다시 안 받는다(11/12 'PC에서 사진이 늦게 뜸') */
-  const e = Math.ceil((Date.now() / 1000 + URL_TTL) / 3600) * 3600;
+  /* 만료 시각을 하루 단위로 맞춘다 — 하루 동안 같은 주소라 기기에 저장된 사진을 그대로 다시 쓴다(11/12 1시간 → 하루, '사진이 너무 느림').
+     한국 → Cloudflare 가 미국(LAX)을 거쳐 한 번 묻는 데 1~2초라, 다시 받지 않는 게 가장 빠르다 */
+  const e = Math.ceil((Date.now() / 1000 + URL_TTL) / 86400) * 86400;
   return `${base}/m/${key}?e=${e}&s=${await sign(env, key + '|' + e)}`;
 }
 
@@ -52,15 +53,16 @@ export async function serveMedia(request, env, path) {
   const url = new URL(request.url);
   const key = decodeURIComponent(path.slice(3));
   const e = parseInt(url.searchParams.get('e') || '0', 10);
-  if (!e || e < Date.now() / 1000) return new Response('주소가 만료됐습니다. 화면을 새로 열어 주세요', { status: 403 });
-  if (!(await same(url.searchParams.get('s') || '', await sign(env, key + '|' + e)))) return new Response('잘못된 주소', { status: 403 });
+  const ac = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'text/plain; charset=utf-8' };
+  if (!e || e < Date.now() / 1000) return new Response('주소가 만료됐습니다. 화면을 새로 열어 주세요', { status: 403, headers: ac });
+  if (!(await same(url.searchParams.get('s') || '', await sign(env, key + '|' + e)))) return new Response('잘못된 주소', { status: 403, headers: ac });
   const obj = await env.CHAT_MEDIA.get(key, { range: request.headers, onlyIf: request.headers });
-  if (!obj) return new Response('보관 기간이 지났거나 없는 파일입니다', { status: 404 });
+  if (!obj) return new Response('보관 기간이 지났거나 없는 파일입니다', { status: 404, headers: ac });
   const h = new Headers();
   obj.writeHttpMetadata(h);
   h.set('etag', obj.httpEtag);
   h.set('Accept-Ranges', 'bytes');
-  h.set('Cache-Control', 'private, max-age=21600, immutable');
+  h.set('Cache-Control', 'private, max-age=604800, immutable');
   h.set('Access-Control-Allow-Origin', '*');
   if (!('body' in obj) || !obj.body) return new Response(null, { status: 304, headers: h });
   let status = 200;
@@ -132,10 +134,8 @@ export function makeMedia(deps) {
         const tag = await roomTag(rid);
         const base = url.origin;
         const out = {};
-        for (const k of (b.keys || []).slice(0, 100)) {
-          const key = String(k);
-          if (key.startsWith(`p/${tag}/`) || key.startsWith(`o/${tag}/`)) out[key] = await signedUrl(env, base, key);
-        }
+        const ks = (b.keys || []).slice(0, 100).map(String).filter((key) => key.startsWith(`p/${tag}/`) || key.startsWith(`o/${tag}/`));
+        await Promise.all(ks.map(async (key) => { out[key] = await signedUrl(env, base, key); }));
         return json({ ok: true, urls: out, ttl: URL_TTL }, 200, origin);
       }
       return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
