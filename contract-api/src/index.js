@@ -17,6 +17,7 @@
 import { sendOne, subId } from './push.js';
 import { makeChat } from './chat.js';
 import { opsText } from './opsmsg.js';
+import { makeOpCost } from './opcost.js';
 import { makeMedia, serveMedia, roomTag, signedUrl } from './media.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
@@ -94,6 +95,23 @@ async function accessToken(env) {
   const j = await r.json();
   _tok = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
   return _tok.v;
+}
+
+/* 다른 구글 API(모니터링 등)용 토큰 — 범위별로 따로 받아 둔다 (opcost.js) */
+const _gscope = {};
+async function gToken(env, scope) {
+  const c = _gscope[scope];
+  if (c && c.exp > Date.now() + 60000) return c.v;
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const now = Math.floor(Date.now() / 1000);
+  const input = b64urlStr(JSON.stringify({ alg: 'RS256', typ: 'JWT' })) + '.' + b64urlStr(JSON.stringify({ iss: sa.client_email, scope, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+  const key = await importKey(sa.private_key);
+  const sig = await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, key, enc.encode(input));
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + encodeURIComponent(input + '.' + b64url(sig)) });
+  if (!r.ok) throw new Error('구글 인증 실패 ' + r.status);
+  const j = await r.json();
+  _gscope[scope] = { v: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  return j.access_token;
 }
 
 /* ═══ RTDB (서비스 계정 권한 — 보안 규칙 우회) ═══ */
@@ -690,6 +708,7 @@ const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, dbCas, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
+const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
@@ -779,6 +798,8 @@ export default {
     ctx.waitUntil(runSalesFixPush(env).catch((e) => console.log('salesfix', e && e.message)));
     /* 검색 노출 조사 — 일요일 밤 10시(한국) 한 번 + 경영팀 '지금 조사하기' 요청. 조사는 2~6분 걸린다 */
     ctx.waitUntil(seoRoute.tick(env).then((r) => { if (r) console.log('seo', JSON.stringify(r)); }).catch((e) => console.log('seo', e && e.message)));
+    /* 운영 비용 수집 — 매일 새벽 4시 40분(한국) 한 번 (opcost.js) */
+    ctx.waitUntil(opCostRoute.tick(env).then((r) => { if (r) console.log('opcost', JSON.stringify(r)); }).catch((e) => console.log('opcost', e && e.message)));
     /* 틱톡 회사 계정 숫자 — 매일 새벽 5시(한국) 한 번 (sns.js) */
     ctx.waitUntil(snsRoute.tick(env).then((r) => { if (r) console.log('tt', Object.keys(r).map((k) => k + ':' + (!r[k] ? 'none' : r[k].err ? 'err' : 'ok')).join(' ')); }).catch((e) => console.log('tt', e && e.message)));
   },
@@ -795,6 +816,9 @@ export default {
 
       /* 채팅 사진·동영상 — 로그인 대신 파일별 서명 주소로 받는다 (media.js) */
       if (path.startsWith('/m/') && (request.method === 'GET' || request.method === 'HEAD')) return serveMedia(request, env, path);
+
+      /* 구글 예산 알림(Pub/Sub push) — 로그인 대신 주소 속 키로 확인 (opcost.js) */
+      if (path === '/hook/gcp-budget' && request.method === 'POST') return opCostRoute.hook(request, env, url);
 
       /* 구글 캘린더 연결 — 구글 로그인 창이 돌아오는 곳(브라우저가 바로 연다, 토큰 없음. state 서명으로 확인) */
       if (path === '/gcal/callback' && request.method === 'GET') return gcalRoute.callback(request, env, ctx, url);
@@ -1205,6 +1229,9 @@ export default {
       if (igRes) return igRes;
       const aiuRes = await aiUsageRoute(path, request, env, ctx, me, json, origin);
       if (aiuRes) return aiuRes;
+      /* 운영 비용 (opcost.js) — 경영팀만 */
+      const ocRes = await opCostRoute(path, request, env, ctx, me, json, origin, url);
+      if (ocRes) return ocRes;
       /* 검색 노출 주간 조사 (seo.js) — 경영팀만 */
       const seoRes = await seoRoute(path, request, env, ctx, me, json, origin);
       if (seoRes) return seoRes;
