@@ -10,7 +10,7 @@
  * 진행률도 촘촘해진다. 조각은 마지막만 빼고 크기가 같아야 한다(R2 규칙). Worker 한 번에 받는 한도는 100MB.
  */
 
-import { gcsGetUrl, gcsPutUrl, hasKey } from './gcs.js';
+import { gcsGetUrl, gcsPutUrl, gcsResumable, hasKey } from './gcs.js';
 
 const te = new TextEncoder();
 const LIMIT = { p: 12 * 1024 * 1024, o: 20 * 1024 * 1024, v: 300 * 1024 * 1024, f: 50 * 1024 * 1024 };
@@ -121,10 +121,37 @@ export function makeMedia(deps) {
           const put = await gcsPutUrl(env, gkey, type, LIMIT[kind]);
           return json({ ok: true, key: gkey, mode: 'gcs', url: put.url, h: put.h }, 200, origin);
         }
+        /* 동영상 · 파일도 서울로(11/12) — 10MB 이하는 서명 PUT 한 번, 넘으면 이어 올리기 세션(8MB 조각). 키는 g/o/ (90일 보관) */
+        if ((kind === 'v' || kind === 'f') && b.g && env.GCS_BUCKET && deps.gToken) {
+          const gkey = `g/o/${await roomTag(rid)}/${id}.${extOf(b.name, b.type)}`;
+          if (size <= PART) { const put = await gcsPutUrl(env, gkey, type, LIMIT[kind]); return json({ ok: true, key: gkey, mode: 'gcs', url: put.url, h: put.h }, 200, origin); }
+          const sess = await gcsResumable(env, deps.gToken, gkey, type, size, request.headers.get('origin') || '');
+          return json({ ok: true, key: gkey, mode: 'gcsr', url: sess, chunk: 8 * 1024 * 1024, type }, 200, origin);
+        }
         const key = `${kind === 'p' ? 'p' : 'o'}/${await roomTag(rid)}/${id}.${extOf(b.name, b.type)}`;
         if (size <= PART) return json({ ok: true, key, mode: 'single', tk: await ticket(env, key, '') }, 200, origin);
         const up = await env.CHAT_MEDIA.createMultipartUpload(key, { httpMetadata: { contentType: type } });
         return json({ ok: true, key, mode: 'multi', uid: up.uploadId, partSize: PART, tk: await ticket(env, key, up.uploadId) }, 200, origin);
+      }
+      /* 사진 올리기 허가를 한꺼번에 미리(11/12) — 사진 고르는 창이 열릴 때 받아 두면 '보내기' 누르자마자 서울로 올라간다(미국 경유 왕복 한 번 줄임).
+         서울 저장소 사진만(보통 · 작은 사진 image/jpeg, 원본은 그 파일 종류). 15분 유효, 안 쓰면 그냥 버려진다(파일은 안 생김) */
+      if (path === '/chat/up/batch' && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        const rid = String(b.rid || '');
+        if (!env.GCS_BUCKET) return json({ ok: true, sts: [] }, 200, origin);
+        await mustMember(env, me, rid);
+        const tag = await roomTag(rid);
+        const items = (Array.isArray(b.items) ? b.items : []).slice(0, 100);
+        const sts = await Promise.all(items.map(async (it) => {
+          const kind = it && it.kind === 'o' ? 'o' : 'p';
+          const type = String((it && it.type) || 'image/jpeg').slice(0, 80);
+          if (!/^image\//.test(type)) return null;
+          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          const gkey = `g/${kind}/${tag}/${id}.${extOf(it && it.name, type)}`;
+          const put = await gcsPutUrl(env, gkey, type, LIMIT[kind]);
+          return { key: gkey, mode: 'gcs', url: put.url, h: put.h, kind, type };
+        }));
+        return json({ ok: true, sts }, 200, origin);
       }
       if (path === '/chat/up/put' && request.method === 'PUT') {
         const key = url.searchParams.get('key') || '';

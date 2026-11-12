@@ -57,6 +57,18 @@ export async function gcsPutUrl(env, key, type, max) {
   return { url: await gcsSign(env, 'PUT', key, { expires: 900, headers }), h: headers };
 }
 
+/* 큰 파일(동영상 · 파일 10MB 넘음) — 이어 올리기 세션(resumable). 앱이 8MB 조각을 세션 주소로 바로 보낸다.
+   세션 주소는 처음 연 쪽의 Origin 에서만 쓸 수 있어서 앱의 Origin 을 그대로 넣어 연다. 크기는 X-Upload-Content-Length 로 고정 */
+export async function gcsResumable(env, gToken, key, type, size, origin) {
+  const t = await gToken(env, 'https://www.googleapis.com/auth/devstorage.read_write');
+  const h = { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': type, 'X-Upload-Content-Length': String(size) };
+  if (origin) h.Origin = origin;
+  const r = await fetch(`https://storage.googleapis.com/upload/storage/v1/b/${enc(env.GCS_BUCKET)}/o?uploadType=resumable&fields=name`, { method: 'POST', headers: h, body: JSON.stringify({ name: key, contentType: type, cacheControl: CACHE_HDR }) });
+  const loc = r.headers.get('location');
+  if (!r.ok || !loc) throw new Error('올리기 준비 실패 ' + r.status);
+  return loc;
+}
+
 /* 버킷 안 복사 (전달할 때) */
 export async function gcsCopy(env, gToken, src, dst) {
   const t = await gToken(env, 'https://www.googleapis.com/auth/devstorage.read_write');
@@ -69,7 +81,7 @@ export async function gcsCopy(env, gToken, src, dst) {
 
 /* 버킷 설정(앱에서 바로 올리고 받게 CORS · 원본 90일 삭제) — 한 번만. 매일 확인해 다르면 다시 맞춘다 */
 const WANT = {
-  cors: [{ origin: ['*'], method: ['GET', 'HEAD', 'PUT'], responseHeader: ['Content-Type', 'Content-Length', 'Content-Range', 'Cache-Control', 'ETag', 'x-goog-content-length-range'], maxAgeSeconds: 3600 }],
+  cors: [{ origin: ['*'], method: ['GET', 'HEAD', 'PUT'], responseHeader: ['Content-Type', 'Content-Length', 'Content-Range', 'Range', 'Cache-Control', 'ETag', 'x-goog-content-length-range'], maxAgeSeconds: 3600 }],
   lifecycle: { rule: [{ action: { type: 'Delete' }, condition: { age: 90, matchesPrefix: ['g/o/'] } }] },
 };
 export async function gcsSetup(env, gToken) {

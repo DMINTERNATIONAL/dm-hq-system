@@ -714,7 +714,7 @@ const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
-const mediaRoute = makeMedia({ dbGet, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
+const mediaRoute = makeMedia({ dbGet, gToken, canSeeScope: (env, me, scope) => boardRoute.canSeeScope(env, me, scope) });
 
 /* 원격 로그아웃 — 경영팀이 잃어버린 폰 등의 접속을 끊는다. 이 시각 전에 발급된 토큰은 모두 무효.
    요청마다 DB 를 읽으면 느려서 1분 묶어 둔다(끊긴 뒤 최대 1분 + DB 토큰 남은 시간까지는 쓸 수 있다). */
