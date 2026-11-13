@@ -4371,16 +4371,29 @@ function loadInternDashStats(){if(!$('INTERN-STATS')||!ME)return;var lv=ME.level
    묶음은 메뉴 이름(l)으로 정한다 — 메뉴 이름을 바꾸면 여기도 같이 바꿀 것. 화면 id 가 없는 메뉴는 NAV_PID 에 적는다 */
 var NAV_VIS=[],NAV_BADGE={},NAV_RES=[];
 var NAV_GROUPS=[
+  {k:'site',t:'홈페이지 · 검색',c:'globe',ls:['검색 노출','홈페이지 회원']},
   {k:'order',t:'발주',c:'package',ls:['발주하기','발주 내역','발주 관리','발주 통계','환불 관리']},
   {k:'prod',t:'제품 · 거래처',c:'boxes',ls:['제품 관리','거래처 배송일']},
-  {k:'naesu',t:'내수 · 가발',c:'shopping-bag',ls:['가발 구매','제품 내수','인턴 내수 관리','내수 제품·가격']}
+  {k:'naesu',t:'내수 · 가발',c:'shopping-bag',ls:['가발 구매','제품 내수','인턴 내수 관리','내수 제품·가격']},
+  {k:'edu',t:'교육',c:'graduation-cap',ls:['아카데미 관리','교육 완료','숙제 출제','교육자 현황','교육 실적','내 진도','외부 수강','숙제']},
+  {k:'exam',t:'시험',c:'clipboard-check',ls:['채점할 시험','시험 결과 입력','시험 채점 관리','평가항목 설정','인턴 성장 현황','지점 인턴 성장','시험 결과','시험 리포트']},
+  {k:'prac',t:'연습',c:'play-circle',ls:['연습 측정','연습 기록','인턴 연습 관리','연습 랭킹','인턴 연습 랭킹']},
+  {k:'staff',t:'직원 · 채용',c:'users',ls:['직원 관리','가입 승인','채용 지원서','내 인턴','지점 인턴']},
+  {k:'sales',t:'매출 · KPI',c:'trending-up',ls:['매출 현황','KPI','매출 입력','내 매출']},
+  {k:'contract',t:'계약 · 정산',c:'file-signature',ls:['위탁계약서','수수료명세서']},
+  {k:'welfare',t:'복지',c:'coffee',ls:['티타임 관리','직원 시술']},
+  {k:'leave',t:'휴가',c:'calendar-days',ls:['연차 신청','휴가 신청','휴무 신청','연차/휴무','인턴 휴가 추가','휴가 달력']},
+  {k:'mealbrk',t:'식대 · 휴게',c:'utensils',ls:['휴게시간','식대 기록','식대 내역','휴게 현황','휴게 통계','식대 관리']},
+  {k:'sys',t:'설정',c:'settings',ls:['알림 설정','등급별 권한','다른 역할로 보기','전체 백업']}
 ];
-var NAV_PID={'발주하기':['p-ordcat','p-order'],'발주 통계':['p-order-stat'],'환불 관리':['p-refund-admin'],'제품 관리':['p-prod-mgmt'],'거래처 배송일':['p-supplier-eta']};
+var NAV_PID={'발주하기':['p-ordcat','p-order'],'발주 통계':['p-order-stat'],'환불 관리':['p-refund-admin'],'제품 관리':['p-prod-mgmt'],'거래처 배송일':['p-supplier-eta'],
+  '아카데미 관리':['p-adm-acad'],'교육자 현황':['p-edu-stats-hq'],'인턴 연습 관리':['p-practice-admin'],'티타임 관리':['p-teatime'],'인턴 휴가 추가':['p-adm-addleave'],
+  '휴게 통계':['p-break-admin'],'식대 기록':['p-meal-record'],'매장 정보 관리':['p-salon-edit']};
 var NAV_DAILY={all:['채팅','내 활동','캘린더'],hq:['고객 상담','발주 관리','휴게 현황'],des:['고객 상담','매출 입력','채점할 시험'],intern:['휴게시간','식대 기록','연습 측정','숙제'],counter:['고객 상담','발주하기']};
 function navEsc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function navGroupOf(l){for(var i=0;i<NAV_GROUPS.length;i++)if(NAV_GROUPS[i].ls.indexOf(l)>=0)return NAV_GROUPS[i];return null}
 function navPids(m){return NAV_PID[m.l]||(m.i&&m.i.indexOf('#')<0?[m.i]:[])}
-function navGrpItems(g){return NAV_VIS.filter(function(v){return navGroupOf(v.m.l)===g})}
+function navGrpItems(g){return NAV_VIS.filter(function(v){return navGroupOf(v.m.l)===g}).sort(function(a,b){return g.ls.indexOf(a.m.l)-g.ls.indexOf(b.m.l)})}
 function navRun(o){try{(new Function(o))()}catch(e){console.error(e)}}
 function navDailyLabels(vf){var L=NAV_DAILY.all.slice();['hq','des','intern','counter'].forEach(function(r){if(vf&&vf[r])NAV_DAILY[r].forEach(function(l){if(L.indexOf(l)<0)L.push(l)})});return L}
 function navRender(M,vf,nav,curId,isHQ){var vis=[],sec='';
@@ -4399,9 +4412,10 @@ function navRender(M,vf,nav,curId,isHQ){var vis=[],sec='';
   return out}
 /* 묶음을 누르면 — 마지막에 본 탭(없으면 첫 탭) */
 function navGrp(k){var g=NAV_GROUPS.filter(function(x){return x.k===k})[0];if(!g)return;var gi=navGrpItems(g);if(!gi.length)return;var last='';try{last=localStorage.getItem('nav_last_'+k)||''}catch(e){}
-  var it=gi.filter(function(v){return v.m.l===last})[0]||gi[0];navRun(it.m.o)}
+  var it=gi.filter(function(v){return v.m.l===last})[0]||gi.filter(function(v){return navPids(v.m).length})[0]||gi[0];navRun(it.m.o)}
 /* 화면 제목 아래 탭 — 묶음에 든 화면이면 같은 묶음의 다른 화면으로 오간다 */
-function navTabs(id){document.querySelectorAll('.grp-tabs').forEach(function(e){e.remove()});var v=NAV_VIS.filter(function(x){return navPids(x.m).indexOf(id)>=0})[0];if(!v)return;var g=navGroupOf(v.m.l);if(!g)return;var gi=navGrpItems(g);if(gi.length<2)return;
+var NAV_MO=null;
+function navTabs(id){if(NAV_MO){NAV_MO.disconnect();NAV_MO=null}document.querySelectorAll('.grp-tabs').forEach(function(e){e.remove()});var v=NAV_VIS.filter(function(x){return navPids(x.m).indexOf(id)>=0})[0];if(!v)return;var g=navGroupOf(v.m.l);if(!g)return;var gi=navGrpItems(g);if(gi.length<2)return;
   try{localStorage.setItem('nav_last_'+g.k,v.m.l)}catch(e){}var pg=$(id);if(!pg)return;
   var bar=document.createElement('div');bar.className='grp-tabs';bar.setAttribute('role','tablist');
   bar.innerHTML=gi.map(function(x,i){return '<button class="grp-tab'+(x===v?' on':'')+'" role="tab" aria-selected="'+(x===v)+'" data-i="'+i+'"'+(x.m.n?' data-n="'+x.m.n+'"':'')+'>'+navEsc(x.m.l)+(x.m.n?'<b style="display:none"></b>':'')+'</button>'}).join('');
@@ -4409,6 +4423,8 @@ function navTabs(id){document.querySelectorAll('.grp-tabs').forEach(function(e){
   var ph=null;for(var c=pg.firstElementChild;c;c=c.nextElementSibling)if(c.classList&&c.classList.contains('ph')){ph=c;break}
   if(ph)ph.parentNode.insertBefore(bar,ph.nextSibling);else pg.insertBefore(bar,pg.firstChild);
   var on=bar.querySelector('.on');if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){}
+  /* 시험 화면처럼 열린 뒤 화면 전체를 새로 그리는 곳은 탭이 지워진다 — 지워지면 다시 붙인다 */
+  if(window.MutationObserver){NAV_MO=new MutationObserver(function(){if(pg.classList.contains('on')&&!pg.contains(bar))navTabs(id)});NAV_MO.observe(pg,{childList:true})}
   navGrpBadge()}
 /* 묶음 · 탭 숫자 — 각 알림(setBadge)의 숫자를 모아 더한다 */
 function navGrpBadge(){document.querySelectorAll('[data-gnotif]').forEach(function(el){var n=0;el.getAttribute('data-gnotif').split(',').forEach(function(k){n+=NAV_BADGE[k]||0});var b=el.querySelector('.s-nav-badge');if(b){b.textContent=n>99?'99+':n;b.style.display=n>0?'inline-flex':'none'}});
