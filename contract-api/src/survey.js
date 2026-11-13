@@ -202,7 +202,7 @@ function cleanSet(s) {
 }
 
 export function makeSurvey(deps) {
-  const { dbGet, dbPut, dbPatch, pushToPhones, eligible } = deps;
+  const { dbGet, dbPut, dbPatch, pushToPhones, eligible, accessToken } = deps;
 
   async function meUser(env, me) {
     if (me.admin) throw new Error('본사 관리자 입구는 쓸 수 없습니다. 본인 계정으로 로그인해 주세요');
@@ -333,11 +333,13 @@ export function makeSurvey(deps) {
       rec.sc = sc;
     }
     if (sv.anon) {
-      const done = await dbGet(env, `/surveyAns/${sid}/_who/${ph}`).catch(() => null);
-      if (done) throw new Error('이미 응답했습니다 (익명 설문은 고칠 수 없습니다)');
+      /* 익명도 한 사람 한 번(11/14 사용자) — '응답함' 표시(_who)를 조건부로 먼저 차지한 요청만 응답을 남긴다.
+         예전엔 '응답했나' 확인과 저장 사이가 비어 있어, 동시에 두 번 누르면 두 개가 들어갈 수 있었다 */
+      if (!(await claimOnce(env, `/surveyAns/${sid}/_who/${ph}`))) throw new Error('이미 응답했습니다 (익명 설문은 한 사람 한 번만, 고칠 수 없어요)');
       const rid = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(36).padStart(2, '0')).join('');
       delete rec.at; /* 익명: 시각을 남기지 않는다 — 응답 시각으로 사람을 맞춰 볼 수 없게 */
-      await dbPatch(env, '/', { [`surveyAns/${sid}/_anon/${rid}`]: rec, [`surveyAns/${sid}/_who/${ph}`]: 1, [`chat/act/${ph}/s_${sid}/done`]: 1 });
+      try { await dbPatch(env, '/', { [`surveyAns/${sid}/_anon/${rid}`]: rec, [`chat/act/${ph}/s_${sid}/done`]: 1 }); }
+      catch (e) { await dbPut(env, `/surveyAns/${sid}/_who/${ph}`, null).catch(() => {}); throw e; }   // 저장이 실패하면 차지도 풀어 다시 낼 수 있게
     } else {
       const old = await dbGet(env, `/surveyAns/${sid}/${ph}`).catch(() => null);
       if (old && (!set.edit || set.quiz)) throw new Error(set.quiz ? '이미 제출했어요 (퀴즈는 다시 낼 수 없어요)' : '이미 응답했습니다 (이 설문은 제출 후 고칠 수 없어요)');   // 이미 만든 퀴즈에 수정이 켜져 있어도 막는다(11/14 점검)
@@ -580,7 +582,45 @@ export function makeSurvey(deps) {
     return isEditor(sv, ph, u) || !!(sv.tp && sv.tp[ph]) || canSum(env, sid, sv, ph, u);
   }
 
+  /* 설문 목록(11/14) — 예전엔 앱이 /surveys 최근 150개를 통째로 받아 기기에서 걸렀다(남의 초안 · 질문 · 대상자 명단이 다 내려갔다).
+     이제 서버가 그 사람이 볼 수 있는 것만 준다: 내가 만든 것 · 공동 작업 · 경영팀(초안 빼고) · 나를 대상으로 보낸 것 · 결과 공개된 것.
+     대상자 명단(tp) · 공동 작업자(co)는 편집할 수 있는 사람에게만 통째로, 나머지에겐 '나' 한 칸만 */
+  /* 그 자리가 비어 있을 때만 1 을 쓴다(ETag 조건부 쓰기). 이미 있거나 다른 요청이 먼저 썼으면 false */
+  async function claimOnce(env, path) {
+    const t = await accessToken(env); const u = `${env.FIREBASE_URL}${path}.json?access_token=${t}`;
+    const r = await fetch(u, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' });
+    if (!r.ok) throw new Error('잠시 후 다시 시도해 주세요');
+    if ((await r.json().catch(() => null)) != null) return false;
+    const et = r.headers.get('ETag'); if (!et) throw new Error('잠시 후 다시 시도해 주세요');
+    const w = await fetch(u, { method: 'PUT', headers: { 'if-match': et, 'Content-Type': 'application/json' }, body: '1' });
+    if (w.status === 412) return false;
+    if (!w.ok) throw new Error('잠시 후 다시 시도해 주세요');
+    return true;
+  }
+  async function list(env, me) {
+    const u = await meUser(env, me); const ph = String(me.ph); const hq = isHq(ph, u);
+    const t = await accessToken(env);
+    const r = await fetch(`${env.FIREBASE_URL}/surveys.json?orderBy=%22%24key%22&limitToLast=150&access_token=${t}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('설문을 불러오지 못했어요');
+    const all = (await r.json()) || {};
+    const out = {};
+    for (const [sid, x] of Object.entries(all)) {
+      if (!x) continue;
+      const mineS = x.by === ph || !!(x.co && x.co[ph]);
+      const ed = mineS || (hq && x.st !== 'draft');
+      const tgt = x.st !== 'draft' && !!(x.tp && x.tp[ph]);
+      const st = x.set || {};
+      const pubS = x.st !== 'draft' && (!!(st.pv && st.pv[ph]) || st.pub === 'all');
+      if (!ed && !tgt && !pubS) continue;
+      if (ed) { out[sid] = x; continue; }
+      const { tp, co, ...rest } = x;
+      out[sid] = { ...rest, tp: tgt ? { [ph]: 1 } : null, n: Object.keys(tp || {}).length, set: { ...st, pv: st.pv && st.pv[ph] ? { [ph]: 1 } : null } };
+    }
+    return { list: out };
+  }
+
   const R = {
+    '/survey/list': (env, ctx, me, b) => list(env, me),
     '/survey/save': (env, ctx, me, b) => save(env, ctx, me, b),
     '/survey/get': (env, ctx, me, b) => get(env, me, b),
     '/survey/send': (env, ctx, me, b) => send(env, ctx, me, b),

@@ -746,7 +746,7 @@ function cleanSignup(p, phone) {
 
 /* ═══ 라우팅 ═══ */
 const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl: mediaUrl, gcsCopy: (env, s, d) => gcsCopy(env, gToken, s, d), relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
-const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, eligible: (env) => chatRoute.eligible(env) });
+const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, dbCas, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
 const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });

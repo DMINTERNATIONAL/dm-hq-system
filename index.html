@@ -12870,7 +12870,7 @@ function svUsers(){if(!CAL.users||!Object.keys(CAL.users).length)CAL.users=CM.us
 function svXlsxLib(cb){if(window.XLSX)return cb();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=function(){cb()};s.onerror=function(){toast('엑셀 도구를 불러오지 못했어요')};document.head.appendChild(s)}
 
 /* ── 목록 ── */
-function svLoad(){return fbG('/surveys.json?orderBy=%22$key%22&limitToLast=150').then(function(d){SV.list=d||{}})}
+function svLoad(){return bdApi('/survey/list',{}).then(function(r){SV.list=(r&&r.list)||{}})}   // 서버가 볼 수 있는 것만 준다(11/14 — 예전엔 /surveys 를 통째로 읽었다)
 function svRender(){var v=$('CM-VIEW');if(!v)return;if(!SV.list){if(SV.loading)return;SV.loading=1;v.innerHTML='<div class="cm-head"><span class="t">설문</span></div><div class="sk"></div>';
     svLoad().then(function(){SV.loading=0;if(CM.tab==='survey'&&cmOn('p-comm'))svRender()},function(e){SV.loading=0;if(CM.tab!=='survey'||!cmOn('p-comm'))return;var w=$('CM-VIEW');if(w)w.innerHTML='<div class="cm-head"><span class="t">설문</span></div><div class="cm-empty">'+cmEsc((e&&e.message)||'설문을 불러오지 못했어요')+'<div style="margin-top:12px"><button class="cm-cbtn sec" onclick="svRender()">다시 시도</button></div></div>'});return}
   var me=String(ME.phone);var ids=Object.keys(SV.list).reverse();
