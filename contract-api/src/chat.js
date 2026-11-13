@@ -35,6 +35,8 @@ const isManagerUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
 const isHqUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
   (u && (u.systemGrade === '경영팀' || u.role === '경영팀' || u.role === '본사경영팀'));
 const safeKey = (s) => String(s).replace(/[.#$\[\]\/]/g, '_');
+/* 자동방 번호 — getRoom 이 받는 글자(영문 · 숫자 · _ - : · 한글)만. 지점 이름에 띄어쓰기 · 괄호가 있으면 방은 생기는데 글을 못 썼다(11/14 점검). 지금 방 번호는 그대로 */
+const roomKey = (s) => String(s).replace(/[^A-Za-z0-9_\-가-힣:]/g, '_');
 /* 교육 자동방(11/13 사용자 결정) — 레벨방: 그 레벨 인턴 전원(회사 전체) + 디자이너 전원 + 경영팀 / 팀방: 담당 디자이너(인턴의 mentorId) + 그 디자이너 담당 인턴(경영팀 없음).
    알림: 디자이너 · 경영팀은 레벨방에 '알림 끔'으로 들어간다(처음 들어갈 때만, 각자 바꿀 수 있음). 끔이어도 @나 · 내 담당 인턴 글 · 내 인턴을 부른 글은 알림.
    새로 들어온 사람에게 이전 대화는 안 보인다(inbox j = 들어올 때 방 번호, 앱이 그 이전 메시지를 안 그림). 인턴별 방은 만들지 않는다 */
@@ -136,6 +138,19 @@ export function makeChat(deps) {
 
   /* 지금 '급하지 않은 알림'을 받지 않을 사람: @나만 알림 · 밤 무음(22~08시) · 오늘 연차 · 정기 휴무.
      이 사람들도 @부름 · 확인 요청 · 내 글 답장은 받는다. 메시지마다 다 읽으면 느려서 5분 묶어 둔다. */
+  /* 오늘 휴가인 사람 — 휴가 기록 전체(계속 쌓인다)를 5분마다 읽던 것을 줄인다(11/14 점검).
+     ① 날짜로 골라 읽기(DB 규칙에 leave/requests ".indexOn": ["date"] 가 있어야 됨 — 없으면 400) ② 안 되면 전체를 읽되 30분에 한 번 */
+  let leaveCache = { at: 0, day: '', set: [] };
+  async function leaveToday(env) {
+    const today = kstDate();
+    if (leaveCache.day === today && Date.now() - leaveCache.at < 30 * 60 * 1000) return leaveCache.set;
+    let lv = await dbQuery(env, '/leave/requests', `orderBy=%22date%22&equalTo=%22${today}%22`).catch(() => null);
+    if (!lv) lv = (await dbGet(env, '/leave/requests').catch(() => null)) || {};
+    const set = [];
+    for (const r of Object.values(lv)) if (r && r.status === '승인' && r.date === today && r.type !== '반차' && r.userId) set.push(String(r.userId));
+    leaveCache = { at: Date.now(), day: today, set };
+    return set;
+  }
   let quietCache = { at: 0, set: new Set() };
   async function quietPhones(env) {
     if (Date.now() - quietCache.at < 5 * 60 * 1000) return quietCache.set;
@@ -143,9 +158,7 @@ export function makeChat(deps) {
     const prefs = (await dbGet(env, '/chat/prefs').catch(() => null)) || {};
     const h = kst().getUTCHours(); const night = h >= 22 || h < 8;
     for (const [ph, p] of Object.entries(prefs)) if (p && (p.only || (p.quiet && night))) set.add(ph);
-    const today = kstDate();
-    const lv = (await dbGet(env, '/leave/requests').catch(() => null)) || {};
-    for (const r of Object.values(lv)) if (r && r.status === '승인' && r.date === today && r.type !== '반차' && r.userId) set.add(String(r.userId));
+    for (const ph of await leaveToday(env)) set.add(ph);
     const us = await users(env);
     for (const [ph, u] of Object.entries(us)) if (u && regularOff(u.brand)) set.add(ph);
     quietCache = { at: Date.now(), set };
@@ -154,9 +167,9 @@ export function makeChat(deps) {
 
   /* 시험 기간에는 대표 + /config/comm/users 에 있는 사람만 채팅에 들어간다.
      자동방(전체 공지·지점·경영팀)에 전 직원이 들어가 버리면 시험 메시지가 모두에게 알림으로 간다. */
-  async function eligible(env) {
+  async function eligible(env, fresh) {
     const cfg = (await dbGet(env, '/config/comm').catch(() => null)) || {};
-    const us = await users(env);
+    const us = fresh ? await users(env) : await usersCached(env);   // 1:1 · 단톡 만들기 · 초대는 5분 묶어 둔 직원 목록(요청마다 전체를 읽던 것, 11/14 점검). 자동방 맞추기만 새로
     const out = {};
     for (const [ph, u] of Object.entries(us)) {
       if (!isActive(u)) continue;
@@ -170,13 +183,13 @@ export function makeChat(deps) {
   async function syncAuto(env, force) {
     const meta = (await dbGet(env, '/chat/meta').catch(() => null)) || {};
     if (!force && meta.syncedAt && nowMs() - meta.syncedAt < 5 * 60 * 1000) return { skipped: true };
-    const { el } = await eligible(env);
+    const { el } = await eligible(env, true);
     const want = { notice: { t: 'notice', n: '전체 공지', m: {} }, hq: { t: 'hq', n: '본사경영팀', m: {} }, ops: { t: 'ops', n: '업무 알림', m: {} } };
     for (const [ph, u] of Object.entries(el)) {
       want.notice.m[ph] = 1;
       if (isHqUser(ph, u)) { want.hq.m[ph] = 1; want.ops.m[ph] = 1; }
       if (u.branch && u.branch !== '본사') {
-        const rid = 'br_' + safeKey((u.brand || '') + '_' + u.branch);
+        const rid = 'br_' + roomKey((u.brand || '') + '_' + u.branch);
         want[rid] = want[rid] || { t: 'br', n: (u.brand ? u.brand + ' ' : '') + u.branch, m: {}, bt: u.brand || '' };
         want[rid].m[ph] = 1;
       }
@@ -186,7 +199,7 @@ export function makeChat(deps) {
     if (ar.bd !== false) {
       for (const [ph, u] of Object.entries(el)) {
         if (!u.brand || u.brand === 'DM INTERNATIONAL' || !u.branch || u.branch === '본사') continue;
-        const rid = 'bd_' + safeKey(u.brand);
+        const rid = 'bd_' + roomKey(u.brand);
         want[rid] = want[rid] || { t: 'bd', n: u.brand + ' 전 직원', m: {}, mute: {}, bt: u.brand };   // 이름 'OO 전체'→'OO 전 직원'(11/14, '전체' 필터 · '전체방'과 헷갈려서)
         want[rid].m[ph] = 1;
       }
@@ -196,7 +209,7 @@ export function makeChat(deps) {
       for (const [ph, u] of Object.entries(el)) {
         if (!isInternU(u) || isEtohU(u)) continue;
         const L = LEVELS.includes(u.level) ? u.level : 'BASIC';
-        const rid = 'lv_' + safeKey(L);
+        const rid = 'lv_' + roomKey(L);
         want[rid] = want[rid] || { t: 'lv', n: L, m: {}, mute: {}, ord: LEVELS.indexOf(L) };   // 이름은 레벨만(11/13 사용자: '인턴' 빼기)
         want[rid].m[ph] = 1;
       }
@@ -218,7 +231,7 @@ export function makeChat(deps) {
       for (const [ph, u] of Object.entries(el)) {
         if (!isInternU(u) || !u.mentorId || !el[u.mentorId]) continue;
         const mp = String(u.mentorId), mu = el[mp];
-        const rid = 'tm_' + safeKey(mp);
+        const rid = 'tm_' + roomKey(mp);
         want[rid] = want[rid] || { t: 'tm', n: nameOf(mu) + (mu.position ? ' ' + mu.position + '님' : '') + ' 팀', m: { [mp]: 1 }, mute: {} };
         want[rid].m[ph] = 1;
       }
@@ -312,6 +325,13 @@ export function makeChat(deps) {
     return r;
   }
   const member = (room, ph) => !!(room.m && room.m[ph]);
+  /* 조건 붙여 읽기(orderBy · startAt · equalTo …) — 큰 목록을 통째로 읽지 않게 */
+  async function dbQuery(env, path, qs) {
+    const t = await accessToken(env);
+    const r = await fetch(`${env.FIREBASE_URL}${path}.json?${qs}&access_token=${t}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('DB 읽기 실패 ' + r.status);
+    return r.json();
+  }
   /* 메시지 번호(key · root) 검사(11/14 점검) — 번호를 그대로 DB 주소에 붙이므로 '../hq/000000050' 같은 값으로
      다른 방 글을 읽거나 엉뚱한 곳에 쓸 수 있었다. 실제 번호는 숫자 9자리(본문) · t+영숫자(스레드 답장)뿐 */
   function msgKey(v) { const k = String(v == null ? '' : v); if (k && !/^[A-Za-z0-9_-]{1,40}$/.test(k)) throw new Error('메시지 정보가 올바르지 않습니다'); return k; }
@@ -384,7 +404,10 @@ export function makeChat(deps) {
       if (!rootMsg) throw new Error('원글을 찾지 못했습니다');
       key = 't' + at.toString(36) + Math.random().toString(36).slice(2, 5);
       up[`chat/thr/${rid}/${root}/${key}`] = msg;
-      up[`chat/msgs/${rid}/${root}/th`] = { c: ((rootMsg.th && rootMsg.th.c) || 0) + 1, l: at, by: { ...((rootMsg.th && rootMsg.th.by) || {}), [ph]: 1 } };
+      /* 답장 수는 서버에서 +1(동시에 둘이 답장하면 읽고-고쳐-쓰기라 1만 오르고 참여자 한 명이 빠졌다, 11/14 점검) */
+      up[`chat/msgs/${rid}/${root}/th/c`] = { '.sv': { increment: 1 } };
+      up[`chat/msgs/${rid}/${root}/th/l`] = at;
+      up[`chat/msgs/${rid}/${root}/th/by/${ph}`] = 1;
     } else {
       seq = await nextSeq(env, rid, seqPre && seqPre.then((r) => r || seqRead(env, rid)));
       key = pad(seq);
@@ -558,11 +581,14 @@ export function makeChat(deps) {
   async function noticePending(env, me, base) {
     await meUser(env, me);
     const ph = String(me.ph);
-    const [all, inbox] = await Promise.all([dbGet(env, '/chat/notices').catch(() => null), dbGet(env, '/chat/inbox/' + ph).catch(() => null)]);
+    /* 공지 번호는 'n'+시각(36진법)이라 번호 순서 = 시간 순서 — 최근 60일 것만 받는다(예전엔 앱 열 때마다 공지 전체를 읽었다, 11/14 점검) */
+    const since = 'n' + (nowMs() - 60 * 86400e3).toString(36);
+    const [all, inbox] = await Promise.all([dbQuery(env, '/chat/notices', `orderBy=%22%24key%22&startAt=%22${since}%22`).catch(() => null), dbGet(env, '/chat/inbox/' + ph).catch(() => null)]);
     const live = Object.entries(all || {}).filter(([, n]) => n && !n.end && n.by !== ph && inbox && inbox[n.rid] && n.at > nowMs() - 60 * 86400e3);
+    const seens = await Promise.all(live.map(([nid]) => dbGet(env, `/chat/nseen/${nid}/${ph}`).catch(() => null)));   // 하나씩 차례로 읽던 것을 한 번에
     const out = [];
-    for (const [nid, n] of live) {
-      const seen = await dbGet(env, `/chat/nseen/${nid}/${ph}`).catch(() => null);
+    for (let i = 0; i < live.length; i++) {
+      const [nid, n] = live[i], seen = seens[i];
       if (seen && (seen.m === 'ok' || (seen.until || 0) > nowMs())) continue;
       out.push({ nid, ...(await noticeSigned(env, base, n)) });
     }
@@ -808,14 +834,16 @@ export function makeChat(deps) {
       if (!isManagerUser(String(me.ph), u)) throw new Error('가리기는 경영팀 · 관리자만 할 수 있습니다');
       await dbPatch(env, path, { x: null, md: null, hid: { by: nameOf(u), at: nowMs() } });
       if (m.md) await dbPatch(env, '/', { [`chat/media/${rid}/${key}`]: null });
-      if (!root) await fixPreview(env, rid, room, m, '가려진 메시지입니다');
+      if (!root) { await fixPreview(env, rid, room, m, '가려진 메시지입니다'); await markChg(env, rid, room, key); }
       return {};
     }
     /* 11/13 사용자 결정: 고치기 · 모두에게서 삭제(회수)는 내 메시지, 보낸 지 5분 안에만.
-       경영팀은 회수를 언제든 · 다른 사람 메시지도(고치기는 경영팀도 내 것 5분 안만) */
+       경영팀은 회수를 다른 사람 메시지도 · 보낸 지 1시간 안까지(11/14 사용자: '경영팀은 1시간으로', 전엔 언제든)(고치기는 경영팀도 내 것 5분 안만) */
     const old = nowMs() - (m.at || 0) > 5 * 60e3;
     if (del) {
-      if (!isHqUser(String(me.ph), u)) {
+      if (isHqUser(String(me.ph), u)) {
+        if (nowMs() - (m.at || 0) > 60 * 60e3) throw new Error('보낸 지 1시간이 지나서 모두에게서 삭제할 수 없어요 (경영팀은 1시간까지)');
+      } else {
         if (!mine) throw new Error('내가 보낸 메시지만 지울 수 있습니다');
         if (old) throw new Error('보낸 지 5분이 지나서 모두에게서 삭제할 수 없어요 (내 화면에서만 지우기는 돼요)');
       }
@@ -826,14 +854,22 @@ export function makeChat(deps) {
     if (del) {
       await dbPatch(env, path, { x: null, md: null, del: 1 });
       if (m.md) await dbPatch(env, '/', { [`chat/media/${rid}/${key}`]: null });
-      if (!root) await fixPreview(env, rid, room, m, '삭제된 메시지입니다');
+      if (!root) { await fixPreview(env, rid, room, m, '삭제된 메시지입니다'); await markChg(env, rid, room, key); }
     } else {
       const x = clip(body.x, 5000).trim();
       if (!x) throw new Error('내용을 입력해 주세요');
       await dbPatch(env, path, { x, ed: nowMs(), lp: null });
-      if (!root) await fixPreview(env, rid, room, m, clip(x, 80));
+      if (!root) { await fixPreview(env, rid, room, m, clip(x, 80)); await markChg(env, rid, room, key); }
     }
     return {};
+  }
+
+  /* 바뀐 글 표시(11/14) — 앱은 최근 60개 글만 실시간으로 받아서, 그보다 오래된 글을 지우거나 가리거나 고치면
+     다른 사람 화면엔 그대로 남았다. 방 정보에 '최근 바뀐 글 번호 → 시각'을 20개까지 남기면, 방을 보고 있는 앱이 그 글만 다시 받는다 */
+  async function markChg(env, rid, room, key) {
+    const c = { ...(room.chg || {}), [key]: nowMs() };
+    const keep = Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 20);
+    await dbPut(env, `/chat/rooms/${rid}/chg`, Object.fromEntries(keep)).catch(() => {});
   }
 
   /* 목록 미리보기 순서 바로잡기(11/13, '읽기 전 미리보기에 최근 글이 안 뜰 때가 있다').
