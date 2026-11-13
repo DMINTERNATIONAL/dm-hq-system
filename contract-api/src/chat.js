@@ -35,6 +35,13 @@ const isManagerUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
 const isHqUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
   (u && (u.systemGrade === '경영팀' || u.role === '경영팀' || u.role === '본사경영팀'));
 const safeKey = (s) => String(s).replace(/[.#$\[\]\/]/g, '_');
+/* 교육 자동방(11/13 사용자 결정) — 레벨방: 그 레벨 인턴 전원(회사 전체) + 디자이너 전원 + 경영팀 / 팀방: 원장(담당 디자이너) + 담당 인턴 + 경영팀.
+   알림: 디자이너 · 경영팀은 레벨방에 '알림 끔'으로 들어간다(처음 들어갈 때만, 각자 바꿀 수 있음). 끔이어도 @나 · 내 담당 인턴 글 · 내 인턴을 부른 글은 알림.
+   새로 들어온 사람에게 이전 대화는 안 보인다(inbox j = 들어올 때 방 번호, 앱이 그 이전 메시지를 안 그림). 인턴별 방은 만들지 않는다 */
+const LEVELS = ['BASIC', 'BRONZE-1', 'BRONZE-2', 'SILVER-1', 'SILVER-2', 'SILVER-3', 'GOLD-1', 'GOLD-2', 'GOLD-3'];
+const isInternU = (u) => !!u && (u.role === '인턴' || u.academyRole === '인턴');
+const isDesignerU = (u) => !!u && (u.role === '디자이너' || (Array.isArray(u.roles) && u.roles.includes('디자이너')));
+const EDU_T = { lv: 1, tm: 1 };
 
 const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
 const ackId = (rid, key) => 'a_' + String(rid).replace(/[^A-Za-z0-9_-]/g, '') .slice(0, 40) + '_' + key;
@@ -116,6 +123,8 @@ export function makeChat(deps) {
   }
 
   async function users(env) { return (await dbGet(env, '/users').catch(() => null)) || {}; }
+  let _usC = null, _usAt = 0;
+  async function usersCached(env) { if (!_usC || nowMs() - _usAt > 300000) { _usC = await users(env); _usAt = nowMs(); } return _usC; }
 
   /* 지금 '급하지 않은 알림'을 받지 않을 사람: @나만 알림 · 밤 무음(22~08시) · 오늘 연차 · 정기 휴무.
      이 사람들도 @부름 · 확인 요청 · 내 글 답장은 받는다. 메시지마다 다 읽으면 느려서 5분 묶어 둔다. */
@@ -164,20 +173,55 @@ export function makeChat(deps) {
         want[rid].m[ph] = 1;
       }
     }
+    /* 교육 자동방 — /config/comm/autoRooms {lv:false} 처럼 끄면 그 종류는 안 만든다(이미 있던 방은 인원만 비운다) */
+    const ar = (await dbGet(env, '/config/comm/autoRooms').catch(() => null)) || {};
+    if (ar.lv !== false) {
+      for (const [ph, u] of Object.entries(el)) {
+        if (!isInternU(u)) continue;
+        const L = LEVELS.includes(u.level) ? u.level : 'BASIC';
+        const rid = 'lv_' + safeKey(L);
+        want[rid] = want[rid] || { t: 'lv', n: L + ' 인턴', m: {}, mute: {}, ord: LEVELS.indexOf(L) };
+        want[rid].m[ph] = 1;
+      }
+      for (const w of Object.values(want)) if (w.t === 'lv') for (const [ph, u] of Object.entries(el)) if (isDesignerU(u) || isHqUser(ph, u)) { w.m[ph] = 1; if (!isInternU(u)) w.mute[ph] = 1; }
+    }
+    if (ar.tm !== false) {
+      for (const [ph, u] of Object.entries(el)) {
+        if (!isInternU(u) || !u.mentorId || !el[u.mentorId]) continue;
+        const mp = String(u.mentorId), mu = el[mp];
+        const rid = 'tm_' + safeKey(mp);
+        want[rid] = want[rid] || { t: 'tm', n: nameOf(mu) + (mu.position ? ' ' + mu.position + '님' : '') + ' 팀', m: { [mp]: 1 }, mute: {} };
+        want[rid].m[ph] = 1;
+      }
+      for (const w of Object.values(want)) if (w.t === 'tm') for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u) && !w.m[ph]) { w.m[ph] = 1; w.mute[ph] = 1; }
+    }
     /* 경영팀은 모든 지점방에 들어간다 (지점 상황을 같이 봐야 해서) */
     for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br') want[rid].m[ph] = 1;
     const up = {};
     const rooms = (await dbGet(env, '/chat/rooms').catch(() => null)) || {};
     for (const [rid, w] of Object.entries(want)) {
       const cur = rooms[rid];
-      if (!cur) { up[`chat/rooms/${rid}`] = { t: w.t, n: w.n, by: 'system', at: nowMs(), m: w.m, seq: 0, auto: 1 }; }
+      if (!cur) { up[`chat/rooms/${rid}`] = { t: w.t, n: w.n, by: 'system', at: nowMs(), m: w.m, seq: 0, auto: 1, ...(w.mute && Object.keys(w.mute).length ? { mute: w.mute } : {}) }; }
       else {
         up[`chat/rooms/${rid}/m`] = w.m;
         for (const ph of Object.keys(cur.m || {})) if (!w.m[ph]) up[`chat/inbox/${ph}/${rid}`] = null;   // 빠진 사람 목록에서 제거
+        if (EDU_T[w.t] && cur.n !== w.n) { up[`chat/rooms/${rid}/n`] = w.n; for (const ph of Object.keys(w.m)) if ((cur.m || {})[ph]) up[`chat/inbox/${ph}/${rid}/n`] = w.n; }
       }
       for (const ph of Object.keys(w.m)) {
-        if (!cur || !(cur.m || {})[ph]) Object.assign(up, inboxSeed(rid, cur || { t: w.t, n: w.n, seq: 0 }, w.n, ph));
+        if (!cur || !(cur.m || {})[ph]) {
+          Object.assign(up, inboxSeed(rid, cur || { t: w.t, n: w.n, seq: 0 }, w.n, ph));
+          if (EDU_T[w.t]) {
+            up[`chat/inbox/${ph}/${rid}/j`] = (cur && cur.seq) || 0;   // 이 번호까지의 대화는 안 보인다
+            if (w.mute && w.mute[ph]) { up[`chat/inbox/${ph}/${rid}/mute`] = 1; if (cur) up[`chat/rooms/${rid}/mute/${ph}`] = 1; }
+          }
+        }
       }
+    }
+    /* 인턴이 없어진 레벨방 · 팀방(또는 끈 종류)은 인원을 비운다 — 방과 글은 남고, 다시 생기면 그때 들어온 사람은 이전 대화가 안 보인다 */
+    for (const [rid, r] of Object.entries(rooms)) {
+      if (!r.auto || !EDU_T[r.t] || want[rid] || !r.m) continue;
+      up[`chat/rooms/${rid}/m`] = null;
+      for (const ph of Object.keys(r.m)) up[`chat/inbox/${ph}/${rid}`] = null;
     }
     /* 퇴사·시험 제외된 사람은 직접 만든 방에서도 뺀다 (쓴 글은 남는다) */
     for (const [rid, r] of Object.entries(rooms)) {
@@ -319,7 +363,14 @@ export function makeChat(deps) {
        채팅은 전부 '급함(high)'으로 보낸다(11/8) — '보통'이면 아이폰이 잠금·절전 중에 모아 뒀다가 늦게 띄운다(카톡처럼 바로 오게) */
     const pushJob = (async () => {
     const quietSet = await quietPhones(env);
-    const targets = Object.keys(room.m).filter((p) => p !== ph && (root ? actFor.has(p) : (actFor.has(p) || (!muted[p] && !quietSet.has(p)))));
+    /* 레벨방: 알림 끈 디자이너도 내 담당 인턴이 쓴 글 · 내 인턴을 부른 글은 받는다 */
+    const mentors = new Set();
+    if (room.t === 'lv') {
+      if (u && u.mentorId) mentors.add(String(u.mentorId));
+      const mns = Object.keys(mn);
+      if (mns.length) { const us = await usersCached(env); for (const q of mns) { const qu = us[q]; if (qu && qu.mentorId) mentors.add(String(qu.mentorId)); } }
+    }
+    const targets = Object.keys(room.m).filter((p) => p !== ph && (root ? actFor.has(p) : (actFor.has(p) || (!muted[p] && !quietSet.has(p)) || (mentors.has(p) && !quietSet.has(p)))));
     if (targets.length) {
       const title = room.t === 'dm' ? bn : (room.t === 'me' ? '나와의 채팅' : room.n);
       const text = x ? clip(x, 120) : (k === 'p' ? '사진을 보냈습니다' : k === 'v' ? '동영상을 보냈습니다' : '파일을 보냈습니다');
