@@ -42,11 +42,13 @@ const LEVELS = ['BASIC', 'BRONZE-1', 'BRONZE-2', 'SILVER-1', 'SILVER-2', 'SILVER
 const isInternU = (u) => !!u && (u.role === '인턴' || u.academyRole === '인턴');
 const isDesignerU = (u) => !!u && (u.role === '디자이너' || (Array.isArray(u.roles) && u.roles.includes('디자이너')));
 const hasGrade = (g) => (u) => !!u && (u.systemGrade === g || u.role === g || (Array.isArray(u.roles) && u.roles.includes(g)));
-/* [방 키, 이름, 해당자, 같이 들어갈 사람(알림 끔으로)] — 사용자 결정 11/13: 카운터 방 없음 · 인턴 전체 · 스탭장 전체에는 관리자 · 디자이너도 */
+/* [방 키, 이름, 해당자, 같이 들어갈 사람(알림 끔으로)] — 사용자 결정 11/13: 카운터 방 없음 · 인턴 전체에는 관리자 · 디자이너, 스탭장 전체에는 관리자만(같은 날 디자이너 뺌)도 */
 /* 아카데미(교육)는 DAY:MEAN 아카데미 — ETOH(바버샵) 직원은 레벨방 · 인턴 전체 · 스탭장 전체의 '같이 보는 사람'에서 뺀다(11/13 사용자) */
 const isEtohU = (u) => /^ETOH/i.test(String((u && u.brand) || ''));
 const obsMD = (u) => !isEtohU(u) && (hasGrade('관리자')(u) || isDesignerU(u));
-const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMD], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMD]];
+/* 스탭장 전체방은 경영팀 · 스탭장 · 관리자만(11/13 사용자 '경영팀이랑 스탭장이랑 관리자만 있으면 돼') — 디자이너는 빠진다 */
+const obsMgr = (u) => !isEtohU(u) && hasGrade('관리자')(u);
+const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMD], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMgr]];
 const EDU_T = { lv: 1, tm: 1, all: 1, bd: 1 };   // bd: 브랜드방(DAY:MEAN 전체 · ETOH 전체, 11/13) — 그 브랜드 직원 전원 + 경영팀, 알림 켬   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
 
 const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
