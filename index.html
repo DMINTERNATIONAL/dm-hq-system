@@ -7301,7 +7301,7 @@ function arPaint(){var el=$('AUTO-ROOMS');if(!el)return;var d=AR_ST.d;
   var h='<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="font-size:14px;font-weight:800;flex:1">💬 자동 단톡방</div>'+(AR_ST.busy?'<span style="font-size:12px;color:#64748B">맞추는 중…</span>':'')+'</div><div style="font-size:12.5px;color:#475569;line-height:1.6;margin-bottom:6px">직원 정보(등급 · 레벨 · 담당 원장)를 보고 방을 만들고 5분마다 인원을 맞춰요. 끄면 그 방은 인원이 비워지고(쓴 글은 남음), 다시 켜면 그때 들어온 사람은 이전 대화가 안 보여요.</div>';
   if(AR_ST.err)h+='<div style="font-size:12.5px;color:#DC2626;margin:6px 0">'+AR_ST.err+'</div>';
   if(!d&&!AR_ST.err)h+='<div class="sk" style="height:120px"></div>';
-  if(d){h+=row('lv','레벨방','레벨마다 1개 · 그 레벨 인턴 + 디자이너 전원 + 경영팀 · 디자이너 · 경영팀은 알림 끔으로 들어감(@나 · 내 담당 인턴 글은 알림)')+row('tm','팀방','원장 + 담당 인턴 + 경영팀(알림 끔)');
+  if(d){h+=row('lv','레벨방','레벨마다 1개 · 그 레벨 인턴 + 디자이너 전원 + 경영팀 · 디자이너 · 경영팀은 알림 끔으로 들어감(@나 · 내 담당 인턴 글은 알림)')+row('tm','팀방','원장 + 담당 인턴');
     var L=d.labels||{};Object.keys(L).forEach(function(k){var nm=L[k];var desc=nm.replace(' 전체','')+' 전원 + 경영팀'+(/인턴|스탭장/.test(nm)?' · 관리자 · 디자이너도(알림 끔)':'');h+=row(k,nm,desc)});
     if(!d.open)h+='<div style="margin-top:10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#9A3412;line-height:1.55">지금은 채팅 시험 중이라 시험 대상 '+d.trial+'명에게만 방이 만들어져요. 전 직원에게 열면 모두에게 생겨요.</div>';
     var rs=d.rooms||[];var TL={all:'전체방',lv:'레벨방',tm:'팀방'};
