@@ -1109,12 +1109,12 @@ export default {
         }
 
         /* AI 비용 안전장치 (11/12) — 캐시에 없어서 AI 를 실제로 부를 때만 센다.
-           같은 곳(IP)에서 10분에 10번 · 회사 전체 하루(첫 호출부터 24시간) 300번 ·
+           같은 곳(IP)에서 10분에 10번 · 회사 전체 하루(첫 호출부터 24시간) 1000번(11/13 300→1000, 제품 목록을 여러 매장이 같은 날 바꿔도 안 막히게) ·
            AI 사용량 화면에서 정한 이번 달 예산을 넘었으면 쉰다(예산을 안 정했으면 안 막는다). */
         if (!(await rlHit(env, 'rc_' + await ipKey(ipOf(request)), 10, 10 * 60 * 1000)))
           return json({ ok: false, error: '잠시 후 다시 시도해 주세요' }, 429, origin);
         if (await recoOverBudget(env)) return json({ ok: false, error: '지금은 AI 추천을 쉬고 있어요' }, 503, origin);
-        if (!(await rlHit(env, 'rc_day', 300, 24 * 3600 * 1000)))
+        if (!(await rlHit(env, 'rc_day', 1000, 24 * 3600 * 1000)))
           return json({ ok: false, error: '오늘은 AI 추천을 더 할 수 없어요' }, 429, origin);
 
         const cfg = await nwCfg(env);
