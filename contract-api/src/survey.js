@@ -191,6 +191,12 @@ function cleanPv(pv) {
   if (pv && typeof pv === 'object') for (const p of Object.keys(pv).slice(0, 100)) if (/^\d{9,12}$/.test(p)) o[p] = 1;
   return Object.keys(o).length ? o : null;
 }
+/* 결과 '전체 공개'는 브랜드별(11/14 사용자: '전체직원은 브랜드별로') — pbr {브랜드:1}. 하나도 안 고르면 공개 안 함 */
+function cleanBr(o) {
+  const out = {};
+  for (const k of Object.keys((o && typeof o === 'object') ? o : {}).slice(0, 10)) { const b = clip(k, 40).trim(); if (b && !/[.#$\[\]\/]/.test(b) && o[k]) out[b] = 1; }
+  return Object.keys(out).length ? out : null;
+}
 function cleanSet(s) {
   s = s || {};
   const show = s.show || {};
@@ -198,6 +204,7 @@ function cleanSet(s) {
     edit: !!s.edit && !s.quiz, prog: !!s.prog, shuf: !!s.shuf, msg: clip(s.msg, 1000), pub: pubMode(s), pv: cleanPv(s.pv), notify: !!s.notify,
     quiz: !!s.quiz, rel: s.rel === 'later' ? 'later' : 'now', show: { miss: show.miss !== false, ans: !!show.ans, pt: show.pt !== false },
     req: !!s.req, nx0: clip(s.nx0, 40),
+    ...(pubMode(s) === 'all' ? (cleanBr(s.pbr) ? { pbr: cleanBr(s.pbr) } : { pub: '' }) : {}),
   };
 }
 
@@ -429,7 +436,7 @@ export function makeSurvey(deps) {
     if (set.pv && set.pv[ph]) return true;
     if (sv.st === 'draft') return false;
     const pub = pubMode(set);
-    if (pub === 'all') return isActive(u);
+    if (pub === 'all') return isActive(u) && (!set.pbr || !!(u && set.pbr[u.brand]));   // pbr 없는 예전 설문은 전 직원
     if (pub === 'resp') return !!(await dbGet(env, sv.anon ? `/surveyAns/${sid}/_who/${ph}` : `/surveyAns/${sid}/${ph}`).catch(() => null));
     return false;
   }
@@ -610,7 +617,7 @@ export function makeSurvey(deps) {
       const ed = mineS || (hq && x.st !== 'draft');
       const tgt = x.st !== 'draft' && !!(x.tp && x.tp[ph]);
       const st = x.set || {};
-      const pubS = x.st !== 'draft' && (!!(st.pv && st.pv[ph]) || st.pub === 'all');
+      const pubS = x.st !== 'draft' && (!!(st.pv && st.pv[ph]) || (st.pub === 'all' && (!st.pbr || !!st.pbr[u && u.brand])));
       if (!ed && !tgt && !pubS) continue;
       if (ed) { out[sid] = x; continue; }
       const { tp, co, ...rest } = x;

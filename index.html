@@ -13064,12 +13064,19 @@ function svSetDraw(){var e=SV.ed,b=$('SV-BODY');if(!b)return;var s=e.sv.set,show
   h+='<div class="sv-card sv-set"><div class="sv-sh">관리</div><button class="sv-act" onclick="svTplSave()">양식으로 저장 <em>다음에 \'새 설문\'에서 골라 쓸 수 있어요</em></button><button class="sv-act" onclick="svCopy()">사본 만들기 <em>응답 없이 질문만 복사해요</em></button>'+(e.owner&&e.sid?'<button class="sv-act red" onclick="svDelSurvey()">설문 삭제 <em>응답도 모두 지워져요</em></button>':'')+'</div>';
   b.innerHTML=svShareHtml()+h;svUsers();if(e.sid)cmFillMedia(b,'survey:'+e.sid);b.querySelectorAll('textarea.sv-in').forEach(svGrow)}
 /* 공유 — 누가 설문을 받고, 누가 결과를 보는지 한곳에서 */
+/* 결과 '브랜드 전체' 공개(11/14 사용자 '전체직원은 브랜드별로') — 고른 브랜드 직원만 결과 요약을 본다. 서버 survey.js cleanSet · canSum 의 pbr */
+function svBrands(){var u=svUsers()||{},o={};Object.keys(u).forEach(function(p){var x=u[p];if(x&&x.brand&&x.brand!=='DM INTERNATIONAL'&&x.status!=='퇴사')o[x.brand]=1});var l=Object.keys(o);['DAY:MEAN','ETOH'].forEach(function(b){if(l.indexOf(b)<0)l.push(b)});return l.sort(function(a,b){return a==='DAY:MEAN'?-1:b==='DAY:MEAN'?1:a<b?-1:1})}
+function svPubSet(v){var s=SV.ed.sv.set;s.pub=v;if(v==='all'&&!s.pbr)s.pbr={};svDirty();svSetDraw()}
+function svPbrToggle(b){var s=SV.ed.sv.set;s.pbr=s.pbr||{};if(s.pbr[b])delete s.pbr[b];else s.pbr[b]=1;svDirty();svSetDraw()}
 function svShareHtml(){var e=SV.ed,s=e.sv.set,pm=s.pub===true?'resp':(s.pub||''),n=(e.tp||[]).length;
+  if(pm==='all'&&!s.pbr){s.pbr={};svBrands().forEach(function(b){s.pbr[b]=1})}   // 예전 '전체 직원' 설문은 모든 브랜드가 골라진 채로 보인다
+  var _pbN=Object.keys(s.pbr||{}).join(' · ');
   var mem=function(ph,del){return '<div class="cv-mem">'+calAvatar(ph,32)+'<span class="nm"><b>'+cmEsc(calName(ph))+'</b></span>'+(del?'<button class="cv-ib sm" onclick="'+del+';svDirty();svSetDraw()" aria-label="빼기">'+svIc(SVI.x,16)+'</button>':'')+'</div>'};
   var h='<div class="sv-card sv-set"><div class="sv-sh">공유</div>'+
     '<div class="sv-srow"><span><b>설문 받는 사람</b><em>'+(n?n+'명 · 고른 사람만 설문을 보고 답할 수 있어요':'아직 아무에게도 보내지 않았어요')+'</em></span><button class="cv-btn" onclick="svSendPick()">'+(e.st==='draft'?'보내기':'더 보내기')+'</button></div>'+
-    '<div class="sv-srow col"><span><b>결과 공개</b><em>'+(pm==='resp'?'응답을 제출한 사람이 결과 요약을 볼 수 있어요':pm==='all'?'직원 누구나 소통 › 설문에서 결과 요약을 볼 수 있어요':'아래 \'결과 볼 사람\'과 만든 사람 쪽만 볼 수 있어요')+'</em></span><div class="sv-seg">'+
-      [['','공개 안 함'],['resp','응답한 사람'],['all','전체 직원']].map(function(o){return '<button class="'+(pm===o[0]?'on':'')+'" onclick="SV.ed.sv.set.pub=\''+o[0]+'\';svDirty();svSetDraw()">'+o[1]+'</button>'}).join('')+'</div></div>'+
+    '<div class="sv-srow col"><span><b>결과 공개</b><em>'+(pm==='resp'?'응답을 제출한 사람이 결과 요약을 볼 수 있어요':pm==='all'?(_pbN?_pbN+' 직원 누구나 소통 › 설문에서 결과 요약을 볼 수 있어요':'결과를 볼 브랜드를 골라 주세요 (안 고르면 공개 안 함)'):'아래 \'결과 볼 사람\'과 만든 사람 쪽만 볼 수 있어요')+'</em></span><div class="sv-seg">'+
+      [['','공개 안 함'],['resp','응답한 사람'],['all','브랜드 전체']].map(function(o){return '<button class="'+(pm===o[0]?'on':'')+'" onclick="svPubSet(\''+o[0]+'\')">'+o[1]+'</button>'}).join('')+'</div>'+
+      (pm==='all'?'<div class="cm-chips" style="flex-wrap:wrap;margin-top:8px">'+svBrands().map(function(b){return '<button class="cm-chip'+(s.pbr&&s.pbr[b]?' on':'')+'" onclick="svPbrToggle('+cmJsLit(b)+')">'+cmEsc(b)+' 전체</button>'}).join('')+'</div>':'')+'</div>'+
     '<div class="sv-srow col"><span><b>결과 볼 사람</b><em>위 설정과 상관없이 이 사람들은 결과 요약을 볼 수 있어요</em></span>'+Object.keys(s.pv||{}).map(function(ph){return mem(ph,'delete SV.ed.sv.set.pv[\''+ph+'\']')}).join('')+'<button class="sv-lnk blue" onclick="svPvAdd()">+ 사람 추가</button></div>'+
     '<div class="sv-note">결과 요약은 차트와 응답 모음만 보여요. 누가 뭐라고 답했는지(이름 · 개별 응답 · 엑셀)는 만든 사람 · 공동 작업자 · 경영팀만 볼 수 있어요</div>';
   if(e.owner)h+='<div class="sv-sh2" style="display:flex;align-items:center">공동 작업자 <span class="cv-sp"></span><button class="sv-lnk blue" onclick="svCoAdd()">+ 추가</button></div><div class="sv-note">함께 질문을 고치고 전체 응답을 볼 수 있어요. 설문 삭제는 만든 사람만 할 수 있어요</div>'+
