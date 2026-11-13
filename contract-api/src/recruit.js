@@ -16,7 +16,7 @@
  *       /recruitTokens/{sha256} = id
  * 사진: 지원자 얼굴은 개인정보라 공개 r2.dev 가 아니라 비공개 구글 서울 저장소(gcs.js) recruit/{열쇠} 에 두고,
  *       볼 때만 짧은 서명 주소를 준다. 올렸지만 지원서에 안 붙은 사진은 /authSecrets/__rp 에 적어 두고 하루 뒤 지운다.
- * 파기: 작성 중은 마지막 저장 30일 뒤, 제출된 것은 제출 1년 뒤(개인정보처리방침) — 사진 · 링크도 같이.
+ * 파기: 작성 중은 마지막 저장 30일 뒤, 제출된 것은 제출 3년 뒤(개인정보처리방침 · 2026-11-13 1년 → 3년, 사용자 결정) — 사진 · 링크도 같이.
  *       경영팀이 목록을 열 때 + 1분 작업이 하루 한 번 돈다(purge).
  * 값은 화면 언어와 상관없이 한국어(사이트가 화면 글자만 번역) — 관리 앱이 이 값으로 거른다.
  */
@@ -35,7 +35,7 @@ const LANGS = ['ko', 'en', 'ja', 'zh'];
 const STAFF_STATUSES = ['new', 'reviewing', 'contacted', 'hired', 'rejected'];
 const CLOSED = ['hired', 'rejected'];
 const DAY = 24 * 3600 * 1000;
-const KEEP_MS = 365 * DAY, DRAFT_MS = 30 * DAY, ORPHAN_MS = DAY;
+const KEEP_MS = 3 * 365 * DAY, DRAFT_MS = 30 * DAY, ORPHAN_MS = DAY;
 const ID_RE = /^[-A-Za-z0-9_]{1,40}$/;
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;               // 32바이트 base64url
 const PHOTO_RE = /^[A-Za-z0-9_-]{22}\.(jpg|webp)$/;    // 16바이트 base64url + 확장자
@@ -301,7 +301,7 @@ export function makeRecruit(deps) {
     return [200, { ok: true, app }];
   }
 
-  /* ── 파기 ── 작성 중 30일 · 제출 1년 · 떠도는 사진 하루. 한 번에 사진 20장까지(요청 하나의 외부 요청 한도 50) */
+  /* ── 파기 ── 작성 중 30일 · 제출 3년 · 떠도는 사진 하루. 한 번에 사진 20장까지(요청 하나의 외부 요청 한도 50) */
   async function purge(env) {
     const [all, rp] = await Promise.all([dbGet(env, '/recruitApps'), dbGet(env, '/authSecrets/__rp').catch(() => null)]);
     const now = Date.now(), up = {}, photos = [];
@@ -336,7 +336,7 @@ export function makeRecruit(deps) {
     if (!(await canManageStaff(env, me))) return json({ ok: false, error: '권한이 없습니다' }, 403, origin);
 
     if (path === '/recruit/apps' && request.method === 'GET') {
-      /* 1년 · 30일 지난 것은 여는 김에 지운다(하루 한 번 도는 작업이 놓쳐도 보관 기한이 지켜지게) */
+      /* 3년 · 30일 지난 것은 여는 김에 지운다(하루 한 번 도는 작업이 놓쳐도 보관 기한이 지켜지게) */
       const purged = await purge(env).catch((e) => { console.log('recruit purge', e && e.message); return null; });
       const all = (await dbGet(env, '/recruitApps')) || {};
       const wantDraft = url.searchParams.get('draft') === '1';
