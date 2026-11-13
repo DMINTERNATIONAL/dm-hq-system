@@ -759,9 +759,18 @@ export function makeChat(deps) {
       if (!root) await fixPreview(env, rid, room, m, '가려진 메시지입니다');
       return {};
     }
-    if (!mine) throw new Error('내가 보낸 메시지만 바꿀 수 있습니다');
-    /* 고치기는 보낸 지 5분 안에만(11/13 사용자 결정). 지우기는 그대로 */
-    if (!del && nowMs() - (m.at || 0) > 5 * 60e3) throw new Error('보낸 지 5분이 지나서 고칠 수 없어요');
+    /* 11/13 사용자 결정: 고치기 · 모두에게서 삭제(회수)는 내 메시지, 보낸 지 5분 안에만.
+       경영팀은 회수를 언제든 · 다른 사람 메시지도(고치기는 경영팀도 내 것 5분 안만) */
+    const old = nowMs() - (m.at || 0) > 5 * 60e3;
+    if (del) {
+      if (!isHqUser(String(me.ph), u)) {
+        if (!mine) throw new Error('내가 보낸 메시지만 지울 수 있습니다');
+        if (old) throw new Error('보낸 지 5분이 지나서 모두에게서 삭제할 수 없어요 (내 화면에서만 지우기는 돼요)');
+      }
+    } else {
+      if (!mine) throw new Error('내가 보낸 메시지만 고칠 수 있습니다');
+      if (old) throw new Error('보낸 지 5분이 지나서 고칠 수 없어요');
+    }
     if (del) {
       await dbPatch(env, path, { x: null, md: null, del: 1 });
       if (m.md) await dbPatch(env, '/', { [`chat/media/${rid}/${key}`]: null });

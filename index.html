@@ -11720,8 +11720,10 @@ function cmSheet(html){var bg=document.createElement('div');bg.className='cm-she
 function cmMore(key,root){cmCloseMenu();var m=cmMsgBy(key,root);if(!m)return;var mine=m.by===String(ME.phone);var r=JSON.stringify(root||null).replace(/"/g,"'");
   var h='';if(!root&&m.s){h+='<button onclick="this.closest(\'.cm-sheet-bg\').remove();cmLater(\''+key+'\')">나중에 보기</button><button onclick="this.closest(\'.cm-sheet-bg\').remove();cmRemindPick(\''+key+'\')">다시 알림</button><button onclick="this.closest(\'.cm-sheet-bg\').remove();cmForwardPick(\''+key+'\')">전달</button><button onclick="this.closest(\'.cm-sheet-bg\').remove();cmReaders(\''+key+'\')">읽은 사람 보기</button>';if(!mine)h+='<button onclick="this.closest(\'.cm-sheet-bg\').remove();cmMarkUnread(\''+key+'\')">여기부터 읽지 않음으로 표시</button>'}
   if(mine&&m.k==='t'&&Date.now()-(m.at||0)<=5*60e3)h+='<button onclick="this.closest(\'.cm-sheet-bg\').remove();cmStartEdit(\''+key+'\','+r+')">수정 (보낸 지 5분 안)</button>';
-  if(mine)h+='<button class="red" onclick="this.closest(\'.cm-sheet-bg\').remove();cmDelete(\''+key+'\','+r+')">삭제</button>';
-  if(!mine&&cmIsManager())h+='<button class="red" onclick="this.closest(\'.cm-sheet-bg\').remove();cmHide(\''+key+'\','+r+')">가리기 (관리자)</button>';
+  /* 회수: 내 메시지는 보낸 지 5분 안, 경영팀은 언제든 · 다른 사람 메시지도(11/13) */
+  var _fresh=Date.now()-(m.at||0)<=5*60e3,_hq=cmIsHq();
+  if((mine&&_fresh)||_hq)h+='<button class="red" onclick="this.closest(\'.cm-sheet-bg\').remove();cmDelete(\''+key+'\','+r+')">모두에게서 삭제'+(_hq&&!(mine&&_fresh)?' (경영팀)':'')+'</button>';else if(mine)h+='<div class="who-row" style="color:#94A3B8;font-size:12.5px;padding:10px 16px">보낸 지 5분이 지나 모두에게서 삭제할 수 없어요</div>';
+  if(!mine&&cmIsManager()&&!_hq)h+='<button class="red" onclick="this.closest(\'.cm-sheet-bg\').remove();cmHide(\''+key+'\','+r+')">가리기 (관리자)</button>';
   h+='<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>';cmSheet(h)}
 function cmReaders(key){var m=CM.msgs[key];if(!m||!CM.room)return;if(m.k==='ack')return cmAckWho(key);var rd=[],un=[];Object.keys(CM.room.m||{}).forEach(function(p){if(p===m.by)return;((CM.reads[p]||0)>=m.s?rd:un).push(cmName(p))});
   cmSheet('<div class="ttl">안 읽은 사람 '+un.length+'</div>'+(un.map(function(n){return '<div class="who-row">'+cmEsc(n)+'</div>'}).join('')||'<div class="who-row">없음</div>')+'<div class="ttl">읽은 사람 '+rd.length+'</div>'+(rd.map(function(n){return '<div class="who-row">'+cmEsc(n)+'</div>'}).join('')||'<div class="who-row">없음</div>')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>')}
@@ -12268,7 +12270,7 @@ function cmMvShare(cur){var m=cur.meta,desk=typeof CM_DESK!=='undefined'&&CM_DES
     toast('파일을 받는 중이에요. 잠시 뒤 다시 눌러 주세요');cmMediaFile(cur.sk).catch(function(){toast('보관 기간(90일)이 지났거나 받을 수 없는 파일이에요')})}]);
   if(!it.length)return toast('전달할 수 없는 사진이에요');cmSheetTop('공유',it)}
 function cmMvDel(bg,cur){var m=cur.meta,it=[['이 기기에서 지우기',function(){cmHideLocal(cur.mk);cmMvClose(bg);var g=document.querySelector('.cm-gal');if(g&&g._paint)g._paint();if(CM.rid)cmRenderMsgs();toast('이 기기에서 지웠어요 (다른 사람 화면엔 그대로예요)')}]];
-  if(m&&m.k&&m.by===String(ME.phone)){var n=(cmMsgOf(m)||{md:[]}).md.length;it.push([n>1?'모두에게서 삭제 (이 메시지의 '+n+'개 모두)':'모두에게서 삭제',function(){document.querySelectorAll('.cm-mv,.cm-gal').forEach(function(e){e.remove()});CM_FILES={};cmDelete(m.k,m.r||null)},'red'])}
+  if(m&&m.k&&((m.by===String(ME.phone)&&Date.now()-(m.at||0)<=5*60e3)||cmIsHq())){var n=(cmMsgOf(m)||{md:[]}).md.length;it.push([n>1?'모두에게서 삭제 (이 메시지의 '+n+'개 모두)':'모두에게서 삭제',function(){document.querySelectorAll('.cm-mv,.cm-gal').forEach(function(e){e.remove()});CM_FILES={};cmDelete(m.k,m.r||null)},'red'])}
   cmSheetTop('',it)}
 function cmMsgOf(m){return m.r?(CM.thRoot===m.r?CM.thMsgs[m.k]:null):(CM.msgs[m.k]||(CM.gal&&CM.gal.items.filter(function(x){return x.k===m.k})[0]))}
 
