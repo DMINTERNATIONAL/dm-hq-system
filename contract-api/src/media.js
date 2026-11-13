@@ -166,6 +166,8 @@ export function makeMedia(deps) {
         const n = parseInt(url.searchParams.get('n') || '0', 10);
         if (!(await same(url.searchParams.get('tk') || '', await ticket(env, key, uid)))) throw new Error('올리기 허가가 올바르지 않습니다');
         if (n < 1 || n > MAX_PARTS) throw new Error('조각 번호가 올바르지 않습니다');
+        const plen = Number(request.headers.get('content-length') || 0);
+        if (!plen || plen > PART + 1024 * 1024) throw new Error('조각 크기가 올바르지 않습니다');   // 조각 크기를 안 봐서 크기 제한보다 큰 파일이 올라갈 수 있었다(11/14 점검)
         const part = await env.CHAT_MEDIA.resumeMultipartUpload(key, uid).uploadPart(n, request.body);
         return json({ ok: true, part: { partNumber: part.partNumber, etag: part.etag } }, 200, origin);
       }

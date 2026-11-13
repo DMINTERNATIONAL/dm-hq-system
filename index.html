@@ -9584,7 +9584,7 @@ if('serviceWorker' in navigator){
   });
   /* 계속 켜 두는 맥 · PC 앱(창이 늘 보이는 경우)도 15분마다 새 버전 확인 */
   setInterval(function(){if(!navigator.serviceWorker.controller)return;dmLastAppCheck=Date.now();navigator.serviceWorker.controller.postMessage({type:'check-app'})},900000);
-  navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='open'&&e.data.url){try{var u=new URL(e.data.url);if(u.origin===location.origin){if(/^#(comm|board|survey|cal|sales)\//.test(u.hash)&&typeof cmGoHash==='function')cmGoHash(u.hash)}else{location.href=e.data.url}}catch(_){}}});
+  navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='open'&&e.data.url){try{var u=new URL(e.data.url);if(u.origin===location.origin){if(/^#(comm|board|survey|cal|sales)\//.test(u.hash)&&typeof cmGoHash==='function')cmGoHash(u.hash)}}catch(_){}   /* 우리 주소가 아니면 아무것도 안 한다(예전엔 그 주소로 이동 — javascript: 실행 · 피싱 위험, 11/14 점검) */}});
   window.addEventListener('load',function(){
     var swPath=location.pathname.indexOf('/dm-hq-system/')===0?'/dm-hq-system/sw.js':'./sw.js';
     navigator.serviceWorker.register(swPath).then(function(reg){
@@ -12750,9 +12750,10 @@ function bdCount(force){if(!ME||!COMM_BETA||!CM.booted)return Promise.resolve();
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')bdCount()});
 /* PC · 맥 앱은 웹 푸시를 못 받아 새 글을 몰랐다 — 처음 받은 목록 뒤로 새로 생긴 남의 글을 앱 알림으로 띄운다(알림 끈 게시판은 필독만) */
 var BD_KNOWN={},BD_KNOWN_READY=false;
+var BD_DESK_SAID={};
 function bdDeskNew(){var me=String(ME.phone),fresh=[];Object.keys(BD.posts).forEach(function(b){var ps=BD.posts[b]||{};Object.keys(ps).forEach(function(p){var id=b+'/'+p,x=ps[p];if(BD_KNOWN[id])return;BD_KNOWN[id]=1;
     if(BD_KNOWN_READY&&x&&x.by!==me&&bdIsNew(p,x)&&(x.must||!(BD.mu||{})[b])&&Date.now()-(x.at||0)<86400000)fresh.push([b,p,x])})});BD_KNOWN_READY=true;
-  if(!fresh.length||typeof CM_DESK==='undefined'||!CM_DESK)return;var f=fresh[0],bn=(BD.boards[f[0]]||{}).n||'게시판';
+  if(!fresh.length||typeof CM_DESK==='undefined'||!CM_DESK)return;fresh.forEach(function(q){BD_DESK_SAID[q[0]+'/'+q[1]]=1});var f=fresh[0],bn=(BD.boards[f[0]]||{}).n||'게시판';
   cmDeskNotify((f[2].must?'[필독] ':'')+bn,fresh.length>1?'새 글 '+fresh.length+'개 · '+f[2].bn+': '+f[2].t:f[2].bn+': '+f[2].t,'#board/'+f[0]+'/'+f[1])}
 /* 켜 둔 동안 새 글 확인 — 게시판마다 맨 끝 글 하나만 받아 보고, 모르는 글이 있을 때만 목록을 다시 받는다(데이터 아끼기) */
 function bdPeek(){if(!ME||!COMM_BETA||!CM.booted||!BD.boards)return;var ids=Object.keys(BD.boards).filter(function(b){return bdCanSee(BD.boards[b])});
@@ -13043,7 +13044,7 @@ function svSetDraw(){var e=SV.ed,b=$('SV-BODY');if(!b)return;var s=e.sv.set,show
   var endV=e.sv.end?(function(d){d=new Date(d-d.getTimezoneOffset()*60000);return d.toISOString().slice(0,16)})(new Date(e.sv.end)):'';
   var h='<div class="sv-card sv-set"><div class="sv-sh">응답</div>'+
     sw(e.sv.anon,'SV.ed.sv.anon=this.checked','익명으로 받기','누가 답했는지 만든 사람도 볼 수 없어요'+(sent?' · 보낸 뒤에는 바꿀 수 없어요':''),sent)+
-    sw(s.edit&&!e.sv.anon,'SV.ed.sv.set.edit=this.checked','제출 후 수정 허용','응답 받는 동안 고쳐서 다시 낼 수 있어요'+(e.sv.anon?' (익명은 안 돼요)':''),e.sv.anon)+
+    sw(s.edit&&!e.sv.anon&&!s.quiz,'SV.ed.sv.set.edit=this.checked','제출 후 수정 허용','응답 받는 동안 고쳐서 다시 낼 수 있어요'+(e.sv.anon?' (익명은 안 돼요)':s.quiz?' (퀴즈는 안 돼요 — 점수를 보고 다시 내면 만점이 돼서)':''),e.sv.anon||!!s.quiz)+
     (sent?'<label class="sv-srow"><span><b>응답 받기</b><em>'+(svClosed({st:e.stLive||e.st,end:e.sv.end})?'지금은 응답을 받지 않아요':'응답을 받는 중이에요')+'</em></span><span class="sv-sw"><input type="checkbox"'+(svClosed({st:e.stLive||e.st,end:e.sv.end})?'':' checked')+' onchange="svOpenSet(this.checked)"><i></i></span></label>':'')+
     '<div class="sv-srow"><span><b>마감 일시</b><em>지나면 자동으로 응답을 받지 않아요</em></span><span class="sv-end"><input type="datetime-local" value="'+endV+'" onchange="svEndSet(this.value)">'+(e.sv.end?'<button class="cv-ib sm" onclick="svEndSet(\'\')" aria-label="마감 없애기">'+svIc(SVI.x,16)+'</button>':'')+'</span></div>'+
     sw(s.notify,'SV.ed.sv.set.notify=this.checked','새 응답 알림','응답이 들어올 때마다 나와 공동 작업자에게 알려요')+
@@ -13355,7 +13356,7 @@ function cmDeskCheck(){if(!CM_DESK||DM_SOLO||!CM.inbox)return;var first=!CM_DESK
   Object.keys(CM.inbox).forEach(function(k){var r=CM.inbox[k];if(!r)return;var prev=CM_DESK_SEEN.s[k];CM_DESK_SEEN.s[k]=r.s||0;if(first||prev==null||(r.s||0)<=prev)return;if((r.r||0)>=(r.s||0))return;if(r.bn===me)return;
     var viewing=(CM.rid===k&&cmOn('p-comm-room')&&document.hasFocus())||cmSoloViewing(k);if(viewing)return;var mention=(r.mn||0)>prev;if(r.mute&&!mention)return;
     cmDeskNotify(r.t==='dm'?(r.n||'1:1'):cmRoomName(k,r),(r.t==='dm'?'':(r.bn?r.bn+': ':''))+(r.x||''),'#comm/'+encodeURIComponent(k))});
-  Object.keys(CM.act||{}).forEach(function(id){var a=CM.act[id];var seen=CM_DESK_SEEN.a[id];CM_DESK_SEEN.a[id]=1;if(first||seen||!a||a.done)return;var rr=String(a.rid||'');if(!(rr.indexOf('board:')===0||rr==='survey'||rr.indexOf('work:')===0||a.k==='remind'))return;
+  Object.keys(CM.act||{}).forEach(function(id){var a=CM.act[id];var seen=CM_DESK_SEEN.a[id];CM_DESK_SEEN.a[id]=1;if(first||seen||!a||a.done)return;var rr=String(a.rid||'');if(!(rr.indexOf('board:')===0||rr==='survey'||rr.indexOf('work:')===0||a.k==='remind'))return;if(a.k==='must'&&rr.indexOf('board:')===0&&BD_DESK_SAID[rr.slice(6)+'/'+a.key])return;   /* 게시판 쪽(bdDeskNew)이 이미 알린 필독 새 글 — 두 번 울렸다(11/14 점검) */
     var hh=rr.indexOf('board:')===0?'#board/'+encodeURIComponent(rr.slice(6))+'/'+a.key:rr==='survey'?'#survey/'+a.key:a.k==='remind'?'#comm/'+encodeURIComponent(rr):'';
     cmDeskNotify(({must:'[필독] ',survey:'[설문] ',remind:'다시 알림 · '}[a.k]||'')+(a.rn||'DM'),(a.bn?a.bn+': ':'')+(a.x||''),hh)});
   CM_DESK_SEEN.ready=true}

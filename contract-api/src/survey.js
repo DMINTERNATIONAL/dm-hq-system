@@ -195,7 +195,7 @@ function cleanSet(s) {
   s = s || {};
   const show = s.show || {};
   return {
-    edit: !!s.edit, prog: !!s.prog, shuf: !!s.shuf, msg: clip(s.msg, 1000), pub: pubMode(s), pv: cleanPv(s.pv), notify: !!s.notify,
+    edit: !!s.edit && !s.quiz, prog: !!s.prog, shuf: !!s.shuf, msg: clip(s.msg, 1000), pub: pubMode(s), pv: cleanPv(s.pv), notify: !!s.notify,
     quiz: !!s.quiz, rel: s.rel === 'later' ? 'later' : 'now', show: { miss: show.miss !== false, ans: !!show.ans, pt: show.pt !== false },
     req: !!s.req, nx0: clip(s.nx0, 40),
   };
@@ -236,6 +236,18 @@ export function makeSurvey(deps) {
       v: 2, t: clip(d.t, 120).trim(), desc: clip(d.desc, 3000), qs, set: cleanSet(d.set), th,
       end: Number(d.end) > 0 ? Number(d.end) : 0, up: nowMs(), ub: nameOf(u),
     };
+    /* 응답이 들어온 뒤엔 선택지 · 표의 줄을 지울 수 없다 — 답은 선택지 번호로 저장돼서, 가운데 것을 지우면 기존 응답이 다른 선택지로 옮겨 집계됐다(11/14 점검).
+       글자 고치기 · 뒤에 추가는 된다 */
+    if (cur && cur.st !== 'draft') {
+      const ans = await dbGet(env, `/surveyAns/${sid}`).catch(() => null);
+      const has = ans && (Object.keys(ans).some((k) => !k.startsWith('_')) || Object.keys(ans._anon || {}).length > 0);
+      if (has) {
+        const oldQ = {}; for (const q of norm(cur).qs || []) if (q && q.id) oldQ[q.id] = q;
+        for (const q of qs) { const o = oldQ[q.id]; if (!o) continue;
+          if ((o.o && (!q.o || q.o.length < o.o.length)) || (o.r && (!q.r || q.r.length < o.r.length)))
+            throw new Error(`응답이 들어온 뒤에는 '${clip(q.t || o.t, 20)}'의 선택지를 지울 수 없어요 (글자 고치기 · 뒤에 추가는 돼요)`); }
+      }
+    }
     if (!cur || cur.by === ph || isHq(ph, u)) up.co = Object.keys(co).length ? co : null;
     /* 익명 · 실명은 응답이 들어오기 전에만 바꿀 수 있다 */
     if (!cur || cur.st === 'draft') up.anon = !!d.anon;
@@ -328,12 +340,12 @@ export function makeSurvey(deps) {
       await dbPatch(env, '/', { [`surveyAns/${sid}/_anon/${rid}`]: rec, [`surveyAns/${sid}/_who/${ph}`]: 1, [`chat/act/${ph}/s_${sid}/done`]: 1 });
     } else {
       const old = await dbGet(env, `/surveyAns/${sid}/${ph}`).catch(() => null);
-      if (old && !set.edit) throw new Error('이미 응답했습니다 (이 설문은 제출 후 고칠 수 없어요)');
+      if (old && (!set.edit || set.quiz)) throw new Error(set.quiz ? '이미 제출했어요 (퀴즈는 다시 낼 수 없어요)' : '이미 응답했습니다 (이 설문은 제출 후 고칠 수 없어요)');   // 이미 만든 퀴즈에 수정이 켜져 있어도 막는다(11/14 점검)
       if (old && old.man) rec.man = old.man;
       if (old) { rec.ed = rec.at; rec.at = old.at || rec.at; }
       await dbPatch(env, '/', { [`surveyAns/${sid}/${ph}`]: rec, [`chat/act/${ph}/s_${sid}/done`]: 1 });
     }
-    if (set.notify) {
+    if (set.notify && !sv.anon) {   // 익명은 응답마다 알리지 않는다 — 알림 시각과 미응답자 명단을 맞춰 보면 누가 답했는지 알 수 있었다(11/14 점검)
       const to = [sv.by, ...Object.keys(sv.co || {})].filter((p) => p && p !== ph);
       if (to.length) later(pushToPhones(env, to, { title: '[설문 응답] ' + sv.t, body: sv.anon ? '새 응답이 들어왔어요' : nameOf(u) + '님이 응답했어요', url: './#survey/' + sid + '/r', tag: 'svr-' + sid }).catch(() => {}), ctx);
     }
@@ -514,6 +526,12 @@ export function makeSurvey(deps) {
     const done = sv.anon ? (all._who || {}) : all;
     let rest = Object.keys(sv.tp || {}).filter((p) => !done[p]);
     if (Array.isArray(body.to) && body.to.length) rest = rest.filter((p) => body.to.map(String).includes(p));
+    /* 같은 사람에게는 10분에 한 번만(연타하면 급함 알림이 반복됐다, 11/14 점검) — 보낸 시각은 잠긴 /surveyAns/{sid}/_ndg 에 */
+    const ndg = all._ndg || {}; const t0 = nowMs();
+    const skipped = rest.filter((p) => t0 - (ndg[p] || 0) < 10 * 60e3).length;
+    rest = rest.filter((p) => t0 - (ndg[p] || 0) >= 10 * 60e3);
+    if (!rest.length && skipped) throw new Error('방금 다시 알렸어요. 10분 뒤에 다시 할 수 있어요');
+    if (rest.length) await dbPatch(env, '/', Object.fromEntries(rest.map((p) => [`surveyAns/${sid}/_ndg/${p}`, t0])));
     if (rest.length) await pushToPhones(env, rest, { title: '[설문 다시 알림] ' + sv.t, body: '아직 응답하지 않으셨어요', url: './#survey/' + sid, tag: 'survey-' + sid }, { urgency: 'high' });
     return { sent: rest.length };
   }

@@ -530,11 +530,22 @@ export function makeChat(deps) {
     await dbDelete(env, `/chat/sched/${id}`);
     return {};
   }
+  /* 예약 하나를 조건부로 지운다: 읽을 때의 ETag 와 같을 때만 지워지고(412 면 다른 실행이 이미 가져감), 지운 쪽만 true */
+  async function claimSched(env, id) {
+    if (!/^[a-z0-9]{6,20}$/.test(id)) return false;
+    const t = await accessToken(env); const u = `${env.FIREBASE_URL}/chat/sched/${id}.json?access_token=${t}`;
+    const r = await fetch(u, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' });
+    if (!r.ok) return false;
+    const v = await r.json().catch(() => null); if (!v) return false;
+    const et = r.headers.get('ETag'); if (!et) return false;
+    const d = await fetch(u, { method: 'DELETE', headers: { 'if-match': et } });
+    return d.ok;
+  }
   async function runScheduled(env, ctx) {
     const all = (await dbGet(env, '/chat/sched').catch(() => null)) || {};
     const due = Object.entries(all).filter(([, v]) => v && v.at <= nowMs() + 20 * 1000);
     for (const [id, v] of due) {
-      await dbDelete(env, `/chat/sched/${id}`);          // 먼저 지운다 — 타이머가 겹쳐도 두 번 보내지 않게
+      if (!(await claimSched(env, id))) continue;       // 먼저 '차지'(조건부 지우기)한 실행만 보낸다 — 타이머가 겹치면 둘 다 지우고 둘 다 보냈다(11/14 점검)
       try { await send(env, ctx, { ph: v.ph }, { rid: v.rid, k: 't', x: v.x, mn: v.mn }); }
       catch (e) { await pushToPhones(env, [v.ph], { title: '예약 메시지를 보내지 못했어요', body: clip(e.message, 100), url: './#comm/' + v.rid, tag: 'sched-' + id }).catch(() => {}); }
     }
@@ -641,6 +652,8 @@ export function makeChat(deps) {
     const n = await dbGet(env, `/chat/notices/${nid}`);
     if (!n) throw new Error('없는 공지예요');
     if (n.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('올린 사람 · 경영팀 · 관리자만 다시 알릴 수 있어요');
+    if (n.nudgeAt && nowMs() - n.nudgeAt < 10 * 60e3) throw new Error('방금 다시 알렸어요. 10분 뒤에 다시 할 수 있어요');   // 연타하면 급함 알림이 반복됐다(11/14 점검)
+    await dbPut(env, `/chat/notices/${nid}/nudgeAt`, nowMs());
     const room = await getRoom(env, n.rid);
     const seen = (await dbGet(env, `/chat/nseen/${nid}`).catch(() => null)) || {};
     const left = Object.keys(room.m || {}).filter((p) => p !== n.by && !(seen[p] && seen[p].m === 'ok'));
@@ -961,6 +974,7 @@ export function makeChat(deps) {
     if (!m.poll) throw new Error('투표 메시지가 아닙니다');
     if (m.poll.end && nowMs() > m.poll.end) throw new Error('마감된 투표입니다');
     let pick = (Array.isArray(body.i) ? body.i : [body.i]).map((n) => n | 0).filter((n) => n >= 0 && n < m.poll.o.length);
+    pick = [...new Set(pick)];   // 같은 번호를 여러 번 보내 한 사람이 여러 표를 넣던 것(11/14 점검)
     if (!m.poll.mu) pick = pick.slice(0, 1);
     await dbPut(env, `/chat/msgs/${rid}/${key}/vt/${me.ph}`, pick.length ? pick : null);
     return {};

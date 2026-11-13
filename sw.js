@@ -176,7 +176,8 @@ self.addEventListener('push', (event) => {
 // 알림을 누르면 열려 있는 앱 창으로 가서 해당 화면을 연다. 없으면 새로 연다.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
+  let target = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
+  if (target.indexOf(self.registration.scope) !== 0) target = self.registration.scope;   // 앱 밖 주소(javascript: · 다른 사이트)로는 안 간다(11/14 점검)
   // 아이폰은 앱이 꺼져 있으면 알림 주소 대신 첫 화면으로 열 때가 있다 → 갈 곳을 쪽지로 남겨 두고 앱이 열리면 읽는다(index.html cmPendingNav)
   const note = caches.open('dm-nav').then((c) => c.put('/__nav', new Response(JSON.stringify({ url: target, at: Date.now() }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
   event.waitUntil(note.then(() =>

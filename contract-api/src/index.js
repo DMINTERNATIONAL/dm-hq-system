@@ -396,6 +396,10 @@ async function autoRevokeLeavers(env) {
     up['authSecrets/__autoRevoke/' + ph] = Date.now(); up['authSecrets/__revoke/' + ph] = Date.now(); n++;
   }
   for (const ph of Object.keys(done)) if (!us[ph] || us[ph].status !== '퇴사') up['authSecrets/__autoRevoke/' + ph] = null;   // 다시 재직이면 표시 지움(다음 퇴사 때 또 끊게)
+  /* 퇴사자 폰 알림 구독도 지운다 — 로그인만 끊고 구독은 남아 설문 다시 알림 등이 계속 갔다(11/14 점검). 한 번 지운 사람은 표시해 두고 다시 안 본다 */
+  const pOff = (await dbGet(env, '/authSecrets/__pushOff').catch(() => null)) || {};
+  for (const [ph, u] of Object.entries(us)) if (u && u.status === '퇴사' && !pOff[ph]) { up['pushSubs/' + ph] = null; up['authSecrets/__pushOff/' + ph] = Date.now(); }
+  for (const ph of Object.keys(pOff)) if (!us[ph] || us[ph].status !== '퇴사') up['authSecrets/__pushOff/' + ph] = null;   // 다시 재직이면 표시 지움
   if (Object.keys(up).length) { await dbPatch(env, '/', up); revokeCache.at = 0; }
   return n;
 }
@@ -473,6 +477,8 @@ async function recoOverBudget(env) {
    전화번호 목록의 모든 기기로 보낸다. 폰에서 구독이 사라진 것(404·410)은 지운다.
    한 번에 6개씩 — 동시에 너무 많이 열면 Worker 의 외부 요청 한도에 걸린다. */
 async function pushToPhones(env, phones, payload, opts = {}) {
+  /* 누르면 갈 곳은 앱 안 주소('./…')만 — 업무 댓글이 직원이 보낸 주소를 그대로 넣어 javascript: · 외부 피싱 주소가 갈 수 있었다(11/14 점검) */
+  { const u = String((payload && payload.url) || './'); payload = { ...payload, url: /^\.\/[^\s\\]*$/.test(u) && u.length <= 300 ? u : './' }; }
   if (!env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC) return { sent: 0, failed: 0, error: 'VAPID 키 미설정' };
   /* '알림에 내용 보기'를 끈 사람에게는 제목 · 내용 대신 'DM · 새 메시지가 있어요' (누르면 가는 곳은 같다) */
   const prefs = (await dbGet(env, '/chat/prefs').catch(() => null)) || {};

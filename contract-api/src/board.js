@@ -94,6 +94,8 @@ export function makeBoard(deps) {
       if (old.must && !must) await clearMustAct(env, b, bid, pid);
       /* 고치면서 필독을 새로 켰으면 새 글처럼 알린다(예전엔 아무에게도 안 갔다) */
       if (!(must && !old.must)) return { pid };
+      /* 그전에 열어만 본 사람이 '확인함'으로 세지던 것 — 읽음 기록을 비워 모두 확인 버튼을 새로 누르게(11/14 점검) */
+      await dbPut(env, `/board/reads/${bid}/${pid}`, null);
     } else {
       await dbPut(env, `/board/posts/${bid}/${pid}`, { t, x, by: ph, bn: nameOf(u), at: nowMs(), md, must, pin: pin || null, cc: 0 });
     }
@@ -147,12 +149,13 @@ export function makeBoard(deps) {
     const u = await meUser(env, me); const ph = String(me.ph);
     const x = clip(body.x, 3000).trim();
     if (!x) throw new Error('내용을 입력해 주세요');
-    let base, title, url, people, owner;
+    let base, title, url, people, owner, seeB = null;
     if (body.bid) {
       const bid = String(body.bid), pid = String(body.pid || '');
       if (!okId(pid)) throw new Error('글 정보가 올바르지 않습니다');
       const b = await boardOf(env, bid);
       if (!canSee(b, ph, u)) throw new Error('볼 수 없는 게시판입니다');
+      seeB = b;
       const p = await dbGet(env, `/board/posts/${bid}/${pid}`);
       if (!p) throw new Error('글을 찾지 못했습니다');
       base = `board/cmt/${bid}/${pid}`; title = b.n + ' · ' + clip(p.t, 30); url = `./#board/${bid}/${pid}`; owner = p.by;
@@ -162,17 +165,18 @@ export function makeBoard(deps) {
       const kind = String(body.kind || ''), wid = String(body.wid || '');
       if (!['order', 'leave', 'consult'].includes(kind) || !okId(wid.replace(/[^A-Za-z0-9_-]/g, '_')) || wid.length > 80) throw new Error('대상이 올바르지 않습니다');
       const sk = wid.replace(/[^A-Za-z0-9_-]/g, '_');
-      base = `workCmt/${kind}/${sk}`; title = { order: '발주', leave: '연차 · 휴무', consult: '상담' }[kind] + ' · ' + clip(body.label, 40); url = String(body.url || './#p-dash').slice(0, 120);
+      base = `workCmt/${kind}/${sk}`; title = { order: '발주', leave: '연차 · 휴무', consult: '상담' }[kind] + ' · ' + clip(body.label, 40); url = String(body.url || './#p-dash').slice(0, 120); if (!/^\.\/#[A-Za-z0-9_\-\/]+$/.test(url)) url = './#p-dash';   // 앱 화면 주소만(11/14 점검)
       owner = body.owner ? String(body.owner) : '';
       const who = (await dbGet(env, `/${base}/_who`).catch(() => null)) || {};
       people = Object.keys(who);
     }
     const cid = 'c' + id36();
     const { el } = await eligible(env);
-    const mn = (Array.isArray(body.mn) ? body.mn : []).map(String).filter((p) => el[p]);
+    const vis = (p) => !seeB || canSee(seeB, p, el[p]);   // 지점 게시판 댓글은 그 게시판을 볼 수 있는 사람에게만 알린다(다른 지점 사람을 @부르면 글 제목 · 내용이 갔다, 11/14 점검)
+    const mn = (Array.isArray(body.mn) ? body.mn : []).map(String).filter((p) => el[p] && vis(p));
     const up = { [`${base}/${cid}`]: { by: ph, bn: nameOf(u), at: nowMs(), x, mn: mn.length ? Object.fromEntries(mn.map((p) => [p, 1])) : null } };
     if (!body.bid) up[`${base}/_who/${ph}`] = 1;
-    const targets = new Set([owner, ...people, ...mn].filter((p) => p && p !== ph && el[p]));
+    const targets = new Set([owner, ...people, ...mn].filter((p) => p && p !== ph && el[p] && vis(p)));
     for (const p of targets) up[`chat/act/${p}/${'w' + id36()}`] = { k: mn.includes(p) ? 'mention' : 'reply', rid: body.bid ? 'board:' + body.bid : 'work:' + body.kind, key: body.bid ? String(body.pid) : String(body.wid), x: clip(x, 80), bn: nameOf(u), at: nowMs(), rn: title, url, done: 0 };
     await dbPatch(env, '/', up);
     if (targets.size) {
