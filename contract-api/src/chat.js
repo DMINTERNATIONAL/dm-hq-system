@@ -42,7 +42,9 @@ const LEVELS = ['BASIC', 'BRONZE-1', 'BRONZE-2', 'SILVER-1', 'SILVER-2', 'SILVER
 const isInternU = (u) => !!u && (u.role === '인턴' || u.academyRole === '인턴');
 const isDesignerU = (u) => !!u && (u.role === '디자이너' || (Array.isArray(u.roles) && u.roles.includes('디자이너')));
 const hasGrade = (g) => (u) => !!u && (u.systemGrade === g || u.role === g || (Array.isArray(u.roles) && u.roles.includes(g)));
-const ALL_ROOMS = [['designers', '디자이너', isDesignerU], ['interns', '인턴', isInternU], ['managers', '관리자', hasGrade('관리자')], ['staffleads', '스탭장', hasGrade('스탭장')], ['counters', '카운터', hasGrade('카운터')]];
+/* [방 키, 이름, 해당자, 같이 들어갈 사람(알림 끔으로)] — 사용자 결정 11/13: 카운터 방 없음 · 인턴 전체 · 스탭장 전체에는 관리자 · 디자이너도 */
+const obsMD = (u) => hasGrade('관리자')(u) || isDesignerU(u);
+const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMD], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMD]];
 const EDU_T = { lv: 1, tm: 1, all: 1 };   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
 
 const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
@@ -189,10 +191,11 @@ export function makeChat(deps) {
     }
     if (ar.all !== false) {
       /* 등급별 전체방(11/13) — 디자이너 · 인턴 · 관리자 · 스탭장 · 카운터 전체. 해당자 전원 + 경영팀, 해당자가 한 명도 없으면 안 만든다(있던 방은 비움) */
-      for (const [key, label, is] of ALL_ROOMS) {
+      for (const [key, label, is, also] of ALL_ROOMS) {
         const w = { t: 'all', n: label + ' 전체', m: {}, mute: {} };
         for (const [ph, u] of Object.entries(el)) if (is(u)) w.m[ph] = 1;
         if (!Object.keys(w.m).length) continue;
+        if (also) for (const [ph, u] of Object.entries(el)) if (!w.m[ph] && also(u)) { w.m[ph] = 1; w.mute[ph] = 1; }
         for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
         want['all_' + key] = w;
       }
@@ -375,9 +378,9 @@ export function makeChat(deps) {
        채팅은 전부 '급함(high)'으로 보낸다(11/8) — '보통'이면 아이폰이 잠금·절전 중에 모아 뒀다가 늦게 띄운다(카톡처럼 바로 오게) */
     const pushJob = (async () => {
     const quietSet = await quietPhones(env);
-    /* 레벨방: 알림 끈 디자이너도 내 담당 인턴이 쓴 글 · 내 인턴을 부른 글은 받는다 */
+    /* 레벨방 · 인턴 전체: 알림 끈 디자이너도 내 담당 인턴이 쓴 글 · 내 인턴을 부른 글은 받는다 */
     const mentors = new Set();
-    if (room.t === 'lv') {
+    if (room.t === 'lv' || rid === 'all_interns') {
       if (u && u.mentorId) mentors.add(String(u.mentorId));
       const mns = Object.keys(mn);
       if (mns.length) { const us = await usersCached(env); for (const q of mns) { const qu = us[q]; if (qu && qu.mentorId) mentors.add(String(qu.mentorId)); } }

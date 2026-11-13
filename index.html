@@ -11458,7 +11458,7 @@ function cmRowMenu(rid){var r=CM.inbox&&CM.inbox[rid];if(!r)return;var un=(r.s||
   var h='<div class="ttl">'+cmEsc(cmRoomName(rid,r))+'</div>';
   if(CM_DESK&&!DM_SOLO)h+=b('pop','새 창으로 열기');
    if(rid!=='notice')h+=b('pin',r.pin?'상단 고정 해제':'상단 고정');
-  h+=r.t==='lv'?b('mute',r.mute?'알림: 모든 글 받기로 바꾸기':'알림: 나 · 내 인턴 글만 받기로 바꾸기'):b('mute',r.mute?'알림 켜기':'알림 끄기');if(r.t==='lv')h+='<div class="who-row" style="color:#94A3B8;font-size:12.5px">지금: '+(r.mute?'나를 부르거나 내 담당 인턴 글일 때만 알림':'모든 글 알림')+'</div>';
+  var _lvLike=r.t==='lv'||rid==='all_interns';h+=_lvLike?b('mute',r.mute?'알림: 모든 글 받기로 바꾸기':'알림: 나 · 내 인턴 글만 받기로 바꾸기'):b('mute',r.mute?'알림 켜기':'알림 끄기');if(_lvLike)h+='<div class="who-row" style="color:#94A3B8;font-size:12.5px">지금: '+(r.mute?'나를 부르거나 내 담당 인턴 글일 때만 알림':'모든 글 알림')+'</div>';
   h+=b('name','채팅방 이름 설정 (나만 보기)');if(r.nm)h+=b('unname','원래 이름으로');
   if(un)h+=b('read','읽음 처리');
   if(r.t==='grp')h+=b('leave','채팅방 나가기',1);else if(r.t==='dm')h+=b('hide','채팅방 나가기',1);
