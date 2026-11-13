@@ -653,11 +653,11 @@ export function makeChat(deps) {
     if (!n) throw new Error('없는 공지예요');
     if (n.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('올린 사람 · 경영팀 · 관리자만 다시 알릴 수 있어요');
     if (n.nudgeAt && nowMs() - n.nudgeAt < 10 * 60e3) throw new Error('방금 다시 알렸어요. 10분 뒤에 다시 할 수 있어요');   // 연타하면 급함 알림이 반복됐다(11/14 점검)
-    await dbPut(env, `/chat/notices/${nid}/nudgeAt`, nowMs());
     const room = await getRoom(env, n.rid);
     const seen = (await dbGet(env, `/chat/nseen/${nid}`).catch(() => null)) || {};
     const left = Object.keys(room.m || {}).filter((p) => p !== n.by && !(seen[p] && seen[p].m === 'ok'));
     if (left.length) await pushToPhones(env, left, { title: '[공지 확인 요청] ' + (room.t === 'dm' ? '' : room.n || ''), body: n.t, url: './#comm/' + n.rid, tag: 'notice-' + nid }, { urgency: 'high' }).catch(() => {});
+    if (left.length) await dbPut(env, `/chat/notices/${nid}/nudgeAt`, nowMs());
     return { sent: left.length };
   }
   async function noticeReaders(env, me, body) {
@@ -991,11 +991,11 @@ export function makeChat(deps) {
     if (m.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('보낸 사람 · 경영팀 · 관리자만 다시 알릴 수 있습니다');
     /* 같은 글은 10분에 한 번만(11/14 점검 — 계속 누르면 방 전원에게 급함 알림이 반복됐다) */
     if (m.nudgeAt && nowMs() - m.nudgeAt < 10 * 60e3) throw new Error('방금 다시 알렸어요. 10분 뒤에 다시 할 수 있어요');
-    await dbPut(env, `/chat/msgs/${rid}/${key}/nudgeAt`, nowMs());
     const done = m.ack || {};
     const rest = Object.keys(room.m || {}).filter((p) => p !== m.by && !done[p]);
     if (!rest.length) return { sent: 0 };
     await pushToPhones(env, rest, { title: room.t === 'dm' ? nameOf(u) : room.n, body: '[확인 요청 다시 알림] ' + clip(m.x, 100), url: './#comm/' + rid, tag: 'ack-' + key }, { urgency: 'high' });
+    await dbPut(env, `/chat/msgs/${rid}/${key}/nudgeAt`, nowMs());   // 보낸 뒤에 기록(보내기가 실패하면 바로 다시 누를 수 있게)
     return { sent: rest.length };
   }
 
