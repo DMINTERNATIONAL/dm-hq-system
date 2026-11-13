@@ -43,7 +43,9 @@ const isInternU = (u) => !!u && (u.role === '인턴' || u.academyRole === '인�
 const isDesignerU = (u) => !!u && (u.role === '디자이너' || (Array.isArray(u.roles) && u.roles.includes('디자이너')));
 const hasGrade = (g) => (u) => !!u && (u.systemGrade === g || u.role === g || (Array.isArray(u.roles) && u.roles.includes(g)));
 /* [방 키, 이름, 해당자, 같이 들어갈 사람(알림 끔으로)] — 사용자 결정 11/13: 카운터 방 없음 · 인턴 전체 · 스탭장 전체에는 관리자 · 디자이너도 */
-const obsMD = (u) => hasGrade('관리자')(u) || isDesignerU(u);
+/* 아카데미(교육)는 DAY:MEAN 아카데미 — ETOH(바버샵) 직원은 레벨방 · 인턴 전체 · 스탭장 전체의 '같이 보는 사람'에서 뺀다(11/13 사용자) */
+const isEtohU = (u) => /^ETOH/i.test(String((u && u.brand) || ''));
+const obsMD = (u) => !isEtohU(u) && (hasGrade('관리자')(u) || isDesignerU(u));
 const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMD], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMD]];
 const EDU_T = { lv: 1, tm: 1, all: 1, bd: 1 };   // bd: 브랜드방(DAY:MEAN 전체 · ETOH 전체, 11/13) — 그 브랜드 직원 전원 + 경영팀, 알림 켬   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
 
@@ -190,13 +192,13 @@ export function makeChat(deps) {
     }
     if (ar.lv !== false) {
       for (const [ph, u] of Object.entries(el)) {
-        if (!isInternU(u)) continue;
+        if (!isInternU(u) || isEtohU(u)) continue;
         const L = LEVELS.includes(u.level) ? u.level : 'BASIC';
         const rid = 'lv_' + safeKey(L);
         want[rid] = want[rid] || { t: 'lv', n: L, m: {}, mute: {}, ord: LEVELS.indexOf(L) };   // 이름은 레벨만(11/13 사용자: '인턴' 빼기)
         want[rid].m[ph] = 1;
       }
-      for (const w of Object.values(want)) if (w.t === 'lv') for (const [ph, u] of Object.entries(el)) if (isDesignerU(u) || isHqUser(ph, u)) { w.m[ph] = 1; if (!isInternU(u)) w.mute[ph] = 1; }
+      for (const w of Object.values(want)) if (w.t === 'lv') for (const [ph, u] of Object.entries(el)) if ((isDesignerU(u) && !isEtohU(u)) || isHqUser(ph, u)) { w.m[ph] = 1; if (!isInternU(u)) w.mute[ph] = 1; }
     }
     if (ar.all !== false) {
       /* 등급별 전체방(11/13) — 디자이너 · 인턴 · 관리자 · 스탭장 · 카운터 전체. 해당자 전원 + 경영팀, 해당자가 한 명도 없으면 안 만든다(있던 방은 비움) */
