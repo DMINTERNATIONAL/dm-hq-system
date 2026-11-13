@@ -21,8 +21,8 @@
  * 값은 화면 언어와 상관없이 한국어(사이트가 화면 글자만 번역) — 관리 앱이 이 값으로 거른다.
  */
 
-/* 분야 — 11/12 밤 사용자 결정: 디자이너 · 인턴 · CS팀 · 경영팀. 면허는 디자이너 · 인턴만 묻는다 */
-const ROLES = ['디자이너', '인턴', 'CS팀', '경영팀'];
+/* 분야 — 11/12 밤 사용자 결정, 11/13 CS팀 뺌: 디자이너 · 인턴 · 경영팀. 면허는 디자이너 · 인턴만 묻는다 */
+const ROLES = ['디자이너', '인턴', '경영팀'];
 const LICENSE_ROLES = ['디자이너', '인턴'];
 const EDU_ST = ['졸업', '재학', '휴학', '중퇴', '졸업 예정'];
 const FAMILY_REL = ['아버지', '어머니', '배우자', '형제자매', '자녀', '기타'];
@@ -49,12 +49,15 @@ const LISTS = {
   jobs: { max: 10, cols: { place: 60, role: 40, from: YM_RE, to: YM_RE, now: 'bool' }, need: ['place', 'from'] },
   edu: { max: 5, cols: { school: 60, major: 40, status: EDU_ST, year: /^(19|20)\d{2}$/ }, need: ['school', 'status'] },
   family: { max: 8, cols: { rel: FAMILY_REL, name: 20 }, need: ['rel'] },
+  /* 분야별 질문과 답(11/13) — q = 사이트 lib/i18n/apply.ts ROLE_Q 의 한국어 질문 원문. 질문은 사이트가 정하고 여기선 글자 수만 본다 */
+  qa: { max: 8, cols: { q: 200, a: 2000 }, need: ['q', 'a'] },
 };
 const ENUM = { role: ROLES, license: LICENSES, career: CAREERS, start: STARTS };
 /* birthDate · addressDetail — 2026-11-13 사이트 지원서가 생년월일 드롭다운 · 상세 주소 칸으로 바뀜. birthYear 는 예전 지원서 · 필수 칸이라 그대로 같이 받음 */
-const FIELDS = ['role', 'name', 'birthYear', 'birthDate', 'phone', 'email', 'address', 'addressDetail', 'sns', 'portfolio', 'license', 'career', 'jobs', 'edu', 'family', 'start', 'intro', 'why', 'hope', 'photo', 'agree', 'lang'];
+const FIELDS = ['role', 'name', 'birthYear', 'birthDate', 'phone', 'email', 'address', 'addressDetail', 'sns', 'portfolio', 'license', 'career', 'jobs', 'edu', 'family', 'start', 'intro', 'why', 'hope', 'qa', 'photo', 'agree', 'lang'];
 /* license 는 분야에 따라(checkSubmit), edu 는 1줄 이상, jobs 는 신입이 아니면 1줄 이상, family 는 선택 */
-const REQUIRED = ['role', 'name', 'birthYear', 'phone', 'address', 'career', 'start', 'intro', 'why', 'hope', 'photo', 'agree'];
+/* hope(입사 후 바라는 점)는 11/13 분야별 질문(qa)으로 바뀜 — 예전 지원서에 남은 값은 관리 앱이 그대로 보여 줌 */
+const REQUIRED = ['role', 'name', 'birthYear', 'phone', 'address', 'career', 'start', 'intro', 'why', 'photo', 'agree'];
 
 const b64u = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const rand = (n) => b64u(crypto.getRandomValues(new Uint8Array(n)));
@@ -162,6 +165,8 @@ export function makeRecruit(deps) {
     if (LICENSE_ROLES.indexOf(r.role) >= 0 && !r.license) return 'license';
     if (!Array.isArray(r.edu) || !r.edu.length) return 'edu';
     if (r.career !== '신입' && (!Array.isArray(r.jobs) || !r.jobs.length)) return 'jobs';
+    /* 분야별 필수 질문은 사이트가 하나씩 본다 — 여기선 답이 하나도 없는 제출만 막음 */
+    if (!Array.isArray(r.qa) || !r.qa.length) return 'qa';
     const thisYear = new Date(Date.now() + 9 * 3600e3).getUTCFullYear();
     if (!/^\d{4}$/.test(r.birthYear) || +r.birthYear < 1900 || +r.birthYear > thisYear) return 'birthYear';
     if (String(r.phone).replace(/\D/g, '').length < 7) return 'phone';   // 숫자가 7개는 있어야 연락이 된다(해외 번호도 넉넉히)

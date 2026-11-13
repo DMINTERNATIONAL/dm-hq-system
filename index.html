@@ -5242,7 +5242,7 @@ var RA_ST=[['new','접수'],['reviewing','검토 중'],['contacted','연락함']
 /* 질문 셋 — 칸 이름과 지원서에 적힌 질문 그대로 */
 var RA_Q=[['intro','자기소개 (장점 · 단점)'],['why','DAY:MEAN 에 들어오고 싶은 이유'],['hope','입사 후 바라는 점']];
 /* 분야 — 11/12 밤 사용자 결정. 둘째 값 = 지원서 링크 ?role= (사이트 lib/i18n/apply.ts ROLE_PARAM 과 같음) */
-var RA_ROLES=[['디자이너','designer'],['인턴','intern'],['CS팀','cs'],['경영팀','management']];
+var RA_ROLES=[['디자이너','designer'],['인턴','intern'],['경영팀','management']];
 var RA_LANG={ko:'한국어',en:'English',ja:'日本語',zh:'中文'};
 function raEsc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function raId(a){return String((a&&a.id)||'').replace(/[^A-Za-z0-9_-]/g,'')}
@@ -5304,7 +5304,9 @@ function raCard(a){var id=raId(a),st=a.status||'new',ed=can('menu.recruitApps.ed
     +row('학력',raList(a.edu,raEdu))+row('경력',raEsc(a.career))+row('경력 사항',raList(a.jobs,raJob))
     /* 예전 칸(prevSalon) — 11/12 밤 이전에 들어온 지원서만 */
     +row('최근 근무지',raEsc(a.prevSalon))+row('면허',raEsc(a.license))+row('시작 가능',raEsc(a.start))+row('화면 언어',raEsc(RA_LANG[a.lang]||a.lang))
-    +'<div style="clear:both"></div>'+RA_Q.map(function(q){var v=a[q[0]];return v?'<div style="margin:10px 0 0"><div style="font-size:11.5px;font-weight:700;color:var(--text-2);margin:0 0 4px">'+q[1]+'</div><div style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);font-size:13px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word">'+raEsc(v)+'</div></div>':''}).join('');
+    +'<div style="clear:both"></div>'+RA_Q.map(function(q){var v=a[q[0]];return v?'<div style="margin:10px 0 0"><div style="font-size:11.5px;font-weight:700;color:var(--text-2);margin:0 0 4px">'+q[1]+'</div><div style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);font-size:13px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word">'+raEsc(v)+'</div></div>':''}).join('')
+    /* 분야별 질문과 답(11/13) — 질문은 지원서에 적힌 한국어 원문 그대로 */
+    +(Array.isArray(a.qa)?a.qa:[]).map(function(x){return x&&x.a?'<div style="margin:10px 0 0"><div style="font-size:11.5px;font-weight:700;color:var(--text-2);margin:0 0 4px">'+raEsc(x.q)+'</div><div style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);font-size:13px;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word">'+raEsc(x.a)+'</div></div>':''}).join('');
   if(ed){var memo=RA.draft.hasOwnProperty(id)?RA.draft[id]:(a.memo||'');
     if(st!=='draft')h+='<div style="display:flex;gap:6px;align-items:center;margin:10px 0 0"><span style="font-size:12px;color:var(--text-3);flex:0 0 auto">상태</span><select onchange="raUpd(\''+id+'\',\'status\',this.value)" style="flex:1;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:9px;padding:7px 9px;font-size:13px;font-family:inherit">'+RA_ST.map(function(s){return '<option value="'+s[0]+'"'+(s[0]===st?' selected':'')+'>'+s[1]+'</option>'}).join('')+'</select></div>';
     h+='<textarea id="RA-MEMO-'+id+'" maxlength="1000" rows="2" oninput="RA.draft[\''+id+'\']=this.value" placeholder="메모 (직원끼리만 봐요 · 1000자)" style="width:100%;box-sizing:border-box;margin:8px 0 0;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical">'+raEsc(memo)+'</textarea>'
