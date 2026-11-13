@@ -27,6 +27,7 @@ import { makeGcal } from './gcal.js';
 import { makeIgReport } from './igreport.js';
 import { makeAiUsage, budgetFor, monthKey } from './aiusage.js';
 import { makeSeo } from './seo.js';
+import { makeMetaAds } from './metaads.js';
 import { makeSns } from './sns.js';
 import { makeMembers, resendMail } from './members.js';
 import { makeRecruit } from './recruit.js';
@@ -746,6 +747,7 @@ const igRoute = makeIgReport({ dbGet, accessToken, relayCall: (env, p, b, w) => 
 const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
 const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
+const metaAdsRoute = makeMetaAds({ dbGet });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 /* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
@@ -1355,6 +1357,9 @@ export default {
       /* 검색 노출 주간 조사 (seo.js) — 경영팀만 */
       const seoRes = await seoRoute(path, request, env, ctx, me, json, origin);
       if (seoRes) return seoRes;
+      /* 광고 성과 (metaads.js) — 경영팀만, 메타 숫자 읽기만 */
+      const adsRes = await metaAdsRoute(path, request, env, ctx, me, json, origin);
+      if (adsRes) return adsRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
