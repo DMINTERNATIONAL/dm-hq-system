@@ -4389,8 +4389,9 @@ var NAV_GROUPS=[
 var NAV_PID={'발주하기':['p-ordcat','p-order'],'발주 통계':['p-order-stat'],'환불 관리':['p-refund-admin'],'제품 관리':['p-prod-mgmt'],'거래처 배송일':['p-supplier-eta'],
   '아카데미 관리':['p-adm-acad'],'교육자 현황':['p-edu-stats-hq'],'인턴 연습 관리':['p-practice-admin'],'티타임 관리':['p-teatime'],'인턴 휴가 추가':['p-adm-addleave'],
   '휴게 통계':['p-break-admin'],'식대 기록':['p-meal-record'],'매장 정보 관리':['p-salon-edit']};
-/* 채팅 화면 안에 이미 '채팅 · 내 활동 · 게시판 · 설문' 탭이 있어서 사이드바엔 '채팅' 하나만(숫자는 넷을 합침). 검색으로는 찾아진다 */
-var NAV_HIDE=['내 활동','게시판','설문'],NAV_COMM_N='cm-chat,cm-act,cm-board,cm-survey';
+/* 소통: 사이드바엔 '채팅'(채팅 화면 위 탭 '채팅 · 내 활동', 숫자는 둘을 합침) + 게시판 · 설문은 따로(사용자 결정 11/13).
+   새 메뉴가 켜지면 채팅 화면 위 탭에서도 게시판 · 설문을 뺀다(cmTopTabs). '내 활동'은 채팅 화면 안 탭이라 사이드바엔 안 둔다(검색으로는 찾아짐) */
+var NAV_HIDE=['내 활동'],NAV_COMM_N='cm-chat,cm-act';
 var NAV_DAILY={all:['채팅','캘린더'],hq:['고객 상담','발주 관리','휴게 현황'],des:['고객 상담','매출 입력','채점할 시험'],intern:['휴게시간','식대 기록','연습 측정','숙제'],counter:['고객 상담','발주하기']};
 /* 시험 중 스위치(11/13) — 확정 전까지 사장님 계정(BRK_OWNER_PHONES)과 이 컴퓨터 미리 보기(localhost)에서만 켠다.
    주소 뒤 ?newnav=1 로 켜고 ?newnav=0 으로 끈다(이 기기에 기억). 확정하면 이 함수가 항상 true 를 돌려주게 바꾼다 */
@@ -4406,7 +4407,7 @@ function navRender(M,vf,nav,curId,isHQ){var vis=[],sec='';
   M.forEach(function(m){if(m.s){sec=m.s;return}if(m.notHQ&&isHQ)return;if(m.p&&!can(m.p)&&!(m.hqok&&isHQ))return;vis.push({m:m,sec:sec})});NAV_VIS=vis;
   var dl=navDailyLabels(vf),daily=[];dl.forEach(function(l){var v=vis.filter(function(x){return x.m.l===l})[0];if(v)daily.push(v)});
   var isDaily=function(l){return daily.some(function(v){return v.m.l===l})};
-  var out='';if(daily.length){out+='<div class="s-section">자주 쓰는 메뉴</div>';daily.forEach(function(v){if(v.m.l==='채팅'){out+='<div class="s-nav'+(/^p-comm/.test(curId)?' on':'')+'" onclick="'+v.m.o+'" data-gnotif="'+NAV_COMM_N+'"><i data-lucide="'+v.m.c+'"></i><span class="s-nav-label">채팅</span><span class="s-nav-badge" style="display:none"></span></div>';return}out+=nav(v.m.i,v.m.o,v.m.c,v.m.l,v.m.n)})}
+  var out='';if(daily.length){out+='<div class="s-section">자주 쓰는 메뉴</div>';daily.forEach(function(v){if(v.m.l==='채팅'){out+='<div class="s-nav'+(/^p-comm/.test(curId)&&typeof CM!=='undefined'&&(CM.tab==='chat'||CM.tab==='act')?' on':'')+'" onclick="'+v.m.o+'" data-gnotif="'+NAV_COMM_N+'"><i data-lucide="'+v.m.c+'"></i><span class="s-nav-label">채팅</span><span class="s-nav-badge" style="display:none"></span></div>';return}out+=nav(v.m.i,v.m.o,v.m.c,v.m.l,v.m.n)})}
   var shown={},pend=null,lastSec=null;
   vis.forEach(function(v){if(NAV_HIDE.indexOf(v.m.l)>=0)return;if(v.sec!==lastSec){pend=v.sec;lastSec=v.sec}var g=navGroupOf(v.m.l),h='';
     if(g){if(shown[g.k])return;shown[g.k]=1;var gi=navGrpItems(g);
@@ -11371,7 +11372,7 @@ function cmBadges(){var n=cmUnreadTotal()+cmActNew()+bdUnread(true);cmTopTabs();
 
 /* ── 소통 첫 화면 ── */
 function openComm(tab){if(!COMM_BETA){alert('소통은 아직 시험 중이에요.');return}CM.from=null;if(typeof BD!=='undefined')BD.from=null;if(typeof SV!=='undefined')SV.from=null;CM.tab=tab||CM.tab||'chat';go('p-comm');cmBoot().then(cmRender);cmRender()}
-function cmTopTabs(){var t=$('CM-TOPTABS');if(!t)return;var un=cmUnreadTotal(),ac=cmActNew();t.innerHTML=[['chat','채팅',un],['act','내 활동',ac],['board','게시판',bdUnread()],['survey','설문',svTodo()]].map(function(x){return '<button class="'+(CM.tab===x[0]?'on':'')+'" onclick="CM.tab=\''+x[0]+'\';cmRender()">'+x[1]+(x[2]?'<em>'+(x[2]>99?'99+':x[2])+'</em>':'')+'</button>'}).join('')}
+function cmTopTabs(){var t=$('CM-TOPTABS');if(!t)return;var un=cmUnreadTotal(),ac=cmActNew();var _nn=typeof navOn==='function'&&navOn();var _sep=_nn&&(CM.tab==='board'||CM.tab==='survey');t.style.display=_sep?'none':'';if(_sep){t.innerHTML='';return}t.innerHTML=(_nn?[['chat','채팅',un],['act','내 활동',ac]]:[['chat','채팅',un],['act','내 활동',ac],['board','게시판',bdUnread()],['survey','설문',svTodo()]]).map(function(x){return '<button class="'+(CM.tab===x[0]?'on':'')+'" onclick="CM.tab=\''+x[0]+'\';cmRender()">'+x[1]+(x[2]?'<em>'+(x[2]>99?'99+':x[2])+'</em>':'')+'</button>'}).join('')}
 function cmRender(){if(!cmOn('p-comm'))return;cmTopTabs();if(CM.tab==='act')cmRenderAct();else if(CM.tab==='board')bdRender();else if(CM.tab==='survey')svRender();else cmRenderList();renderBotTab('p-comm');if(typeof renderSidebar==='function')renderSidebar()}
 function cmTabs(){return [
   {key:'cm-chat',label:'채팅',icon:'message-circle',action:"CM.tab='chat';cmRender()",on:CM.tab==='chat'},
