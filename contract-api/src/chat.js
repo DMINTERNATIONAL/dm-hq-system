@@ -41,6 +41,8 @@ const safeKey = (s) => String(s).replace(/[.#$\[\]\/]/g, '_');
 const LEVELS = ['BASIC', 'BRONZE-1', 'BRONZE-2', 'SILVER-1', 'SILVER-2', 'SILVER-3', 'GOLD-1', 'GOLD-2', 'GOLD-3'];
 const isInternU = (u) => !!u && (u.role === '인턴' || u.academyRole === '인턴');
 const isDesignerU = (u) => !!u && (u.role === '디자이너' || (Array.isArray(u.roles) && u.roles.includes('디자이너')));
+const hasGrade = (g) => (u) => !!u && (u.systemGrade === g || u.role === g || (Array.isArray(u.roles) && u.roles.includes(g)));
+const ALL_ROOMS = [['designers', '디자이너', isDesignerU], ['interns', '인턴', isInternU], ['managers', '관리자', hasGrade('관리자')], ['staffleads', '스탭장', hasGrade('스탭장')], ['counters', '카운터', hasGrade('카운터')]];
 const EDU_T = { lv: 1, tm: 1, all: 1 };   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
 
 const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
@@ -186,14 +188,14 @@ export function makeChat(deps) {
       for (const w of Object.values(want)) if (w.t === 'lv') for (const [ph, u] of Object.entries(el)) if (isDesignerU(u) || isHqUser(ph, u)) { w.m[ph] = 1; if (!isInternU(u)) w.mute[ph] = 1; }
     }
     if (ar.all !== false) {
-      const ds = { t: 'all', n: '디자이너 전체', m: {}, mute: {} }, it = { t: 'all', n: '인턴 전체', m: {}, mute: {} };
-      for (const [ph, u] of Object.entries(el)) {
-        if (isDesignerU(u)) ds.m[ph] = 1;
-        if (isInternU(u)) it.m[ph] = 1;
+      /* 등급별 전체방(11/13) — 디자이너 · 인턴 · 관리자 · 스탭장 · 카운터 전체. 해당자 전원 + 경영팀, 해당자가 한 명도 없으면 안 만든다(있던 방은 비움) */
+      for (const [key, label, is] of ALL_ROOMS) {
+        const w = { t: 'all', n: label + ' 전체', m: {}, mute: {} };
+        for (const [ph, u] of Object.entries(el)) if (is(u)) w.m[ph] = 1;
+        if (!Object.keys(w.m).length) continue;
+        for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
+        want['all_' + key] = w;
       }
-      for (const w of [ds, it]) if (Object.keys(w.m).length) for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
-      if (Object.keys(ds.m).some((ph) => isDesignerU(el[ph]))) want.all_designers = ds;
-      if (Object.keys(it.m).some((ph) => isInternU(el[ph]))) want.all_interns = it;
     }
     if (ar.tm !== false) {
       for (const [ph, u] of Object.entries(el)) {
