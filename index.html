@@ -1787,6 +1787,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-tool{border:1px solid var(--cm-line);background:#fff;color:var(--cm-ink2);border-radius:99px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
 .cm-tool.on{background:var(--cm-ink);color:#fff;border-color:var(--cm-ink)}
 .cm-fl{font-size:12px;color:var(--cm-ink3);margin:-2px 2px 8px}
+.cm-nm .cm-btag{flex:0 0 auto;overflow:visible;font-size:10px;font-weight:800;letter-spacing:.01em;border-radius:5px;padding:1px 5px;line-height:1.45}.cm-btag.dm{background:#111827;color:#fff}.cm-btag.et{background:#7C2D12;color:#FFEDD5}.cm-btag.hq{background:#E0E7FF;color:#3730A3}.cm-btag.cm{background:#E5E7EB;color:#374151}html.cm-dark .cm-btag.dm,html.dm-dark .cm-btag.dm{background:#F2F2F2;color:#111}html.cm-dark .cm-btag.et,html.dm-dark .cm-btag.et{background:#9A3412;color:#FFEDD5}html.cm-dark .cm-btag.hq,html.dm-dark .cm-btag.hq{background:#1E1B4B;color:#A5B4FC}html.cm-dark .cm-btag.cm,html.dm-dark .cm-btag.cm{background:#2C2C2E;color:#D1D1D6}
 .cm-fl a{color:var(--cm-blue);font-weight:700;cursor:pointer;margin-left:6px}
 .cm-toptabs{margin-bottom:10px}
 .ios-home-bar .cm-comp{padding-bottom:30px;padding-left:14px;padding-right:14px}
@@ -2387,6 +2388,8 @@ html.dm-dark .cm-etag{color:#7973EB;background:#212945}
 html.dm-dark .cm-autoinfo{background:#242426;color:#9CA5B2}
 html.dm-dark .cm-pinbar{background:#443D23;color:#F5BC99}
 html.dm-dark .cm-tool{background:#1C1C1E}
+html.dm-dark .cm-btag.hq{background:#212945;color:#9F9BE2}
+html.dm-dark .cm-btag.cm{background:#2C2C2E;color:#B3B9C3}
 html.dm-dark .cm-pinbar em{color:#EB8181}
 html.dm-dark .cm-list{background:#1C1C1E}
 html.dm-dark .cm-row:active{background:#242426}
@@ -7349,9 +7352,9 @@ function arPaint(){var el=$('AUTO-ROOMS');if(!el)return;var d=AR_ST.d;
   if(AR_ST.err)h+='<div style="font-size:12.5px;color:#DC2626;margin:6px 0">'+AR_ST.err+'</div>';
   if(!d&&!AR_ST.err)h+='<div class="sk" style="height:120px"></div>';
   if(d){h+=row('bd','브랜드방','DAY:MEAN 전체 · ETOH 전체 — 그 브랜드 직원 전원 + 경영팀 (지점방은 원래대로 따로 있어요)')+row('lv','아카데미 (레벨방)','레벨마다 1개 · 그 레벨 인턴 + 디자이너 전원 + 경영팀 · 디자이너 · 경영팀은 알림 끔으로 들어감(@나 · 내 담당 인턴 글은 알림)')+row('tm','팀방','담당 디자이너 + 그 디자이너 담당 인턴');
-    var L=d.labels||{};Object.keys(L).forEach(function(k){var nm=L[k];var desc=nm.replace(' 전체','')+' 전원 + 경영팀'+(/인턴/.test(nm)?' · 관리자 · 디자이너도(알림 끔)':/스탭장/.test(nm)?' · 관리자도(알림 끔)':'');h+=row(k,nm,desc)});
+    var L=d.labels||{};Object.keys(L).forEach(function(k){var nm=L[k];var desc=nm.replace(/ (전체|단체방)$/,'')+' 전원 + 경영팀'+(/인턴/.test(nm)?' · 관리자 · 디자이너도(알림 끔)':/스탭장/.test(nm)?' · 관리자도(알림 끔)':'');h+=row(k,nm,desc)});
     if(!d.open)h+='<div style="margin-top:10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#9A3412;line-height:1.55">지금은 채팅 시험 중이라 시험 대상 '+d.trial+'명에게만 방이 만들어져요. 전 직원에게 열면 모두에게 생겨요.</div>';
-    var rs=d.rooms||[];var TL={all:'전체방',bd:'브랜드방',lv:'아카데미',tm:'팀방'};
+    var rs=d.rooms||[];var TL={all:'단체방',bd:'브랜드방',lv:'아카데미',tm:'팀방'};
     h+='<div style="margin-top:12px;font-size:12px;font-weight:700;color:#64748B">지금 있는 방 '+rs.filter(function(r){return r.m}).length+'개</div>';
     h+=rs.filter(function(r){return r.m}).length?'<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">'+rs.filter(function(r){return r.m}).map(function(r){return '<div style="display:flex;gap:8px;font-size:13px;padding:6px 10px;background:#F8FAFC;border-radius:8px"><span style="color:#4F46E5;font-size:11px;font-weight:700;min-width:38px">'+TL[r.t]+'</span><span style="flex:1">'+navEsc(r.n)+'</span><span style="color:#64748B">'+r.m+'명</span></div>'}).join('')+'</div>':'<div style="font-size:12.5px;color:#94A3B8;margin-top:6px">아직 만들어진 방이 없어요</div>'}
   h+='</div>';el.innerHTML=h}
@@ -11466,9 +11469,13 @@ function cmRenderSoon(){$('CM-VIEW').innerHTML='<div class="cm-head"><span class
 function cmRoomName(rid,r){var ib=CM.inbox&&CM.inbox[rid];if(ib&&ib.nm)return ib.nm;if(r&&r.n)return r.n;if(rid.indexOf('me_')===0)return '나와의 채팅';return rid}
 /* 교육 자동방(11/13 사용자 결정, 서버 syncAuto 가 만든다) — lv 레벨방(그 레벨 인턴 + 디자이너 전원 + 경영팀) · tm 팀방(원장 + 담당 인턴 + 경영팀).
    inbox j = 들어올 때 방 번호 — 그 이전 대화는 안 그린다(cmJ). 디자이너 · 경영팀은 레벨방에 알림 끔으로 들어감(내 인턴 글 · @나는 알림) */
-var CM_EDU_T={all:'전체방',br:'지점방',tm:'팀방',lv:'아카데미'};   // 레벨방은 '아카데미'로 부른다(11/13 사용자)
+var CM_EDU_T={all:'단체방',br:'지점방',tm:'팀방',lv:'아카데미'};   // '전체방'→'단체방'(11/14 사용자, 칩 '전체'와 헷갈려서)   // 레벨방은 '아카데미'로 부른다(11/13 사용자)
 /* 목록 종류: 본사경영팀 방(hq)도 '전체방'으로 묶는다(11/13) */
 function cmCat(r){return r&&r.t==='hq'?'all':r&&r.t==='bd'?'br':r&&r.t}   // 브랜드방(bd)은 '지점방'으로 묶는다(11/13)
+/* 고정 단톡방 브랜드 꼬리표(11/14 사용자 '앞에 브랜드 이름, 아니면 태그라도') — 서버 syncAuto 가 방마다 bt 를 정해 준다
+   (DAY:MEAN · ETOH · 공통(두 브랜드) · 본사 · 전 직원). 이름이 그 브랜드로 시작하면 이름에선 뺀다: 'DAY:MEAN 플래그십점' → [DAY:MEAN] 플래그십점 */
+function cmBtag(r){var b=r&&r.bt;if(!b)return '';var c=b==='DAY:MEAN'?'dm':/^ETOH/.test(b)?'et':b==='본사'?'hq':'cm';return '<span class="cm-btag '+c+'">'+cmEsc(b)+'</span>'}
+function cmNameNoBrand(k,r){var n=String(cmRoomName(k,r)||''),b=r&&r.bt;if(b&&n.indexOf(b+' ')===0&&n.length>b.length+1)return n.slice(b.length+1);return n}
 function cmJ(rid){var ib=CM.inbox&&CM.inbox[rid];return (ib&&ib.j)||0}
 function cmJFilter(rid,d){var j=cmJ(rid);if(!j||!d)return d;var o={};Object.keys(d).forEach(function(k){var m=d[k];if(m&&(m.s||0)>j)o[k]=m});return o}
 function cmLvShort(n){var m=String(n||'').match(/(BASIC|BRONZE|SILVER|GOLD)(?:-(\d))?/i);if(!m)return '레벨';var k=m[1].toUpperCase();return k==='BASIC'?'BA':k.charAt(0)+(m[2]||'')}
@@ -11509,7 +11516,7 @@ function cmRenderList(){
     if(q&&String(cmRoomName(k,r)).toLowerCase().indexOf(q)<0&&String(r.x||'').toLowerCase().indexOf(q)<0)return false;return true})
     .sort(function(a,b){var A=CM.inbox[a],B=CM.inbox[b];if(a==='notice')return -1;if(b==='notice')return 1;if(!!A.pin!==!!B.pin)return A.pin?-1:1;if(A.pin&&B.pin)return B.pin-A.pin;return (B.at||0)-(A.at||0)});
   /* 위쪽을 한 줄로: 검색(누르면 펼침) · 필터(지점 + 종류를 한 창에) · 새 대화 · 설정 — 목록이 화면 위에서 바로 시작하게 */
-  var fl=[];if(CM.filter.br)fl.push(CM.filter.br);var KL={un:'안 읽음',at:'@나',notice:'공지',dm:'1:1',all:'전체방',br:'지점방',tm:'팀방',lv:'아카데미'};if(CM.filter.k)fl.push(KL[CM.filter.k]);
+  var fl=[];if(CM.filter.br)fl.push(CM.filter.br);var KL={un:'안 읽음',at:'@나',notice:'공지',dm:'1:1',all:'단체방',br:'지점방',tm:'팀방',lv:'아카데미'};if(CM.filter.k)fl.push(KL[CM.filter.k]);
   var h='<div class="cm-tools"><button class="cm-tool'+(CM.qOpen||CM.q?' on':'')+'" onclick="CM.qOpen=!CM.qOpen;if(!CM.qOpen)CM.q=\'\';cmRenderList();if(CM.qOpen){var e=$(\'CM-Q\');if(e)e.focus()}">검색</button><button class="cm-tool'+(fl.length?' on':'')+'" onclick="cmFilterSheet()">필터'+(fl.length?' · '+cmEsc(fl.join(' · ')):'')+' ▾</button><span style="flex:1"></span>'+(cmDeskWin()&&!DM_SOLO?'<button class="cm-tb gray" onclick="cmDeskSize('+(DM_SMALL?'false':'true')+')">'+(DM_SMALL?'크게 보기':'작게 보기')+'</button><button class="cm-tb gray" onclick="cmDeskTop()"'+(CM._onTop?' style="color:var(--cm-blue)"':'')+'>위에 고정</button>':'')+'<button class="cm-tb gray" onclick="cmOpenSettings()">설정</button><button class="cm-tb" onclick="cmOpenNew(\'new\')">새 대화</button></div>';
   if(CM.qOpen||CM.q)h+='<input class="cm-search" id="CM-Q" placeholder="이름 · 방 이름 · 내용 검색" value="'+cmEsc(CM.q)+'" oninput="CM.q=this.value;cmRenderList();var e=$(\'CM-Q\');e.focus();e.setSelectionRange(e.value.length,e.value.length)">';
   h+=pin;
@@ -11519,10 +11526,10 @@ function cmRenderList(){
   var sumN=cmSumRooms().reduce(function(n,k){return n+(CM.inbox[k].s||0)-(CM.inbox[k].r||0)},0);if(sumN>=10)h+='<button class="cm-sumbtn" onclick="cmOpenSummary()">안 읽은 것 '+sumN+'개 · AI 요약 보기</button>';
   CM._brs=Object.keys(brs).sort();
   var unN=ids.filter(function(k){var r=CM.inbox[k];return (r.s||0)>(r.r||0)}).length,atN=ids.filter(function(k){var r=CM.inbox[k];return (r.mn||0)>(r.r||0)}).length;
-  CM._unN=unN;CM._atN=atN;if(fl.length)h+='<div class="cm-fl">'+cmEsc(fl.join(' · '))+'만 보는 중 <a onclick="CM.filter={br:\'\',k:\'\'};cmRenderList()">전체 보기</a></div>';
+  CM._unN=unN;CM._atN=atN;/* '…만 보는 중' 줄은 없앴다(11/14 사용자) — 필터 버튼에 이미 보인다 */
   if(!rows.length)h+='<div class="cm-empty">'+(ids.length?'조건에 맞는 대화가 없어요':'아직 대화가 없어요.<br>오른쪽 위 \'새 대화\'로 시작하세요.')+'</div>';
   else{h+='<div class="cm-list">';rows.forEach(function(k){var r=CM.inbox[k];var un=Math.max(0,(r.s||0)-(r.r||0));var at=(r.mn||0)>(r.r||0);
-    h+='<div class="cm-row sw-ok'+(r.pin?' pinned':'')+(CM._sw===k?' sw':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" style="--sw:'+(CM_SW_W*(un?3:2))+'px" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}if(CM._sw){cmSwClose();return}cmRowOpen(\''+cmEsc(k)+'\')"><div class="cm-rin">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm"><span>'+cmEsc(cmRoomName(k,r))+'</span>'+(CM_CNT[k]&&r.t!=='dm'&&r.t!=='me'?'<span class="cm-mc">'+CM_CNT[k]+'</span>':'')+(CM_EDU_T[cmCat(r)]?'<span class="cm-etag">'+CM_EDU_T[cmCat(r)]+'</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'+cmSwActs(k,r,un)+'</div>'});h+='</div>'}
+    h+='<div class="cm-row sw-ok'+(r.pin?' pinned':'')+(CM._sw===k?' sw':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" style="--sw:'+(CM_SW_W*(un?3:2))+'px" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}if(CM._sw){cmSwClose();return}cmRowOpen(\''+cmEsc(k)+'\')"><div class="cm-rin">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm">'+cmBtag(r)+'<span>'+cmEsc(cmNameNoBrand(k,r))+'</span>'+(CM_CNT[k]&&r.t!=='dm'&&r.t!=='me'?'<span class="cm-mc">'+CM_CNT[k]+'</span>':'')+(r.t==='lv'?'<span class="cm-etag">아카데미</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'+cmSwActs(k,r,un)+'</div>'});h+='</div>'}
   cmPatchDeep(v,h);
   /* 방을 연 채로 왼쪽 목록(CM-SIDE)에서 종류 버튼 · 필터 · 검색을 바꾸면 왼쪽 목록도 다시 그린다 — 예전엔 가려진 목록만 바뀌어 눌러도 안 되는 것처럼 보였다(11/13) */
   if(!CM._sideR&&cmOn('p-comm-room')&&$('CM-SIDE'))cmSideRender()}
@@ -11644,7 +11651,7 @@ function cmRoomCleanup(){try{var ae=document.activeElement;if(ae&&/^(INPUT|TEXTA
   fix();setTimeout(fix,320);setTimeout(fix,700)}
 function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var _ib=CM.inbox&&CM.inbox[CM.rid];var nm=_ib&&_ib.nm?_ib.nm:r.t==='dm'?(_ib&&_ib.n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
-  var nb=$('CM-NOTICE');if(nb)nb.innerHTML=(r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'')+(CM_EDU_T[r.t]?'<div class="cm-autoinfo">'+(r.t==='all'?String(r.n||'').replace(/\s*전체$/,'')+' 전원과 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='tm'?'담당 인턴이 바뀌면 인원이 자동으로 바뀌는 방이에요':'레벨이 오르면 다음 레벨 방으로 옮겨 가요 · 들어오기 전 대화는 안 보여요')+'</div>':'');
+  var nb=$('CM-NOTICE');if(nb)nb.innerHTML=(r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'')+(CM_EDU_T[r.t]?'<div class="cm-autoinfo">'+(r.t==='all'?String(r.n||'').replace(/\s*(전체|단체방)$/,'')+' 전원과 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='tm'?'담당 인턴이 바뀌면 인원이 자동으로 바뀌는 방이에요':'레벨이 오르면 다음 레벨 방으로 옮겨 가요 · 들어오기 전 대화는 안 보여요')+'</div>':'');
   var canWrite=!(r.t==='notice'&&!cmIsManager());var c=$('CM-COMP');if(c&&c.getAttribute('data-ro')!==String(!canWrite)){c.setAttribute('data-ro',String(!canWrite));if(canWrite)cmComposer('CM-COMP',false);else c.innerHTML='<div class="cm-ro">경영팀 · 관리자만 쓸 수 있는 방입니다</div>'}}
 function cmUnread(m){var r=CM.room;if(!r||!r.m||!m.s)return 0;var n=0;Object.keys(r.m).forEach(function(p){if(p!==m.by&&(CM.reads[p]||0)<m.s)n++});return n}
 function cmRpnHtml(m){var n=!CM.thRoot&&!CM.rpRoot&&CM.rpN&&m&&m._k&&CM.rpN[m._k];return n?'<div class="cm-rpn">답장 '+n+'개 모아 보기 ›</div>':''}

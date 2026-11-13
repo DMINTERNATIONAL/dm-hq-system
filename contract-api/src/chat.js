@@ -177,7 +177,7 @@ export function makeChat(deps) {
       if (isHqUser(ph, u)) { want.hq.m[ph] = 1; want.ops.m[ph] = 1; }
       if (u.branch && u.branch !== '본사') {
         const rid = 'br_' + safeKey((u.brand || '') + '_' + u.branch);
-        want[rid] = want[rid] || { t: 'br', n: (u.brand ? u.brand + ' ' : '') + u.branch, m: {} };
+        want[rid] = want[rid] || { t: 'br', n: (u.brand ? u.brand + ' ' : '') + u.branch, m: {}, bt: u.brand || '' };
         want[rid].m[ph] = 1;
       }
     }
@@ -187,7 +187,7 @@ export function makeChat(deps) {
       for (const [ph, u] of Object.entries(el)) {
         if (!u.brand || u.brand === 'DM INTERNATIONAL' || !u.branch || u.branch === '본사') continue;
         const rid = 'bd_' + safeKey(u.brand);
-        want[rid] = want[rid] || { t: 'bd', n: u.brand + ' 전체', m: {}, mute: {} };
+        want[rid] = want[rid] || { t: 'bd', n: u.brand + ' 전 직원', m: {}, mute: {}, bt: u.brand };   // 이름 'OO 전체'→'OO 전 직원'(11/14, '전체' 필터 · '전체방'과 헷갈려서)
         want[rid].m[ph] = 1;
       }
       for (const w of Object.values(want)) if (w.t === 'bd') for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
@@ -206,7 +206,7 @@ export function makeChat(deps) {
       /* 등급별 전체방(11/13) — 디자이너 · 인턴 · 관리자 · 스탭장 · 카운터 전체. 해당자 전원 + 경영팀, 해당자가 한 명도 없으면 안 만든다(있던 방은 비움) */
       for (const [key, label, is, also] of ALL_ROOMS) {
         if (ar['all_' + key] === false) continue;
-        const w = { t: 'all', n: label + ' 전체', m: {}, mute: {} };
+        const w = { t: 'all', n: label + ' 단체방', m: {}, mute: {} };   // 'OO 전체'→'OO 단체방'(11/14 사용자)
         for (const [ph, u] of Object.entries(el)) if (is(u)) w.m[ph] = 1;
         if (!Object.keys(w.m).length) continue;
         if (also) for (const [ph, u] of Object.entries(el)) if (!w.m[ph] && also(u)) { w.m[ph] = 1; w.mute[ph] = 1; }
@@ -226,20 +226,31 @@ export function makeChat(deps) {
     }
     /* 경영팀은 모든 지점방에 들어간다 (지점 상황을 같이 봐야 해서) */
     for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br') want[rid].m[ph] = 1;
+    /* 브랜드 꼬리표(bt, 11/14 사용자 '고정 단톡방 앞에 브랜드') — 목록 이름 앞에 작게. 경영팀(본사)은 빼고 남은 사람들의 브랜드로 정한다:
+       한 브랜드면 그 브랜드, 둘 이상이면 '공통'. 전체 공지는 '전 직원', 본사경영팀 · 업무 알림은 '본사' */
+    for (const w of Object.values(want)) {
+      if (w.bt != null) continue;
+      if (w.t === 'notice') { w.bt = '전 직원'; continue; }
+      if (w.t === 'hq' || w.t === 'ops') { w.bt = '본사'; continue; }
+      const bs = new Set();
+      for (const ph of Object.keys(w.m)) { const u = el[ph]; if (!u || isHqUser(ph, u) || !u.brand || u.brand === 'DM INTERNATIONAL') continue; bs.add(u.brand); }
+      w.bt = bs.size === 1 ? [...bs][0] : bs.size > 1 ? '공통' : '';
+    }
     const up = {};
     const rooms = (await dbGet(env, '/chat/rooms').catch(() => null)) || {};
     for (const [rid, w] of Object.entries(want)) {
       const cur = rooms[rid];
-      if (!cur) { up[`chat/rooms/${rid}`] = { t: w.t, n: w.n, by: 'system', at: nowMs(), m: w.m, seq: 0, auto: 1, ...(w.mute && Object.keys(w.mute).length ? { mute: w.mute } : {}) }; }
+      if (!cur) { up[`chat/rooms/${rid}`] = { t: w.t, n: w.n, bt: w.bt || '', by: 'system', at: nowMs(), m: w.m, seq: 0, auto: 1, ...(w.mute && Object.keys(w.mute).length ? { mute: w.mute } : {}) }; }
       else {
         up[`chat/rooms/${rid}/m`] = w.m;
         for (const ph of Object.keys(cur.m || {})) if (!w.m[ph]) up[`chat/inbox/${ph}/${rid}`] = null;   // 빠진 사람 목록에서 제거
         /* 자동방 이름이 바뀌면(레벨 · 디자이너 이름 · '경영팀'→'본사경영팀' 11/13) 모두의 목록 이름도 */
+        if ((cur.bt || '') !== (w.bt || '')) { up[`chat/rooms/${rid}/bt`] = w.bt || ''; for (const ph of Object.keys(w.m)) if ((cur.m || {})[ph]) up[`chat/inbox/${ph}/${rid}/bt`] = w.bt || ''; }
         if ((EDU_T[w.t] || w.t === 'hq') && cur.n !== w.n) { up[`chat/rooms/${rid}/n`] = w.n; for (const ph of Object.keys(w.m)) if ((cur.m || {})[ph]) up[`chat/inbox/${ph}/${rid}/n`] = w.n; }
       }
       for (const ph of Object.keys(w.m)) {
         if (!cur || !(cur.m || {})[ph]) {
-          Object.assign(up, inboxSeed(rid, cur || { t: w.t, n: w.n, seq: 0 }, w.n, ph));
+          Object.assign(up, inboxSeed(rid, { ...(cur || { t: w.t, n: w.n, seq: 0 }), bt: w.bt || '' }, w.n, ph));
           if (EDU_T[w.t]) {
             up[`chat/inbox/${ph}/${rid}/j`] = (cur && cur.seq) || 0;   // 이 번호까지의 대화는 안 보인다
             if (w.mute && w.mute[ph]) { up[`chat/inbox/${ph}/${rid}/mute`] = 1; if (cur) up[`chat/rooms/${rid}/mute/${ph}`] = 1; }
@@ -279,7 +290,7 @@ export function makeChat(deps) {
       .sort((a, b) => (a.t === b.t ? 0 : a.t === 'all' ? -1 : b.t === 'all' ? 1 : a.t === 'lv' ? -1 : 1) || (LEVELS.indexOf(a.n.replace(' 인턴', '')) - LEVELS.indexOf(b.n.replace(' 인턴', ''))) || a.n.localeCompare(b.n));
     const cfg = (await dbGet(env, '/config/comm').catch(() => null)) || {};
     const opts = {}; for (const k of AUTO_KEYS) opts[k] = ar[k] !== false && !(k.startsWith('all_') && ar.all === false);
-    return { opts, labels: Object.fromEntries(ALL_ROOMS.map((r) => ['all_' + r[0], r[1] + ' 전체'])), rooms: list, open: cfg.open === true, trial: OWNER_PHONES.length + Object.keys(cfg.users || {}).length };
+    return { opts, labels: Object.fromEntries(ALL_ROOMS.map((r) => ['all_' + r[0], r[1] + ' 단체방'])), rooms: list, open: cfg.open === true, trial: OWNER_PHONES.length + Object.keys(cfg.users || {}).length };
   }
 
   function inboxSeed(rid, room, displayName, ph) {
@@ -289,6 +300,7 @@ export function makeChat(deps) {
       [`${base}/t`]: room.t, [`${base}/n`]: displayName, [`${base}/s`]: room.seq || 0,
       [`${base}/r`]: room.seq || 0, [`${base}/at`]: last.at || room.at || nowMs(),
       [`${base}/x`]: last.x || '', [`${base}/bn`]: last.bn || '',
+      ...(room.bt ? { [`${base}/bt`]: room.bt } : {}),
     };
   }
 
