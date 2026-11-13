@@ -311,6 +311,7 @@ export function makeChat(deps) {
       up[`chat/act/${p}/${rid36()}`] = { k: actK[p], rid, key: root || key, th: root ? key : null, x: clip(x || (k === 'p' ? '사진' : '첨부'), 80), bn, at, rn: room.t === 'dm' ? bn : room.n, done: 0 };
     }
     await dbPatch(env, '/', up);
+    if (!root) { const fx = fixLatest(env, rid, room, seq).catch(() => {}); if (ctx && ctx.waitUntil) ctx.waitUntil(fx); else await fx; }
 
     /* 알림 — 보낸 사람에게는 안 보낸다. 방 알림을 끈 사람에게는 @부른 경우 · 스레드 답에만 보낸다. */
     const muted = room.mute || {};
@@ -572,6 +573,7 @@ export function makeChat(deps) {
     const up = { [`chat/msgs/${rid}/${key}`]: { s: seq, by: 'bot', bn, at, k: 't', x }, [`chat/rooms/${rid}/last`]: { x: preview, by: 'bot', bn, at, k: 't' } };
     for (const p of Object.keys(room.m)) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = bn; }
     await dbPatch(env, '/', up);
+    await fixLatest(env, rid, room, seq).catch(() => {});
     const muted = room.mute || {};
     const job = (async () => {
       const quietSet = await quietPhones(env);
@@ -589,6 +591,7 @@ export function makeChat(deps) {
     const up = { [`chat/msgs/${rid}/${pad(seq)}`]: { s: seq, by: 'system', bn: '', at, k: 'sys', x: text }, [`chat/rooms/${rid}/last`]: { x: text, by: 'system', bn: '', at, k: 'sys' } };
     for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = text; up[`${b}/bn`] = ''; }
     await dbPatch(env, '/', up);
+    await fixLatest(env, rid, room, seq).catch(() => {});
   }
 
   async function invite(env, me, body) {
@@ -682,6 +685,24 @@ export function makeChat(deps) {
       if (!root) await fixPreview(env, rid, room, m, clip(x, 80));
     }
     return {};
+  }
+
+  /* 목록 미리보기 순서 바로잡기(11/13, '읽기 전 미리보기에 최근 글이 안 뜰 때가 있다').
+     같은 방에 거의 동시에 온 두 메시지는 번호(seq)는 차례대로 받지만 저장(dbPatch)은 누가 먼저 끝날지 모른다.
+     먼저 보낸 글의 저장이 늦게 끝나면 모두의 목록(inbox) 미리보기 · 마지막 번호(s)가 바로 전 글로 덮였다.
+     → 저장한 뒤 그 방의 진짜 마지막 메시지를 한 번 읽어, 내 글보다 최근 글이 이미 있으면 목록을 그 글로 다시 맞춘다.
+        (최근 글의 저장이 아직이면 그 저장이 나중에 끝나며 스스로 맞춘다) */
+  const previewOf = (m) => m.del ? '삭제된 메시지입니다' : (m.k === 'ack' ? '[확인 요청] ' : m.k === 'poll' ? '[투표] ' : '') + (m.x ? clip(m.x, 80) : (m.k === 'p' ? '사진' : m.k === 'v' ? '동영상' : m.k === 'f' ? '파일' : ''));
+  async function fixLatest(env, rid, room, seq) {
+    const t = await accessToken(env);
+    const r = await fetch(`${env.FIREBASE_URL}/chat/msgs/${rid}.json?orderBy=%22%24key%22&limitToLast=1&access_token=${t}`);
+    if (!r.ok) return;
+    const d = (await r.json()) || {};
+    const k = Object.keys(d)[0], m = k && d[k];
+    if (!m || !m.s || m.s <= seq) return;
+    const x = previewOf(m), up = { [`chat/rooms/${rid}/last`]: { x, by: m.by || '', bn: m.bn || '', at: m.at || nowMs(), k: m.k || 't' } };
+    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = m.s; up[`${b}/at`] = m.at || nowMs(); up[`${b}/x`] = x; up[`${b}/bn`] = m.bn || ''; }
+    await dbPatch(env, '/', up);
   }
 
   /* 방 목록 미리보기: 지우거나 가리거나 고친 메시지가 그 방의 마지막 메시지면 모두의 목록 문구도 바꾼다
