@@ -35,7 +35,7 @@ const isManagerUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
 const isHqUser = (ph, u) => OWNER_PHONES.includes(String(ph)) ||
   (u && (u.systemGrade === '경영팀' || u.role === '경영팀' || u.role === '본사경영팀'));
 const safeKey = (s) => String(s).replace(/[.#$\[\]\/]/g, '_');
-/* 교육 자동방(11/13 사용자 결정) — 레벨방: 그 레벨 인턴 전원(회사 전체) + 디자이너 전원 + 경영팀 / 팀방: 원장(담당 디자이너) + 담당 인턴(경영팀 없음).
+/* 교육 자동방(11/13 사용자 결정) — 레벨방: 그 레벨 인턴 전원(회사 전체) + 디자이너 전원 + 경영팀 / 팀방: 담당 디자이너(인턴의 mentorId) + 그 디자이너 담당 인턴(경영팀 없음).
    알림: 디자이너 · 경영팀은 레벨방에 '알림 끔'으로 들어간다(처음 들어갈 때만, 각자 바꿀 수 있음). 끔이어도 @나 · 내 담당 인턴 글 · 내 인턴을 부른 글은 알림.
    새로 들어온 사람에게 이전 대화는 안 보인다(inbox j = 들어올 때 방 번호, 앱이 그 이전 메시지를 안 그림). 인턴별 방은 만들지 않는다 */
 const LEVELS = ['BASIC', 'BRONZE-1', 'BRONZE-2', 'SILVER-1', 'SILVER-2', 'SILVER-3', 'GOLD-1', 'GOLD-2', 'GOLD-3'];
@@ -209,7 +209,7 @@ export function makeChat(deps) {
         want[rid] = want[rid] || { t: 'tm', n: nameOf(mu) + (mu.position ? ' ' + mu.position + '님' : '') + ' 팀', m: { [mp]: 1 }, mute: {} };
         want[rid].m[ph] = 1;
       }
-      /* 팀방엔 경영팀을 넣지 않는다(사용자 결정 11/13) — 원장 + 담당 인턴만. 이미 들어가 있던 경영팀은 다음 맞추기에서 빠진다 */
+      /* 팀방엔 경영팀을 넣지 않는다(사용자 결정 11/13) — 담당 디자이너 + 담당 인턴만. 이미 들어가 있던 경영팀은 다음 맞추기에서 빠진다 */
     }
     /* 경영팀은 모든 지점방에 들어간다 (지점 상황을 같이 봐야 해서) */
     for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br') want[rid].m[ph] = 1;
