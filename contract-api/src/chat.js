@@ -45,7 +45,7 @@ const hasGrade = (g) => (u) => !!u && (u.systemGrade === g || u.role === g || (A
 /* [방 키, 이름, 해당자, 같이 들어갈 사람(알림 끔으로)] — 사용자 결정 11/13: 카운터 방 없음 · 인턴 전체 · 스탭장 전체에는 관리자 · 디자이너도 */
 const obsMD = (u) => hasGrade('관리자')(u) || isDesignerU(u);
 const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMD], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMD]];
-const EDU_T = { lv: 1, tm: 1, all: 1 };   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
+const EDU_T = { lv: 1, tm: 1, all: 1, bd: 1 };   // bd: 브랜드방(DAY:MEAN 전체 · ETOH 전체, 11/13) — 그 브랜드 직원 전원 + 경영팀, 알림 켬   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
 
 const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
 const ackId = (rid, key) => 'a_' + String(rid).replace(/[^A-Za-z0-9_-]/g, '') .slice(0, 40) + '_' + key;
@@ -179,6 +179,15 @@ export function makeChat(deps) {
     }
     /* 교육 자동방 — /config/comm/autoRooms {lv:false} 처럼 끄면 그 종류는 안 만든다(이미 있던 방은 인원만 비운다) */
     const ar = (await dbGet(env, '/config/comm/autoRooms').catch(() => null)) || {};
+    if (ar.bd !== false) {
+      for (const [ph, u] of Object.entries(el)) {
+        if (!u.brand || u.brand === 'DM INTERNATIONAL' || !u.branch || u.branch === '본사') continue;
+        const rid = 'bd_' + safeKey(u.brand);
+        want[rid] = want[rid] || { t: 'bd', n: u.brand + ' 전체', m: {}, mute: {} };
+        want[rid].m[ph] = 1;
+      }
+      for (const w of Object.values(want)) if (w.t === 'bd') for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
+    }
     if (ar.lv !== false) {
       for (const [ph, u] of Object.entries(el)) {
         if (!isInternU(u)) continue;
@@ -251,7 +260,7 @@ export function makeChat(deps) {
   }
 
   /* 경영팀 설정 › 자동 단톡방 (11/13) — 종류별 켜기 · 끄기 + 지금 있는 자동방 목록. /config/comm/autoRooms 는 서버만 쓴다 */
-  const AUTO_KEYS = ['lv', 'tm', ...ALL_ROOMS.map((r) => 'all_' + r[0])];
+  const AUTO_KEYS = ['bd', 'lv', 'tm', ...ALL_ROOMS.map((r) => 'all_' + r[0])];
   async function autoConfig(env, me, body) {
     const u = await meUser(env, me);
     if (!isHqUser(String(me.ph), u)) throw new Error('경영팀만 바꿀 수 있어요');

@@ -20,6 +20,7 @@ import { opsText } from './opsmsg.js';
 import { makeOpCost } from './opcost.js';
 import { makeMedia, serveMedia, roomTag, mediaUrl } from './media.js';
 import { gcsCopy, gcsSetup, gcsMigrate, gcsSign, gcsUpload, gcsDelete } from './gcs.js';
+import { hqDashTick } from './dash.js';
 import { makeBoard } from './board.js';
 import { makeCalendar } from './calendar.js';
 import { makeGcal } from './gcal.js';
@@ -838,6 +839,8 @@ async function runSalesFixPush(env) {
 export default {
   /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 · 수기 매출 수정 알림 · 검색 노출 조사 */
   async scheduled(event, env, ctx) {
+    /* 경영팀 대시보드 숫자 — 발주 · 식대가 바뀌었을 때만 다시 계산해 /dash/hq 에 둔다(dash.js, 11/13) */
+    ctx.waitUntil(hqDashTick(env, { dbGet, dbPatch }).then((r) => { if (r) console.log('dash', JSON.stringify(r)); }).catch((e) => console.log('dash', e && e.message)));
     /* 퇴사 처리된 직원의 열쇠 갱신권을 끊는다(2분마다) — 앱이 갱신권으로 구글에서 바로 열쇠를 받게 되면서(11/13) 서버의 '퇴사면 거절'을 안 거치므로 */
     if (new Date().getUTCMinutes() % 2 === 0) ctx.waitUntil(autoRevokeLeavers(env).then((n) => { if (n) console.log('autorevoke', n); }).catch((e) => console.log('autorevoke', e && e.message)));
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
