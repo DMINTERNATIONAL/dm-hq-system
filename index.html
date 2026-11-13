@@ -4084,7 +4084,7 @@ function customAlert(msg,cb){_showPopup({type:'alert',msg:msg,cb:cb})}
 function customConfirm(msg,cb){_showPopup({type:'confirm',msg:msg,cb:cb})}
 function customPrompt(msg,defaultValue,cb){_showPopup({type:'prompt',msg:msg,defaultValue:defaultValue||'',cb:cb})}
 window.alert=function(msg){customAlert(msg)};
-function go(id){if(typeof cmDeskGo==='function')cmDeskGo(id);if(id.indexOf('p-comm')<0&&typeof CM!=='undefined'&&CM)CM._listY=null;if(typeof cmVV==='function'&&!/^p-comm-(room|thread)$/.test(id))setTimeout(cmVV,0);if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);try{if(history.state&&history.state.page!==id)history.pushState({page:id},'',location.pathname+'#'+id);else if(!history.state)history.pushState({page:id},'',location.pathname+'#'+id)}catch(e){};$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if($('nsbar'))$('nsbar').style.display=(id==='p-naesu'&&typeof NS_CART!=='undefined'&&Object.keys(NS_CART).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(typeof navTabs==='function'&&ME)navTabs(id);if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo();if(typeof renderBotTab==='function')renderBotTab(id);}
+function go(id){if(typeof cmDeskGo==='function')cmDeskGo(id);if(id.indexOf('p-comm')<0&&typeof CM!=='undefined'&&CM){CM._listY=null;if(CM.rid&&typeof DM_SOLO!=='undefined'&&!DM_SOLO&&typeof cmLeaveRoom==='function')cmLeaveRoom('go')}if(typeof cmVV==='function'&&!/^p-comm-(room|thread)$/.test(id))setTimeout(cmVV,0);if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);try{if(history.state&&history.state.page!==id)history.pushState({page:id},'',location.pathname+'#'+id);else if(!history.state)history.pushState({page:id},'',location.pathname+'#'+id)}catch(e){};$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if($('nsbar'))$('nsbar').style.display=(id==='p-naesu'&&typeof NS_CART!=='undefined'&&Object.keys(NS_CART).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(typeof navTabs==='function'&&ME)navTabs(id);if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo();if(typeof renderBotTab==='function')renderBotTab(id);}
 function toggleSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(!sb)return;if(sb.classList.contains('open')){closeSidebar()}else{sb.classList.add('open');if(ov)ov.classList.add('show')}}
 function closeSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(sb)sb.classList.remove('open');if(ov)ov.classList.remove('show')}
 function renderIcons(){if(typeof lucide!=='undefined'){try{lucide.createIcons()}catch(e){}}}
@@ -11361,6 +11361,8 @@ var CM={inbox:null,act:null,users:null,brk:{},rid:null,room:null,msgs:{},reads:{
   fs:14,enterSend:true,actTab:'new',actK:'',booted:false,sending:false};
 (function(){try{var f=parseFloat(localStorage.getItem('cm_fs'));if(f)CM.fs=f;CM.enterSend=localStorage.getItem('cm_enter')!=='0'}catch(e){}})();
 var CM_COLORS=['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EC4899','#0EA5E9','#64748B','#EF4444','#14B8A6','#A855F7'];
+/* onclick="f('…')" 안에 넣는 글자 — encodeURIComponent 는 ' 를 그대로 둬서 파일 이름 John's.pdf 가 클릭을 깨거나 코드가 실행됐다(11/14 점검). 받는 쪽은 그대로 decodeURIComponent */
+function cmJsq(s){return encodeURIComponent(String(s==null?'':s)).replace(/'/g,'%27')}
 function cmEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function cmColor(k){var h=0;k=String(k||'');for(var i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))|0;return CM_COLORS[Math.abs(h)%CM_COLORS.length]}
 function cmAv(label,key,small){var t=String(label||'?').replace(/\s/g,'').slice(0,2);return '<div class="cm-av'+(small?' s':'')+'" style="background:'+cmColor(key||label)+'">'+cmEsc(t)+'</div>'}
@@ -11426,7 +11428,9 @@ function cmCntLoad(){if(!ME||!CM.inbox)return;if(!CM_CNT_AT){var c=cmCacheGet('c
   var ids=Object.keys(CM.inbox).filter(function(k){var r=CM.inbox[k];return r&&r.t!=='dm'&&r.t!=='me'});var miss=ids.some(function(k){return !CM_CNT[k]});
   if(Date.now()-CM_CNT_AT<(miss?60000:600000))return;CM_CNT_AT=Date.now();
   Promise.all(ids.map(function(k){return fbReq(cmSeg('/chat/rooms/'+k+'/m')+'.json?shallow=true').then(function(r){return r&&r.ok?r.json():null}).then(function(m){if(m)CM_CNT[k]=Object.keys(m).length}).catch(function(){})})).then(function(){cmCacheSet('cnt',CM_CNT);if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList();cmSideRender()})}
-function cmOnInbox(d){CM.inbox=d||{};if(!CM_CNT_AT){var _c=cmCacheGet('cnt');if(_c)CM_CNT=_c}setTimeout(cmCntLoad,300);cmNoticeMaybe(CM.inbox);cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList();if(CM.rid&&cmOn('p-comm-room'))cmMarkRead()}
+function cmOnInbox(d){var _had=CM.rid&&CM.inbox&&CM.inbox[CM.rid]&&CM.inbox[CM.rid].t==='grp';CM.inbox=d||{};
+  if(_had&&!CM.inbox[CM.rid]&&!CM._leaving&&(cmOn('p-comm-room')||cmOn('p-comm-set')||cmOn('p-comm-thread'))){var _r=CM.rid;setTimeout(function(){if(CM.rid===_r&&!(CM.inbox||{})[_r]){toast('이 단톡방에서 나가졌어요');cmBack()}},600)}   // 실시간 방 연결은 권한이 없어지면 그냥 끊겨 del 을 못 받는다(11/14 점검)
+  if(CM.rid&&cmJ(CM.rid)&&cmOn('p-comm-room')&&Object.keys(CM.msgs||{}).some(function(k){return (CM.msgs[k].s||0)<=cmJ(CM.rid)}))setTimeout(cmRenderMsgs,0);if(!CM_CNT_AT){var _c=cmCacheGet('cnt');if(_c)CM_CNT=_c}setTimeout(cmCntLoad,300);cmNoticeMaybe(CM.inbox);cmCacheSet('inbox',CM.inbox);cmBadges();cmDeskCheck();cmSideRender();if(cmOn('p-comm')&&CM.tab==='chat')cmRenderList();if(CM.rid&&cmOn('p-comm-room'))cmMarkRead()}
 /* 폰에서 앱으로 돌아왔을 때(11/8, 시드니에서 '들어가면 30초 뒤에야 메시지가 뜬다'):
    폰이 앱을 재우는 동안 실시간 연결이 끊기는데, 연결 쪽은 그걸 한참(30초~) 뒤에야 알아채고 다시 붙는다. 그동안 목록·숫자가 옛것.
    → 돌아오면 ① 실시간 연결을 바로 끊고 다시 붙이고 ② 대화 목록과 보던 방의 최근 대화는 그 사이 한 번 바로 받아 그린다. */
@@ -11487,8 +11491,8 @@ function cmDeskLS(){return (window.__TAURI__.dpi&&window.__TAURI__.dpi.LogicalSi
 /* 작게 보기 ↔ 크게 보기. 작게 보기는 이 기기에 기억해 다음에 켤 때도 작게 */
 function cmDeskSize(small){var w=cmDeskWin();if(!w)return;var LS=cmDeskLS();small=!!small;DM_SMALL=small;try{localStorage.setItem('cm_dsmall',small?'1':'0')}catch(e){}
   document.documentElement.classList.toggle('desk-mini',small);
-  if(cmOn('p-comm-room'))cmLeaveRoom();var lp=$('p-comm');if(lp)lp.classList.remove('cm-dock');cmDocked(false);cmSideApply();
-  w.setSize(new LS(small?cmSideW():1280,small?Math.max(600,window.innerHeight):840)).then(function(){return small?null:w.center()}).then(function(){if(small)openComm('chat');else if(cmOn('p-comm'))cmRenderList()}).catch(function(){toast('맥 앱을 최신 버전으로 바꾸는 중이에요. 앱을 껐다 켜 주세요')})}
+  var _kr=cmOn('p-comm-room')?CM.rid:null;if(cmOn('p-comm-room'))cmLeaveRoom();var lp=$('p-comm');if(lp)lp.classList.remove('cm-dock');cmDocked(false);cmSideApply();
+  w.setSize(new LS(small?cmSideW():1280,small?Math.max(600,window.innerHeight):840)).then(function(){return small?null:w.center()}).then(function(){if(small)openComm('chat');else if(_kr)cmOpenRoom(_kr);else if(cmOn('p-comm'))cmRenderList()}).catch(function(){toast('맥 앱을 최신 버전으로 바꾸는 중이에요. 앱을 껐다 켜 주세요')})}
 /* 작게 보기에서 방을 열고 접을 때 창 너비만 바꾼다(왼쪽 위 자리 · 높이는 그대로 → 오른쪽으로 펼쳐짐) */
 function cmDeskWidth(wd){var w=cmDeskWin();if(!w)return;try{w.setSize(new (cmDeskLS())(wd,Math.max(480,window.innerHeight))).catch(function(){})}catch(e){}}
 /* 채팅방을 새 창으로 — 같은 방은 이미 열린 창을 앞으로 */
@@ -11587,7 +11591,7 @@ function cmRowAct(rid,act){var r=CM.inbox&&CM.inbox[rid];if(!r)return;if(act==='
   if(act==='name')return cmPrompt('채팅방 이름 (나에게만 보여요)',cmRoomName(rid,r),r.nm||'',function(v){cmRoomPrefs(rid,{nm:v},'이름을 바꿨어요')});
   if(act==='unname')return cmRoomPrefs(rid,{nm:''},'원래 이름으로 바꿨어요');
   if(act==='read'){var s=r.s||0;cmP('/chat/reads/'+rid+'/'+ME.phone,s);cmP('/chat/inbox/'+ME.phone+'/'+rid+'/r',s);r.r=s;cmRenderList();return}
-  if(act==='leave')return cmConfirm('채팅방 나가기','나가면 대화 목록에서 사라지고, 다시 들어오려면 초대를 받아야 해요.','나가기',1,function(){cmApi('leave',{rid:rid}).then(function(){toast('채팅방을 나갔어요')}).catch(function(e){alert(e.message)})});
+  if(act==='leave')return cmConfirm('채팅방 나가기','나가면 대화 목록에서 사라지고, 다시 들어오려면 초대를 받아야 해요.','나가기',1,function(){CM._leaving=1;cmApi('leave',{rid:rid}).then(function(){CM._leaving=0;toast('채팅방을 나갔어요');if(CM.rid===rid&&(cmOn('p-comm-room')||cmOn('p-comm-set')||cmOn('p-comm-thread')))cmBack()}).catch(function(e){CM._leaving=0;alert(e.message)})});
   if(act==='remove')return cmRemoveRoom(rid);
   if(act==='hide')return cmConfirm('채팅방 나가기','목록에서 지워져요. 상대가 새 메시지를 보내면 다시 나타나요.','나가기',1,function(){cmRoomPrefs(rid,{hide:true},'채팅방을 나갔어요')})}
 
@@ -11595,6 +11599,7 @@ function cmRowAct(rid,act){var r=CM.inbox&&CM.inbox[rid];if(!r)return;if(act==='
 function cmOpenRoom(rid,thRoot){
   if(!COMM_BETA)return;cmBoot();
   CM.find={on:false,q:'',k:''};
+  if(!thRoot){if(CM.es.thr){CM.es.thr.close();CM.es.thr=null}CM.thRoot=null}   // 답장 창을 연 채 다른 방(알림)으로 오면 그 상태가 따라와 카드 · '답장 N개'가 안 보였다(11/14 점검)
   if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[];CM.rpRoot=null;CM.rpAll={}}
    if(CM._kbFx&&CM._kbFx.done)CM._kbFx.done();
    if(cmOn('p-comm')&&!cmOn('p-comm-room'))CM._listY=window.scrollY||0;   // 목록 어디쯤에서 들어왔는지(11/14 '뒤로 오면 맨 위로 올라가')
@@ -11610,17 +11615,20 @@ function cmOpenRoom(rid,thRoot){
      p.classList.remove('cm-in','cm-shown');p.classList.add('cm-pre');var go2=function(){if(!p.classList.contains('cm-pre'))return;p.classList.remove('cm-pre');p.classList.add('cm-in');setTimeout(function(){p.classList.add('cm-shown');p.classList.remove('cm-in');unUnder()},400)};setTimeout(unUnder,900);
      requestAnimationFrame(function(){requestAnimationFrame(go2)});setTimeout(go2,150)})();
   if(!CM.room){var cr=cmCacheGet('r_'+rid),cm=cmJFilter(rid,cmCacheGet('m_'+rid)),cd=cmCacheGet('d_'+rid);if(cr&&cm){CM.room=cr;CM.msgs=cm;CM.reads=cd||{};cmRoomHead();cmRenderMsgs()}}
-  cmStream('room','/chat/rooms/'+rid,'',function(d){if(d&&d.del&&CM.rid===rid){if(cmOn('p-comm-room')||cmOn('p-comm-set')){toast('경영팀이 없앤 단톡방이에요');cmBack()}return}CM.room=d;if(d&&d.m){var _n=Object.keys(d.m).length;if(CM_CNT[rid]!==_n){CM_CNT[rid]=_n;cmCacheSet('cnt',CM_CNT)}}cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
+  cmStream('room','/chat/rooms/'+rid,'',function(d){if(d&&d.del&&CM.rid===rid){if(cmOn('p-comm-room')||cmOn('p-comm-set')||cmOn('p-comm-thread')){toast('경영팀이 없앤 단톡방이에요');cmBack()}return}CM.room=d;if(d&&d.m){var _n=Object.keys(d.m).length;if(CM_CNT[rid]!==_n){CM_CNT[rid]=_n;cmCacheSet('cnt',CM_CNT)}}cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
   CM._msLive=0;cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){CM._msLive=1;d=cmJFilter(rid,d);Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});var ks=Object.keys(CM.msgs).sort().slice(-100),keep={};ks.forEach(function(k){keep[k]=CM.msgs[k]});cmCacheSet('m_'+rid,keep);cmRenderMsgs()});
   cmStream('reads','/chat/reads/'+rid,'',function(d){CM.reads=d||{};cmCacheSet('d_'+rid,CM.reads);cmRenderMsgs()});
   cmRoomRest(rid);
   if(thRoot)setTimeout(function(){cmOpenThread(thRoot)},300)}
 /* 알림을 눌러 들어왔을 때 '한 박자 늦게' 뜨던 것(11/13 윤아 님 메시지) — 실시간 연결은 앱이 깨어나면 다시 붙느라 1~2초 걸린다.
    그동안 저장해 둔 옛 대화만 보였다 → 방을 열면 최근 대화 · 읽음을 한 번 바로 받아 먼저 그린다(실시간이 오면 그대로 이어짐) */
+/* 고치기 · 지우기 · 가리기가 끝나면 그 글 하나를 바로 다시 받아 바꾼다 — 실시간은 최근 60개만 받아서
+   위로 올려 불러온 오래된 글은 서버에선 지워졌는데 화면엔 그대로 남았다(11/14 점검). 답장 창 글은 답장 연결이 받는다 */
+function cmRefetchMsg(rid,key,root){if(root||!rid||!key)return;fbReq(cmSeg('/chat/msgs/'+rid+'/'+key)+'.json').then(function(r){return r&&r.ok?r.json():null}).then(function(d){if(!d||CM.rid!==rid)return;CM.msgs[key]=d;cmRenderMsgs()}).catch(function(){})}
 function cmRoomRest(rid){var q=function(path,qs){return fbReq(cmSeg(path)+'.json'+(qs||'')).then(function(r){return r&&r.ok?r.json():null}).catch(function(){return null})};
   q('/chat/msgs/'+rid,'?orderBy=%22%24key%22&limitToLast=60').then(function(d){if(!d||CM.rid!==rid)return;d=cmJFilter(rid,d);var ch=0;Object.keys(d).forEach(function(k){if(d[k]&&(!CM.msgs[k]||(!CM._msLive&&JSON.stringify(CM.msgs[k])!==JSON.stringify(d[k])))){CM.msgs[k]=d[k];ch=1}});if(ch)cmRenderMsgs()});
   if(!CM.room)q('/chat/rooms/'+rid).then(function(d){if(d&&CM.rid===rid&&!CM.room){CM.room=d;cmRoomHead();cmRenderMsgs()}});
-  q('/chat/reads/'+rid).then(function(d){if(d&&CM.rid===rid){CM.reads=Object.assign({},d,CM.reads);cmRenderMsgs()}})}
+  q('/chat/reads/'+rid).then(function(d){if(d&&CM.rid===rid){var o=Object.assign({},CM.reads);Object.keys(d).forEach(function(p){o[p]=Math.max(+d[p]||0,+o[p]||0)});CM.reads=o;cmRenderMsgs()}})}
 /* 넓은 화면: 대화방 안에 왼쪽 목록. 작게 보기는 목록 페이지를 그대로 왼쪽에 두므로(cm-dock) 대화방만 */
 function cmWide(){if(DM_SOLO||DM_SMALL)return false;return window.innerWidth>=1100}
 /* 왼쪽 목록은 있던 것을 고쳐 쓴다(새 글 · 읽음 때마다 통째로 새로 그리지 않게) */
@@ -11647,7 +11655,7 @@ try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e
 function cmListRestore(){var y=CM._listY;if(!y)return;var mine=0;
   var set=function(){if(!cmOn('p-comm')||cmOn('p-comm-room'))return;if(mine&&Math.abs((window.scrollY||0)-mine)>4)return;window.scrollTo(0,y);mine=window.scrollY||0};
   set();requestAnimationFrame(set);[120,340,720].forEach(function(t){setTimeout(set,t)})}
-function cmLeaveRoom(){['room','msgs','reads','thr'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=null;CM.thRoot=null;CM.jumpTo=null;cmRoomCleanup()}
+function cmLeaveRoom(how){if(CM.rid){CM._lastRid=CM.rid;CM._leftBy=how||'back'}['room','msgs','reads','thr'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=null;CM.thRoot=null;CM.jumpTo=null;cmRoomCleanup()}
 /* 방에서 나올 때 키보드 흔적 지우기(11/14 '채팅창 들어갔다 뒤로 가니 위쪽이 까맣게') — 키보드가 열린 채 뒤로 가면
    대화방에 남은 '키보드 있을 때 높이' · 키보드 효과 중간 상태 · 아이폰이 밀어 올린 화면 위치가 목록 위에 검은 띠로 남았다.
    ① 입력칸 커서를 빼서 키보드를 닫고 ② 대화방 · 답장 창의 높이 · 위치 · 효과를 지우고 ③ 화면 위치를 맨 위로 되돌린다(키보드가 다 내려간 뒤 한 번 더) */
@@ -11701,7 +11709,7 @@ var CM_PENDING={};
    보낸 뒤 새로 들어온 내 글 중 내용이 같은 것을 찾아 바로 바꿔 끼운다 */
 function cmMaxKey(src){var mx='';for(var k in src)if(k>mx)mx=k;return mx}
 function cmPendKey(p,src,used){if(p.key)return src[p.key]?p.key:null;var ks=Object.keys(src).sort();for(var i=0;i<ks.length;i++){var k=ks[i],m=src[k];if(used[k]||!m||k<=(p.since||'')||m.by!==p.m.by||m.k!==p.m.k||(m.x||'')!==(p.m.x||''))continue;return k}return null}
-function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.reply=CM._rpSaved||null}if(CM.rpRoot)setTimeout(cmRenderReplies,0);CM.rpN=cmRpCount(CM.msgs);var box=$('CM-MSGS');if(!box||!CM.room)return;
+function cmRenderMsgs(){if(CM.rpRoot&&!cmOn('p-comm-thread')){CM.rpRoot=null;CM.reply=CM._rpSaved||null}if(CM.rpRoot)setTimeout(cmRenderReplies,0);if(CM.rid&&cmJ(CM.rid))CM.msgs=cmJFilter(CM.rid,CM.msgs);CM.rpN=cmRpCount(CM.msgs);var box=$('CM-MSGS');if(!box||!CM.room)return;
   var away=cmAway();
    var near=box.scrollHeight-box.scrollTop-box.clientHeight<120||box.getAttribute('data-first')!=='1'||CM_AT_BOTTOM['CM-MSGS']!==false||away;if(away)CM._wantBottom=true;
   var keys=Object.keys(CM.msgs).sort();CM.firstKey=keys[0]||null;
@@ -11768,16 +11776,17 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   var mn=CM.mn==='*'?(x.indexOf('@전체')>=0?'*':[]):CM.mn.filter(function(p){return x.indexOf('@'+cmName(p))>=0});
   if(mn!=='*'&&CM.mnG)Object.keys(CM.mnG).forEach(function(g){if(x.indexOf('@'+g)>=0)CM.mnG[g].forEach(function(p){if(mn.indexOf(p)<0)mn.push(p)})});CM.mnG={};
   var tg=CM_TAGS.filter(function(t){return x.indexOf('#'+t)>=0});
-  if(CM.edit){var ed=CM.edit;CM.edit=null;ta.value='';cmReplyBar(boxId);cmApi('edit',{rid:CM.rid,key:ed.key,root:ed.root||null,x:x}).catch(function(e){alert(e.message)});return}
+  if(CM.edit){var ed=CM.edit;CM.edit=null;ta.value='';cmReplyBar(boxId);cmApi('edit',{rid:CM.rid,key:ed.key,root:ed.root||null,x:x}).then(function(){cmRefetchMsg(CM.rid,ed.key,ed.root)}).catch(function(e){alert(e.message)});return}
   if(boxId==='CM-TCOMP'&&CM.rpRoot&&!CM.reply)CM.reply=CM.rpQ0;
   var body={rid:CM.rid,k:'t',x:x,mn:mn,tg:tg};if(CM.reply&&!thread)body.rp=CM.reply;if(thread)body.root=CM.thRoot;
   var tmp='zz'+Date.now();var me=String(ME.phone);CM._sentAt=Date.now();
   CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,since:cmMaxKey(thread?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
+  var _rp=CM.reply,_mn=mn;   // 보내기 실패 때 되돌릴 것 — 글자만 돌아오고 @부름 · 답장 인용은 빠졌다(11/14 점검)
   ta.value='';ta.style.height='auto';CM.reply=boxId==='CM-TCOMP'&&CM.rpRoot?CM.rpQ0:null;CM.mn=[];cmReplyBar(boxId);
   if(thread)cmRenderThread();else cmRenderMsgs();
   setTimeout(function(){if(CM_PENDING[tmp]){if(thread)cmRenderThread();else cmRenderMsgs()}},2100);
   /* 서버가 받았다고 답해도 실제 메시지가 실시간으로 들어올 때까지 보낸 말풍선을 그대로 둔다(사라졌다 다시 나타나던 것) */
-  cmApi('send',body).then(function(r){var have=r&&r.key&&(thread?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp]},8000);if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;alert('보내지 못했어요\n\n'+e.message)})}
+  cmApi('send',body).then(function(r){var have=r&&r.key&&(thread?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp]},8000);if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;if(CM.rid===body.rid){CM.reply=_rp;CM.mn=_mn;try{cmReplyBar(boxId)}catch(_e){}}alert('보내지 못했어요\n\n'+e.message)})}
 
 /* ── 길게 누르기 → 말풍선 옆 메뉴 ── */
 /* 대화 다시 그리기 — 예전엔 메시지가 하나 올 때마다 방 전체를 새로 그려(보낼 때 두 번) 사진이 다시 불러와지며 깜빡였다.
@@ -11850,8 +11859,8 @@ function cmReaders(key){var m=CM.msgs[key];if(!m||!CM.room)return;if(m.k==='ack'
   cmSheet('<div class="ttl">안 읽은 사람 '+un.length+'</div>'+(un.map(function(n){return '<div class="who-row">'+cmEsc(n)+'</div>'}).join('')||'<div class="who-row">없음</div>')+'<div class="ttl">읽은 사람 '+rd.length+'</div>'+(rd.map(function(n){return '<div class="who-row">'+cmEsc(n)+'</div>'}).join('')||'<div class="who-row">없음</div>')+'<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>')}
 function cmStartEdit(key,root){var m=cmMsgBy(key,root);if(!m)return;CM.edit={key:key,root:root};var box=root?'CM-TCOMP':'CM-COMP';var ta=$(box+'-TA');if(ta){ta.value=m.x||'';ta.focus()}cmReplyBar(box)}
 function cmConfirm(title,msg,okLabel,red,cb){var bg=document.createElement('div');bg.className='cm-modal-bg';bg.innerHTML='<div class="cm-modal"><b>'+cmEsc(title)+'</b><p>'+cmEsc(msg)+'</p><div class="bt"><button>취소</button><button class="'+(red?'red':'')+'">'+cmEsc(okLabel)+'</button></div></div>';document.body.appendChild(bg);var bs=bg.querySelectorAll('.bt button');bs[0].onclick=function(){bg.remove()};bs[1].onclick=function(){bg.remove();cb()}}
-function cmDelete(key,root){cmConfirm('메시지를 삭제할까요?','모두의 화면에서 \'삭제된 메시지입니다\'로 바뀝니다.','삭제',true,function(){cmApi('delete',{rid:CM.rid,key:key,root:root||null}).catch(function(e){alert(e.message)})})}
-function cmHide(key,root){cmConfirm('이 메시지를 가릴까요?','\'관리자가 가린 메시지입니다\'로 바뀌고, 누가 가렸는지 기록됩니다.','가리기',true,function(){cmApi('hide',{rid:CM.rid,key:key,root:root||null}).catch(function(e){alert(e.message)})})}
+function cmDelete(key,root){cmConfirm('메시지를 삭제할까요?','모두의 화면에서 \'삭제된 메시지입니다\'로 바뀝니다.','삭제',true,function(){cmApi('delete',{rid:CM.rid,key:key,root:root||null}).then(function(){cmRefetchMsg(CM.rid,key,root)}).catch(function(e){alert(e.message)})})}
+function cmHide(key,root){cmConfirm('이 메시지를 가릴까요?','\'관리자가 가린 메시지입니다\'로 바뀌고, 누가 가렸는지 기록됩니다.','가리기',true,function(){cmApi('hide',{rid:CM.rid,key:key,root:root||null}).then(function(){cmRefetchMsg(CM.rid,key,root)}).catch(function(e){alert(e.message)})})}
 
 /* ── 답장 묶기(스레드) ── */
 function cmOpenThread(root){CM.rpRoot=null;CM.thRoot=root;CM.thMsgs={};go('p-comm-thread');setTimeout(cmVV,0);var p=$('p-comm-thread');p.style.setProperty('--cm-fs',CM.fs+'px');
@@ -11918,7 +11927,7 @@ function cmPrompt(title,ph,val,cb){var bg=document.createElement('div');bg.class
 /* 단톡방 없애기 — 경영팀 · 직접 만든 단톡방만(서버 chat.js removeRoom 이 다시 확인). 모두의 목록에서 사라진다. 대화 기록은 서버에 남는다 */
 function cmRemoveRoom(rid){var r=(CM.rid===rid&&CM.room)||null,ib=CM.inbox&&CM.inbox[rid];var nm=cmRoomName(rid,ib||r);var cnt=r&&r.m?Object.keys(r.m).length:0;
   cmConfirm('\''+nm+'\' 단톡방을 없앨까요?',(cnt?cnt+'명 ':'')+'모두의 채팅 목록에서 사라지고, 더 이상 이 방에서 대화할 수 없어요. 대화 기록은 서버에 남겨 둬서 필요하면 되살릴 수 있어요.','없애기',true,function(){
-    cmApi('room-remove',{rid:rid}).then(function(j){toast('단톡방을 없앴어요');if(CM.rid===rid&&(cmOn('p-comm-room')||cmOn('p-comm-set')))cmBack()}).catch(function(e){alert(e.message)})})}
+    CM._leaving=1;cmApi('room-remove',{rid:rid}).then(function(j){CM._leaving=0;toast('단톡방을 없앴어요');if(CM.rid===rid&&(cmOn('p-comm-room')||cmOn('p-comm-set')))cmBack()}).catch(function(e){CM._leaving=0;alert(e.message)})})}
 function cmOpenSet(){if(!CM.room)return;go('p-comm-set');cmRenderSet()}
 function cmRenderSet(){var p=$('p-comm-set'),r=CM.room;if(!p||!r)return;var me=String(ME.phone);var mgr=cmIsManager();var grp=r.t==='grp';var muted=!!(r.mute&&r.mute[me]);
   var mem=Object.keys(r.m||{}).sort(function(a,b){return cmName(a).localeCompare(cmName(b),'ko')});
@@ -11933,7 +11942,7 @@ function cmRenderSet(){var p=$('p-comm-set'),r=CM.room;if(!p||!r)return;var me=S
     h+='</div>'}
   h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmDrawer()">사진 · 동영상 · 파일 모아 보기<span class="rl">›</span></div>'+(r.t!=='dm'&&r.t!=='me'&&cmIsHq()?'<div class="cm-it" style="cursor:pointer" onclick="cmExport()">대화 내보내기 (경영팀)<span class="rl">›</span></div>':'')+'</div>';
   if(grp&&(r.by===me||mgr))h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmPrompt(\'방 이름 바꾸기\',\'\',CM.room.n,function(v){cmApi(\'rename\',{rid:CM.rid,name:v}).then(function(){toast(\'바꿨어요\')}).catch(function(e){alert(e.message)})})">방 이름 바꾸기<span class="rl">›</span></div></div>';
-  if(grp)h+='<div class="cm-grp"><div class="cm-it" style="color:#DC2626;cursor:pointer" onclick="cmConfirm(\'이 방에서 나갈까요?\',\'나가면 이 방 대화를 더 볼 수 없습니다.\',\'나가기\',true,function(){cmApi(\'leave\',{rid:CM.rid}).then(function(){cmBack()}).catch(function(e){alert(e.message)})})">방 나가기</div>'+(cmIsHq()&&!r.auto?'<div class="cm-it" style="color:#DC2626;cursor:pointer;font-weight:700" onclick="cmRemoveRoom(CM.rid)">단톡방 없애기 (모두에게서)</div>':'')+'</div>';
+  if(grp)h+='<div class="cm-grp"><div class="cm-it" style="color:#DC2626;cursor:pointer" onclick="cmConfirm(\'이 방에서 나갈까요?\',\'나가면 이 방 대화를 더 볼 수 없습니다.\',\'나가기\',true,function(){CM._leaving=1;cmApi(\'leave\',{rid:CM.rid}).then(function(){CM._leaving=0;cmBack()}).catch(function(e){CM._leaving=0;alert(e.message)})})">방 나가기</div>'+(cmIsHq()&&!r.auto?'<div class="cm-it" style="color:#DC2626;cursor:pointer;font-weight:700" onclick="cmRemoveRoom(CM.rid)">단톡방 없애기 (모두에게서)</div>':'')+'</div>';
   else if(r.auto)h+='<p style="font-size:12px;color:var(--cm-ink3);text-align:center">이 방은 직원 정보에 따라 자동으로 참여하는 방이라 나갈 수 없습니다</p>';
   p.innerHTML=h}
 function cmKick(ph){cmConfirm(cmName(ph)+'님을 내보낼까요?','\''+cmRoomName(CM.rid,CM.room)+'\' 방에서 나가게 되고, 이후 대화는 볼 수 없습니다. 방에는 내보낸 기록이 남습니다.','내보내기',true,function(){cmApi('kick',{rid:CM.rid,ph:ph}).then(function(){toast('내보냈어요');setTimeout(cmRenderSet,400)}).catch(function(e){alert(e.message)})})}
@@ -12228,10 +12237,10 @@ function cmRegTu(x){var k=x&&(x.t||x.u);if(k&&x.tu&&x.te>Date.now()+60000&&!(CM.
 function cmMediaHtml(m){var md=(m.md||[]).filter(function(x){return x&&!cmHidden(x)});if(!md.length)return '';md.forEach(cmRegTu);
   var vids=md.filter(function(x){return x.v}),pics=md.filter(function(x){return x.u&&!x.v}),docs=md.filter(function(x){return x.f});
   var h='';
-  docs.forEach(function(x){var nm=x.n||'파일';var ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file" onclick="event.stopPropagation();cmFileView(\''+x.f+'\',\''+encodeURIComponent(nm)+'\','+(x.sz||0)+')"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · 90일 보관</small></span><button class="cm-fsv" title="저장" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify([[x.f,nm]]))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'});
+  docs.forEach(function(x){var nm=x.n||'파일';var ext=(nm.match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'';h+='<div class="cm-file" onclick="event.stopPropagation();cmFileView(\''+x.f+'\',\''+cmJsq(nm)+'\','+(x.sz||0)+')"><span class="ic">'+cmEsc(ext.toUpperCase()||'FILE')+'</span><span class="nm"><b>'+cmEsc(nm)+'</b><small>'+cmFileSize(x.sz)+' · 90일 보관</small></span><button class="cm-fsv" title="저장" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+cmJsq(JSON.stringify([[x.f,nm]]))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'});
   vids.forEach(function(x){var dur=x.d?Math.floor(x.d/60)+':'+('0'+Math.floor(x.d%60)).slice(-2):'';h+='<div class="cm-vid" onclick="event.stopPropagation();cmPlay(\''+x.v+'\')">'+(x.u?'<img data-mk="'+x.u+'" alt="">':'')+'<span>동영상 '+dur+'</span></div>'});
   if(pics.length&&cmPicExp(m.at)){var cls0=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';h+='<div class="cm-pics exp '+cls0+'" onclick="event.stopPropagation();cmExpToast()">'+pics.map(function(x){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'" alt="" decoding="async" style="'+sz+'">'}).join('')+'<span class="cm-expl">보관 기간 만료</span></div>';pics=[]}
-  if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'"'+(x.t&&x.t!==x.u?' data-mu="'+x.u+'"':'')+' alt="" decoding="async" style="'+sz+'" onpointerdown="cmWarm(\''+x.u+'\')" onmouseenter="cmWarm(\''+x.u+'\')" onclick="event.stopPropagation();cmView(\''+encodeURIComponent(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+encodeURIComponent(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
+  if(pics.length){var cls=pics.length===1?'one':pics.length===2||pics.length===4?'two':'three';var svl=pics.map(function(x){return x.o?[x.o,x.n||'']:[x.u,'']});h+='<div class="cm-pics '+cls+'">'+pics.map(function(x,i){var sz='';if(pics.length===1){if(x.w&&x.h){var k=Math.min(1,240/x.w,320/x.h);sz='width:'+Math.round(x.w*k)+'px;height:'+Math.round(x.h*k)+'px'}else sz='width:240px;height:240px'}return '<img data-mk="'+(x.t||x.u)+'"'+(x.t&&x.t!==x.u?' data-mu="'+x.u+'"':'')+' alt="" decoding="async" style="'+sz+'" onpointerdown="cmWarm(\''+x.u+'\')" onmouseenter="cmWarm(\''+x.u+'\')" onclick="event.stopPropagation();cmView(\''+cmJsq(JSON.stringify(pics))+'\','+i+')">'}).join('')+'<button class="cm-psv" title="'+(pics.length>1?'사진 '+pics.length+'장 저장':'저장')+'" aria-label="저장" onclick="event.stopPropagation();cmQuickSave(this,\''+cmJsq(JSON.stringify(svl))+'\')"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>'}
   return h}
 var CM_UFLY={};
 function cmFillMedia(root,rid){var need=[];var ok=function(k){var c=CM.urls[k];return c&&c.exp>Date.now()+60000};
@@ -13384,7 +13393,7 @@ function cmDeskFold(back){var lp=$('p-comm');if(window.innerWidth>cmSideW()+300)
   var fin=function(){if(done)return;done=true;window.removeEventListener('resize',onR);var sy=window.scrollY;cmDocked(false);if(lp)lp.classList.remove('cm-dock');openComm(back);window.scrollTo(0,sy)};
   var onR=function(){if(window.innerWidth<=cmSideW()+40)fin()};window.addEventListener('resize',onR);setTimeout(fin,350)}
 /* 작게 보기에서 대화방 · 스레드가 아닌 화면(설정 등)으로 가면 붙어 있던 대화방을 접는다 */
-function cmDeskGo(id){if(/^p-comm-(room|thread)$/.test(id))return;var lp=$('p-comm');if(lp&&lp.classList.contains('cm-dock')){lp.classList.remove('cm-dock');cmDocked(false);if(DM_SMALL&&!DM_SOLO){cmLeaveRoom();cmDeskWidth(cmSideW())}}}
+function cmDeskGo(id){if(/^p-comm-(room|thread|set|font)$/.test(id))return;   /* 설정 · 글자 크기도 방 안(11/14 점검: 작게 보기에서 설정을 열면 방 번호가 사라졌다) */var lp=$('p-comm');if(lp&&lp.classList.contains('cm-dock')){lp.classList.remove('cm-dock');cmDocked(false);if(DM_SMALL&&!DM_SOLO){cmLeaveRoom();cmDeskWidth(cmSideW())}}}
 /* 채팅방 여는 방식(이 PC 에만): dock = 목록 옆에 붙여서(기본), pop = 새 창으로. 새 창의 '붙이기'로 언제든 메인 창에 다시 붙인다 */
 function cmOpenMode(){try{return localStorage.getItem('cm_open')||'dock'}catch(e){return 'dock'}}
 function cmRowOpen(rid){if(CM_DESK&&!DM_SOLO&&cmOpenMode()==='pop'){cmPopRoom(rid);return}cmOpenRoom(rid)}
@@ -13547,7 +13556,12 @@ document.addEventListener('focusin',function(e){if(e.target&&/^(INPUT|TEXTAREA|S
   document.addEventListener('touchend',function(){if(y0==null)return;y0=null;if(!moved){var ta=kbTa();if(ta)ta.blur()}},{passive:true});
 })();
 /* 폰 뒤로 가기로 화면이 바뀔 때 — 대화방을 떠났으면 연결 · 화면 고정을 정리하고, 소통 화면이면 현재 탭으로 다시 그린다 */
-function cmPopHook(page){if(page!=='p-comm-room'&&page!=='p-comm-thread'&&CM.rid)cmLeaveRoom();if(page==='p-comm-room'&&CM.thRoot){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;cmRenderMsgs()}setTimeout(cmVV,0);if(page==='p-comm'){cmRender();cmListRestore()}}
+function cmPopHook(page){
+  /* 기록에 남은 '이미 떠난 방'(목록으로 나올 때 새 기록이 쌓인다)으로 뒤로 오면 연결 끊긴 방이 떴다(11/14 점검).
+     메뉴로 나갔다 돌아온 거면 그 방을 다시 열고, 목록으로 나온 뒤라면 한 칸 더 뒤로(안 되면 목록) */
+  if(page==='p-comm-room'&&!CM.rid){if(CM._leftBy==='go'&&CM._lastRid){cmOpenRoom(CM._lastRid);return}history.back();setTimeout(function(){if(cmOn('p-comm-room')&&!CM.rid)openComm('chat')},500);return}
+  if(page==='p-comm-thread'&&!CM.thRoot){history.back();setTimeout(function(){if(cmOn('p-comm-thread')&&!CM.thRoot){if(CM.rid)cmCloseThread();else openComm('chat')}},500);return}
+if(page!=='p-comm-room'&&page!=='p-comm-thread'&&CM.rid)cmLeaveRoom();if(page==='p-comm-room'&&CM.thRoot){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;cmRenderMsgs()}setTimeout(cmVV,0);if(page==='p-comm'){cmRender();cmListRestore()}}
 /* 아이폰 홈 화면 앱(전체 화면): 화면 아래 홈 막대 · 둥근 모서리 자리를 앱이 '안전 영역'으로 못 받는다
    (viewport-fit=cover 를 안 써서 env(safe-area-inset-bottom) 이 0). 입력창이 그 밑으로 잘리지 않게
    홈 막대가 있는 기종(세로 812px 이상)이면 아래 여백을 직접 준다. */

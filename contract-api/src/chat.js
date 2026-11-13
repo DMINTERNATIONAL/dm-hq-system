@@ -253,6 +253,7 @@ export function makeChat(deps) {
           Object.assign(up, inboxSeed(rid, { ...(cur || { t: w.t, n: w.n, seq: 0 }), bt: w.bt || '' }, w.n, ph));
           if (EDU_T[w.t]) {
             up[`chat/inbox/${ph}/${rid}/j`] = (cur && cur.seq) || 0;   // 이 번호까지의 대화는 안 보인다
+            if (cur) { up[`chat/inbox/${ph}/${rid}/x`] = ''; up[`chat/inbox/${ph}/${rid}/bn`] = ''; }   // 목록 미리보기에도 들어오기 전 글이 안 보이게(11/14 점검)
             if (w.mute && w.mute[ph]) { up[`chat/inbox/${ph}/${rid}/mute`] = 1; if (cur) up[`chat/rooms/${rid}/mute/${ph}`] = 1; }
           }
         }
@@ -311,6 +312,9 @@ export function makeChat(deps) {
     return r;
   }
   const member = (room, ph) => !!(room.m && room.m[ph]);
+  /* 메시지 번호(key · root) 검사(11/14 점검) — 번호를 그대로 DB 주소에 붙이므로 '../hq/000000050' 같은 값으로
+     다른 방 글을 읽거나 엉뚱한 곳에 쓸 수 있었다. 실제 번호는 숫자 9자리(본문) · t+영숫자(스레드 답장)뿐 */
+  function msgKey(v) { const k = String(v == null ? '' : v); if (k && !/^[A-Za-z0-9_-]{1,40}$/.test(k)) throw new Error('메시지 정보가 올바르지 않습니다'); return k; }
 
   async function meUser(env, me) {
     if (me.admin) throw new Error('본사 관리자 입구는 채팅을 쓸 수 없습니다. 본인 계정으로 로그인해 주세요');
@@ -360,7 +364,7 @@ export function makeChat(deps) {
     const mnAll = body.mn === '*';
     const mn = {};
     if (!mnAll && Array.isArray(body.mn)) for (const p of body.mn) if (room.m[String(p)]) mn[String(p)] = 1;
-    const root = body.root ? String(body.root) : '';
+    const root = (body.root ? msgKey(body.root) : '');
     const up = {};
     let key, seq = room.seq || 0;
     const msg = { by: ph, bn, at, k };
@@ -593,6 +597,7 @@ export function makeChat(deps) {
   async function noticeEnd(env, me, body) {
     const u = await meUser(env, me);
     const nid = String(body.nid || '');
+    if (!/^n[a-z0-9]{6,20}$/.test(nid)) throw new Error('공지 정보가 올바르지 않습니다');
     const n = await dbGet(env, `/chat/notices/${nid}`);
     if (!n) throw new Error('없는 공지예요');
     if (n.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('올린 사람 · 경영팀 · 관리자만 내릴 수 있어요');
@@ -606,6 +611,7 @@ export function makeChat(deps) {
   async function noticeNudge(env, me, body) {
     const u = await meUser(env, me);
     const nid = String(body.nid || '');
+    if (!/^n[a-z0-9]{6,20}$/.test(nid)) throw new Error('공지 정보가 올바르지 않습니다');
     const n = await dbGet(env, `/chat/notices/${nid}`);
     if (!n) throw new Error('없는 공지예요');
     if (n.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('올린 사람 · 경영팀 · 관리자만 다시 알릴 수 있어요');
@@ -618,6 +624,7 @@ export function makeChat(deps) {
   async function noticeReaders(env, me, body) {
     const u = await meUser(env, me);
     const nid = String(body.nid || '');
+    if (!/^n[a-z0-9]{6,20}$/.test(nid)) throw new Error('공지 정보가 올바르지 않습니다');
     const n = await dbGet(env, `/chat/notices/${nid}`);
     if (!n) throw new Error('없는 공지예요');
     const room = await getRoom(env, n.rid);
@@ -757,6 +764,7 @@ export function makeChat(deps) {
     const rid = String(body.rid || '');
     const room = await getRoom(env, rid);
     if (room.t !== 'grp') throw new Error('이 방은 나갈 수 없습니다');
+    if (!member(room, String(me.ph))) return {};   // 이미 나갔거나(없앤 방 포함) 처음부터 없던 방 — 안내 글 안 남김(11/14 점검)
     await dbPatch(env, '/', { [`chat/rooms/${rid}/m/${me.ph}`]: null, [`chat/inbox/${me.ph}/${rid}`]: null });
     await sysMsg(env, rid, `${nameOf(u)}님이 나갔습니다`);
     return {};
@@ -767,6 +775,7 @@ export function makeChat(deps) {
     const rid = String(body.rid || '');
     const room = await getRoom(env, rid);
     if (room.t !== 'grp') throw new Error('이름을 바꿀 수 없는 방입니다');
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     if (room.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('방 만든 사람 · 경영팀 · 관리자만 바꿀 수 있습니다');
     const name = clip(body.name, 40).trim();
     if (!name) throw new Error('방 이름을 입력해 주세요');
@@ -788,7 +797,7 @@ export function makeChat(deps) {
 
   async function editOrDelete(env, me, body, del) {
     const u = await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || ''), root = body.root ? String(body.root) : '';
+    const rid = String(body.rid || ''), key = msgKey(body.key), root = (body.root ? msgKey(body.root) : '');
     const room = await getRoom(env, rid);
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     const path = root ? `/chat/thr/${rid}/${root}/${key}` : `/chat/msgs/${rid}/${key}`;
@@ -870,7 +879,7 @@ export function makeChat(deps) {
 
   async function react(env, me, body) {
     await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || ''), root = body.root ? String(body.root) : '';
+    const rid = String(body.rid || ''), key = msgKey(body.key), root = (body.root ? msgKey(body.root) : '');
     const r = ['확인', '좋아요', '감사'].includes(body.r) ? body.r : null;
     if (!r) throw new Error('반응 종류가 올바르지 않습니다');
     const room = await getRoom(env, rid);
@@ -888,17 +897,17 @@ export function makeChat(deps) {
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     if (!isManagerUser(String(me.ph), u) && room.by !== String(me.ph)) throw new Error('방 공지는 방 만든 사람 · 경영팀 · 관리자만 올릴 수 있습니다');
     if (!body.key) { await dbPut(env, `/chat/rooms/${rid}/pin`, null); return {}; }
-    const m = await dbGet(env, `/chat/msgs/${rid}/${String(body.key)}`);
+    const m = await dbGet(env, `/chat/msgs/${rid}/${msgKey(body.key)}`);
     if (!m || m.del) throw new Error('메시지를 찾지 못했습니다');
-    await dbPut(env, `/chat/rooms/${rid}/pin`, { key: String(body.key), x: clip(m.x || '사진', 200), bn: m.bn, at: nowMs(), by: nameOf(u) });
+    await dbPut(env, `/chat/rooms/${rid}/pin`, { key: msgKey(body.key), x: clip(m.x || '사진', 200), bn: m.bn, at: nowMs(), by: nameOf(u) });
     return {};
   }
 
-  async function msgOf(env, rid, key) { const m = await dbGet(env, `/chat/msgs/${rid}/${key}`); if (!m) throw new Error('메시지를 찾지 못했습니다'); return m; }
+  async function msgOf(env, rid, key) { key = msgKey(key); const m = await dbGet(env, `/chat/msgs/${rid}/${key}`); if (!m) throw new Error('메시지를 찾지 못했습니다'); return m; }
 
   async function ack(env, me, body) {
     await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || '');
+    const rid = String(body.rid || ''), key = msgKey(body.key);
     const room = await getRoom(env, rid);
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     const m = await msgOf(env, rid, key);
@@ -909,7 +918,7 @@ export function makeChat(deps) {
 
   async function vote(env, me, body) {
     await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || '');
+    const rid = String(body.rid || ''), key = msgKey(body.key);
     const room = await getRoom(env, rid);
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     const m = await msgOf(env, rid, key);
@@ -924,10 +933,15 @@ export function makeChat(deps) {
   /* 확인 안 한 사람에게만 다시 알림 — 보낸 사람 · 경영팀 · 관리자 */
   async function nudge(env, me, body) {
     const u = await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || '');
+    const rid = String(body.rid || ''), key = msgKey(body.key);
     const room = await getRoom(env, rid);
+    if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     const m = await msgOf(env, rid, key);
+    if (!m || m.k !== 'ack') throw new Error('확인 요청 글만 다시 알릴 수 있어요');
     if (m.by !== String(me.ph) && !isManagerUser(String(me.ph), u)) throw new Error('보낸 사람 · 경영팀 · 관리자만 다시 알릴 수 있습니다');
+    /* 같은 글은 10분에 한 번만(11/14 점검 — 계속 누르면 방 전원에게 급함 알림이 반복됐다) */
+    if (m.nudgeAt && nowMs() - m.nudgeAt < 10 * 60e3) throw new Error('방금 다시 알렸어요. 10분 뒤에 다시 할 수 있어요');
+    await dbPut(env, `/chat/msgs/${rid}/${key}/nudgeAt`, nowMs());
     const done = m.ack || {};
     const rest = Object.keys(room.m || {}).filter((p) => p !== m.by && !done[p]);
     if (!rest.length) return { sent: 0 };
@@ -946,7 +960,7 @@ export function makeChat(deps) {
 
   async function later(env, me, body) {
     await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || '');
+    const rid = String(body.rid || ''), key = msgKey(body.key);
     const room = await getRoom(env, rid);
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     const id = 'l_' + ackId(rid, key).slice(2);
@@ -959,7 +973,7 @@ export function makeChat(deps) {
   /* 다시 알림 — 정해 둔 시각에 5분 타이머(scheduled)가 보낸다 */
   async function remind(env, me, body) {
     await meUser(env, me);
-    const rid = String(body.rid || ''), key = String(body.key || '');
+    const rid = String(body.rid || ''), key = msgKey(body.key);
     const at = Number(body.at) || 0;
     if (at < nowMs() + 60 * 1000 || at > nowMs() + 30 * 86400e3) throw new Error('알림 시각이 올바르지 않습니다');
     const room = await getRoom(env, rid);
@@ -985,7 +999,7 @@ export function makeChat(deps) {
   /* 전달 — 다른 방(여러 방 한 번에, 최대 20)으로 복사. 사진·동영상은 그 방 저장 위치로 파일도 복사한다(방마다 열람 권한이 다르므로).
      only: 메시지 안 몇 번째 사진만(사진 보기 화면에서 한 장 전달) — 이때는 글은 빼고 사진만. root: 스레드 답장 안의 사진 */
   async function forward(env, ctx, me, body) {
-    const rid = String(body.rid || ''), key = String(body.key || ''), root = body.root ? String(body.root) : '';
+    const rid = String(body.rid || ''), key = msgKey(body.key), root = (body.root ? msgKey(body.root) : '');
     const tos = [...new Set((Array.isArray(body.to) ? body.to : [body.to]).map((t) => String(t || '')).filter(Boolean))].slice(0, 20);
     if (!tos.length) throw new Error('보낼 방을 골라 주세요');
     const room = await getRoom(env, rid);
@@ -1099,7 +1113,7 @@ export function makeChat(deps) {
     try {
       let out;
       switch (path) {
-        case '/chat/bootstrap': await meUser(env, me); out = await syncAuto(env, !!body.force); break;
+        case '/chat/bootstrap': { const bu = await meUser(env, me); out = await syncAuto(env, !!body.force && isHqUser(String(me.ph), bu)); break; }   // 바로 맞추기(force)는 경영팀만 — 아무나 보내면 5분 제한이 풀려 DB 전체 읽기가 반복된다(11/14 점검)
         case '/chat/auto-config': out = await autoConfig(env, me, body); break;
         case '/chat/send': out = await send(env, ctx, me, body); break;
         case '/chat/dm': out = await ensureDm(env, me, body.to); break;
