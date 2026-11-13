@@ -4084,7 +4084,7 @@ function customAlert(msg,cb){_showPopup({type:'alert',msg:msg,cb:cb})}
 function customConfirm(msg,cb){_showPopup({type:'confirm',msg:msg,cb:cb})}
 function customPrompt(msg,defaultValue,cb){_showPopup({type:'prompt',msg:msg,defaultValue:defaultValue||'',cb:cb})}
 window.alert=function(msg){customAlert(msg)};
-function go(id){if(typeof cmDeskGo==='function')cmDeskGo(id);if(typeof cmVV==='function'&&!/^p-comm-(room|thread)$/.test(id))setTimeout(cmVV,0);if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);try{if(history.state&&history.state.page!==id)history.pushState({page:id},'',location.pathname+'#'+id);else if(!history.state)history.pushState({page:id},'',location.pathname+'#'+id)}catch(e){};$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if($('nsbar'))$('nsbar').style.display=(id==='p-naesu'&&typeof NS_CART!=='undefined'&&Object.keys(NS_CART).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(typeof navTabs==='function'&&ME)navTabs(id);if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo();if(typeof renderBotTab==='function')renderBotTab(id);}
+function go(id){if(typeof cmDeskGo==='function')cmDeskGo(id);if(id.indexOf('p-comm')<0&&typeof CM!=='undefined'&&CM)CM._listY=null;if(typeof cmVV==='function'&&!/^p-comm-(room|thread)$/.test(id))setTimeout(cmVV,0);if(typeof dashBrkTimer!=='undefined'&&id!=='p-dash'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}if(typeof brkLiveTimer!=='undefined'&&id!=='p-adm-staff'&&brkLiveTimer){clearInterval(brkLiveTimer);brkLiveTimer=null}if(typeof bmTimer!=='undefined'&&id!=='p-brk-mgmt'&&bmTimer){clearInterval(bmTimer);bmTimer=null}if(typeof miTimer!=='undefined'&&id!=='p-my-interns'&&miTimer){clearInterval(miTimer);miTimer=null}document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});$(id).classList.add('on');window.scrollTo(0,0);try{if(history.state&&history.state.page!==id)history.pushState({page:id},'',location.pathname+'#'+id);else if(!history.state)history.pushState({page:id},'',location.pathname+'#'+id)}catch(e){};$('cbar').style.display=(id==='p-order'&&Object.keys(cart).length>0)?'block':'none';if($('nsbar'))$('nsbar').style.display=(id==='p-naesu'&&typeof NS_CART!=='undefined'&&Object.keys(NS_CART).length>0)?'block':'none';if(ME){document.body.classList.remove('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='flex'}else{document.body.classList.add('no-sidebar');if($('MENU-BTN'))$('MENU-BTN').style.display='none'}closeSidebar();renderIcons();if(typeof renderSidebar==='function'&&ME)renderSidebar();if(typeof navTabs==='function'&&ME)navTabs(id);if(id==='p-login'&&typeof restoreLoginInfo==='function')restoreLoginInfo();if(typeof renderBotTab==='function')renderBotTab(id);}
 function toggleSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(!sb)return;if(sb.classList.contains('open')){closeSidebar()}else{sb.classList.add('open');if(ov)ov.classList.add('show')}}
 function closeSidebar(){var sb=$('SIDEBAR');var ov=$('SIDEBAR-OVERLAY');if(sb)sb.classList.remove('open');if(ov)ov.classList.remove('show')}
 function renderIcons(){if(typeof lucide!=='undefined'){try{lucide.createIcons()}catch(e){}}}
@@ -11597,6 +11597,7 @@ function cmOpenRoom(rid,thRoot){
   CM.find={on:false,q:'',k:''};
   if(CM.rid!==rid){['room','msgs','reads'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=rid;CM.room=null;CM.msgs={};CM.reads={};CM.older=false;CM.reply=null;CM.edit=null;CM.mn=[];CM.rpRoot=null;CM.rpAll={}}
    if(CM._kbFx&&CM._kbFx.done)CM._kbFx.done();
+   if(cmOn('p-comm')&&!cmOn('p-comm-room'))CM._listY=window.scrollY||0;   // 목록 어디쯤에서 들어왔는지(11/14 '뒤로 오면 맨 위로 올라가')
    var wasOn=cmOn('p-comm-room'),prevPg=document.querySelector('.pg.on');CM_AT_BOTTOM['CM-MSGS']=true;
    /* 작게 보기: 목록 페이지는 왼쪽에 그대로(스크롤 자리도) 두고 대화방을 그 오른쪽에 그린 뒤 창을 넓힌다 — 넓어지는 만큼 대화방이 드러난다.
       예전엔 창을 먼저 넓혀 목록이 가운데로 튀고, 폰용 밀려 들어오는 효과까지 겹쳤다(10/28) */
@@ -11638,7 +11639,14 @@ function cmBack(){setTimeout(cmVV,0);var back=CM.from==='act'?'act':'chat';
   if(DM_SMALL&&!DM_SOLO&&$('p-comm')&&$('p-comm').classList.contains('cm-dock')){cmDeskFold(back);return}
   /* 카톡처럼: 대화방이 오른쪽으로 밀려 나가는 동안 뒤에 목록이 보이게 — 먼저 목록을 그리고, 방은 잠깐 떠 있다 사라진다 */
   var p=$('p-comm-room');if(p&&window.innerWidth<1024&&!CM_DESK&&!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)){p.classList.add('cm-leaving');setTimeout(function(){p.classList.remove('cm-leaving')},280)}
-  cmLeaveRoom();openComm(back)}
+  cmLeaveRoom();openComm(back);if(back==='chat')cmListRestore()}
+/* 방에서 목록으로 돌아오면 들어가기 전 목록 위치로(카톡처럼). go() 가 맨 위로 올리고, 목록이 늦게 다시 그려지기도 해서 몇 번 맞춘다.
+   사용자가 그 사이 손으로 스크롤하면 손대지 않는다 */
+/* 브라우저가 뒤로 가기 때 저장해 둔 스크롤(맨 위)로 되돌리는 걸 끈다 — 페이지 위치는 앱이 직접 정한다(go 는 맨 위, 채팅 목록은 아래 함수) */
+try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e){}
+function cmListRestore(){var y=CM._listY;if(!y)return;var mine=0;
+  var set=function(){if(!cmOn('p-comm')||cmOn('p-comm-room'))return;if(mine&&Math.abs((window.scrollY||0)-mine)>4)return;window.scrollTo(0,y);mine=window.scrollY||0};
+  set();requestAnimationFrame(set);[120,340,720].forEach(function(t){setTimeout(set,t)})}
 function cmLeaveRoom(){['room','msgs','reads','thr'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=null;CM.thRoot=null;CM.jumpTo=null;cmRoomCleanup()}
 /* 방에서 나올 때 키보드 흔적 지우기(11/14 '채팅창 들어갔다 뒤로 가니 위쪽이 까맣게') — 키보드가 열린 채 뒤로 가면
    대화방에 남은 '키보드 있을 때 높이' · 키보드 효과 중간 상태 · 아이폰이 밀어 올린 화면 위치가 목록 위에 검은 띠로 남았다.
@@ -11647,7 +11655,7 @@ function cmRoomCleanup(){try{var ae=document.activeElement;if(ae&&/^(INPUT|TEXTA
   if(CM._kbFx&&CM._kbFx.done)try{CM._kbFx.done()}catch(e){}CM._kbFx=null;CM._kbAnim=0;
   document.querySelectorAll('.cm-kbfill').forEach(function(f){f.remove()});document.documentElement.classList.remove('cm-kbon');
   var fix=function(){['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e||e.classList.contains('on'))return;['height','top','bottom','transform','transition'].forEach(function(k){e.style[k]=''})});
-    if(!document.querySelector('#p-comm-room.on,#p-comm-thread.on')){document.documentElement.style.overflow='';document.body.style.overflow='';var vv=window.visualViewport;if(vv&&vv.offsetTop>0)window.scrollTo(0,0)}};
+    if(!document.querySelector('#p-comm-room.on,#p-comm-thread.on')){document.documentElement.style.overflow='';document.body.style.overflow='';var vv=window.visualViewport;if(vv&&vv.offsetTop>0)window.scrollTo(0,CM._listY||0)}};
   fix();setTimeout(fix,320);setTimeout(fix,700)}
 function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var _ib=CM.inbox&&CM.inbox[CM.rid];var nm=_ib&&_ib.nm?_ib.nm:r.t==='dm'?(_ib&&_ib.n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
@@ -13539,7 +13547,7 @@ document.addEventListener('focusin',function(e){if(e.target&&/^(INPUT|TEXTAREA|S
   document.addEventListener('touchend',function(){if(y0==null)return;y0=null;if(!moved){var ta=kbTa();if(ta)ta.blur()}},{passive:true});
 })();
 /* 폰 뒤로 가기로 화면이 바뀔 때 — 대화방을 떠났으면 연결 · 화면 고정을 정리하고, 소통 화면이면 현재 탭으로 다시 그린다 */
-function cmPopHook(page){if(page!=='p-comm-room'&&page!=='p-comm-thread'&&CM.rid)cmLeaveRoom();if(page==='p-comm-room'&&CM.thRoot){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;cmRenderMsgs()}setTimeout(cmVV,0);if(page==='p-comm'){cmRender()}}
+function cmPopHook(page){if(page!=='p-comm-room'&&page!=='p-comm-thread'&&CM.rid)cmLeaveRoom();if(page==='p-comm-room'&&CM.thRoot){if(CM.es.thr)CM.es.thr.close();CM.thRoot=null;cmRenderMsgs()}setTimeout(cmVV,0);if(page==='p-comm'){cmRender();cmListRestore()}}
 /* 아이폰 홈 화면 앱(전체 화면): 화면 아래 홈 막대 · 둥근 모서리 자리를 앱이 '안전 영역'으로 못 받는다
    (viewport-fit=cover 를 안 써서 env(safe-area-inset-bottom) 이 0). 입력창이 그 밑으로 잘리지 않게
    홈 막대가 있는 기종(세로 812px 이상)이면 아래 여백을 직접 준다. */
