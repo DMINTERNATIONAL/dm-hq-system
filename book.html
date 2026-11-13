@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DAY:MEAN 예약</title>
+<meta name="description" content="DAY:MEAN 플래그십 · 모먼트 네이버 예약">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0E0E0F">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://booking.naver.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<!--
+  광고 예약 페이지 (2026-11-13) — 메타 광고를 누르면 여기로 온다. 링크트리(링크 20여 개)를 거치지 않고
+  지점 두 곳 중 하나만 고르면 바로 네이버 예약으로 넘어간다.
+  ?c=광고코드  → 어느 광고에서 왔는지(본사 /adClicks 에 지점별 누름 수, contract-api /public/adclick)
+  ?e=clinic    → 이벤트 안내 묶음(EVENTS). 없으면 지점 고르기만.
+  메타 픽셀(daymean 543754368280026): 열림 PageView, 지점 누름 Lead — 광고가 '예약하려는 사람'을 더 찾도록.
+-->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+/* 내 컴퓨터 미리보기(localhost)에서는 픽셀을 안 켠다 — 시험으로 연 것이 광고 성과 숫자에 섞이지 않게 */
+if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){fbq('init','543754368280026');fbq('track','PageView')}
+</script>
+<style>
+:root{--bg:#0E0E0F;--card:#18181A;--line:rgba(255,255,255,.12);--ink:#F5F5F5;--sub:rgba(245,245,245,.62);--mute:rgba(245,245,245,.42);--acc:#FFFFFF;--sab:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+body{min-height:100svh;display:flex;justify-content:center}
+.wrap{width:100%;max-width:480px;padding:28px 20px calc(28px + var(--sab))}
+.logo{font-weight:800;letter-spacing:.02em;font-size:20px}
+.logo small{display:block;font-size:11px;font-weight:500;color:var(--mute);letter-spacing:.14em;margin-top:4px}
+.ev{margin-top:30px}
+.price{margin-top:26px;padding-top:4px;border-top:1px solid var(--line)}
+.ev .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--bg);background:var(--acc);border-radius:999px;padding:5px 10px}
+.ev h1{font-size:30px;line-height:1.22;font-weight:800;margin-top:14px;letter-spacing:-.01em}
+.ev p{font-size:14px;color:var(--sub);margin-top:8px;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14.5px}
+th{font-size:11px;font-weight:500;color:var(--mute);text-align:right;padding-bottom:6px;letter-spacing:.04em}
+th:first-child{text-align:left}
+td{padding:11px 0;border-top:1px solid var(--line)}
+td.p{text-align:right;white-space:nowrap}
+td.p s{color:var(--mute);font-size:12.5px;margin-right:8px}
+td.p b{font-size:16px;font-weight:700}
+.note{font-size:12px;color:var(--mute);margin-top:12px;line-height:1.6}
+h2{font-size:13px;font-weight:600;color:var(--sub);margin:24px 0 12px;letter-spacing:.02em}
+.br{display:flex;align-items:center;gap:14px;width:100%;text-decoration:none;color:var(--bg);background:var(--acc);border-radius:16px;padding:18px 18px;margin-bottom:10px;min-height:74px;transition:transform .12s}
+.br:active{transform:scale(.98)}
+.br .t{flex:1;min-width:0}
+.br .t b{display:block;font-size:17px;font-weight:800;letter-spacing:.01em}
+.br .t span{display:block;font-size:13px;color:rgba(14,14,15,.62);margin-top:3px}
+.br .go{font-size:13px;font-weight:700;white-space:nowrap}
+.br.alt{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.br.alt .t span{color:var(--sub)}
+.same{font-size:12.5px;color:var(--mute);line-height:1.6;margin-top:2px}
+.ask{display:block;text-align:center;margin-top:22px;font-size:14px;color:var(--sub);text-decoration:none;padding:14px;border:1px solid var(--line);border-radius:14px}
+.ask b{color:var(--ink)}
+footer{margin-top:28px;font-size:11px;color:var(--mute);letter-spacing:.14em;text-align:center}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="logo">DAY:MEAN<small>WE MAKE A MEANINGFUL DAY</small></div>
+
+  <section class="ev" id="EV" hidden></section>
+
+  <h2 id="H2">예약할 지점을 골라 주세요</h2>
+  <a class="br" data-b="flagship" href="https://booking.naver.com/booking/13/bizes/529514">
+    <div class="t"><b>FLAGSHIP</b><span>데이민 플래그십 · 1층</span></div><div class="go">네이버 예약 →</div>
+  </a>
+  <a class="br" data-b="moment" href="https://m.booking.naver.com/booking/13/bizes/1197095">
+    <div class="t"><b>MOMENT</b><span>데이민 모먼트 · 지하 1층</span></div><div class="go">네이버 예약 →</div>
+  </a>
+  <p class="same">두 지점은 같은 건물(1층 · 지하 1층)에 있어요. 원하는 디자이너가 있는 지점을 골라 주세요.</p>
+
+  <section class="price" id="PRICE" hidden></section>
+
+  <a class="ask" data-b="kakao" href="http://pf.kakao.com/_jkmDs">어느 지점이 맞을지 모르겠다면 <b>카카오톡 상담</b></a>
+
+  <footer>DAY:MEAN</footer>
+</main>
+<script>
+(function(){
+  var q=new URLSearchParams(location.search),c=(q.get('c')||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40),e=q.get('e')||'';
+  /* 이벤트 안내 — 광고 소재(카드뉴스 6/7 가격표)와 같은 내용이어야 한다 */
+  var EVENTS={clinic:{tag:'CLINIC EVENT 50%  |  11.1 – 12.31',h:'DAY:MEAN<br>모발 클리닉 50% OFF',p:'커트 포함 모든 시술과 함께 이용할 수 있어요',until:'2026-12-31',
+    rows:[['숏컷 / 남자','140,000','70,000'],['목선','160,000','80,000'],['쇄골선','180,000','90,000'],['가슴 윗선','210,000','105,000'],['가슴 중앙선','250,000','125,000'],['가슴 아랫선','270,000~','135,000~']],
+    note:'11.1 – 12.31 · 클리닉 단독 이용 불가 · 복구매직 · 두피 클리닉 제외'}};
+  var ev=EVENTS[e],today=new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
+  if(ev&&today<=ev.until){var s=document.getElementById('EV');s.hidden=false;
+    s.innerHTML='<span class="tag">'+ev.tag+'</span><h1>'+ev.h+'</h1><p>'+ev.p+'</p>';var pr=document.getElementById('PRICE');pr.hidden=false;pr.innerHTML='<table><tr><th>길이</th><th>기존가 › 이벤트가</th></tr>'+ev.rows.map(function(r){return '<tr><td>'+r[0]+'</td><td class="p"><s>'+r[1]+'</s><b>'+r[2]+'</b></td></tr>'}).join('')+'</table><p class="note">'+ev.note+'</p>';
+    document.getElementById('H2').textContent='예약할 지점을 골라 주세요';document.title='DAY:MEAN 모발 클리닉 50% · 예약'}
+  /* 누른 지점 기록 — 본사 숫자(sendBeacon, 페이지를 떠나도 보내짐) + 메타 픽셀 Lead */
+  [].forEach.call(document.querySelectorAll('[data-b]'),function(a){a.addEventListener('click',function(){var b=a.getAttribute('data-b');
+    try{navigator.sendBeacon('https://dm-contract-api.swavey2803.workers.dev/public/adclick',new Blob([JSON.stringify({c:c||'direct',b:b})],{type:'text/plain'}))}catch(x){}
+    try{if(b!=='kakao')fbq('track','Lead',{content_name:b,content_category:c||'direct'});else fbq('track','Contact',{content_category:c||'direct'})}catch(x){}})});
+})();
+</script>
+</body>
+</html>

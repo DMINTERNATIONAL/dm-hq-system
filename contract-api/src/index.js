@@ -1117,6 +1117,19 @@ export default {
          캐시 조회·저장도 여기서 한다. 예전에는 손님 브라우저가 /recCache 를 직접 읽고 썼는데,
          캐시 키가 '언어_답변조합_제품해시' 라 전부 적어볼 수 있었다. 미리 아무 내용이나 써두면
          손님 화면에 그게 그대로 떴다. 유출이 아니라 내용 조작 문제다. */
+      /* 광고 예약 페이지(book.html) 지점 버튼 누름 수 (11/13 메타 광고) — 어느 광고 · 어느 지점으로 몇 명이 넘어갔나.
+         /adClicks/{날짜}/{광고코드}/{지점} 숫자만 올린다(개인정보 없음). 같은 곳(IP) 10분 30번 · 하루 전체 2만 번까지 */
+      if (path === '/public/adclick' && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        const c = String(b.c || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40) || 'none';
+        const br = ['flagship', 'moment', 'kakao'].includes(b.b) ? b.b : '';
+        if (!br) return json({ ok: false }, 400, origin);
+        if (!(await rlHit(env, 'ac_' + await ipKey(ipOf(request)), 30, 10 * 60 * 1000))) return json({ ok: false }, 429, origin);
+        if (!(await rlHit(env, 'ac_day', 20000, 24 * 3600 * 1000))) return json({ ok: false }, 429, origin);
+        const day = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+        await dbPatch(env, `/adClicks/${day}/${c}`, { [br]: { '.sv': { increment: 1 } } }).catch(() => {});
+        return json({ ok: true }, 200, origin);
+      }
       if (path === '/public/reco' && request.method === 'POST') {
         const b = await request.json().catch(() => ({}));
         const key = String(b.key || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
