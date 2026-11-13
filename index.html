@@ -11565,7 +11565,7 @@ function cmRowMenu(rid,ev){var r=CM.inbox&&CM.inbox[rid];if(!r)return;var un=(r.
   var _lvLike=r.t==='lv'||rid==='all_interns';h+=_lvLike?b('mute',r.mute?'알림: 모든 글 받기로 바꾸기':'알림: 나 · 내 인턴 글만 받기로 바꾸기'):b('mute',r.mute?'알림 켜기':'알림 끄기');if(_lvLike)h+='<div class="who-row" style="color:#94A3B8;font-size:12.5px">지금: '+(r.mute?'나를 부르거나 내 담당 인턴 글일 때만 알림':'모든 글 알림')+'</div>';
   h+=b('name','채팅방 이름 설정 (나만 보기)');if(r.nm)h+=b('unname','원래 이름으로');
   if(un)h+=b('read','읽음 처리');
-  if(r.t==='grp')h+=b('leave','채팅방 나가기',1);else if(r.t==='dm')h+=b('hide','채팅방 나가기',1);
+  if(r.t==='grp')h+=b('leave','채팅방 나가기',1)+(cmIsHq()?b('remove','단톡방 없애기 (모두에게서)',1):'');else if(r.t==='dm')h+=b('hide','채팅방 나가기',1);
   else if(auto)h+='<div class="who-row" style="color:#94A3B8;font-size:12.5px">직원 정보에 따라 자동으로 참여하는 방이라 나갈 수 없어요</div>';
   if(ev)h+='';else h+='<button onclick="this.closest(\'.cm-sheet-bg\').remove()">닫기</button>';var _bg=cmSheet(h);if(ev)cmSheetAt(_bg,ev,ev.target&&ev.target.closest&&ev.target.closest('.cm-row[data-rid]'))}
 /* PC 오른쪽 클릭: 아래 시트 대신 누른 자리에 작은 메뉴, 열려 있는 동안 누른 줄 강조(11/13) */
@@ -11581,6 +11581,7 @@ function cmRowAct(rid,act){var r=CM.inbox&&CM.inbox[rid];if(!r)return;if(act==='
   if(act==='unname')return cmRoomPrefs(rid,{nm:''},'원래 이름으로 바꿨어요');
   if(act==='read'){var s=r.s||0;cmP('/chat/reads/'+rid+'/'+ME.phone,s);cmP('/chat/inbox/'+ME.phone+'/'+rid+'/r',s);r.r=s;cmRenderList();return}
   if(act==='leave')return cmConfirm('채팅방 나가기','나가면 대화 목록에서 사라지고, 다시 들어오려면 초대를 받아야 해요.','나가기',1,function(){cmApi('leave',{rid:rid}).then(function(){toast('채팅방을 나갔어요')}).catch(function(e){alert(e.message)})});
+  if(act==='remove')return cmRemoveRoom(rid);
   if(act==='hide')return cmConfirm('채팅방 나가기','목록에서 지워져요. 상대가 새 메시지를 보내면 다시 나타나요.','나가기',1,function(){cmRoomPrefs(rid,{hide:true},'채팅방을 나갔어요')})}
 
 /* ── 대화방 ── */
@@ -11601,7 +11602,7 @@ function cmOpenRoom(rid,thRoot){
      p.classList.remove('cm-in','cm-shown');p.classList.add('cm-pre');var go2=function(){if(!p.classList.contains('cm-pre'))return;p.classList.remove('cm-pre');p.classList.add('cm-in');setTimeout(function(){p.classList.add('cm-shown');p.classList.remove('cm-in');unUnder()},400)};setTimeout(unUnder,900);
      requestAnimationFrame(function(){requestAnimationFrame(go2)});setTimeout(go2,150)})();
   if(!CM.room){var cr=cmCacheGet('r_'+rid),cm=cmJFilter(rid,cmCacheGet('m_'+rid)),cd=cmCacheGet('d_'+rid);if(cr&&cm){CM.room=cr;CM.msgs=cm;CM.reads=cd||{};cmRoomHead();cmRenderMsgs()}}
-  cmStream('room','/chat/rooms/'+rid,'',function(d){CM.room=d;if(d&&d.m){var _n=Object.keys(d.m).length;if(CM_CNT[rid]!==_n){CM_CNT[rid]=_n;cmCacheSet('cnt',CM_CNT)}}cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
+  cmStream('room','/chat/rooms/'+rid,'',function(d){if(d&&d.del&&CM.rid===rid){if(cmOn('p-comm-room')||cmOn('p-comm-set')){toast('경영팀이 없앤 단톡방이에요');cmBack()}return}CM.room=d;if(d&&d.m){var _n=Object.keys(d.m).length;if(CM_CNT[rid]!==_n){CM_CNT[rid]=_n;cmCacheSet('cnt',CM_CNT)}}cmCacheSet('r_'+rid,d);cmRoomHead();cmRenderMsgs()});
   CM._msLive=0;cmStream('msgs','/chat/msgs/'+rid,'orderBy=%22%24key%22&limitToLast=60',function(d){CM._msLive=1;d=cmJFilter(rid,d);Object.keys(d||{}).forEach(function(k){if(d[k])CM.msgs[k]=d[k]});var ks=Object.keys(CM.msgs).sort().slice(-100),keep={};ks.forEach(function(k){keep[k]=CM.msgs[k]});cmCacheSet('m_'+rid,keep);cmRenderMsgs()});
   cmStream('reads','/chat/reads/'+rid,'',function(d){CM.reads=d||{};cmCacheSet('d_'+rid,CM.reads);cmRenderMsgs()});
   cmRoomRest(rid);
@@ -11899,6 +11900,10 @@ function cmPickDone(){var ps=Object.keys(CM.picked);if(!ps.length)return;
 function cmPrompt(title,ph,val,cb){var bg=document.createElement('div');bg.className='cm-modal-bg';bg.innerHTML='<div class="cm-modal"><b>'+cmEsc(title)+'</b><p></p><input placeholder="'+cmEsc(ph)+'" value="'+cmEsc(val||'')+'" maxlength="40"><div class="bt"><button>취소</button><button>확인</button></div></div>';document.body.appendChild(bg);var inp=bg.querySelector('input');inp.focus();inp.select();var bs=bg.querySelectorAll('.bt button');bs[0].onclick=function(){bg.remove()};bs[1].onclick=function(){var v=inp.value.trim();if(!v){inp.focus();return}bg.remove();cb(v)}}
 
 /* ── 방 설정 ── */
+/* 단톡방 없애기 — 경영팀 · 직접 만든 단톡방만(서버 chat.js removeRoom 이 다시 확인). 모두의 목록에서 사라진다. 대화 기록은 서버에 남는다 */
+function cmRemoveRoom(rid){var r=(CM.rid===rid&&CM.room)||null,ib=CM.inbox&&CM.inbox[rid];var nm=cmRoomName(rid,ib||r);var cnt=r&&r.m?Object.keys(r.m).length:0;
+  cmConfirm('\''+nm+'\' 단톡방을 없앨까요?',(cnt?cnt+'명 ':'')+'모두의 채팅 목록에서 사라지고, 더 이상 이 방에서 대화할 수 없어요. 대화 기록은 서버에 남겨 둬서 필요하면 되살릴 수 있어요.','없애기',true,function(){
+    cmApi('room-remove',{rid:rid}).then(function(j){toast('단톡방을 없앴어요');if(CM.rid===rid&&(cmOn('p-comm-room')||cmOn('p-comm-set')))cmBack()}).catch(function(e){alert(e.message)})})}
 function cmOpenSet(){if(!CM.room)return;go('p-comm-set');cmRenderSet()}
 function cmRenderSet(){var p=$('p-comm-set'),r=CM.room;if(!p||!r)return;var me=String(ME.phone);var mgr=cmIsManager();var grp=r.t==='grp';var muted=!!(r.mute&&r.mute[me]);
   var mem=Object.keys(r.m||{}).sort(function(a,b){return cmName(a).localeCompare(cmName(b),'ko')});
@@ -11913,7 +11918,7 @@ function cmRenderSet(){var p=$('p-comm-set'),r=CM.room;if(!p||!r)return;var me=S
     h+='</div>'}
   h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmDrawer()">사진 · 동영상 · 파일 모아 보기<span class="rl">›</span></div>'+(r.t!=='dm'&&r.t!=='me'&&cmIsHq()?'<div class="cm-it" style="cursor:pointer" onclick="cmExport()">대화 내보내기 (경영팀)<span class="rl">›</span></div>':'')+'</div>';
   if(grp&&(r.by===me||mgr))h+='<div class="cm-grp"><div class="cm-it" style="cursor:pointer" onclick="cmPrompt(\'방 이름 바꾸기\',\'\',CM.room.n,function(v){cmApi(\'rename\',{rid:CM.rid,name:v}).then(function(){toast(\'바꿨어요\')}).catch(function(e){alert(e.message)})})">방 이름 바꾸기<span class="rl">›</span></div></div>';
-  if(grp)h+='<div class="cm-grp"><div class="cm-it" style="color:#DC2626;cursor:pointer" onclick="cmConfirm(\'이 방에서 나갈까요?\',\'나가면 이 방 대화를 더 볼 수 없습니다.\',\'나가기\',true,function(){cmApi(\'leave\',{rid:CM.rid}).then(function(){cmBack()}).catch(function(e){alert(e.message)})})">방 나가기</div></div>';
+  if(grp)h+='<div class="cm-grp"><div class="cm-it" style="color:#DC2626;cursor:pointer" onclick="cmConfirm(\'이 방에서 나갈까요?\',\'나가면 이 방 대화를 더 볼 수 없습니다.\',\'나가기\',true,function(){cmApi(\'leave\',{rid:CM.rid}).then(function(){cmBack()}).catch(function(e){alert(e.message)})})">방 나가기</div>'+(cmIsHq()&&!r.auto?'<div class="cm-it" style="color:#DC2626;cursor:pointer;font-weight:700" onclick="cmRemoveRoom(CM.rid)">단톡방 없애기 (모두에게서)</div>':'')+'</div>';
   else if(r.auto)h+='<p style="font-size:12px;color:var(--cm-ink3);text-align:center">이 방은 직원 정보에 따라 자동으로 참여하는 방이라 나갈 수 없습니다</p>';
   p.innerHTML=h}
 function cmKick(ph){cmConfirm(cmName(ph)+'님을 내보낼까요?','\''+cmRoomName(CM.rid,CM.room)+'\' 방에서 나가게 되고, 이후 대화는 볼 수 없습니다. 방에는 내보낸 기록이 남습니다.','내보내기',true,function(){cmApi('kick',{rid:CM.rid,ph:ph}).then(function(){toast('내보냈어요');setTimeout(cmRenderSet,400)}).catch(function(e){alert(e.message)})})}

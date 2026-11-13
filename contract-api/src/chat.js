@@ -723,6 +723,23 @@ export function makeChat(deps) {
     return {};
   }
 
+  /* 단톡방 없애기 (11/14 사용자 '경영팀은 단톡 방 자체를 없애는 것도') — 경영팀만, 직원이 직접 만든 단톡방(grp)만.
+     자동방(공지 · 지점 · 브랜드 · 전체 · 아카데미 · 팀 · 본사경영팀 · 업무 알림) · 1:1 · 나와의 채팅은 못 없앤다.
+     없애는 사람(경영팀)이 그 방에 들어가 있어야 한다 — 경영팀 채팅 목록에 보이는 방만 없앨 수 있게.
+     모두의 목록에서 지우고 인원을 비운다. 대화 기록은 지우지 않고 서버에 남겨 둔다(mWas · del 에 누가 언제 · 원래 인원 — 되살릴 수 있게) */
+  async function removeRoom(env, me, body) {
+    const u = await meUser(env, me);
+    if (!isHqUser(me.ph, u)) throw new Error('단톡방 없애기는 경영팀만 할 수 있어요');
+    const rid = String(body.rid || '');
+    const room = await getRoom(env, rid);
+    if (room.t !== 'grp' || room.auto) throw new Error('직접 만든 단톡방만 없앨 수 있어요');
+    if (!room.m || !room.m[me.ph]) throw new Error('내가 들어가 있는 방만 없앨 수 있어요');
+    const up = { [`chat/rooms/${rid}/m`]: null, [`chat/rooms/${rid}/mWas`]: room.m, [`chat/rooms/${rid}/del`]: { at: nowMs(), by: String(me.ph), nm: nameOf(u), n: room.n || '', cnt: Object.keys(room.m).length } };
+    for (const ph of Object.keys(room.m)) up[`chat/inbox/${ph}/${rid}`] = null;
+    await dbPatch(env, '/', up);
+    return { ok: true, cnt: Object.keys(room.m).length };
+  }
+
   async function leave(env, me, body) {
     const u = await meUser(env, me);
     const rid = String(body.rid || '');
@@ -1078,6 +1095,7 @@ export function makeChat(deps) {
         case '/chat/invite': out = await invite(env, me, body); break;
         case '/chat/kick': out = await kick(env, me, body); break;
         case '/chat/leave': out = await leave(env, me, body); break;
+        case '/chat/room-remove': out = await removeRoom(env, me, body); break;
         case '/chat/rename': out = await rename(env, me, body); break;
         case '/chat/mute': out = await mute(env, me, body); break;
         case '/chat/roomprefs': out = await roomPrefs(env, me, body); break;
