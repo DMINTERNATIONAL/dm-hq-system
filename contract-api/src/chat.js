@@ -184,7 +184,7 @@ export function makeChat(deps) {
         if (!isInternU(u)) continue;
         const L = LEVELS.includes(u.level) ? u.level : 'BASIC';
         const rid = 'lv_' + safeKey(L);
-        want[rid] = want[rid] || { t: 'lv', n: L + ' 인턴', m: {}, mute: {}, ord: LEVELS.indexOf(L) };
+        want[rid] = want[rid] || { t: 'lv', n: L, m: {}, mute: {}, ord: LEVELS.indexOf(L) };   // 이름은 레벨만(11/13 사용자: '인턴' 빼기)
         want[rid].m[ph] = 1;
       }
       for (const w of Object.values(want)) if (w.t === 'lv') for (const [ph, u] of Object.entries(el)) if (isDesignerU(u) || isHqUser(ph, u)) { w.m[ph] = 1; if (!isInternU(u)) w.mute[ph] = 1; }
@@ -760,6 +760,8 @@ export function makeChat(deps) {
       return {};
     }
     if (!mine) throw new Error('내가 보낸 메시지만 바꿀 수 있습니다');
+    /* 고치기는 보낸 지 5분 안에만(11/13 사용자 결정). 지우기는 그대로 */
+    if (!del && nowMs() - (m.at || 0) > 5 * 60e3) throw new Error('보낸 지 5분이 지나서 고칠 수 없어요');
     if (del) {
       await dbPatch(env, path, { x: null, md: null, del: 1 });
       if (m.md) await dbPatch(env, '/', { [`chat/media/${rid}/${key}`]: null });
