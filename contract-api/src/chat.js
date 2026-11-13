@@ -192,6 +192,7 @@ export function makeChat(deps) {
     if (ar.all !== false) {
       /* 등급별 전체방(11/13) — 디자이너 · 인턴 · 관리자 · 스탭장 · 카운터 전체. 해당자 전원 + 경영팀, 해당자가 한 명도 없으면 안 만든다(있던 방은 비움) */
       for (const [key, label, is, also] of ALL_ROOMS) {
+        if (ar['all_' + key] === false) continue;
         const w = { t: 'all', n: label + ' 전체', m: {}, mute: {} };
         for (const [ph, u] of Object.entries(el)) if (is(u)) w.m[ph] = 1;
         if (!Object.keys(w.m).length) continue;
@@ -246,6 +247,25 @@ export function makeChat(deps) {
     up['chat/meta/syncedAt'] = nowMs();
     await dbPatch(env, '/', up);
     return { rooms: Object.keys(want).length };
+  }
+
+  /* 경영팀 설정 › 자동 단톡방 (11/13) — 종류별 켜기 · 끄기 + 지금 있는 자동방 목록. /config/comm/autoRooms 는 서버만 쓴다 */
+  const AUTO_KEYS = ['lv', 'tm', ...ALL_ROOMS.map((r) => 'all_' + r[0])];
+  async function autoConfig(env, me, body) {
+    const u = await meUser(env, me);
+    if (!isHqUser(String(me.ph), u)) throw new Error('경영팀만 바꿀 수 있어요');
+    let ar = (await dbGet(env, '/config/comm/autoRooms').catch(() => null)) || {};
+    if (body && body.set && typeof body.set === 'object') {
+      for (const k of AUTO_KEYS) if (k in body.set) ar[k] = !!body.set[k];
+      await dbPut(env, '/config/comm/autoRooms', ar);
+      await syncAuto(env, true);
+    }
+    const rooms = (await dbGet(env, '/chat/rooms').catch(() => null)) || {};
+    const list = Object.entries(rooms).filter(([, r]) => r && r.auto && EDU_T[r.t]).map(([rid, r]) => ({ rid, t: r.t, n: r.n, m: Object.keys(r.m || {}).length, s: r.seq || 0 }))
+      .sort((a, b) => (a.t === b.t ? 0 : a.t === 'all' ? -1 : b.t === 'all' ? 1 : a.t === 'lv' ? -1 : 1) || (LEVELS.indexOf(a.n.replace(' 인턴', '')) - LEVELS.indexOf(b.n.replace(' 인턴', ''))) || a.n.localeCompare(b.n));
+    const cfg = (await dbGet(env, '/config/comm').catch(() => null)) || {};
+    const opts = {}; for (const k of AUTO_KEYS) opts[k] = ar[k] !== false && !(k.startsWith('all_') && ar.all === false);
+    return { opts, labels: Object.fromEntries(ALL_ROOMS.map((r) => ['all_' + r[0], r[1] + ' 전체'])), rooms: list, open: cfg.open === true, trial: OWNER_PHONES.length + Object.keys(cfg.users || {}).length };
   }
 
   function inboxSeed(rid, room, displayName, ph) {
@@ -1026,6 +1046,7 @@ export function makeChat(deps) {
       let out;
       switch (path) {
         case '/chat/bootstrap': await meUser(env, me); out = await syncAuto(env, !!body.force); break;
+        case '/chat/auto-config': out = await autoConfig(env, me, body); break;
         case '/chat/send': out = await send(env, ctx, me, body); break;
         case '/chat/dm': out = await ensureDm(env, me, body.to); break;
         case '/chat/group': out = await createGroup(env, me, body); break;

@@ -2598,6 +2598,7 @@ html.dm-dark [style^="color:#2563eb" i],html.dm-dark [style*=";color:#2563eb" i]
 html.dm-dark [style^="color:#4338ca" i],html.dm-dark [style*=";color:#4338ca" i],html.dm-dark [style*="; color:#4338ca" i]{color:#928CE0!important}
 html.dm-dark [style^="color:#ef4444" i],html.dm-dark [style*=";color:#ef4444" i],html.dm-dark [style*="; color:#ef4444" i]{color:#F26969!important}
 html.dm-dark [style^="color:#1e293b" i],html.dm-dark [style*=";color:#1e293b" i],html.dm-dark [style*="; color:#1e293b" i]{color:#C5D0E2!important}
+html.dm-dark [style^="color:#4f46e5" i],html.dm-dark [style*=";color:#4f46e5" i],html.dm-dark [style*="; color:#4f46e5" i]{color:#7973EB!important}
 html.dm-dark [style^="color:#d97706" i],html.dm-dark [style*=";color:#d97706" i],html.dm-dark [style*="; color:#d97706" i]{color:#F8C080!important}
 html.dm-dark [style^="color:#7c2d12" i],html.dm-dark [style*=";color:#7c2d12" i],html.dm-dark [style*="; color:#7c2d12" i]{color:#F2B7A3!important}
 html.dm-dark [style^="color:#c2410c" i],html.dm-dark [style*=";color:#c2410c" i],html.dm-dark [style*="; color:#c2410c" i]{color:#F8A887!important}
@@ -2854,6 +2855,7 @@ html.dm-dark [style^="color: rgb(11, 122, 59)" i],html.dm-dark [style*=";color: 
 html.dm-dark [style^="color: rgb(37, 99, 235)" i],html.dm-dark [style*=";color: rgb(37, 99, 235)" i],html.dm-dark [style*="; color: rgb(37, 99, 235)" i]{color:#759CF2!important}
 html.dm-dark [style^="color: rgb(67, 56, 202)" i],html.dm-dark [style*=";color: rgb(67, 56, 202)" i],html.dm-dark [style*="; color: rgb(67, 56, 202)" i]{color:#928CE0!important}
 html.dm-dark [style^="color: rgb(239, 68, 68)" i],html.dm-dark [style*=";color: rgb(239, 68, 68)" i],html.dm-dark [style*="; color: rgb(239, 68, 68)" i]{color:#F26969!important}
+html.dm-dark [style^="color: rgb(79, 70, 229)" i],html.dm-dark [style*=";color: rgb(79, 70, 229)" i],html.dm-dark [style*="; color: rgb(79, 70, 229)" i]{color:#7973EB!important}
 html.dm-dark [style^="color: rgb(217, 119, 6)" i],html.dm-dark [style*=";color: rgb(217, 119, 6)" i],html.dm-dark [style*="; color: rgb(217, 119, 6)" i]{color:#F8C080!important}
 html.dm-dark [style^="color: rgb(124, 45, 18)" i],html.dm-dark [style*=";color: rgb(124, 45, 18)" i],html.dm-dark [style*="; color: rgb(124, 45, 18)" i]{color:#F2B7A3!important}
 html.dm-dark [style^="color: rgb(194, 65, 12)" i],html.dm-dark [style*=";color: rgb(194, 65, 12)" i],html.dm-dark [style*="; color: rgb(194, 65, 12)" i]{color:#F8A887!important}
@@ -3027,6 +3029,7 @@ html.dm-dark [style*="border-top:1px solid #f1f5f9" i]{border-top:1px solid #2C2
 html.dm-dark [style*="border-top:1px solid #e6ecf3" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top:1px solid #f4f6f9" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top:1px solid #bfdbfe" i]{border-top:1px solid #264369!important}
+html.dm-dark [style*="border-top:1px solid #eef0f4" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top:1px solid #fed7aa" i]{border-top:1px solid #674927!important}
 html.dm-dark [style*="border-top:1px solid #f0f0f0" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top:1px solid #f3f3f3" i]{border-top:1px solid #2C2C2E!important}
@@ -3217,6 +3220,7 @@ html.dm-dark [style*="border-top: 1px solid rgb(241, 245, 249)" i]{border-top:1p
 html.dm-dark [style*="border-top: 1px solid rgb(230, 236, 243)" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top: 1px solid rgb(244, 246, 249)" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top: 1px solid rgb(191, 219, 254)" i]{border-top:1px solid #264369!important}
+html.dm-dark [style*="border-top: 1px solid rgb(238, 240, 244)" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top: 1px solid rgb(254, 215, 170)" i]{border-top:1px solid #674927!important}
 html.dm-dark [style*="border-top: 1px solid rgb(240, 240, 240)" i]{border-top:1px solid #2C2C2E!important}
 html.dm-dark [style*="border-top: 1px solid rgb(243, 243, 243)" i]{border-top:1px solid #2C2C2E!important}
@@ -7288,8 +7292,25 @@ function todayStrKR(){var d=new Date();var y=d.getFullYear();var m=d.getMonth()+
 /* === 네이버 웍스 봇 알림 === */
 var NW_CONFIG_CACHE=null;var NW_CONFIG_LOADED=false;
 /* 업무 알림 안내 — 발주 · 환불 · 가발 · 내수 알림은 앱 '업무 알림' 방으로(11/12 네이버웍스 전환). 소통 전 직원 열기는 화면 없이 Claude 에게 말해서 연다(사용자 결정) */
-function commScopePaint(){var el=$('COMM-SCOPE');if(!el)return;
+function commScopePaint(){var el=$('COMM-SCOPE');if(!el)return;var _ar=$('AUTO-ROOMS');if(!_ar&&ME&&viewFlags(ME).hq){_ar=document.createElement('div');_ar.id='AUTO-ROOMS';el.parentNode.insertBefore(_ar,el.nextSibling)}if(_ar){if(ME&&viewFlags(ME).hq)arLoad();else _ar.innerHTML=''}
   el.innerHTML='<div class="card" style="margin-bottom:16px"><div style="font-size:14px;font-weight:800;margin-bottom:6px">📱 업무 알림은 앱으로 와요</div><div style="font-size:12.5px;color:#475569;line-height:1.7">발주 · 환불 · 가발 공동구매 · 내수 알림이 앱 <b>소통 › 업무 알림</b> 방(경영팀)에 자동으로 올라와요.<br>아래 네이버 웍스 봇을 켜 두면 웍스에도 같이 가고, 끄면 앱으로만 와요.</div></div>'}
+/* 경영팀 › 자동 단톡방 설정(11/13) — 레벨방 · 팀방 · 등급별 전체방을 종류마다 켜고 끈다. 저장은 서버(/chat/auto-config, 경영팀만)가 하고 바로 방을 다시 맞춘다 */
+var AR_ST={busy:false,d:null,err:''};
+function arPaint(){var el=$('AUTO-ROOMS');if(!el)return;var d=AR_ST.d;
+  var row=function(k,t,desc){var on=!!(d&&d.opts&&d.opts[k]);return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #EEF0F4"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+t+'</div><div style="font-size:12px;color:#64748B;margin-top:2px;line-height:1.5">'+desc+'</div></div><button role="switch" aria-checked="'+on+'" '+(AR_ST.busy||!d?'disabled ':'')+'onclick="arSet(\''+k+'\','+(!on)+')" style="flex:0 0 auto;width:46px;height:28px;border-radius:99px;border:0;cursor:pointer;position:relative;background:'+(on?'#2563EB':'#CBD5E1')+'"><i style="position:absolute;top:4px;'+(on?'right:4px':'left:4px')+';width:20px;height:20px;border-radius:50%;background:#fff"></i></button></div>'};
+  var h='<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="font-size:14px;font-weight:800;flex:1">💬 자동 단톡방</div>'+(AR_ST.busy?'<span style="font-size:12px;color:#64748B">맞추는 중…</span>':'')+'</div><div style="font-size:12.5px;color:#475569;line-height:1.6;margin-bottom:6px">직원 정보(등급 · 레벨 · 담당 원장)를 보고 방을 만들고 5분마다 인원을 맞춰요. 끄면 그 방은 인원이 비워지고(쓴 글은 남음), 다시 켜면 그때 들어온 사람은 이전 대화가 안 보여요.</div>';
+  if(AR_ST.err)h+='<div style="font-size:12.5px;color:#DC2626;margin:6px 0">'+AR_ST.err+'</div>';
+  if(!d&&!AR_ST.err)h+='<div class="sk" style="height:120px"></div>';
+  if(d){h+=row('lv','레벨방','레벨마다 1개 · 그 레벨 인턴 + 디자이너 전원 + 경영팀 · 디자이너 · 경영팀은 알림 끔으로 들어감(@나 · 내 담당 인턴 글은 알림)')+row('tm','팀방','원장 + 담당 인턴 + 경영팀(알림 끔)');
+    var L=d.labels||{};Object.keys(L).forEach(function(k){var nm=L[k];var desc=nm.replace(' 전체','')+' 전원 + 경영팀'+(/인턴|스탭장/.test(nm)?' · 관리자 · 디자이너도(알림 끔)':'');h+=row(k,nm,desc)});
+    if(!d.open)h+='<div style="margin-top:10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#9A3412;line-height:1.55">지금은 채팅 시험 중이라 시험 대상 '+d.trial+'명에게만 방이 만들어져요. 전 직원에게 열면 모두에게 생겨요.</div>';
+    var rs=d.rooms||[];var TL={all:'전체방',lv:'레벨방',tm:'팀방'};
+    h+='<div style="margin-top:12px;font-size:12px;font-weight:700;color:#64748B">지금 있는 방 '+rs.filter(function(r){return r.m}).length+'개</div>';
+    h+=rs.filter(function(r){return r.m}).length?'<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">'+rs.filter(function(r){return r.m}).map(function(r){return '<div style="display:flex;gap:8px;font-size:13px;padding:6px 10px;background:#F8FAFC;border-radius:8px"><span style="color:#4F46E5;font-size:11px;font-weight:700;min-width:38px">'+TL[r.t]+'</span><span style="flex:1">'+navEsc(r.n)+'</span><span style="color:#64748B">'+r.m+'명</span></div>'}).join('')+'</div>':'<div style="font-size:12.5px;color:#94A3B8;margin-top:6px">아직 만들어진 방이 없어요</div>'}
+  h+='</div>';el.innerHTML=h}
+function arLoad(){if(!$('AUTO-ROOMS'))return;AR_ST.err='';arPaint();cmApi('auto-config',{}).then(function(r){AR_ST.d=r;arPaint()}).catch(function(e){AR_ST.err='불러오지 못했어요 ('+e.message+')';arPaint()})}
+function arSet(k,on){if(AR_ST.busy)return;AR_ST.busy=true;var set={};set[k]=on;if(AR_ST.d&&AR_ST.d.opts)AR_ST.d.opts[k]=on;arPaint();
+  cmApi('auto-config',{set:set}).then(function(r){AR_ST.busy=false;AR_ST.d=r;arPaint();toast(on?'켰어요 · 방을 맞췄어요':'껐어요 · 그 방 인원을 비웠어요')}).catch(function(e){AR_ST.busy=false;AR_ST.err='바꾸지 못했어요 ('+e.message+')';arLoad()})}
 function loadNWConfig(){return fbG('/config/naverWorks.json').then(function(d){NW_CONFIG_CACHE=d||{enabled:false};NW_CONFIG_LOADED=true;return NW_CONFIG_CACHE}).catch(function(){NW_CONFIG_CACHE={enabled:false};NW_CONFIG_LOADED=true;return NW_CONFIG_CACHE})}
 
 /* ═══ 계약·수수료명세서 API 연동 ═══
