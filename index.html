@@ -11631,7 +11631,16 @@ function cmBack(){setTimeout(cmVV,0);var back=CM.from==='act'?'act':'chat';
   /* 카톡처럼: 대화방이 오른쪽으로 밀려 나가는 동안 뒤에 목록이 보이게 — 먼저 목록을 그리고, 방은 잠깐 떠 있다 사라진다 */
   var p=$('p-comm-room');if(p&&window.innerWidth<1024&&!CM_DESK&&!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)){p.classList.add('cm-leaving');setTimeout(function(){p.classList.remove('cm-leaving')},280)}
   cmLeaveRoom();openComm(back)}
-function cmLeaveRoom(){['room','msgs','reads','thr'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=null;CM.thRoot=null;CM.jumpTo=null}
+function cmLeaveRoom(){['room','msgs','reads','thr'].forEach(function(n){if(CM.es[n])CM.es[n].close()});CM.rid=null;CM.thRoot=null;CM.jumpTo=null;cmRoomCleanup()}
+/* 방에서 나올 때 키보드 흔적 지우기(11/14 '채팅창 들어갔다 뒤로 가니 위쪽이 까맣게') — 키보드가 열린 채 뒤로 가면
+   대화방에 남은 '키보드 있을 때 높이' · 키보드 효과 중간 상태 · 아이폰이 밀어 올린 화면 위치가 목록 위에 검은 띠로 남았다.
+   ① 입력칸 커서를 빼서 키보드를 닫고 ② 대화방 · 답장 창의 높이 · 위치 · 효과를 지우고 ③ 화면 위치를 맨 위로 되돌린다(키보드가 다 내려간 뒤 한 번 더) */
+function cmRoomCleanup(){try{var ae=document.activeElement;if(ae&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.closest&&ae.closest('#p-comm-room,#p-comm-thread'))ae.blur()}catch(e){}
+  if(CM._kbFx&&CM._kbFx.done)try{CM._kbFx.done()}catch(e){}CM._kbFx=null;CM._kbAnim=0;
+  document.querySelectorAll('.cm-kbfill').forEach(function(f){f.remove()});document.documentElement.classList.remove('cm-kbon');
+  var fix=function(){['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e||e.classList.contains('on'))return;['height','top','bottom','transform','transition'].forEach(function(k){e.style[k]=''})});
+    if(!document.querySelector('#p-comm-room.on,#p-comm-thread.on')){document.documentElement.style.overflow='';document.body.style.overflow='';var vv=window.visualViewport;if(vv&&vv.offsetTop>0)window.scrollTo(0,0)}};
+  fix();setTimeout(fix,320);setTimeout(fix,700)}
 function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var _ib=CM.inbox&&CM.inbox[CM.rid];var nm=_ib&&_ib.nm?_ib.nm:r.t==='dm'?(_ib&&_ib.n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
   var nb=$('CM-NOTICE');if(nb)nb.innerHTML=(r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'')+(CM_EDU_T[r.t]?'<div class="cm-autoinfo">'+(r.t==='all'?String(r.n||'').replace(/\s*전체$/,'')+' 전원과 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='tm'?'담당 인턴이 바뀌면 인원이 자동으로 바뀌는 방이에요':'레벨이 오르면 다음 레벨 방으로 옮겨 가요 · 들어오기 전 대화는 안 보여요')+'</div>':'');
