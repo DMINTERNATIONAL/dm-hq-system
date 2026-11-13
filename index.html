@@ -1792,7 +1792,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .cm-pinbar em{font-style:normal;font-size:11px;font-weight:800;color:#DC2626;white-space:nowrap}
 .cm-list{background:#fff;border:1px solid var(--cm-line);border-radius:14px;overflow:hidden}
 .cm-row{display:flex;gap:11px;align-items:center;padding:11px 13px;border-top:1px solid var(--cm-line);cursor:pointer}
-.cm-row:first-child{border-top:0}
+.cm-row:first-child{border-top:0}.cm-row.sw-ok{display:block;padding:0;position:relative;overflow:hidden;touch-action:pan-y}.cm-rin{display:flex;gap:11px;align-items:center;padding:11px 13px;transition:transform .22s ease}.cm-ract{position:absolute;top:0;right:0;bottom:0;display:flex;transform:translateX(100%);transition:transform .22s ease}.cm-ract button{flex:1;border:0;color:#fff;font-family:inherit;font-size:12.5px;font-weight:700;line-height:1.3;cursor:pointer;padding:0 4px}.cm-row.sw .cm-rin{transform:translateX(calc(-1 * var(--sw,140px)))}.cm-row.sw .cm-ract{transform:translateX(0)}.cm-row.sw-drag .cm-rin,.cm-row.sw-drag .cm-ract{transition:none}
 .cm-row:active{background:#F8FAFC}
 .cm-av{width:42px;height:42px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;letter-spacing:-.03em}
 .cm-av.s{width:32px;height:32px;font-size:11px}
@@ -11465,9 +11465,29 @@ function cmRenderList(){
   CM._unN=unN;CM._atN=atN;if(fl.length)h+='<div class="cm-fl">'+cmEsc(fl.join(' · '))+'만 보는 중 <a onclick="CM.filter={br:\'\',k:\'\'};cmRenderList()">전체 보기</a></div>';
   if(!rows.length)h+='<div class="cm-empty">'+(ids.length?'조건에 맞는 대화가 없어요':'아직 대화가 없어요.<br>오른쪽 위 \'새 대화\'로 시작하세요.')+'</div>';
   else{h+='<div class="cm-list">';rows.forEach(function(k){var r=CM.inbox[k];var un=Math.max(0,(r.s||0)-(r.r||0));var at=(r.mn||0)>(r.r||0);
-    h+='<div class="cm-row'+(r.pin?' pinned':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}cmRowOpen(\''+cmEsc(k)+'\')">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm"><span>'+cmEsc(cmRoomName(k,r))+'</span>'+(CM_EDU_T[cmCat(r)]?'<span class="cm-etag">'+CM_EDU_T[cmCat(r)]+'</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'});h+='</div>'}
+    h+='<div class="cm-row sw-ok'+(r.pin?' pinned':'')+(CM._sw===k?' sw':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" style="--sw:'+(CM_SW_W*(un?3:2))+'px" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}if(CM._sw){cmSwClose();return}cmRowOpen(\''+cmEsc(k)+'\')"><div class="cm-rin">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm"><span>'+cmEsc(cmRoomName(k,r))+'</span>'+(CM_EDU_T[cmCat(r)]?'<span class="cm-etag">'+CM_EDU_T[cmCat(r)]+'</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'+cmSwActs(k,r,un)+'</div>'});h+='</div>'}
   cmPatchDeep(v,h)}
 
+/* 카톡처럼 목록 줄을 오른쪽에서 왼쪽으로 밀면 상단 고정 · 알림 · 읽음 버튼(11/13). 길게 누르기 메뉴는 그대로.
+   열린 줄은 CM._sw(방 id)로 기억해 목록을 다시 그려도 열린 채로. 다른 곳을 누르면 닫힘 */
+var CM_SW_W=70;
+function cmSwActs(k,r,un){var e=cmEsc(k);var b=function(act,lbl,bg){return '<button style="background:'+bg+'" onclick="event.stopPropagation();cmSwAct(\''+e+'\',\''+act+'\')">'+lbl+'</button>'};
+  var h=b('pin',r.pin?'고정<br>해제':'상단<br>고정','#3B82F6')+b('mute',r.mute?'알림<br>켜기':'알림<br>끄기','#F59E0B');if(un)h+=b('read','읽음','#10B981');
+  return '<div class="cm-ract" style="width:'+(CM_SW_W*(un?3:2))+'px">'+h+'</div>'}
+function cmSwW(row){var a=row&&row.querySelector('.cm-ract');return a?a.offsetWidth:CM_SW_W*2}
+function cmSwClose(){if(!CM._sw)return;CM._sw=null;document.querySelectorAll('.cm-row.sw').forEach(function(x){x.classList.remove('sw')})}
+function cmSwAct(rid,act){cmSwClose();cmRowAct(rid,act)}
+(function(){var row=null,x0=0,y0=0,dir=null,base=0,off=0,W=0;
+  function rin(r){return r&&r.querySelector('.cm-rin')}function act(r){return r&&r.querySelector('.cm-ract')}
+  document.addEventListener('touchstart',function(e){var r=e.target&&e.target.closest&&e.target.closest('#CM-VIEW .cm-row.sw-ok[data-rid]');if(!r||e.target.closest('.cm-ract'))return;
+    if(CM._sw&&CM._sw!==r.getAttribute('data-rid'))cmSwClose();row=r;dir=null;W=cmSwW(r);base=r.classList.contains('sw')?-W:0;off=base;var p=e.touches[0];x0=p.clientX;y0=p.clientY},{passive:true});
+  document.addEventListener('touchmove',function(e){if(!row)return;var p=e.touches[0],dx=p.clientX-x0,dy=p.clientY-y0;
+    if(!dir){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;dir=Math.abs(dx)>Math.abs(dy)?'h':'v';if(dir==='h'){row.classList.add('sw-drag')}}
+    if(dir!=='h')return;off=Math.max(-W-24,Math.min(0,base+dx));var i=rin(row),a=act(row);if(i)i.style.transform='translateX('+off+'px)';if(a)a.style.transform='translateX('+(W+off)+'px)'},{passive:true});
+  document.addEventListener('touchend',function(){if(!row)return;var r=row;row=null;if(dir!=='h')return;r.classList.remove('sw-drag');var i=rin(r),a=act(r);if(i)i.style.transform='';if(a)a.style.transform='';
+    var open=off<-W/2;CM._sw=open?r.getAttribute('data-rid'):null;document.querySelectorAll('.cm-row.sw').forEach(function(x){if(x!==r)x.classList.remove('sw')});r.classList.toggle('sw',open);CM._lp=1;setTimeout(function(){CM._lp=0},350)},{passive:true});
+  document.addEventListener('touchstart',function(e){if(!CM._sw)return;if(e.target&&e.target.closest&&e.target.closest('.cm-row.sw'))return;cmSwClose()},{passive:true,capture:true});
+})();
 var CM_PIN_SVG='<svg class="cm-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="고정"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
 /* 목록에서 방을 길게 누르거나(폰) 오른쪽 클릭(PC)하면 카톡처럼 바로 메뉴 — 상단 고정 · 알림 · 나만 보는 이름 · 읽음 처리 · 나가기 */
 (function(){var t=null,x0=0,y0=0;
