@@ -167,7 +167,7 @@ export function makeChat(deps) {
     const meta = (await dbGet(env, '/chat/meta').catch(() => null)) || {};
     if (!force && meta.syncedAt && nowMs() - meta.syncedAt < 5 * 60 * 1000) return { skipped: true };
     const { el } = await eligible(env);
-    const want = { notice: { t: 'notice', n: '전체 공지', m: {} }, hq: { t: 'hq', n: '경영팀', m: {} }, ops: { t: 'ops', n: '업무 알림', m: {} } };
+    const want = { notice: { t: 'notice', n: '전체 공지', m: {} }, hq: { t: 'hq', n: '본사경영팀', m: {} }, ops: { t: 'ops', n: '업무 알림', m: {} } };
     for (const [ph, u] of Object.entries(el)) {
       want.notice.m[ph] = 1;
       if (isHqUser(ph, u)) { want.hq.m[ph] = 1; want.ops.m[ph] = 1; }
@@ -221,7 +221,8 @@ export function makeChat(deps) {
       else {
         up[`chat/rooms/${rid}/m`] = w.m;
         for (const ph of Object.keys(cur.m || {})) if (!w.m[ph]) up[`chat/inbox/${ph}/${rid}`] = null;   // 빠진 사람 목록에서 제거
-        if (EDU_T[w.t] && cur.n !== w.n) { up[`chat/rooms/${rid}/n`] = w.n; for (const ph of Object.keys(w.m)) if ((cur.m || {})[ph]) up[`chat/inbox/${ph}/${rid}/n`] = w.n; }
+        /* 자동방 이름이 바뀌면(레벨 · 디자이너 이름 · '경영팀'→'본사경영팀' 11/13) 모두의 목록 이름도 */
+        if ((EDU_T[w.t] || w.t === 'hq') && cur.n !== w.n) { up[`chat/rooms/${rid}/n`] = w.n; for (const ph of Object.keys(w.m)) if ((cur.m || {})[ph]) up[`chat/inbox/${ph}/${rid}/n`] = w.n; }
       }
       for (const ph of Object.keys(w.m)) {
         if (!cur || !(cur.m || {})[ph]) {
