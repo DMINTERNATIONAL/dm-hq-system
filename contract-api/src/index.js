@@ -353,7 +353,8 @@ async function firebaseIdToken(env, uid, claims) {
   });
   const j = await r.json();
   if (!r.ok || !j.idToken) throw new Error('Firebase 토큰 교환 실패: ' + ((j.error && j.error.message) || r.status));
-  return { idToken: j.idToken, expiresIn: parseInt(j.expiresIn, 10) || 3600 };
+  /* refreshToken: 앱이 다음부터 구글에서 바로 열쇠를 새로 받는 데 쓴다(미국 서버 안 거침, 11/13). 퇴사 · 원격 로그아웃이면 revokeFirebaseSessions 로 끊긴다 */
+  return { idToken: j.idToken, expiresIn: parseInt(j.expiresIn, 10) || 3600, refreshToken: j.refreshToken || '' };
 }
 
 /* 원격 로그아웃 때 Firebase 로그인(채팅 실시간 연결)도 끊는다 — 이 시각 전에 받은 토큰은 갱신이 거부된다 */
@@ -381,6 +382,20 @@ async function revokeFirebaseSessions(env, uid) {
     body: JSON.stringify({ localId: String(uid), validSince: String(Math.floor(Date.now() / 1000)) }),
   });
   return r.ok || r.status === 400;   // 400 = 아직 한 번도 채팅에 접속 안 한 계정(Firebase 사용자 없음)
+}
+
+async function autoRevokeLeavers(env) {
+  const us = (await dbGet(env, '/users').catch(() => null)) || {};
+  const done = (await dbGet(env, '/authSecrets/__autoRevoke').catch(() => null)) || {};
+  const up = {}; let n = 0;
+  for (const [ph, u] of Object.entries(us)) {
+    if (!u || u.status !== '퇴사' || done[ph]) continue;
+    if (!(await revokeFirebaseSessions(env, ph).catch(() => false))) continue;
+    up['authSecrets/__autoRevoke/' + ph] = Date.now(); up['authSecrets/__revoke/' + ph] = Date.now(); n++;
+  }
+  for (const ph of Object.keys(done)) if (!us[ph] || us[ph].status !== '퇴사') up['authSecrets/__autoRevoke/' + ph] = null;   // 다시 재직이면 표시 지움(다음 퇴사 때 또 끊게)
+  if (Object.keys(up).length) { await dbPatch(env, '/', up); revokeCache.at = 0; }
+  return n;
 }
 
 /* ═══ 세션 토큰 (HMAC 서명) ═══ */
@@ -823,6 +838,8 @@ async function runSalesFixPush(env) {
 export default {
   /* 1분마다: 채팅 '다시 알림' · 예약 전송 · 캘린더 일정 알림 · 구글 캘린더 맞추기 · 수기 매출 수정 알림 · 검색 노출 조사 */
   async scheduled(event, env, ctx) {
+    /* 퇴사 처리된 직원의 열쇠 갱신권을 끊는다(2분마다) — 앱이 갱신권으로 구글에서 바로 열쇠를 받게 되면서(11/13) 서버의 '퇴사면 거절'을 안 거치므로 */
+    if (new Date().getUTCMinutes() % 2 === 0) ctx.waitUntil(autoRevokeLeavers(env).then((n) => { if (n) console.log('autorevoke', n); }).catch((e) => console.log('autorevoke', e && e.message)));
     ctx.waitUntil(chatRoute.runReminders(env).catch((e) => console.log('reminders', e && e.message)));
     ctx.waitUntil(chatRoute.runScheduled(env, ctx).catch((e) => console.log('sched', e && e.message)));
     ctx.waitUntil(calRoute.runReminders(env).catch((e) => console.log('cal', e && e.message)));

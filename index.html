@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,interactive-widget=resizes-content">
 <title>DM INTERNATIONAL</title>
+<!-- 처음 켤 때 서버들과 연결을 미리 열어 둔다(주소 찾기 · 보안 연결에 서버마다 0.1~0.5초, 11/13) -->
+<link rel="preconnect" href="https://dm-orders-4792a-default-rtdb.firebaseio.com" crossorigin>
+<link rel="preconnect" href="https://dm-contract-api.swavey2803.workers.dev" crossorigin>
+<link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
+<link rel="dns-prefetch" href="https://www.gstatic.com">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3894,15 +3900,30 @@ function dbToken(){
     if(ME)sessionExpired();
     return Promise.resolve(null);
   }
-  DB_TOKEN_WAIT=ctFetch('/auth/dbtoken',{method:'POST',body:'{}'})
-    .then(function(j){
-      if(j&&j.ok&&j.idToken){DB_TOKEN=j.idToken;DB_TOKEN_EXP=Date.now()+(j.expiresIn||3600)*1000;/* 로그인 전엔 DB가 잠겨 제품 목록을 못 읽는다 — 열쇠를 받은 뒤 다시 읽는다(2026-11-12) */if(!PDB_LOADED&&typeof loadProductDB==='function')setTimeout(loadProductDB,0);var k=dbTokenTag();safeLS(function(){localStorage.setItem('dm_dbt',JSON.stringify({t:DB_TOKEN,e:DB_TOKEN_EXP,k:k}))});return DB_TOKEN}
-      DB_TOKEN=null;DB_TOKEN_EXP=0;return null;
-    })
+  return dbObtain();
+}
+/* 열쇠 받기(11/13 빠르게): ① 기기에 둔 갱신권으로 구글(서울 가까운 서버)에서 바로 새 열쇠 — 미국(LA) 서버를 안 거쳐 0.5~1초 빠름
+   ② 갱신권이 없거나 거부되면(퇴사 · 원격 로그아웃 · 1분마다 서버가 퇴사자 갱신권을 끊음) 예전처럼 서버에서 */
+function dbSave(t,exp){DB_TOKEN=t;DB_TOKEN_EXP=Date.now()+(exp||3600)*1000;if(!PDB_LOADED&&typeof loadProductDB==='function')setTimeout(loadProductDB,0);var k=dbTokenTag();safeLS(function(){localStorage.setItem('dm_dbt',JSON.stringify({t:DB_TOKEN,e:DB_TOKEN_EXP,k:k}))});return DB_TOKEN}
+function dbRtGet(){var raw=safeLS(function(){return localStorage.getItem('dm_dbrt')});if(!raw)return null;try{var d=JSON.parse(raw);return d&&d.r&&d.k===dbTokenTag()?d:null}catch(e){return null}}
+function dbRtSet(r){if(!r)return;var k=dbTokenTag();safeLS(function(){localStorage.setItem('dm_dbrt',JSON.stringify({r:r,k:k}))})}
+function dbRtClear(){safeLS(function(){localStorage.removeItem('dm_dbrt')})}
+function dbRefreshDirect(){var d=dbRtGet();if(!d)return Promise.resolve(null);
+  return fetchT('https://securetoken.googleapis.com/v1/token?key=AIzaSyB1kisg-779cQZMkcT_s3PsRLmHHBlOwOM',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(d.r)},8000)
+    .then(function(r){return r.json().then(function(j){if(!r.ok||!j.id_token||(ME&&j.user_id&&String(j.user_id)!==String(ME.phone))){dbRtClear();return null}dbRtSet(j.refresh_token||d.r);return dbSave(j.id_token,parseInt(j.expires_in,10)||3600)})})
+    .catch(function(){return null})}
+function dbObtain(){if(DB_TOKEN_WAIT)return DB_TOKEN_WAIT;
+  DB_TOKEN_WAIT=dbRefreshDirect().then(function(t){if(t)return t;
+    return ctFetch('/auth/dbtoken',{method:'POST',body:'{}'}).then(function(j){
+      if(j&&j.ok&&j.idToken){dbRtSet(j.refreshToken);return dbSave(j.idToken,j.expiresIn)}
+      DB_TOKEN=null;DB_TOKEN_EXP=0;return null})})
     .catch(function(){DB_TOKEN=null;DB_TOKEN_EXP=0;return null})
     .then(function(t){DB_TOKEN_WAIT=null;return t});
-  return DB_TOKEN_WAIT;
-}
+  return DB_TOKEN_WAIT}
+/* 만료 10분 전이면 미리 새로 받아 둔다 — 앱으로 돌아온 순간 · 켜 둔 동안 5분마다. 조회가 열쇠를 기다리지 않게 */
+function dbTokenPrefetch(){if(!ME||DB_TOKEN_WAIT||!(CT_TOKEN||ctRestore()))return;if(!DB_TOKEN)dbTokenRestore();if(DB_TOKEN&&DB_TOKEN_EXP-Date.now()>10*60000)return;dbObtain()}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')dbTokenPrefetch()});
+setInterval(function(){if(document.visibilityState==='visible')dbTokenPrefetch()},5*60000);
 function dbClearToken(){DB_TOKEN=null;DB_TOKEN_EXP=0;DB_TOKEN_WAIT=null;safeLS(function(){localStorage.removeItem('dm_dbt')})}
 var _sessExpired=false;
 function sessionExpired(){
@@ -4482,7 +4503,7 @@ var dashBrkData=null,dashBrkLastFetch=0,BRK_AUTO_MS=10*60000;
 function renderDashBreak(){var el=$('DASH-BRK');if(!el)return;var now=Date.now();if(!dashBrkData&&now-dashBrkLastFetch>60000||dashBrkData&&now-dashBrkLastFetch>30000){dashBrkLastFetch=now;if(!ME||!ME.phone)return;fbG('/breakActive/'+ME.phone+'.json').then(function(b){dashBrkData=b||null;drawDashBreak()})}else{drawDashBreak()}}
 function drawDashBreak(){var el=$('DASH-BRK');if(!el)return;var b=dashBrkData;if(!b){el.innerHTML='';return}var remain=b.endsAt-Date.now(),over=remain<0;/* 휴게 끝난 뒤 10분이 지나면 자동 종료 — 홈 1분 · 휴게 화면 5분 · 서버 5분으로 제각각이던 것을 10분으로 통일(사용자 결정 2026-11-12) */if(remain<-BRK_AUTO_MS&&!window._autoEndingBreak){window._autoEndingBreak=true;autoEndBreak();return}var abs=Math.abs(remain),m=Math.floor(abs/60000),s=Math.floor((abs%60000)/1000);var timeStr=over?'초과 '+m+'분 '+s+'초':(m<10?'0':'')+m+':'+(s<10?'0':'')+s+' 남음';el.innerHTML='<div class="brk-banner'+(over?' over':'')+'" onclick="openBreak()"><div class="brk-banner-icon">☕</div><div class="brk-banner-info"><div class="brk-banner-title">'+(over?'⚠️ 휴게 시간 초과':'휴게시간 진행 중')+'</div><div class="brk-banner-timer">'+timeStr+'</div></div></div>'}
 function backToDash(){try{if(history.length>1){history.back();return}}catch(_){}if(ME)openDash();else go('p-admin')}
-function logout(){liveStop();/* 휴게 타이머·로그인 숫자 남는 것 정리(2026-11-12) */try{if(typeof brkInterval!=='undefined'&&brkInterval){clearInterval(brkInterval);brkInterval=null}if(typeof dashBrkTimer!=='undefined'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}PEND_N=0;PEND_AT=0;PDB_SNAP={}}catch(_e){}if(typeof cmSdkSignOut==='function')cmSdkSignOut();if(typeof CM!=='undefined'){Object.keys(CM.es||{}).forEach(function(k){if(CM.es[k])CM.es[k].close()});CM.es={};CM.booted=false;CM.inbox=null;CM.act=null}stopNotifPoll();ME=null;cart={};CART_NAMES={};dbClearToken();localStorage.removeItem('dm_me');safeLS(function(){Object.keys(localStorage).forEach(function(k){if(k.indexOf('dash_kpi_')===0)localStorage.removeItem(k)})});if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
+function logout(){liveStop();/* 휴게 타이머·로그인 숫자 남는 것 정리(2026-11-12) */try{if(typeof brkInterval!=='undefined'&&brkInterval){clearInterval(brkInterval);brkInterval=null}if(typeof dashBrkTimer!=='undefined'&&dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}PEND_N=0;PEND_AT=0;PDB_SNAP={}}catch(_e){}if(typeof cmSdkSignOut==='function')cmSdkSignOut();if(typeof CM!=='undefined'){Object.keys(CM.es||{}).forEach(function(k){if(CM.es[k])CM.es[k].close()});CM.es={};CM.booted=false;CM.inbox=null;CM.act=null}stopNotifPoll();ME=null;cart={};CART_NAMES={};dbClearToken();dbRtClear();localStorage.removeItem('dm_me');safeLS(function(){Object.keys(localStorage).forEach(function(k){if(k.indexOf('dash_kpi_')===0)localStorage.removeItem(k)})});if(typeof ctClear==='function')ctClear();if(dashBrkTimer){clearInterval(dashBrkTimer);dashBrkTimer=null}dashBrkData=null;if($('SIDEBAR'))$('SIDEBAR').innerHTML='';if($('TB-LOGOUT'))$('TB-LOGOUT').style.display='none';if($('TB-QR'))$('TB-QR').style.display='none';go('p-land')}
 function showLogoutBtn(){if($('TB-LOGOUT')&&ME)$('TB-LOGOUT').style.display='flex';showQRBtn();renderIcons()}
 function showQRBtn(){var b=$('TB-QR');if(!b)return;var ok=ME&&(ME.brand==='DAY:MEAN'||ME.brand==='DM INTERNATIONAL'||ME.role==='경영팀'||ME.role==='본사경영팀');b.style.display=ok?'inline-flex':'none'}
 var _qrLibLoaded=false;function loadQRLib(cb){if(_qrLibLoaded&&window.QRCode){cb();return}var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js';s.onload=function(){_qrLibLoaded=true;cb()};s.onerror=function(){toast('QR 라이브러리 로드 실패 — 인터넷 확인')};document.head.appendChild(s)}
