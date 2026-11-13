@@ -41,7 +41,8 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;               // 32바이트 base64url
 const PHOTO_RE = /^[A-Za-z0-9_-]{22}\.(jpg|webp)$/;    // 16바이트 base64url + 확장자
 const PHOTO_MAX = 5 * 1024 * 1024;
 /* 지원자가 보내는 칸 — 이 밖의 칸은 버린다 (branch 는 11/12 밤에 없앰) */
-const TEXT = { name: 40, email: 100, address: 200, portfolio: 300, intro: 2000, why: 1500, hope: 1500 };
+/* addressDetail = 상세 주소만 따로(사이트가 다시 열 때 칸을 나누려고). address 에는 도로명 + 상세 전체가 들어 있음 */
+const TEXT = { name: 40, email: 100, address: 200, addressDetail: 60, portfolio: 300, intro: 2000, why: 1500, hope: 1500 };
 /* 여러 줄 칸 — { 줄 칸: [최대 글자 | 허용값 | 모양] }, 최대 줄 수.
    가족은 관계 · 이름만 — 가족의 학력 · 직업 · 재산은 채용절차법 제4조의3 이 묻지 못하게 한다 */
 const LISTS = {
@@ -50,7 +51,8 @@ const LISTS = {
   family: { max: 8, cols: { rel: FAMILY_REL, name: 20 }, need: ['rel'] },
 };
 const ENUM = { role: ROLES, license: LICENSES, career: CAREERS, start: STARTS };
-const FIELDS = ['role', 'name', 'birthYear', 'phone', 'email', 'address', 'sns', 'portfolio', 'license', 'career', 'jobs', 'edu', 'family', 'start', 'intro', 'why', 'hope', 'photo', 'agree', 'lang'];
+/* birthDate · addressDetail — 2026-11-13 사이트 지원서가 생년월일 드롭다운 · 상세 주소 칸으로 바뀜. birthYear 는 예전 지원서 · 필수 칸이라 그대로 같이 받음 */
+const FIELDS = ['role', 'name', 'birthYear', 'birthDate', 'phone', 'email', 'address', 'addressDetail', 'sns', 'portfolio', 'license', 'career', 'jobs', 'edu', 'family', 'start', 'intro', 'why', 'hope', 'photo', 'agree', 'lang'];
 /* license 는 분야에 따라(checkSubmit), edu 는 1줄 이상, jobs 는 신입이 아니면 1줄 이상, family 는 선택 */
 const REQUIRED = ['role', 'name', 'birthYear', 'phone', 'address', 'career', 'start', 'intro', 'why', 'hope', 'photo', 'agree'];
 
@@ -92,6 +94,11 @@ export function makeRecruit(deps) {
         /* javascript: 같은 주소가 들어가면 관리 화면에서 누르는 순간 스크립트가 돈다 */
         if (k === 'portfolio' && s && !/^https?:\/\/[^\s"'`]+$/i.test(s)) return { err: k };
         out[k] = s || null;
+        continue;
+      }
+      if (k === 'birthDate') {
+        if (typeof v !== 'string' || !/^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v.trim())) return { err: 'birthYear' };
+        out[k] = v.trim();
         continue;
       }
       if (k === 'birthYear') {

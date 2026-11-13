@@ -5296,7 +5296,7 @@ function raCard(a){var id=raId(a),st=a.status||'new',ed=can('menu.recruitApps.ed
     +'<span style="margin-left:auto;font-size:11px;color:var(--text-3)">'+(st==='draft'?'마지막 저장 '+raDate(a.updatedAt||a.createdAt):'제출 '+raDate(a.submittedAt||a.createdAt))+'</span></div>'
     /* 사진은 10분짜리 서명 주소 — 화면을 오래 열어 두면 깨지므로 그땐 다시 불러오기 */
     +(a.photoUrl?'<a href="'+raEsc(a.photoUrl)+'" target="_blank" rel="noopener noreferrer" style="float:right;margin:0 0 6px 10px"><img src="'+raEsc(a.photoUrl)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="width:76px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block"></a>':'')
-    +row('출생 연도',a.birthYear?raEsc(a.birthYear)+'년생':'')
+    +row(a.birthDate?'생년월일':'출생 연도',a.birthDate?raEsc(a.birthDate.replace(/-/g,'.')):a.birthYear?raEsc(a.birthYear)+'년생':'')
     +row('연락처',tel?'<a href="tel:'+raEsc(tel)+'" style="color:var(--blue);font-weight:700">'+raEsc(a.phone)+'</a>':raEsc(a.phone))
     +row('이메일',a.email?'<a href="mailto:'+raEsc(a.email)+'" style="color:var(--blue)">'+raEsc(a.email)+'</a>':'')
     +row('현 주소',raEsc(a.address))+row('가족',raList(a.family,raFam))
