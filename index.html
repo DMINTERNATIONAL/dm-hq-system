@@ -11488,7 +11488,9 @@ function cmRenderList(){
   if(!rows.length)h+='<div class="cm-empty">'+(ids.length?'조건에 맞는 대화가 없어요':'아직 대화가 없어요.<br>오른쪽 위 \'새 대화\'로 시작하세요.')+'</div>';
   else{h+='<div class="cm-list">';rows.forEach(function(k){var r=CM.inbox[k];var un=Math.max(0,(r.s||0)-(r.r||0));var at=(r.mn||0)>(r.r||0);
     h+='<div class="cm-row sw-ok'+(r.pin?' pinned':'')+(CM._sw===k?' sw':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" style="--sw:'+(CM_SW_W*(un?3:2))+'px" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}if(CM._sw){cmSwClose();return}cmRowOpen(\''+cmEsc(k)+'\')"><div class="cm-rin">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm"><span>'+cmEsc(cmRoomName(k,r))+'</span>'+(CM_EDU_T[cmCat(r)]?'<span class="cm-etag">'+CM_EDU_T[cmCat(r)]+'</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'+cmSwActs(k,r,un)+'</div>'});h+='</div>'}
-  cmPatchDeep(v,h)}
+  cmPatchDeep(v,h);
+  /* 방을 연 채로 왼쪽 목록(CM-SIDE)에서 종류 버튼 · 필터 · 검색을 바꾸면 왼쪽 목록도 다시 그린다 — 예전엔 가려진 목록만 바뀌어 눌러도 안 되는 것처럼 보였다(11/13) */
+  if(!CM._sideR&&cmOn('p-comm-room')&&$('CM-SIDE'))cmSideRender()}
 
 /* 카톡처럼 목록 줄을 오른쪽에서 왼쪽으로 밀면 상단 고정 · 알림 · 읽음 버튼(11/13). 길게 누르기 메뉴는 그대로.
    열린 줄은 CM._sw(방 id)로 기억해 목록을 다시 그려도 열린 채로. 다른 곳을 누르면 닫힘 */
@@ -11571,7 +11573,7 @@ function cmOpenRoom(rid,thRoot){
 /* 넓은 화면: 대화방 안에 왼쪽 목록. 작게 보기는 목록 페이지를 그대로 왼쪽에 두므로(cm-dock) 대화방만 */
 function cmWide(){if(DM_SOLO||DM_SMALL)return false;return window.innerWidth>=1100}
 /* 왼쪽 목록은 있던 것을 고쳐 쓴다(새 글 · 읽음 때마다 통째로 새로 그리지 않게) */
-function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter,st=sd.scrollTop;var v=$('CM-VIEW');var tmp=$('CM-SIDE-IN');if(v)v.id='CM-VIEW-OFF';if(!tmp||tmp.parentNode!==sd){tmp=document.createElement('div');sd.innerHTML='';sd.appendChild(tmp)}tmp.id='CM-VIEW';try{cmRenderList()}finally{tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.scrollTop=st;cmMarkRow()}
+function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;var keep=CM.filter,st=sd.scrollTop;var v=$('CM-VIEW');var tmp=$('CM-SIDE-IN');if(v)v.id='CM-VIEW-OFF';if(!tmp||tmp.parentNode!==sd){tmp=document.createElement('div');sd.innerHTML='';sd.appendChild(tmp)}tmp.id='CM-VIEW';CM._sideR=1;try{cmRenderList()}finally{CM._sideR=0;tmp.id='CM-SIDE-IN';if(v)v.id='CM-VIEW'}CM.filter=keep;sd.scrollTop=st;cmMarkRow()}
 /* 지금 연 방을 목록에서 파랗게 (넓은 화면 왼쪽 목록 · 작게 보기 목록) */
 function cmMarkRow(){var on=cmOn('p-comm-room')?CM.rid:null;document.querySelectorAll('#CM-SIDE .cm-row,#p-comm .cm-row').forEach(function(r){r.classList.toggle('on',!!on&&r.getAttribute('data-rid')===on)})}
 window.addEventListener('resize',function(){if(cmOn('p-comm-room')&&(!!$('CM-SIDE'))!==cmWide()&&CM.rid){var rid=CM.rid;CM.rid=null;cmOpenRoom(rid)}});
