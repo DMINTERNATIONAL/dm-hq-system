@@ -9,9 +9,9 @@
  *   ⚠️ 메타 응답의 paging.next 에 토큰이 그대로 들어 있다 — 밖으로 내보내지 않는다(아래 g() 가 지움).
  * 읽기만 한다. 광고 켜기 · 끄기 · 예산은 여기서 안 바꾼다(돈이 나가는 일이라 사용자 승인 후 따로).
  */
-import { hqUser } from './aiusage.js';
 
 const V = 'v26.0';
+const ADS_VIEWERS = ['01082470187'];
 export const AD_ACCS = {
   daymean: { id: '1493386784319174', name: 'DAY:MEAN' },
   etoh: { id: '1879073359434684', name: 'ETOH' },
@@ -26,11 +26,9 @@ export function makeMetaAds(deps) {
   const rGet = async (env, key) => { const o = await env.CHAT_MEDIA.get(key); return o ? o.json() : null; };
   const rPut = (env, key, v) => env.CHAT_MEDIA.put(key, JSON.stringify(v), { httpMetadata: { contentType: 'application/json' } });
 
-  async function isHq(env, me) {
-    if (me && (me.role === 'owner' || me.admin === true)) return true;
-    const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
-    return hqUser(u);
-  }
+  /* 볼 수 있는 사람 — 사장님(세운님) 한 사람만(11/13 사용자 결정 '이건 나만 봐야돼'). 경영팀 · 다른 대표 계정도 안 됨.
+     화면 index.html ADS_VIEWERS 와 같아야 한다 */
+  async function isHq(env, me) { return !!me && ADS_VIEWERS.includes(String(me.ph)); }
 
   async function g(env, path, params = {}) {
     const u = new URL(`https://graph.facebook.com/${V}/${path}`);
@@ -114,7 +112,7 @@ export function makeMetaAds(deps) {
 
   return async function route(path, request, env, ctx, me, json, origin) {
     if (path !== '/ads/summary' || request.method !== 'POST') return null;
-    if (!(await isHq(env, me))) return json({ ok: false, error: '경영팀만 볼 수 있어요' }, 403, origin);
+    if (!(await isHq(env, me))) return json({ ok: false, error: '볼 수 없는 화면이에요' }, 403, origin);
     if (!env.META_TOKEN) return json({ ok: false, error: '메타 연결이 아직 안 됐어요' }, 503, origin);
     const b = await request.json().catch(() => ({}));
     const acc = AD_ACCS[b.acc] ? b.acc : 'daymean';
