@@ -4435,10 +4435,12 @@ function navGrpBadge(){document.querySelectorAll('[data-gnotif]').forEach(functi
   document.querySelectorAll('.grp-tab[data-n]').forEach(function(el){var n=NAV_BADGE[el.getAttribute('data-n')]||0,b=el.querySelector('b');if(b){b.textContent=n>99?'99+':n;b.style.display=n>0?'':'none'}})}
 /* 메뉴 검색 — 메뉴 이름 · 묶음 이름 · 구분 이름(발주 · 근태 …)으로 찾는다. 띄어쓰기 무시 */
 function navSearchHtml(){var mac=/Mac|iPhone|iPad/.test(navigator.platform||'');return '<div class="s-srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="NAV-Q" type="search" placeholder="메뉴 검색" autocomplete="off" aria-label="메뉴 검색" oninput="navSearch(this.value)" onkeydown="navSearchKey(event)"><kbd>'+(mac?'⌘K':'Ctrl K')+'</kbd></div>'}
+/* 화면 안에 들어 있는 항목 이름으로도 찾게 — 메뉴 이름: 찾을 말 */
+var NAV_KW={'매장 정보 관리':'룩북 소식 작업물 디자이너 소개 디자인 지점 사진 히어로 공식 사이트 홈페이지 매장 안내 점판 판매가 QR','내 소개 수정':'디자이너 소개 작업물 프로필','고객 상담':'사전 상담 컨설팅 QR','홈페이지 회원':'회원 가입 카카오','검색 노출':'네이버 플레이스 구글 SEO 틱톡 인스타'};
 function navSearch(q){var res=$('NAV-RES'),main=$('NAV-MAIN');if(!res||!main)return;var k=String(q||'').replace(/\s+/g,'').toLowerCase();
   if(!k){res.style.display='none';main.style.display='';NAV_RES=[];return}
   var all=[{m:{l:'Overview',o:'openDash()',c:'layout-dashboard'},sec:''}].concat(NAV_VIS);
-  NAV_RES=all.filter(function(v){var g=navGroupOf(v.m.l);var hay=(v.m.l+'|'+(g?g.t:'')+'|'+(v.sec||'')).replace(/\s+/g,'').toLowerCase();return hay.indexOf(k)>=0});
+  NAV_RES=all.filter(function(v){var g=navGroupOf(v.m.l);var hay=(v.m.l+'|'+(g?g.t:'')+'|'+(v.sec||'')+'|'+(NAV_KW[v.m.l]||'')).replace(/\s+/g,'').toLowerCase();return hay.indexOf(k)>=0});
   NAV_RES.sort(function(a,b){var ia=a.m.l.replace(/\s+/g,'').toLowerCase().indexOf(k),ib=b.m.l.replace(/\s+/g,'').toLowerCase().indexOf(k);return (ia<0?99:ia)-(ib<0?99:ib)});
   res.innerHTML=NAV_RES.length?NAV_RES.map(function(v,i){var g=navGroupOf(v.m.l);return '<div class="s-nav" onclick="navPick('+i+')"><i data-lucide="'+(v.m.c||'square')+'"></i><span class="s-nav-label">'+navEsc(v.m.l)+'</span><span class="s-res-g">'+navEsc(g?g.t:(v.sec||''))+'</span></div>'}).join(''):'<div class="s-res-none">찾는 메뉴가 없어요</div>';
   res.style.display='';main.style.display='none';if(typeof renderIcons==='function')renderIcons()}
