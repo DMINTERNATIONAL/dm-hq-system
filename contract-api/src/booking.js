@@ -66,7 +66,7 @@ export function makeBooking(deps) {
     const prefs = (Array.isArray(b.prefs) ? b.prefs : []).slice(0, 3).map((p) => ({ d: clip(p && p.d, 10), t: clip(p && p.t, 9) }))
       .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.d) && p.d >= today && (SLOTS.includes(p.t) || /^\d{2}:\d{2}$/.test(p.t)));
     if (!prefs.length) throw new Error('prefs');
-    return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(b.service, 200), prefs, note: clip(b.note, 1000) };
+    return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(Array.isArray(b.services) ? b.services.map((x) => clip(x, 40)).filter(Boolean).slice(0, 20).join(', ') : b.service, 400), prefs, note: clip(b.note, 1000), len: clip(b.len, 20) };   // len: 머리 길이(가격표 기장 — 숏컷/남자 · 목선 · 쇄골선 · 가슴 윗선 …)   // service: 메뉴 여러 개(11/14 '우리 메뉴 다 보여주자') — services 배열 또는 service 글자
   }
 
   /* 알림 받을 사람: 경영팀 전원 + (지점을 골랐으면) 그 지점 관리자, 아무 곳이면 DAY:MEAN 관리자 전원 */
