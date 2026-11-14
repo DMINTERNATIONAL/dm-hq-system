@@ -14260,7 +14260,7 @@ function bkPaint(){var root=$('BK-ROOT');if(!root)return;var E=cmEsc,it=BK.items
       +'<div class="bk-row"><span>지점</span><b>'+E(BK_BR[x.branch]||x.branch)+'</b></div>'
       +'<div class="bk-row"><span>희망</span><b>'+(x.prefs||[]).map(function(p){return E(bkPref(p))}).join(' · ')+'</b></div>'
       +(x.designer?'<div class="bk-row"><span>디자이너</span><b>'+E(x.designer)+'</b></div>':'')
-      +(x.service?'<div class="bk-row"><span>시술</span><b>'+E(x.service)+'</b></div>':'')+(x.len?'<div class="bk-row"><span>머리 길이</span><b>'+E(x.len)+'</b></div>':'')
+      +(x.service?'<div class="bk-row"><span>시술</span><b>'+E(x.service)+'</b></div>':'')+(x.gender?'<div class="bk-row"><span>성별</span><b>'+E(x.gender)+'</b></div>':'')+(x.len?'<div class="bk-row"><span>머리 길이</span><b>'+E(x.len)+'</b></div>':'')
       +(x.note?'<div class="bk-note">'+E(x.note)+'</div>':'')
       +(x.conf?'<div class="bk-conf">확정 '+E(x.conf.d.slice(5).replace('-','/')+' '+x.conf.t)+' · '+E(BK_BR[x.conf.branch]||'')+(x.conf.designer?' · '+E(x.conf.designer):'')+(x.mailed?' <small>· '+(x.mailed.k==='confirm'?'확정':'거절')+' 메일 보냄('+E(x.mailed.by||'')+')</small>':'')+'</div>':(x.mailed&&x.mailed.k==='decline'?'<div class="bk-conf off">거절 메일 보냄 ('+E(x.mailed.by||'')+')</div>':''))
       +'<div class="bk-chs">'+links.join('')+'<button class="bk-ch" onclick="bkCopyAll('+cmJsLit(x.id)+')">핸드SOS 용 복사</button></div>'
@@ -14270,7 +14270,7 @@ function bkPaint(){var root=$('BK-ROOT');if(!root)return;var E=cmEsc,it=BK.items
 function bkFind(id){return (BK.items||[]).filter(function(x){return x.id===id})[0]}
 function bkPut(item){BK.items=(BK.items||[]).map(function(x){return x.id===item.id?item:x});bkPaint()}
 window.bkCopy=function(t,label){try{navigator.clipboard.writeText(t).then(function(){toast((label||'')+' 복사했어요')})}catch(e){toast(t)}};
-window.bkCopyAll=function(id){var x=bkFind(id);if(!x)return;var t=[x.name,x.phone||'',x.email,'('+(BK_LANG[x.lang]||'')+' · 홈페이지 해외 예약)',x.service||'',x.len?'길이 '+x.len:'',x.designer?'디자이너 '+x.designer:''].filter(Boolean).join(' / ');bkCopy(t,'손님 정보')};
+window.bkCopyAll=function(id){var x=bkFind(id);if(!x)return;var t=[x.name,x.phone||'',x.email,'('+(BK_LANG[x.lang]||'')+' · 홈페이지 해외 예약)',x.service||'',x.gender||'',x.len?'길이 '+x.len:'',x.designer?'디자이너 '+x.designer:''].filter(Boolean).join(' / ');bkCopy(t,'손님 정보')};
 window.bkSet=function(id,st){bkApi('update',{id:id,status:st}).then(function(r){bkPut(r.item)}).catch(function(e){alert(e.message)})};
 window.bkMemo=function(id,v){bkApi('update',{id:id,memo:v}).then(function(r){var x=bkFind(id);if(x)x.memo=r.item.memo;toast('메모 저장했어요')}).catch(function(e){alert(e.message)})};
 window.bkDel=function(id){var x=bkFind(id);_showPopup({type:'confirm',title:'이 요청을 지울까요?',msg:(x?x.name+' 님 요청 — ':'')+'지우면 되돌릴 수 없어요.',cb:function(ok){if(!ok)return;bkApi('delete',{id:id}).then(function(){BK.items=BK.items.filter(function(y){return y.id!==id});bkPaint();toast('지웠어요')}).catch(function(e){alert(e.message)})}})};
