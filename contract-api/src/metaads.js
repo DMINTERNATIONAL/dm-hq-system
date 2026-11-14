@@ -92,7 +92,7 @@ export function makeMetaAds(deps) {
     }
     out.sort((x, y) => (y.on - x.on) || y.spend - x.spend);
     const tot = out.reduce((t, c) => { for (const k of ['spend', 'imp', 'reach', 'clicks', 'lpv', 'lead', 'btn', 'kakao']) t[k] += c[k]; return t; }, { spend: 0, imp: 0, reach: 0, clicks: 0, lpv: 0, lead: 0, btn: 0, kakao: 0 });
-    tot.flagship = 0; tot.moment = 0; for (const c of out) for (const a of c.ads) if (a.btnB) { tot.flagship += a.btnB.flagship; tot.moment += a.btnB.moment; }
+    tot.flagship = 0; tot.moment = 0; for (const c of out) for (const a of c.ads) if (a.btnB) { tot.flagship += a.btnB.flagship; tot.moment += a.btnB.moment; }   // tot.kakao 는 위 합계에 있음
     tot.dailyBudget = out.filter((c) => c.on).reduce((n, c) => n + c.budget, 0);
     /* 알아 둘 것 — 화면 맨 위 노란 카드 */
     const alerts = [];
@@ -105,8 +105,36 @@ export function makeMetaAds(deps) {
         if (a.freq >= 3.5 && a.imp >= 1000) alerts.push({ lv: 'warn', t: `'${a.name}' 같은 사람에게 평균 ${a.freq.toFixed(1)}번`, d: '피로도가 쌓이면 클릭이 떨어져요. 소재 교체를 생각할 때예요.' });
       }
     }
+    /* 캠페인별 한 줄 피드백(11/14 사용자 '맨 위에 채용 것만 있다') — 켜진 캠페인마다. 예약 페이지(book.html)로 가는 광고는
+       도착 → 지점 버튼 비율 · 플래그십/모먼트/카톡 어디를 더 눌렀나 · 버튼률 좋은/나쁜 광고 · 피드 vs 스토리 */
+    const pc = (a, b) => (b ? Math.round(a / b * 100) : 0);
+    const ins = [];
+    for (const c of out) {
+      if (!c.on) continue;
+      const tracked = c.ads.filter((a) => a.c);
+      if (!tracked.length) {
+        if (c.clicks >= 30 && c.clicks < 100 && c.lpv / Math.max(c.clicks, 1) < 0.3) ins.push({ camp: c.name, lv: 'warn', t: `${c.name}: 예약·지원 버튼을 셀 수 없는 광고예요`, d: `클릭 ${c.clicks}번 중 페이지 도착이 ${pc(c.lpv, c.clicks)}%라 실제로 몇 명이 관심을 보였는지 알 수 없어요. 링크를 우리 페이지(지원 · 예약 페이지)로 바꾸면 누른 수까지 볼 수 있어요.` });
+        continue;
+      }
+      const lpv = tracked.reduce((n, a) => n + a.lpv, 0);
+      const B = tracked.reduce((o, a) => { const b = a.btnB || {}; o.f += num(b.flagship); o.m += num(b.moment); o.k += num(b.kakao); return o; }, { f: 0, m: 0, k: 0 });
+      const bt = B.f + B.m;
+      if (lpv < 15) { ins.push({ camp: c.name, lv: 'info', t: `${c.name}: 아직 숫자가 적어요`, d: `페이지 도착 ${lpv}명 · 지점 버튼 ${bt}번 · 카톡 문의 ${B.k}번. 도착이 30명은 넘어야 어떤 광고가 나은지 비교할 수 있어요.` }); continue; }
+      const pref = B.f === B.m ? '두 지점 비슷하게' : (B.f > B.m ? `플래그십을 더 많이(${pc(B.f, bt)}%)` : `모먼트를 더 많이(${pc(B.m, bt)}%)`);
+      ins.push({ camp: c.name, lv: pc(bt + B.k, lpv) >= 15 ? 'good' : 'info', t: `${c.name}: 도착한 ${lpv}명 중 ${pc(bt + B.k, lpv)}%가 버튼을 눌렀어요`, d: `플래그십 ${B.f} · 모먼트 ${B.m} · 카톡 문의 ${B.k}번 — ${bt ? pref + ' 골랐어요' : '아직 지점 버튼은 없어요'}.` });
+      const rated = tracked.filter((a) => a.lpv >= 8).map((a) => ({ a, r: (a.btn + a.kakao) / a.lpv }));
+      if (rated.length >= 2) {
+        rated.sort((x, y) => y.r - x.r);
+        const top = rated[0], low = rated[rated.length - 1];
+        if (top.r > low.r) ins.push({ camp: c.name, lv: 'info', t: `버튼을 가장 잘 누르게 한 광고: ${top.a.name}`, d: `도착한 사람의 ${Math.round(top.r * 100)}%가 버튼을 눌렀어요. 가장 낮은 '${low.a.name}'은 ${Math.round(low.r * 100)}%.` });
+      }
+      const isSt = (a) => /스토리/.test(a.name + ' ' + a.set);
+      const st = tracked.filter(isSt), fd = tracked.filter((a) => !isSt(a));
+      const agg = (l) => l.reduce((o, a) => { o.sp += a.spend; o.cl += a.clicks; o.lp += a.lpv; o.b += a.btn + a.kakao; return o; }, { sp: 0, cl: 0, lp: 0, b: 0 });
+      if (st.length && fd.length) { const S = agg(st), F = agg(fd); if (S.lp + F.lp >= 20) ins.push({ camp: c.name, lv: 'info', t: '피드 vs 스토리', d: `피드: 광고비 ${Math.round(F.sp).toLocaleString()}원 · 도착 ${F.lp} · 버튼 ${F.b} / 스토리: 광고비 ${Math.round(S.sp).toLocaleString()}원 · 도착 ${S.lp} · 버튼 ${S.b}` }); }
+    }
     return { ok: true, acc, name: A.name, range: tr, at: now,
-      tot, camps: out, alerts,
+      tot, camps: out, alerts, ins,
       days: (days.data || []).map((r) => ({ d: r.date_start, spend: num(r.spend), clicks: num(r.inline_link_clicks), lpv: act(r, 'landing_page_view', 'omni_landing_page_view') })) };
   }
 

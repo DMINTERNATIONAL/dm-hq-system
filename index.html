@@ -14218,18 +14218,29 @@ function adsPaint(){var root=$('ADS-ROOT');if(!root)return;var d=ADS.d[adsKey()]
   var t=d.tot,lead=t.btn;
   if(d.stale)h+='<div class="ads-al warn"><b>⚠ 최신 숫자를 못 받아 잠깐 전 숫자를 보여 줘요</b></div>';
   (d.alerts||[]).forEach(function(a){h+='<div class="ads-al '+(a.lv==='bad'?'bad':'warn')+'"><b>'+(a.lv==='bad'?'⛔ ':'⚠ ')+E(a.t)+'</b><span>'+E(a.d)+'</span></div>'});
+  /* 캠페인별 피드백(11/14) — 켜진 캠페인마다 도착→버튼 · 어느 지점 · 잘된 광고 · 피드/스토리 */
+  (d.ins||[]).forEach(function(a){h+='<div class="ads-al '+(a.lv==='good'?'good':a.lv==='warn'?'warn':'info')+'"><b>'+(a.lv==='good'?'✓ ':a.lv==='warn'?'⚠ ':'')+E(a.t)+'</b><span>'+E(a.d)+'</span></div>'});
   /* 숫자 4칸 */
   h+='<div class="ads-kpi">'
     +'<div><label>광고비</label><b>'+adsWon(t.spend)+'</b><small>지금 켜진 광고 하루 '+adsWon(t.dailyBudget)+'</small></div>'
     +'<div><label>링크 클릭</label><b>'+adsN(t.clicks)+'</b><small>클릭당 '+(t.clicks?adsWon(t.spend/t.clicks):'—')+'</small></div>'
     +'<div><label>페이지 도착</label><b>'+adsN(t.lpv)+'</b><small>클릭한 사람의 '+adsPct(t.lpv,t.clicks)+'</small></div>'
-    +'<div><label>예약 버튼</label><b>'+adsN(lead)+'</b><small>'+(lead?'플래그십 '+t.flagship+' · 모먼트 '+t.moment+' · 버튼당 '+adsWon(t.spend/lead):'예약 페이지로 가는 광고만 잡혀요')+'</small></div>'
+    +'<div><label>예약 버튼</label><b>'+adsN(lead)+'</b><small>'+(lead||t.kakao?'플래그십 '+t.flagship+' · 모먼트 '+t.moment+' · 카톡 '+(t.kakao||0):'예약 페이지로 가는 광고만 잡혀요')+'</small></div>'
     +'</div>';
   /* 흐름 — 클릭을 100으로 */
   var steps=[['링크 클릭',t.clicks],['페이지 도착',t.lpv],['예약 버튼',lead]];
   h+='<div class="ads-card"><div class="ads-h">광고를 본 사람이 예약 버튼까지 오는 흐름</div><div class="ads-fl"><div class="ads-fr top"><span>노출</span><em>'+adsN(t.imp)+'번 · '+adsN(t.reach)+'명</em></div>';
   steps.forEach(function(s,i){var w=t.clicks?Math.max(s[1]/t.clicks*100,s[1]?1.5:0):0;h+='<div class="ads-fr"><span>'+s[0]+'</span><div class="ads-fb"><i style="width:'+w+'%"></i></div><em>'+adsN(s[1])+(i?' <small>('+adsPct(s[1],steps[i-1][1])+')</small>':'')+'</em></div>'});
   h+='</div><div class="ads-note">괄호 = 바로 앞 단계에서 넘어온 비율 · 네이버에서 예약을 끝냈는지는 메타도 우리도 못 봐요</div></div>';
+  /* 예약 페이지에서 어느 버튼을 눌렀나(11/14 사용자 '모먼트/플래그십/예약 문의 중 뭘 더 클릭하는지') — 합계 + 광고별 */
+  var bk=[['플래그십',t.flagship||0,'var(--text)'],['모먼트',t.moment||0,'#6B7280'],['카톡 문의',t.kakao||0,'#F59E0B']],bsum=bk.reduce(function(n,x){return n+x[1]},0);
+  var tr=[];d.camps.forEach(function(c){c.ads.forEach(function(a){if(a.c)tr.push(a)})});
+  if(tr.length){h+='<div class="ads-card"><div class="ads-h">예약 페이지에서 누른 버튼</div>';
+    h+='<div class="ads-stk">'+(bsum?bk.filter(function(x){return x[1]}).map(function(x){return '<i style="flex:'+x[1]+';background:'+x[2]+'"></i>'}).join(''):'<i style="flex:1;background:var(--border)"></i>')+'</div>';
+    h+='<div class="ads-lg">'+bk.map(function(x){return '<span><i style="background:'+x[2]+'"></i>'+x[0]+' <b>'+x[1]+'</b>'+(bsum?' <small>'+adsPct(x[1],bsum)+'</small>':'')+'</span>'}).join('')+'</div>';
+    tr.sort(function(x,y){return (y.btn+y.kakao)-(x.btn+x.kakao)||y.lpv-x.lpv});
+    h+='<div class="ads-bt"><div class="r hd"><span>광고</span><span>도착</span><span>플래그십</span><span>모먼트</span><span>카톡</span><span>버튼률</span></div>'+tr.map(function(a){var b=a.btnB||{};return '<div class="r"><span>'+E(a.name)+'</span><span>'+adsN(a.lpv)+'</span><span>'+(b.flagship||0)+'</span><span>'+(b.moment||0)+'</span><span>'+(b.kakao||0)+'</span><span>'+(a.lpv?adsPct((b.flagship||0)+(b.moment||0)+(b.kakao||0),a.lpv):'—')+'</span></div>'}).join('')+'</div>';
+    h+='<div class="ads-note">버튼률 = 페이지에 도착한 사람 중 세 버튼 중 하나라도 누른 비율 · 같은 사람이 여러 번 누르면 여러 번 세져요</div></div>'}
   /* 하루 광고비 14일 */
   var days=d.days||[],mx=Math.max.apply(null,days.map(function(x){return x.spend}).concat([1]));
   h+='<div class="ads-card"><div class="ads-h">최근 14일 하루 광고비</div><div class="ads-ch">'+days.map(function(x){var p=x.spend/mx*100;var tip=x.d.slice(5).replace('-','/')+' · '+adsWon(x.spend)+' · 클릭 '+adsN(x.clicks)+' · 도착 '+adsN(x.lpv);return '<div class="ads-cb" tabindex="0" title="'+E(tip)+'" data-tip="'+E(tip)+'"><i style="height:'+Math.max(p,x.spend?2:0)+'%"></i><span>'+(+x.d.slice(8))+'</span></div>'}).join('')+'</div><div class="ads-tip" id="ADS-TIP">막대를 누르면 그날 숫자가 나와요</div></div>';
@@ -14240,7 +14251,7 @@ function adsPaint(){var root=$('ADS-ROOT');if(!root)return;var d=ADS.d[adsKey()]
     var st=c.on?adsPill('ACTIVE'):c.eff==='ACTIVE'?'<span class="ads-pill off">광고 꺼짐</span>':adsPill('PAUSED');
     h+='<div class="ads-cc'+(c.on?'':' dim')+'"><div class="ads-ct" onclick="ADS.open[\''+c.id+'\']='+(!op)+';adsPaint()"><div><b>'+E(c.name)+'</b>'+st+(c.on&&c.budget?'<span class="ads-bud">하루 '+adsWon(c.budget)+'</span>':'')+'</div><span class="ads-car">'+(op?'접기':'광고 '+c.ads.length+'개')+'</span></div>'
       +'<div class="ads-cm"><span>광고비 <b>'+adsWon(c.spend)+'</b></span><span>클릭 <b>'+adsN(c.clicks)+'</b></span><span>도착 <b>'+adsPct(c.lpv,c.clicks)+'</b></span><span>예약 버튼 <b>'+(c.btn||'—')+'</b></span></div>';
-    if(op&&c.ads.length){h+='<div class="ads-al2">'+c.ads.map(function(a){return '<div class="ads-ad"><div class="ads-an"><b>'+E(a.name)+'</b>'+adsPill(a.eff)+'</div><div class="ads-as">'+E(a.set)+'</div><div class="ads-cm sm"><span>광고비 <b>'+adsWon(a.spend)+'</b></span><span>클릭 <b>'+adsN(a.clicks)+'</b></span><span>도착 <b>'+adsPct(a.lpv,a.clicks)+'</b></span><span>예약 버튼 <b>'+(a.c?(a.btn||0)+(a.btnB&&a.btn?' (플 '+a.btnB.flagship+' · 모 '+a.btnB.moment+')':''):'안 잡힘')+'</b></span></div></div>'}).join('')+'</div>'}
+    if(op&&c.ads.length){h+='<div class="ads-al2">'+c.ads.map(function(a){return '<div class="ads-ad"><div class="ads-an"><b>'+E(a.name)+'</b>'+adsPill(a.eff)+'</div><div class="ads-as">'+E(a.set)+'</div><div class="ads-cm sm"><span>광고비 <b>'+adsWon(a.spend)+'</b></span><span>클릭 <b>'+adsN(a.clicks)+'</b></span><span>도착 <b>'+adsPct(a.lpv,a.clicks)+'</b></span><span>예약 버튼 <b>'+(a.c?(a.btnB?'플 '+(a.btnB.flagship||0)+' · 모 '+(a.btnB.moment||0)+' · 카톡 '+(a.btnB.kakao||0):'0'):'안 잡힘')+'</b></span></div></div>'}).join('')+'</div>'}
     h+='</div>'});
   h+='<div class="ads-note" style="margin-top:14px">'+E(d.name)+' · '+d.range.since.slice(5).replace('-','/')+' ~ '+d.range.until.slice(5).replace('-','/')+' · 메타 숫자는 몇 시간 늦게 맞춰질 수 있어요 · 켜기 · 끄기 · 예산은 Claude 에게 말하거나 광고 관리자에서</div></div>';
   root.innerHTML=h;
@@ -14252,6 +14263,11 @@ function adsStyle(){if(document.getElementById('ads-style'))return;var st=docume
 +'.ads-seg button{border:0;background:none;color:var(--text-2);font:inherit;font-size:13.5px;font-weight:800;padding:8px 14px;border-radius:9px;cursor:pointer}'
 +'.ads-seg.sm button{font-size:12.5px;padding:7px 11px;font-weight:700}'
 +'.ads-seg button.on{background:var(--blue);color:hsl(0 0% 100%)}'
++'.ads .ads-al.good{background:hsl(142 60% 95%);border-color:hsl(142 45% 78%);color:hsl(142 60% 22%)}.ads .ads-al.info{background:var(--card);border-color:var(--border);color:var(--text)}'
++'html.dm-dark .ads .ads-al.good{background:hsl(142 30% 14%);border-color:hsl(142 30% 26%);color:hsl(142 50% 75%)}'
++'.ads-stk{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;margin:4px 0 8px}.ads-stk i{display:block;min-width:4px}'
++'.ads-lg{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--text-2);margin-bottom:10px}.ads-lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}.ads-lg b{color:var(--text)}.ads-lg small{color:var(--text-3)}'
++'.ads-bt{font-size:12px;border-top:1px solid var(--border)}.ads-bt .r{display:grid;grid-template-columns:minmax(0,1fr) repeat(5,40px);gap:4px;padding:7px 0;border-bottom:1px solid var(--border);align-items:center}.ads-bt .r span{text-align:right;font-variant-numeric:tabular-nums}.ads-bt .r span:first-child{text-align:left;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}.ads-bt .hd{color:var(--text-3);font-size:11px}'
 +'.ads-ref{margin-left:auto;border:0;background:none;color:var(--blue);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}.ads-ref:disabled{color:var(--text-3)}'
 +'.ads-empty{padding:30px 16px;text-align:center;color:var(--text-3);font-size:13.5px;background:var(--card);border:1px solid var(--border);border-radius:14px}'
 +'.ads-al{display:flex;flex-direction:column;gap:3px;padding:11px 13px;border-radius:12px;margin:0 0 8px;font-size:13px;line-height:1.5;border:1px solid hsl(38 92% 50% / .35);background:hsl(38 92% 50% / .10)}'
