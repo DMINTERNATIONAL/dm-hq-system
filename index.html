@@ -1952,7 +1952,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-opt span,.cm-opt b{position:relative;z-index:1}
 .cm-opt.on{border-color:var(--cm-blue);color:var(--cm-blue);font-weight:700}
 .cm-fw{font-size:11.5px;opacity:.75;margin-bottom:3px}
-.cm-tr{font-size:11.5px;opacity:.6;margin-top:5px;padding-top:5px;border-top:1px solid currentColor;border-top-color:rgba(127,127,127,.25);white-space:pre-wrap}
+.cm-memo{background:#FEF9C3!important;color:#713F12!important}html.cm-dark .cm-memo{background:#3F3A1A!important;color:#FDE68A!important}#CM-COMP.memo textarea{background:#FEF9C3!important}html.cm-dark #CM-COMP.memo textarea{background:#3F3A1A!important}.wb-bar{padding:8px 12px;border-bottom:1px solid var(--cm-line);background:#fff;display:flex;flex-direction:column;gap:7px}html.cm-dark .wb-bar{background:#121212}.wb-seg{display:flex;gap:5px}.wb-seg button{flex:1;border:1px solid var(--cm-line);background:transparent;color:var(--cm-ink2);border-radius:9px;padding:7px 2px;font:600 12.5px inherit;font-family:inherit;cursor:pointer}.wb-seg button.on{color:#fff;border-color:transparent}.wb-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.wb-row button{border:1px solid var(--cm-line);background:transparent;color:var(--cm-ink);border-radius:99px;padding:6px 11px;font:600 12.5px inherit;font-family:inherit;cursor:pointer}.wb-row button.pri{background:#111;color:#fff;border-color:#111}html.cm-dark .wb-row button.pri{background:#F2F2F2;color:#111}.wb-row button.memo-on{background:#FEF9C3;border-color:#EAB308;color:#713F12}.cm-ws{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px;flex:0 0 auto}.cm-wan{font-size:11px;color:var(--cm-ink3);margin-left:5px;flex:0 0 auto}.cf-card{min-width:230px;max-width:300px}.cf-card .h{font-weight:800;font-size:14.5px;margin-bottom:6px}.cf-card table{width:100%;border-collapse:collapse;font-size:12.5px}.cf-card td{padding:4px 0;border-top:1px solid rgba(127,127,127,.18);vertical-align:top}.cf-card td:first-child{color:var(--cm-ink3);width:38%;padding-right:6px}.cf-card .ft{font-size:11.5px;color:var(--cm-ink3);margin-top:7px}.cm-tr{font-size:11.5px;opacity:.6;margin-top:5px;padding-top:5px;border-top:1px solid currentColor;border-top-color:rgba(127,127,127,.25);white-space:pre-wrap}
 .cm-findbar{background:#fff;border-bottom:1px solid var(--cm-line);padding:8px 10px}
 .cm-findbar input{width:100%;border:1px solid var(--cm-line);border-radius:10px;padding:8px 11px;font-size:14px;font-family:inherit}
 .cm-hit{background:#fff;border:1px solid var(--cm-line);border-radius:12px;padding:9px 11px;font-size:13.5px;cursor:pointer;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
@@ -2465,6 +2465,11 @@ html.dm-dark .cm-pdfp{background:#1C1C1E}
 html.dm-dark .cm-nm .cm-mc{color:#8E8E93}
 html.dm-dark .cm-card{background:#1C1C1E}
 html.dm-dark .cm-opt i{background:#213045}
+html.dm-dark .cm-memo{background:#444123!important;color:#F1CAA7!important}
+html.dm-dark #CM-COMP.memo textarea{background:#444123!important}
+html.dm-dark .wb-bar{background:#1C1C1E}
+html.dm-dark .wb-row button.pri{background:#3A3A3C;border-color:#3A3A3C}
+html.dm-dark .wb-row button.memo-on{background:#444123;color:#F1CAA7}
 html.dm-dark .cm-findbar{background:#1C1C1E}
 html.dm-dark .cm-hit{background:#1C1C1E}
 html.dm-dark .cm-sumbtn{border:1px solid #264369;background:#213045;color:#829FEE}
@@ -3035,6 +3040,7 @@ html.dm-dark [style*="border-top:1px dashed #eee" i]{border-top:1px dashed #2C2C
 html.dm-dark [style^="color:var(--green,#16a34a)" i],html.dm-dark [style*=";color:var(--green,#16a34a)" i],html.dm-dark [style*="; color:var(--green,#16a34a)" i]{color:var(--green,#95F1B7)!important}
 html.dm-dark [style*="background:rgba(0,0,0,.42)" i]{background:rgba(255,255,255,0.12)!important}
 html.dm-dark [style*="background:rgba(0,0,0,.45)" i]{background:rgba(255,255,255,0.12)!important}
+html.dm-dark [style*="background:rgba(0,0,0,.35)" i]{background:rgba(255,255,255,0.12)!important}
 html.dm-dark [style*="background:var(--card,#fff)" i]{background:var(--card,#1C1C1E)!important}
 html.dm-dark [style^="color:var(--text-2,#64748b)" i],html.dm-dark [style*=";color:var(--text-2,#64748b)" i],html.dm-dark [style*="; color:var(--text-2,#64748b)" i]{color:var(--text-2,#798596)!important}
 html.dm-dark [style^="color:var(--text-3,#94a3b8)" i],html.dm-dark [style*=";color:var(--text-3,#94a3b8)" i],html.dm-dark [style*="; color:var(--text-3,#94a3b8)" i]{color:var(--text-3,#8590A0)!important}
@@ -3174,6 +3180,7 @@ html.dm-dark [style*="border-bottom:1px solid #eef0f3" i]{border-bottom:1px soli
 html.dm-dark [style*="border-bottom:1px solid #f2f2f2" i]{border-bottom:1px solid #2C2C2E!important}
 html.dm-dark [style*="background: rgba(0, 0, 0, 0.42)" i]{background:rgba(255,255,255,0.12)!important}
 html.dm-dark [style*="background: rgba(0, 0, 0, 0.45)" i]{background:rgba(255,255,255,0.12)!important}
+html.dm-dark [style*="background: rgba(0, 0, 0, 0.35)" i]{background:rgba(255,255,255,0.12)!important}
 html.dm-dark [style*="border-bottom:1px dashed #fecaca" i]{border-bottom:1px dashed #672627!important}
 html.dm-dark [style*="background:rgba(255,255,255,.95)" i]{background:rgba(28,28,30,0.95)!important}
 html.dm-dark [style*="background:rgba(255,255,255,.85)" i]{background:rgba(28,28,30,0.85)!important}
@@ -11615,6 +11622,7 @@ function cmRenderList(){
   if(notice)pin='<div class="cm-pinbar" onclick="cmOpenRoom('+cmJsLit(nk)+')"><b>공지</b><span>'+cmEsc(notice.x)+'</span><em>확인 필요</em></div>';
   var q=(CM.q||'').trim().toLowerCase();
   var rows=ids.filter(function(k){var r=CM.inbox[k];var un=(r.s||0)>(r.r||0);
+    if(_web&&!cmWsHit(r))return false;
     if(_web)return !q||String(cmRoomName(k,r)).toLowerCase().indexOf(q)>=0||String(r.x||'').toLowerCase().indexOf(q)>=0;
     if(CM.filter.br&&cmBranchOf(k,r)!==CM.filter.br)return false;
     if(CM.filter.k==='un'&&!un)return false;if(CM.filter.k==='at'&&!((r.mn||0)>(r.r||0)))return false;
@@ -11627,7 +11635,7 @@ function cmRenderList(){
   var fl=[];if(CM.filter.br)fl.push(CM.filter.br);var KL={un:'안 읽음',at:'@나',notice:'공지',dm:'1:1',all:'단체방',br:'지점방',tm:'팀방',lv:'아카데미'};if(CM.filter.k)fl.push(KL[CM.filter.k]);
   var h=_web?'<div class="cm-tools"><button class="cm-tool'+(CM.qOpen||CM.q?' on':'')+'" onclick="CM.qOpen=!CM.qOpen;if(!CM.qOpen)CM.q=\'\';cmRenderList();if(CM.qOpen){var e=$(\'CM-Q\');if(e)e.focus()}">검색</button><span style="flex:1;font-size:12px;color:var(--cm-ink3);padding-left:6px">홈페이지 손님 상담 · 자동 번역</span></div>':'<div class="cm-tools"><button class="cm-tool'+(CM.qOpen||CM.q?' on':'')+'" onclick="CM.qOpen=!CM.qOpen;if(!CM.qOpen)CM.q=\'\';cmRenderList();if(CM.qOpen){var e=$(\'CM-Q\');if(e)e.focus()}">검색</button><button class="cm-tool'+(fl.length?' on':'')+'" onclick="cmFilterSheet()">필터'+(fl.length?' · '+cmEsc(fl.join(' · ')):'')+' ▾</button><span style="flex:1"></span>'+(cmDeskWin()&&!DM_SOLO?'<button class="cm-tb gray" onclick="cmDeskSize('+(DM_SMALL?'false':'true')+')">'+(DM_SMALL?'크게 보기':'작게 보기')+'</button><button class="cm-tb gray" onclick="cmDeskTop()"'+(CM._onTop?' style="color:var(--cm-blue)"':'')+'>위에 고정</button>':'')+'<button class="cm-tb gray" onclick="cmOpenSettings()">설정</button><button class="cm-tb" onclick="cmOpenNew(\'new\')">새 대화</button></div>';
   if(CM.qOpen||CM.q)h+='<input class="cm-search" id="CM-Q" placeholder="이름 · 방 이름 · 내용 검색" value="'+cmEsc(CM.q)+'" oninput="CM.q=this.value;cmRenderList();var e=$(\'CM-Q\');e.focus();e.setSelectionRange(e.value.length,e.value.length)">';
-  if(!_web)h+=pin;
+  if(!_web)h+=pin;else h+=cmWsChips(ids);
   /* 교육 자동방이 있으면 목록 위에 종류 칩 — 개인 대화와 섞이지 않게 바로 골라 본다 */
   var eduN={};ids.forEach(function(k){var r=CM.inbox[k];var _c=cmCat(r);if(CM_EDU_T[_c]){eduN[_c]=eduN[_c]||{n:0,u:0,g:0};eduN[_c].n++;eduN[_c][r.mute?'g':'u']+=Math.max(0,(r.s||0)-(r.r||0))}});
   if(Object.keys(eduN).length){var ck=CM_EDU_T[CM.filter.k]?CM.filter.k:'';h+='<div class="cm-chips cm-educhips"><button class="cm-chip'+(!ck?' on':'')+'" onclick="CM.filter.k=\'\';cmRenderList()">전체</button>'+['all','br','tm','lv'].filter(function(k){return eduN[k]}).map(function(k){var e=eduN[k];return '<button class="cm-chip'+(ck===k?' on':'')+'" onclick="CM.filter.k=\''+k+'\';cmRenderList()">'+CM_EDU_T[k]+' '+e.n+(e.u?'<em>'+(e.u>99?'99+':e.u)+'</em>':e.g?'<em class="g">'+(e.g>99?'99+':e.g)+'</em>':'')+'</button>'}).join('')+'</div>'}
@@ -11637,7 +11645,7 @@ function cmRenderList(){
   CM._unN=unN;CM._atN=atN;/* '…만 보는 중' 줄은 없앴다(11/14 사용자) — 필터 버튼에 이미 보인다 */
   if(!rows.length)h+='<div class="cm-empty">'+(ids.length?'조건에 맞는 대화가 없어요':_web?'아직 홈페이지 상담이 없어요.<br>손님이 홈페이지 채팅이나 해외 예약을 보내면 여기에 생겨요.':'아직 대화가 없어요.<br>오른쪽 위 \'새 대화\'로 시작하세요.')+'</div>';
   else{h+='<div class="cm-list">';rows.forEach(function(k){var r=CM.inbox[k];var un=Math.max(0,(r.s||0)-(r.r||0));var at=(r.mn||0)>(r.r||0);
-    h+='<div class="cm-row sw-ok'+(r.pin?' pinned':'')+(CM._sw===k?' sw':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" style="--sw:'+(CM_SW_W*(un?3:2))+'px" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}if(CM._sw){cmSwClose();return}cmRowOpen(\''+cmEsc(k)+'\')"><div class="cm-rin">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm">'+(_web?'':cmBtag(r))+'<span>'+cmEsc(cmNameNoBrand(k,r))+'</span>'+(CM_CNT[k]&&r.t!=='dm'&&!_web&&r.t!=='me'?'<span class="cm-mc">'+CM_CNT[k]+'</span>':'')+(r.t==='lv'?'<span class="cm-etag">아카데미</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'+cmSwActs(k,r,un)+'</div>'});h+='</div>'}
+    h+='<div class="cm-row sw-ok'+(r.pin?' pinned':'')+(CM._sw===k?' sw':'')+(CM.rid===k&&cmOn('p-comm-room')?' on':'')+'" style="--sw:'+(CM_SW_W*(un?3:2))+'px" data-rid="'+cmEsc(k)+'" onclick="if(CM._lp){CM._lp=0;return}if(CM._sw){cmSwClose();return}cmRowOpen(\''+cmEsc(k)+'\')"><div class="cm-rin">'+cmAvFor(k,r)+'<div class="cm-mid"><div class="cm-nm">'+(_web?'':cmBtag(r))+'<span>'+cmEsc(cmNameNoBrand(k,r))+'</span>'+(_web?cmWsPill(r.ws)+(r.wan?'<span class="cm-wan">'+cmEsc(r.wan)+'</span>':''):'')+(CM_CNT[k]&&r.t!=='dm'&&!_web&&r.t!=='me'?'<span class="cm-mc">'+CM_CNT[k]+'</span>':'')+(r.t==='lv'?'<span class="cm-etag">아카데미</span>':'')+(r.t==='notice'||r.pin?CM_PIN_SVG:'')+(r.t==='dm'&&cmBrkOf(k)?'<span class="cm-brk">휴게 중</span>':'')+'</div><div class="cm-last">'+(r.bn&&r.t!=='dm'?cmEsc(r.bn)+': ':'')+cmEsc(r.x||'')+'</div></div><div class="cm-rt"><span>'+cmTime(r.at)+'</span>'+(at?'<span class="cm-at">@나</span>':'')+(un?'<span class="cm-cnt'+(r.mute&&CM_EDU_T[r.t]?' mute':'')+'">'+(un>99?'99+':un)+'</span>':(r.mute?'<span>알림 끔</span>':''))+'</div></div>'+cmSwActs(k,r,un)+'</div>'});h+='</div>'}
   cmPatchDeep(v,h);
   /* 방을 연 채로 왼쪽 목록(CM-SIDE)에서 종류 버튼 · 필터 · 검색을 바꾸면 왼쪽 목록도 다시 그린다 — 예전엔 가려진 목록만 바뀌어 눌러도 안 되는 것처럼 보였다(11/13) */
   if(!CM._sideR&&cmOn('p-comm-room')&&$('CM-SIDE'))cmSideRender()}
@@ -11747,7 +11755,7 @@ function cmSideRender(){var sd=$('CM-SIDE');if(!sd||!cmOn('p-comm-room'))return;
 function cmMarkRow(){var on=cmOn('p-comm-room')?CM.rid:null;document.querySelectorAll('#CM-SIDE .cm-row,#p-comm .cm-row').forEach(function(r){r.classList.toggle('on',!!on&&r.getAttribute('data-rid')===on)})}
 window.addEventListener('resize',function(){if(cmOn('p-comm-room')&&(!!$('CM-SIDE'))!==cmWide()&&CM.rid){var rid=CM.rid;CM.rid=null;cmOpenRoom(rid)}});
 function cmRoomShell(keep){var p=$('p-comm-room');p.style.setProperty('--cm-fs',CM.fs+'px');var wide=cmWide();
-  var main='<div class="cm-rhead"><button class="cm-tb" id="CM-RBACK" onclick="cmRoomBack()">'+(DM_SMALL?'접기 ‹':'‹ '+(CM.from==='act'?'내 활동':CM.tab==='web'?'홈페이지 상담':'채팅'))+'</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" id="CM-RFIND" onclick="cmFindToggle()">찾기</button>'+(CM_DESK&&!DM_SOLO?'<button class="cm-tb gray" onclick="cmPopRoom(CM.rid)">새 창</button>':'')+(DM_SOLO?'<button class="cm-tb gray" onclick="cmDockBack()" title="메인 창 목록 옆에 붙이기">붙이기</button>':'')+'<button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-SCHED"></div><div id="CM-FIND"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>';
+  var main='<div class="cm-rhead"><button class="cm-tb" id="CM-RBACK" onclick="cmRoomBack()">'+(DM_SMALL?'접기 ‹':'‹ '+(CM.from==='act'?'내 활동':CM.tab==='web'?'홈페이지 상담':'채팅'))+'</button><div class="t" id="CM-RT">…</div><button class="cm-tb gray" id="CM-RFIND" onclick="cmFindToggle()">찾기</button>'+(CM_DESK&&!DM_SOLO?'<button class="cm-tb gray" onclick="cmPopRoom(CM.rid)">새 창</button>':'')+(DM_SOLO?'<button class="cm-tb gray" onclick="cmDockBack()" title="메인 창 목록 옆에 붙이기">붙이기</button>':'')+'<button class="cm-tb" onclick="cmOpenSet()">설정</button></div><div id="CM-NOTICE"></div><div id="CM-SCHED"></div><div id="CM-FIND"></div><div id="CM-WEB"></div><div class="cm-msgs" id="CM-MSGS"><div class="sk"></div></div><div id="CM-COMP"></div>';
   var mainEl=keep&&wide&&p.classList.contains('wide')&&$('CM-SIDE')&&p.querySelector('.cm-main');
   if(mainEl){mainEl.innerHTML=main;cmComposer('CM-COMP',false);cmMarkRow();return}
   p.innerHTML=wide?'<div class="cm-side" id="CM-SIDE"></div><div class="cm-split" onmousedown="cmSplitDown(event)" title="끌어서 너비 조절"></div><div class="cm-main">'+main+'</div>':main;p.classList.toggle('wide',wide);
@@ -11775,7 +11783,40 @@ function cmRoomCleanup(){try{var ae=document.activeElement;if(ae&&/^(INPUT|TEXTA
   var fix=function(){['p-comm-room','p-comm-thread'].forEach(function(id){var e=$(id);if(!e||e.classList.contains('on'))return;['height','top','bottom','transform','transition'].forEach(function(k){e.style[k]=''})});
     if(!document.querySelector('#p-comm-room.on,#p-comm-thread.on')){document.documentElement.style.overflow='';document.body.style.overflow='';var vv=window.visualViewport;if(vv&&vv.offsetTop>0)window.scrollTo(0,CM._listY||0)}};
   fix();setTimeout(fix,320);setTimeout(fix,700)}
-function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var _ib=CM.inbox&&CM.inbox[CM.rid];var nm=_ib&&_ib.nm?_ib.nm:r.t==='dm'?(_ib&&_ib.n)||'1:1':cmRoomName(CM.rid,r);
+/* ── 홈페이지 손님 상담(11/14 사용자 '채널톡처럼 대기 · 상담중 · 완료 · 보류 · 확정서') ── */
+var CM_WS={wait:['대기','#DC2626'],ing:['상담 중','#2563EB'],hold:['보류','#6B7280'],done:['완료','#16A34A']};
+function cmWsPill(ws){var w=CM_WS[ws||'wait']||CM_WS.wait;return '<span class="cm-ws" style="background:'+w[1]+'">'+w[0]+'</span>'}
+/* 목록 칩: 진행 중(대기+상담 중) · 대기 · 상담 중 · 보류 · 완료 · 전체 */
+var CM_WSF=[['open','진행 중'],['wait','대기'],['ing','상담 중'],['hold','보류'],['done','완료'],['all','전체']];
+function cmWsHit(r){var f=CM.wsF||'open',w=r.ws||'wait';return f==='all'||(f==='open'?(w==='wait'||w==='ing'):w===f)}
+function cmWsChips(ids){var n={open:0,wait:0,ing:0,hold:0,done:0,all:ids.length};ids.forEach(function(k){var w=CM.inbox[k].ws||'wait';n[w]=(n[w]||0)+1;if(w==='wait'||w==='ing')n.open++});var f=CM.wsF||'open';
+  return '<div class="cm-chips cm-educhips">'+CM_WSF.map(function(c){return '<button class="cm-chip'+(f===c[0]?' on':'')+'" onclick="CM.wsF=\''+c[0]+'\';cmRenderList()">'+c[1]+' '+(n[c[0]]||0)+'</button>'}).join('')+'</div>'}
+function cmWebApi(body){body.rid=CM.rid;return cmApi('web',body)}
+function cmWebBar(){var el=$('CM-WEB');if(!el)return;var r=CM.room;if(!r||r.t!=='web'){el.innerHTML='';if(CM.webMemo){CM.webMemo=false;var c0=$('CM-COMP');if(c0)c0.classList.remove('memo')}return}
+  if(CM._wbRid!==CM.rid){CM._wbRid=CM.rid;CM.webMemo=false}
+  var ws=r.ws||'wait';var mine=r.wa&&String(r.wa)===String(ME.phone);
+  el.innerHTML='<div class="wb-bar"><div class="wb-seg">'+['wait','ing','hold','done'].map(function(k){var w=CM_WS[k];return '<button class="'+(ws===k?'on':'')+'"'+(ws===k?' style="background:'+w[1]+'"':'')+' onclick="cmWebState(\''+k+'\')">'+w[0]+'</button>'}).join('')+'</div>'
+    +'<div class="wb-row"><button onclick="cmWebAssign()">담당 · '+(r.wan?cmEsc(r.wan)+(mine?' (나)':''):'없음')+' ▾</button><button onclick="cmWebInfo()">손님 정보</button><button class="'+(CM.webMemo?'memo-on':'')+'" onclick="cmWebMemo()">'+(CM.webMemo?'🔒 메모 쓰는 중':'메모')+'</button><span style="flex:1"></span><button class="pri" onclick="cmWebConfirm()">예약 확정서</button></div></div>';
+  var c=$('CM-COMP');if(c)c.classList.toggle('memo',!!CM.webMemo)}
+window.cmWebState=function(ws){var r=CM.room;if(!r||(r.ws||'wait')===ws)return;var go=function(){cmWebApi({op:'state',ws:ws}).then(function(){toast('\''+CM_WS[ws][0]+'\'(으)로 바꿨어요')}).catch(function(e){alert(e.message)})};
+  if(ws==='done')cmConfirm('상담을 완료할까요?','손님이 다시 글을 쓰면 자동으로 \'대기\'로 돌아와요.','완료',false,go);else go()};
+window.cmWebAssign=function(){var r=CM.room;if(!r)return;var ps=Object.keys(r.m||{});var me=String(ME.phone);ps.sort(function(a,b){return a===me?-1:b===me?1:cmName(a).localeCompare(cmName(b),'ko')});
+  var d=document.createElement('div');d.className='cm-sheet-bg';d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10000;display:flex;align-items:flex-end;justify-content:center';d.onclick=function(e){if(e.target===d)d.remove()};
+  d.innerHTML='<div class="cm-sheet" style="width:100%;max-width:440px;background:#fff;border-radius:16px 16px 0 0;padding:10px 0 calc(10px + var(--sab,0px))"><div style="font-weight:800;padding:8px 18px 10px">담당자</div>'+ps.map(function(p){return '<button data-p="'+cmEsc(p)+'" style="display:block;width:100%;text-align:left;border:none;background:none;padding:12px 18px;font:inherit;font-size:15px;color:inherit;cursor:pointer">'+cmEsc(cmName(p))+(p===me?' (나)':'')+(String(r.wa||'')===p?' ✓':'')+'</button>'}).join('')+'<button data-p="" style="display:block;width:100%;text-align:left;border:none;background:none;padding:12px 18px;font:inherit;font-size:15px;color:var(--cm-ink3);cursor:pointer">담당 없음</button></div>';
+  document.body.appendChild(d);d.querySelectorAll('button[data-p]').forEach(function(b){b.onclick=function(){var p=b.getAttribute('data-p');d.remove();cmWebApi({op:'state',wa:p}).then(function(x){toast(p?'담당: '+(x.wan||cmName(p)):'담당자를 비웠어요')}).catch(function(e){alert(e.message)})}})};
+window.cmWebMemo=function(){CM.webMemo=!CM.webMemo;cmWebBar();if(CM.webMemo)toast('메모는 경영팀끼리만 보여요 · 손님에게 안 가요');var ta=$('CM-COMP-TA');if(ta){ta.placeholder=CM.webMemo?'메모 — 손님에게 안 보여요':'';ta.focus()}};
+var CM_WL={en:'영어',zh:'중국어',ja:'일본어',ko:'한국어'};
+window.cmWebInfo=function(){var rid=CM.rid;cmWebApi({op:'info'}).then(function(res){if(CM.rid!==rid)return;var i=res.info||{},b=res.booking;var E=cmEsc;var row=function(k,v){return v?'<tr><td style="color:var(--text-3);padding:6px 8px 6px 0;width:34%;vertical-align:top">'+k+'</td><td style="padding:6px 0">'+v+'</td></tr>':''};
+  var h='<table style="width:100%;border-collapse:collapse;font-size:13.5px">'+row('이름',E(i.name))+row('메일',E(i.email)+' <button class="gbtn sec sm" onclick="bkCopy(\''+E(i.email)+'\',\'메일\')">복사</button>')+row('언어',E(CM_WL[i.lang]||i.lang))+row('시작',i.at?E(new Date(i.at).toLocaleString('ko-KR')):'')+row('마지막 접속',i.seen?E(cmAgo(i.seen)):'')+row('상태',cmWsPill(i.ws).replace('margin-left:6px',''))+row('담당',E(i.wan||'없음'))+'</table>';
+  if(b){h+='<div style="font-weight:800;margin:14px 0 4px">예약 요청'+(b.status&&BK_ST[b.status]?' · <span style="color:'+BK_ST[b.status][1]+'">'+BK_ST[b.status][0]+'</span>':'')+'</div><table style="width:100%;border-collapse:collapse;font-size:13.5px">'+row('지점',E(BK_BR[b.branch]||b.branch||''))+row('디자이너',E(b.designer||'미지정'))+row('희망',(b.prefs||[]).map(function(p){return E(bkPref(p))}).join('<br>'))+row('성별',E(b.gender||''))+row('시술',E(b.service||''))+row('전화',E(b.phone||''))+row('위챗',E((b.ch||{}).wechat||''))+row('인스타',E((b.ch||{}).ig||''))+row('요청 사항',E(b.note||''))+(b.conf?row('확정',E(b.conf.d+' '+b.conf.t+' · '+(BK_BR[b.conf.branch]||'')+(b.conf.designer?' · '+b.conf.designer:''))):'')+'</table>'}
+  var d=document.createElement('div');d.className='modal-bg';d.style.display='flex';d.style.zIndex='10000';d.onclick=function(e){if(e.target===d)d.remove()};
+  d.innerHTML='<div class="modal-box" style="max-width:440px;width:92%;text-align:left;max-height:85vh;overflow:auto"><div style="font-weight:800;font-size:16px;margin-bottom:8px">손님 정보</div>'+h+'<div style="display:flex;gap:8px;margin-top:14px"><button class="gbtn sec" style="flex:1" onclick="this.closest(\'.modal-bg\').remove()">닫기</button>'+(b?'<button class="gbtn sec" style="flex:1" onclick="this.closest(\'.modal-bg\').remove();openBooking()">해외 예약에서 보기</button>':'')+'</div></div>';document.body.appendChild(d)}).catch(function(e){alert(e.message)})};
+/* 상담방에서 예약 확정 — 예약 요청 방이면 그 요청 정보로 채우고, 일반 문의 방이면 새 예약으로. 확정서는 손님 메일 + 이 채팅에 카드로 */
+window.cmWebConfirm=function(){var rid=CM.rid;cmWebApi({op:'info'}).then(function(res){if(CM.rid!==rid)return;var i=res.info||{},b=res.booking||{};
+  var x={name:i.name,lang:i.lang,prefs:b.prefs||[],designer:b.designer||'',branch:b.branch||'any',conf:b.conf||null,service:b.service||'',email:i.email};
+  bkConfModal(x,function(conf,done,fail){cmWebApi({op:'confirm',conf:conf}).then(function(){done();toast('확정서를 메일과 채팅으로 보냈어요');if(typeof BK!=='undefined'&&BK.items)bkLoad()}).catch(function(e){fail(e)})})}).catch(function(e){alert(e.message)})};
+function cmConfCard(cf){var k=cf.ko||{};var E=cmEsc;return '<div class="cf-card"><div class="h">📋 '+E(k.title||'예약 확정서')+'</div><table>'+(k.rows||[]).map(function(r){return '<tr><td>'+E(r[0])+'</td><td>'+E(r[1])+'</td></tr>'}).join('')+(k.map?'<tr><td>오시는 길</td><td><a href="'+E(k.map)+'" target="_blank" rel="noopener" style="color:inherit;font-weight:700">구글 지도 →</a></td></tr>':'')+'</table>'+(k.msg?'<div class="ft">'+E(k.msg)+'</div>':'')+'<div class="ft">손님 화면엔 손님 언어로 · 예약 정책 포함 · 메일 '+E(k.mail||'')+' 로도 보냄</div></div>'}
+function cmRoomHead(){var r=CM.room;if(!r)return;cmWebBar();var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var _ib=CM.inbox&&CM.inbox[CM.rid];var nm=_ib&&_ib.nm?_ib.nm:r.t==='dm'?(_ib&&_ib.n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
   var nb=$('CM-NOTICE');if(nb)nb.innerHTML=(r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'')+(CM_EDU_T[r.t]?'<div class="cm-autoinfo">'+(r.t==='all'?String(r.n||'').replace(/\s*(전체|단체방)$/,'')+' 전원과 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='bi'?'이 지점 인턴 · 관리자 · 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='tm'?'담당 인턴이 바뀌면 인원이 자동으로 바뀌는 방이에요':'레벨이 오르면 다음 레벨 방으로 옮겨 가요 · 들어오기 전 대화는 안 보여요')+'</div>':'');
   var canWrite=!(r.t==='notice'&&!cmIsManager());var c=$('CM-COMP');if(c&&c.getAttribute('data-ro')!==String(!canWrite)){c.setAttribute('data-ro',String(!canWrite));if(canWrite)cmComposer('CM-COMP',false);else c.innerHTML='<div class="cm-ro">경영팀 · 관리자만 쓸 수 있는 방입니다</div>'}}
@@ -11788,7 +11829,8 @@ function cmBody(m,isMe){
   if(m.k==='ack'&&!CM.thRoot)return '<div class="cm-b card">'+cmAckHtml(m,m._k||'')+cmRpnHtml(m)+'</div>';
   if(m.k==='poll'&&!CM.thRoot)return '<div class="cm-b card">'+cmPollHtml(m,m._k||'')+'</div>';
   /* 홈페이지 손님 상담(11/14): 손님 · 안내 글은 한국어 번역(xk)을 크게, 원문은 작게 · 우리 글은 손님에게 간 번역(xt)을 작게 */
-  var trn='';if(m.xk){trn='<div class="cm-tr">원문 · '+cmEsc(m.x||'')+'</div>'}else if(m.xt&&CM.room&&CM.room.t==='web'){trn='<div class="cm-tr">손님에게 · '+cmEsc(m.xt)+'</div>'}
+  if(m.k==='conf'&&m.cf&&m.cf.ko)return '<div class="cm-b card">'+cmConfCard(m.cf)+'</div>';
+  var trn='';if(m.im){trn='<div class="cm-tr">🔒 메모 · 손님에게 안 보여요</div>'}else if(m.xk){trn='<div class="cm-tr">원문 · '+cmEsc(m.x||'')+'</div>'}else if(m.xt&&CM.room&&CM.room.t==='web'){trn='<div class="cm-tr">손님에게 · '+cmEsc(m.xt)+'</div>'}
   var x=cmEsc(m.xk||m.x||'');
   if(m.mn)x=x.replace(/@([^\s@<]+)/g,'<span class="mn">@$1</span>');
   if(m.tg)x=x.replace(/#([가-힣A-Za-z0-9]+)/g,function(a,t){return m.tg.indexOf(t)>=0?'<span class="mn">#'+t+'</span>':a});
@@ -11799,7 +11841,7 @@ function cmBody(m,isMe){
   th+=cmRpnHtml(m);
   var fw=m.fw?'<div class="cm-fw">전달됨 · '+cmEsc(m.fw)+'</div>':'';
   var lp='';if(m.lp&&m.lp.u&&/^https?:\/\//.test(m.lp.u)){var L=m.lp;lp='<a class="cm-lp" href="'+cmEsc(L.u)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">'+(L.i&&/^https:\/\//.test(L.i)?'<img src="'+cmEsc(L.i)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+'<span><b>'+cmEsc(L.t||'')+'</b>'+(L.d?'<em>'+cmEsc(L.d)+'</em>':'')+'<small>'+cmEsc(L.h||'')+'</small></span></a>'}
-  return '<div class="cm-b'+(md&&!x?' media':'')+'">'+fw+rp+md+x+(m.ed?' <span style="font-size:11px;opacity:.7">(수정됨)</span>':'')+trn+lp+th+'</div>'}
+  return '<div class="cm-b'+(md&&!x?' media':'')+(m.im?' cm-memo':'')+'">'+fw+rp+md+x+(m.ed?' <span style="font-size:11px;opacity:.7">(수정됨)</span>':'')+trn+lp+th+'</div>'}
 function cmRx(m,key,root){if(!m.rx)return '';var h='';['확인','좋아요','감사'].forEach(function(r){var who=m.rx[r];if(!who)return;var n=Object.keys(who).length;if(!n)return;h+='<span class="'+(who[ME.phone]?'mine':'')+'" onclick="cmReact(\''+key+'\',\''+r+'\','+(root?'\''+root+'\'':'null')+')">'+r+' '+n+'</span>'});return h?'<div class="cm-rx">'+h+'</div>':''}
 var CM_SEEN={};
 function cmMsgHtml(list,opts){
@@ -11890,9 +11932,9 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   var tg=CM_TAGS.filter(function(t){return x.indexOf('#'+t)>=0});
   if(CM.edit){var ed=CM.edit;CM.edit=null;ta.value='';cmReplyBar(boxId);cmApi('edit',{rid:CM.rid,key:ed.key,root:ed.root||null,x:x}).then(function(){cmRefetchMsg(CM.rid,ed.key,ed.root)}).catch(function(e){alert(e.message)});return}
   if(boxId==='CM-TCOMP'&&CM.rpRoot&&!CM.reply)CM.reply=CM.rpQ0;
-  var body={rid:CM.rid,k:'t',x:x,mn:mn,tg:tg};if(CM.reply&&!thread)body.rp=CM.reply;if(thread)body.root=CM.thRoot;
+  var body={rid:CM.rid,k:'t',x:x,mn:mn,tg:tg};if(CM.reply&&!thread)body.rp=CM.reply;if(thread)body.root=CM.thRoot;if(CM.webMemo&&!thread&&CM.room&&CM.room.t==='web')body.im=1;
   var tmp='zz'+Date.now();var me=String(ME.phone);CM._sentAt=Date.now();
-  CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,since:cmMaxKey(thread?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp}};
+  CM_PENDING[tmp]={rid:CM.rid,root:thread?CM.thRoot:null,since:cmMaxKey(thread?CM.thMsgs:CM.msgs),m:{by:me,bn:ME.nick||ME.name,at:Date.now(),k:'t',x:x,rp:body.rp,im:body.im}};
   var _rp=CM.reply,_mn=mn;   // 보내기 실패 때 되돌릴 것 — 글자만 돌아오고 @부름 · 답장 인용은 빠졌다(11/14 점검)
   ta.value='';ta.style.height='auto';CM.reply=boxId==='CM-TCOMP'&&CM.rpRoot?CM.rpQ0:null;CM.mn=[];cmReplyBar(boxId);
   if(thread)cmRenderThread();else cmRenderMsgs();
@@ -14285,16 +14327,19 @@ window.bkCopyAll=function(id){var x=bkFind(id);if(!x)return;var t=[x.name,x.phon
 window.bkSet=function(id,st){bkApi('update',{id:id,status:st}).then(function(r){bkPut(r.item)}).catch(function(e){alert(e.message)})};
 window.bkMemo=function(id,v){bkApi('update',{id:id,memo:v}).then(function(r){var x=bkFind(id);if(x)x.memo=r.item.memo;toast('메모 저장했어요')}).catch(function(e){alert(e.message)})};
 window.bkDel=function(id){var x=bkFind(id);_showPopup({type:'confirm',title:'이 요청을 지울까요?',msg:(x?x.name+' 님 요청 — ':'')+'지우면 되돌릴 수 없어요.',cb:function(ok){if(!ok)return;bkApi('delete',{id:id}).then(function(){BK.items=BK.items.filter(function(y){return y.id!==id});bkPaint();toast('지웠어요')}).catch(function(e){alert(e.message)})}})};
-window.bkConfirm=function(id){var x=bkFind(id);if(!x)return;var c=x.conf||{},p=(x.prefs||[])[0]||{};var d0=c.d||p.d||'',t0=c.t||(/^\d\d:\d\d/.test(p.t||'')?String(p.t).slice(0,5):'');var br=c.branch||(x.branch!=='any'?x.branch:'flagship');
+window.bkConfirm=function(id){var x=bkFind(id);if(!x)return;bkConfModal(x,function(conf,done,fail){bkApi('update',{id:id,conf:conf,mail:'confirm'}).then(function(r){done();bkPut(r.item);toast('확정서를 보냈어요')}).catch(fail)})};
+/* 확정 창 — 예약 페이지 · 홈페이지 상담방 같이 씀(onGo 가 서버로 보냄) */
+function bkConfModal(x,onGo){var c=x.conf||{},p=(x.prefs||[])[0]||{};var d0=c.d||p.d||'',t0=c.t||(/^\d\d:\d\d/.test(p.t||'')?String(p.t).slice(0,5):'');var br=c.branch||(x.branch!=='any'?x.branch:'flagship');
   var S='width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 10px;font:inherit;font-size:14px;box-sizing:border-box;background:var(--card);color:var(--text)';
   var d=document.createElement('div');d.className='modal-bg';d.style.display='flex';d.style.zIndex='10000';d.onclick=function(e){if(e.target===d)d.remove()};
-  d.innerHTML='<div class="modal-box" style="max-width:420px;width:92%;text-align:left"><div style="font-weight:800;font-size:16px;margin-bottom:4px">예약 확정 — '+cmEsc(x.name)+'</div><div style="font-size:12.5px;color:var(--text-3);margin-bottom:12px">상담에서 손님과 정한 날짜 · 시간 · 디자이너를 넣으세요 · 핸드SOS 에 예약을 넣은 뒤 확정 · 손님에게 '+cmEsc(BK_LANG[x.lang]||'')+' 메일이 가요<br>희망: '+(x.prefs||[]).map(function(p){return cmEsc(bkPref(p))}).join(' · ')+'</div>'
+  d.innerHTML='<div class="modal-box" style="max-width:420px;width:92%;text-align:left"><div style="font-weight:800;font-size:16px;margin-bottom:4px">예약 확정 — '+cmEsc(x.name)+'</div><div style="font-size:12.5px;color:var(--text-3);margin-bottom:12px">상담에서 손님과 정한 날짜 · 시간 · 디자이너를 넣으세요 · 핸드SOS 에 예약을 넣은 뒤 확정 · 손님에게 '+cmEsc(BK_LANG[x.lang]||'')+' 확정서가 메일과 상담 채팅으로 가요(예약 번호 · 주소 · 지도 · 정책 포함)<br>희망: '+(x.prefs||[]).map(function(p){return cmEsc(bkPref(p))}).join(' · ')+'</div>'
     +'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><label style="font-size:12px;min-width:0">날짜<input id="bkc-d" type="date" value="'+cmEsc(d0)+'" style="'+S+'"></label><label style="font-size:12px;min-width:0">시간<input id="bkc-t" type="time" step="600" value="'+cmEsc(t0)+'" style="'+S+'"></label></div>'
     +'<label style="font-size:12px;display:block;margin-top:8px">지점<select id="bkc-b" style="'+S+'"><option value="flagship"'+(br==='flagship'?' selected':'')+'>플래그십</option><option value="moment"'+(br==='moment'?' selected':'')+'>모먼트</option></select></label>'
     +'<div style="font-size:12px;margin-top:8px">디자이너 '+(x.designer?'<span style="color:var(--text-3)">(손님이 고른 디자이너로 확정)</span>':'<span style="color:var(--text-3)">(손님이 미지정 — 우리가 골라요)</span>')+'<div id="bkc-fix" style="display:none;align-items:center;gap:8px;margin-top:4px;border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:14px;font-weight:700"></div><select id="bkc-n" style="'+S+';margin-top:4px"><option value="">불러오는 중…</option></select></div>'
+    +'<label style="font-size:12px;display:block;margin-top:8px">시술 <span style="color:var(--text-3)">(한국어로 · 손님 언어로 자동 번역)</span><input id="bkc-s" value="'+cmEsc(x.service||'')+'" placeholder="예: 남자 커트, 다운펌" style="'+S+'"></label>'
     +'<div style="font-size:12px;margin-top:8px;background:var(--bg);border-radius:9px;padding:8px 10px;color:var(--text-2)"><b>손님께 한마디 (자동 · 손님 언어로)</b><br>'+cmEsc(BK_MSG[x.lang]||BK_MSG.en)+(x.lang!=='ko'?'<br><span style="color:var(--text-3)">뜻: '+cmEsc(BK_MSG.ko)+'</span>':'')+'</div>'
     +'<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:12px;line-height:1.45"><input type="checkbox" id="bkc-ok" style="width:18px;height:18px;min-width:18px;margin:1px 0 0;padding:0;flex:0 0 18px"><span style="flex:1;min-width:0">상담에서 손님과 이 날짜 · 시간으로 정했어요 (손님이 알고 있어야 노쇼가 안 나요)</span></label>'
-    +'<div style="display:flex;gap:8px;margin-top:14px"><button class="gbtn sec" style="flex:1" onclick="this.closest(\'.modal-bg\').remove()">닫기</button><button class="gbtn pri" style="flex:2" id="bkc-go">확정하고 메일 보내기</button></div></div>';
+    +'<div style="display:flex;gap:8px;margin-top:14px"><button class="gbtn sec" style="flex:1" onclick="this.closest(\'.modal-bg\').remove()">닫기</button><button class="gbtn pri" style="flex:2" id="bkc-go">확정하고 확정서 보내기</button></div></div>';
   document.body.appendChild(d);
   /* 11/14 사용자: 확정 디자이너는 기본 = 손님이 고른 디자이너, 미지정일 때만 우리가 고른다 */
   var want=c.designer||x.designer||'';var mv=function(z){return x.lang==='ko'?z.name:(z.en||z.name)};
@@ -14308,8 +14353,8 @@ window.bkConfirm=function(id){var x=bkFind(id);if(!x)return;var c=x.conf||{},p=(
       $('bkc-chg').onclick=function(){fix.style.display='none';sel.style.display='';toast('상담에서 디자이너를 바꾸기로 했을 때만 바꿔 주세요')}}
     else fill();
     $('bkc-b').onchange=function(){if(fix.style.display==='flex'){fix.style.display='none';sel.style.display=''}sel.value='';fill()}}).catch(function(){var sel=$('bkc-n');if(sel)sel.innerHTML='<option value="">목록을 못 불러왔어요 — 새로고침</option>'});
-  $('bkc-go').onclick=function(){var b=this;var conf={d:$('bkc-d').value,t:$('bkc-t').value,branch:$('bkc-b').value,designer:$('bkc-n').value};if(!conf.d||!conf.t){toast('날짜와 시간을 넣어 주세요');return}if(!conf.designer){toast('디자이너를 골라 주세요');return}if(!$('bkc-ok').checked){toast('상담에서 손님과 정했는지 체크해 주세요');return}b.disabled=true;b.textContent='보내는 중…';
-    bkApi('update',{id:id,conf:conf,mail:'confirm'}).then(function(r){d.remove();bkPut(r.item);toast('확정 메일을 보냈어요')}).catch(function(e){b.disabled=false;b.textContent='확정하고 메일 보내기';alert(e.message)})}};
+  $('bkc-go').onclick=function(){var b=this;var conf={d:$('bkc-d').value,t:$('bkc-t').value,branch:$('bkc-b').value,designer:$('bkc-n').value,svc:($('bkc-s').value||'').trim()};if(!conf.d||!conf.t){toast('날짜와 시간을 넣어 주세요');return}if(!conf.designer){toast('디자이너를 골라 주세요');return}if(!$('bkc-ok').checked){toast('상담에서 손님과 정했는지 체크해 주세요');return}b.disabled=true;b.textContent='보내는 중…';
+    onGo(conf,function(){d.remove()},function(e){b.disabled=false;b.textContent='확정하고 확정서 보내기';alert(e.message)})}}
 /* 채널톡 상담방 — 요청이 들어올 때 서버가 이미 열어 둔 방(cht.c)으로 바로 간다. 새 요청이면 '상담 중'으로 같이 바꿈 */
 var BK_CH_DESK='https://channel.works/daymean';
 /* 무료: 손님 채널톡 화면(cht.u)으로 → 거기서 '새 상담 열기'. API 키가 있어 상담방까지 열려 있으면(cht.c) 그 방으로 바로 */

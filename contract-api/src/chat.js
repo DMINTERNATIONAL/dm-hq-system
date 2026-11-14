@@ -414,6 +414,7 @@ export function makeChat(deps) {
     if (k === 'ack') msg.ack = { n: Object.keys(room.m).length - 1 };
     if (body.fw) msg.fw = clip(body.fw, 30);
     if (Array.isArray(body.tg)) { const tg = body.tg.filter((t) => TAGS.includes(t)); if (tg.length) msg.tg = tg; }
+    if (room.t === 'web' && body.im) msg.im = 1;   // 홈페이지 상담방 '메모' — 직원끼리만, 손님에게 안 감
 
     let rootMsg = null;
     if (root) {
@@ -486,8 +487,8 @@ export function makeChat(deps) {
     }
     })().catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(pushJob); else await pushJob;
-    if (room.t === 'web' && !root && (x || md)) {
-      const wj = webStaffAfter(env, rid, room, key, x, !!md).catch((e) => console.log('web after', e && e.message));
+    if (room.t === 'web' && !root && !msg.im && (x || md)) {
+      const wj = webStaffAfter(env, rid, room, key, x, !!md, ph, bn).catch((e) => console.log('web after', e && e.message));
       if (ctx && ctx.waitUntil) ctx.waitUntil(wj); else await wj;
     }
     /* 링크 미리보기 — 글에 주소가 있으면 그 페이지의 제목 · 설명 · 대표 사진을 뒤에서 받아 메시지에 붙인다 */
@@ -771,6 +772,23 @@ export function makeChat(deps) {
      메시지: 손님 by 'g' · 예약 안내 by 'bot' (bn 'DAY:MEAN') · 직원은 평소처럼 폰 번호. */
   const WEB_LANGS = ['en', 'zh', 'ja', 'ko'];
   const WEB_PRIV = '/authSecrets/__web';
+  /* 상담 상태(11/14 사용자 '채널톡처럼 대기 · 상담중 · 완료 · 보류') — 방(room.ws)과 멤버 inbox(ws · wan)에 같이 둔다(목록이 바로 보이게) */
+  const WS = ['wait', 'ing', 'hold', 'done'];
+  const WS_KO = { wait: '대기', ing: '상담 중', hold: '보류', done: '완료' };
+  function webStateUp(rid, room, p) {
+    const up = {};
+    for (const [k, v] of Object.entries(p)) up[`chat/rooms/${rid}/${k}`] = v;
+    for (const ph of Object.keys(room.m || {})) { const b = `chat/inbox/${ph}/${rid}`; if ('ws' in p) up[`${b}/ws`] = p.ws; if ('wan' in p) up[`${b}/wan`] = p.wan; }
+    return up;
+  }
+  /* 상담 기록 줄(상태 · 담당 바뀜) — 손님에게는 안 보인다. 바꾼 사람은 읽은 것으로 */
+  async function webSys(env, rid, room, text, ph) {
+    const seq = await nextSeq(env, rid), at = nowMs();
+    const up = { [`chat/msgs/${rid}/${pad(seq)}`]: { s: seq, by: 'system', bn: '', at, k: 'sys', x: text }, [`chat/rooms/${rid}/last`]: { x: text, by: 'system', bn: '', at, k: 'sys' } };
+    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = text; up[`${b}/bn`] = ''; if (p === ph) up[`${b}/r`] = seq; }
+    await dbPatch(env, '/', up);
+    await fixLatest(env, rid, room, seq).catch(() => {});
+  }
   const webIdOk = (v) => /^w[a-z0-9]{12,24}$/.test(String(v || ''));
   async function webSig(env, v) {
     const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.SESSION_SECRET || env.SITE_KEY || 'x')), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -801,9 +819,9 @@ export function makeChat(deps) {
     const m = await webMembers(env);
     if (!Object.keys(m).length) throw new Error('받을 사람이 없습니다');
     const n = name + (o.b ? ' · 해외 예약' : ' · 홈페이지');
-    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, ...(o.b ? { wb: String(o.b) } : {}) };
+    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
     const up = { [`chat/rooms/${rid}`]: room, [`${WEB_PRIV.slice(1)}/${v}`]: { name, email, lang, at, ...(o.b ? { b: String(o.b) } : {}) } };
-    for (const ph of Object.keys(m)) Object.assign(up, inboxSeed(rid, room, n, ph));
+    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); up[`chat/inbox/${ph}/${rid}/ws`] = 'wait'; }
     await dbPatch(env, '/', up);
     if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', o.push !== false);
     return { v, k: await webSig(env, v), rid };
@@ -838,6 +856,7 @@ export function makeChat(deps) {
     const up = { [`chat/msgs/${rid}/${key}`]: msg, [`chat/rooms/${rid}/last`]: { x: preview, by: 'g', bn, at, k: msg.k }, [`${WEB_PRIV.slice(1)}/${v}/seen`]: at };
     if (md) up[`chat/media/${rid}/${key}`] = { at, by: 'g', bn, md };
     for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = bn; }
+    if (room.ws === 'hold' || room.ws === 'done') Object.assign(up, webStateUp(rid, room, { ws: 'wait', wsAt: at }));   // 보류 · 완료된 상담에 손님이 다시 쓰면 '대기'로(채널톡과 같이)
     await dbPatch(env, '/', up);
     await fixLatest(env, rid, room, seq).catch(() => {});
     const muted = room.mute || {};
@@ -856,7 +875,8 @@ export function makeChat(deps) {
     const raw = (await dbQuery(env, `/chat/msgs/${rid}`, `orderBy=%22$key%22&startAt=%22${pad(a + 1)}%22&limitToFirst=60`).catch(() => null)) || {};
     const out = [];
     for (const key of Object.keys(raw).sort()) {
-      const m = raw[key]; if (!m || m.k === 'sys' || m.del || m.hid) continue;
+      const m = raw[key]; if (!m || m.k === 'sys' || m.del || m.hid || m.im) continue;   // im = 직원끼리 메모(손님에게 안 보임)
+      if (m.k === 'conf' && m.cf && m.cf.g) { out.push({ s: m.s, me: false, at: m.at, k: 'conf', x: '', conf: m.cf.g }); continue; }
       const guest = m.by === 'g';
       let x = m.x || '';
       if (!guest && m.by !== 'bot') {
@@ -869,8 +889,10 @@ export function makeChat(deps) {
     return { lang, name: priv.name || '', items: out };
   }
   /* 직원이 손님방에 쓴 뒤 — 손님 언어로 번역(xt), 손님이 1분 넘게 안 보고 있으면 알림 메일(10분에 한 번) */
-  async function webStaffAfter(env, rid, room, key, x, hasMd) {
+  async function webStaffAfter(env, rid, room, key, x, hasMd, ph, bn) {
     const v = rid.slice(4);
+    const st = {}; if (room.ws !== 'ing') { st.ws = 'ing'; st.wsAt = nowMs(); } if (!room.wa && ph) { st.wa = ph; st.wan = bn || ''; }   // 직원이 답하면 '상담 중' · 담당자 없으면 답한 사람
+    if (Object.keys(st).length) await dbPatch(env, '/', webStateUp(rid, room, st)).catch(() => {});
     const priv = await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null);
     if (!priv) return;
     const lang = priv.lang || room.wl || 'en';
@@ -891,8 +913,65 @@ export function makeChat(deps) {
     if (!T) return;
     const e = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const body = shown || (hasMd ? '📷' : '');
-    const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','PingFang SC','Hiragino Sans',sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.6"><div style="font-weight:800;font-size:18px;margin:8px 0 18px">DAY:MEAN</div><p style="margin:0 0 10px">${e(T.hi)}</p><p style="margin:0 0 10px">${e(T.b)}</p><div style="margin:4px 0 18px;border-left:3px solid #111;background:#f5f5f5;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14.5px;white-space:pre-line">${e(body)}</div>${link ? `<a href="${e(link)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${e(T.btn)}</a>` : ''}<p style="font-size:12.5px;color:#888;margin-top:22px">${e(T.foot)}</p></div>`;
+    const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','PingFang SC','Hiragino Sans',sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.6"><div style="font-weight:800;font-size:18px;margin:8px 0 18px">DAY:MEAN</div><p style="margin:0 0 10px">${e(T.hi)}</p><p style="margin:0 0 10px">${e(T.b)}</p><div style="margin:4px 0 18px;border-left:3px solid #111;background:#f5f5f5;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14.5px;white-space:pre-line">${e(body)}</div>${link ? `<a href="${e(link)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${e(T.btn)}</a>` : ''}</div>`;
     await sendMail(env, priv.email, `DAY:MEAN — ${T.sub}`, html, `${T.hi}\n${T.b}\n\n${body}${link ? '\n\n' + link : ''}`);
+  }
+
+  /* 직원 기능(경영팀 · 방 멤버): info 손님 정보 · state 상태/담당 · confirm 예약 확정(확정서 메일 + 채팅 카드) */
+  async function webAct(env, ctx, me, body) {
+    const ph = String(me.ph), rid = String(body.rid || '');
+    if (!/^web_w[a-z0-9]{12,24}$/.test(rid)) throw new Error('홈페이지 상담방이 아닙니다');
+    const [u, room] = await Promise.all([meUser(env, me), getRoom(env, rid)]);
+    if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
+    const v = rid.slice(4), bn = (u && (u.nick || u.name)) || '경영팀';
+    if (body.op === 'info') {
+      const priv = (await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)) || {};
+      const bk = room.wb && deps.bkGet ? await deps.bkGet(env, room.wb).catch(() => null) : null;
+      return { info: { name: priv.name || '', email: priv.email || '', lang: priv.lang || room.wl || 'en', at: priv.at || room.at || 0, seen: priv.seen || 0, ws: room.ws || 'wait', wa: room.wa || '', wan: room.wan || '' }, booking: bk ? { id: room.wb, ...bk } : null };
+    }
+    if (body.op === 'state') {
+      const p = {};
+      if (body.ws != null) { if (!WS.includes(body.ws)) throw new Error('상태가 올바르지 않습니다'); if (body.ws !== room.ws) { p.ws = body.ws; p.wsAt = nowMs(); p.wsBy = bn; } }
+      if (body.wa != null) {
+        const to = String(body.wa);
+        if (to && !member(room, to)) throw new Error('이 방 멤버만 담당할 수 있어요');
+        if (to !== (room.wa || '')) { if (to) { const tu = to === ph ? u : await dbGet(env, '/users/' + encodeURIComponent(to)).catch(() => null); p.wa = to; p.wan = (tu && (tu.nick || tu.name)) || ''; } else { p.wa = null; p.wan = null; } }
+      }
+      if (!Object.keys(p).length) return { ws: room.ws || 'wait', wan: room.wan || '' };
+      await dbPatch(env, '/', webStateUp(rid, room, p));
+      const t = [];
+      if (p.ws) t.push(`${bn} 님이 '${WS_KO[p.ws]}'(으)로 바꿨어요`);
+      if ('wa' in p) t.push(p.wa ? `담당 ${p.wan}` : '담당자 없음');
+      await webSys(env, rid, { ...room, ...p }, t.join(' · '), ph).catch(() => {});
+      return { ws: p.ws || room.ws || 'wait', wan: 'wan' in p ? (p.wan || '') : (room.wan || '') };
+    }
+    if (body.op === 'confirm') {
+      if (!deps.bkChatConfirm) throw new Error('예약 기능이 연결되지 않았어요');
+      const priv = await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null);
+      if (!priv || !priv.email) throw new Error('손님 메일이 없어 확정서를 보낼 수 없어요');
+      const lang = priv.lang || room.wl || 'en';
+      const c = body.conf && typeof body.conf === 'object' ? { ...body.conf } : {};
+      c.svc = clip(c.svc, 200); delete c.svcL;
+      if (c.svc && lang !== 'ko') c.svcL = clip(await webTr(env, c.svc, lang), 300);
+      const r = await deps.bkChatConfirm(env, { v, priv, room, conf: c, who: bn });
+      if (r.id && room.wb !== r.id) await dbPatch(env, '/', { [`chat/rooms/${rid}/wb`]: r.id, [`${WEB_PRIV.slice(1)}/${v}/b`]: r.id });
+      return { id: r.id };
+    }
+    throw new Error('없는 기능입니다');
+  }
+  /* 예약 확정서 카드 — booking.js 가 확정 메일을 보낸 뒤 부른다. g = 손님 언어(손님 화면), ko = 직원 앱. 보낸 뒤 상담 '완료' */
+  async function webCard(env, v, card, who) {
+    const rid = 'web_' + v;
+    const room = await getRoom(env, rid);
+    const seq = await nextSeq(env, rid), at = nowMs(), key = pad(seq), bn = 'DAY:MEAN';
+    const ko = card.ko || {};
+    const x = [ko.title || '예약 확정서'].concat((ko.rows || []).map((r) => `${r[0]}: ${r[1]}`)).join('\n');
+    const preview = '예약 확정서를 보냈어요' + (who ? ` · ${who}` : '');
+    const up = { [`chat/msgs/${rid}/${key}`]: { s: seq, by: 'bot', bn, at, k: 'conf', x: clip(x, 3000), cf: card }, [`chat/rooms/${rid}/last`]: { x: preview, by: 'bot', bn, at, k: 'conf' } };
+    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = bn; }
+    Object.assign(up, webStateUp(rid, room, { ws: 'done', wsAt: at, wsBy: who || '' }));
+    await dbPatch(env, '/', up);
+    await fixLatest(env, rid, room, seq).catch(() => {});
   }
 
   async function sysMsg(env, rid, text) {
@@ -1354,6 +1433,7 @@ export function makeChat(deps) {
         case '/chat/gallery': out = await gallery(env, me, body); break;
         case '/chat/export': out = await exportRoom(env, me, body); break;
         case '/chat/summary': out = await summary(env, me, body); break;
+        case '/chat/web': out = await webAct(env, ctx, me, body); break;
         default: return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
       }
       return json({ ok: true, ...(out || {}) }, 200, origin);
@@ -1365,6 +1445,6 @@ export function makeChat(deps) {
   route.runScheduled = runScheduled;
   route.eligible = eligible;
   route.botPost = botPost;
-  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk };
+  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk, card: webCard, tr: webTr };
   return route;
 }

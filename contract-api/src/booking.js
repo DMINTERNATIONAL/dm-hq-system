@@ -58,6 +58,16 @@ const CONF_MSG_T = {
 /* 손님이 자기 예약 찾기(11/14 사용자 '비회원도 홈페이지에서 바로 — 예약 비밀번호 6자리 이상 + 메일로 찾기도'
    회원은 로그인만으로 마이 페이지). 비밀번호는 예약마다 PBKDF2(직원 · 회원과 같은 pwHash)로 따로 잠긴 곳에 둔다 — 목록 · 앱으로 안 나감 */
 const PW_BASE = '/authSecrets/__bookpw';
+/* 확정서(11/14 사용자 '채널톡처럼 모든 예약 내용이랑 주소 등 전부 다') — 메일 · 채팅 카드 같은 줄 */
+const LBL = {
+  en: { no: 'Booking no.', name: 'Name', addr: 'Address', tel: 'Phone', card: 'Booking confirmation' },
+  zh: { no: '预约编号', name: '预约人', addr: '地址', tel: '电话', card: '预约确认单' },
+  ja: { no: '予約番号', name: 'ご予約者', addr: '住所', tel: '電話番号', card: 'ご予約確認書' },
+  ko: { no: '예약 번호', name: '예약자', addr: '주소', tel: '전화', card: '예약 확정서' },
+};
+const WD = { en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], zh: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'], ja: ['日', '月', '火', '水', '木', '金', '土'], ko: ['일', '월', '화', '수', '목', '금', '토'] };
+const whenTxt = (c, L) => { const d = new Date(c.d + 'T00:00:00Z'); const w = isNaN(d) ? '' : (WD[L] || WD.en)[d.getUTCDay()]; return `${c.d}${w ? ` (${w})` : ''} ${c.t}`; };
+const bkNo = (id) => String(id).slice(-6).toUpperCase();
 const MID_RE = /^[ekg]_[A-Za-z0-9_-]{1,80}$/;
 const REMIND_T = {
   en: { t: 'Your DAY:MEAN booking requests', b: 'Here are the booking requests made with this email. Tap a button to continue the chat consultation.', st: { new: 'Waiting for our reply', contacted: 'In consultation', confirmed: 'Confirmed', declined: 'Closed', canceled: 'Canceled' }, btn: 'Open chat' },
@@ -187,7 +197,7 @@ async function chOpen(env, id, r) {
 }
 
 export function makeBooking(deps) {
-  const { webOpen, webSig, dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
+  const { webOpen, webSig, webCard, webTr, dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
   const siteOk = (request, env) => !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
   const rate = async (request, env, tag, max) => {
     const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
@@ -232,13 +242,70 @@ export function makeBooking(deps) {
     return out;
   }
 
-  async function mapOf(env, branch) {
+  /* 지점 주소 · 전화 · 구글 지도 — 매장 정보 관리(/salonInfo/store/branches) 그대로 */
+  async function branchInfo(env, branch) {
     const brs = (await dbGet(env, '/salonInfo/store/branches').catch(() => null)) || [];
     const key = { flagship: /플래그십|flagship/i, moment: /모먼트|moment/i }[branch];
-    if (!key) return '';
+    if (!key) return {};
     // 11/14 사용자 '네이버 지도 말고 구글 링크' — 외국 손님은 네이버 지도 앱이 없다. 사이트 지점 화면과 같은 'DAY:MEAN + 주소' 구글 검색
-    for (const b of Object.values(brs)) if (b && key.test(String(b.name || '')) && b.address) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('DAY:MEAN ' + String(b.address));
-    return '';
+    for (const b of Object.values(brs)) if (b && key.test(String(b.name || ''))) {
+      const address = clip(b.address, 200), phone = clip(b.phone, 40);
+      return { address, phone, map: address ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('DAY:MEAN ' + address) : '' };
+    }
+    return {};
+  }
+  /* 손님에게 보낼 채팅 링크 — 상담방이 있으면 그 방(사이트 위젯), 없으면 예약 링크 */
+  async function talkUrl(env, id, cur, L) {
+    const base = String(env.SITE_URL || '').replace(/\/+$/, '');
+    if (cur.web && webSig && base) return `${base}${L === 'ko' ? '' : '/' + L}/?chat=1&w=${cur.web}&k=${await webSig(env, cur.web)}`;
+    return chatUrl(env, id, L);
+  }
+  function confRows(id, cur, c, L, bi) {
+    const t = T[L] || T.en, l = LBL[L] || LBL.en;
+    const r = [[l.no, '#' + bkNo(id)], [l.name, cur.name || ''], [t.when, whenTxt(c, L)], [t.where, 'DAY:MEAN ' + ((BRANCHES[c.branch] || BRANCHES.flagship)[L] || BRANCHES[c.branch].en)]];
+    if (bi.address) r.push([l.addr, bi.address]);
+    if (bi.phone) r.push([l.tel, bi.phone]);
+    if (c.designer) r.push([t.who, c.designer]);
+    const svc = L === 'ko' ? (c.svc || cur.service || '') : (c.svcL || cur.svcL || c.svc || cur.service || '');
+    if (svc) r.push([t.what, svc]);
+    return r;
+  }
+  function confOf(cIn, cur, who) {
+    const c = cIn || {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(c.d || '')) || !/^\d{2}:\d{2}$/.test(String(c.t || ''))) throw new Error('확정 날짜 · 시간을 넣어 주세요');
+    return { d: c.d, t: c.t, branch: BRANCHES[c.branch] && c.branch !== 'any' ? c.branch : (cur.branch && cur.branch !== 'any' ? cur.branch : 'flagship'), designer: clip(c.designer, 40), msg: clip(c.msg, 500), ...(c.svc ? { svc: clip(c.svc, 200) } : {}), ...(c.svcL ? { svcL: clip(c.svcL, 300) } : {}), by: who };
+  }
+  /* 확정 — 손님 언어 확정서 메일 + (상담방이 있으면) 채팅에 확정서 카드. 예약 페이지 · 상담방 둘 다 여기로 */
+  async function confirmBooking(env, id, cur, c, who) {
+    const L = cur.lang || 'en', t = T[L] || T.en, l = LBL[L] || LBL.en;
+    const bi = await branchInfo(env, c.branch);
+    const msg = c.msg || CONF_MSG_T[L] || CONF_MSG_T.en;
+    const rows = confRows(id, cur, c, L, bi).map(([k, v]) => [k, esc(v)]);
+    if (bi.map) rows.push([t.map, `<a href="${esc(bi.map)}" style="color:#111;font-weight:700">Google Maps →</a>`]);
+    rows.push([t.note, esc(msg)]);
+    const cu = await talkUrl(env, id, cur, L);
+    const plain = confRows(id, cur, c, L, bi).map(([k, v]) => `${k}: ${v}`).join('\n');
+    await sendMail(env, cur.email, `DAY:MEAN — ${t.conf} #${bkNo(id)}`, mailHtml(L, t.conf, [t.hi(cur.name), t.confB], rows, policyBox(L) + chatBtn(L, cu)), `${t.hi(cur.name)}\n${t.confB}\n\n${plain}${bi.map ? '\n' + bi.map : ''}\n\n${msg}\n\n${POLICY_T[L] || POLICY_T.en}${cu ? '\n\n' + cu : ''}`);
+    const up = { up: Date.now(), conf: c, status: 'confirmed', mailed: { k: 'confirm', at: Date.now(), by: who } };
+    await dbPatch(env, `${BASE}/${id}`, up);
+    if (cur.web && webCard) {
+      const card = { no: bkNo(id), g: { title: l.card, rows: confRows(id, cur, c, L, bi), map: bi.map || '', msg, policy: POLICY_T[L] || POLICY_T.en, mail: cur.email }, ko: { title: LBL.ko.card, rows: confRows(id, cur, c, 'ko', bi), map: bi.map || '', msg: c.msg || CONF_MSG_T.ko, mail: cur.email } };
+      await webCard(env, cur.web, card, who).catch((e) => console.log('web card', e && e.message));
+    }
+    return up;
+  }
+  /* 상담방에서 확정 — 예약 요청으로 시작한 방이면 그 요청을, 일반 문의 방이면 예약을 새로 만들어(해외 예약 목록에도 보이게) 확정 */
+  async function chatConfirm(env, o) {
+    let id = o.room && ID_RE.test(String(o.room.wb || '')) ? String(o.room.wb) : '';
+    let cur = id ? await dbGet(env, `${BASE}/${id}`).catch(() => null) : null;
+    if (!cur) {
+      id = id36();
+      cur = { name: clip(o.priv.name, 60), email: clip(o.priv.email, 120).toLowerCase(), lang: LANGS.includes(o.priv.lang) ? o.priv.lang : 'en', branch: BRANCHES[o.conf && o.conf.branch] ? o.conf.branch : 'any', prefs: [], service: clip(o.conf && o.conf.svc, 400), ...(o.conf && o.conf.svcL ? { svcL: clip(o.conf.svcL, 400) } : {}), status: 'contacted', src: 'chat', web: o.v, at: Date.now(), up: Date.now() };
+      await dbPut(env, `${BASE}/${id}`, cur);
+    } else if (!cur.web) { cur.web = o.v; await dbPatch(env, `${BASE}/${id}`, { web: o.v }); }
+    const c = confOf(o.conf, cur, o.who);
+    await confirmBooking(env, id, cur, c, o.who);
+    return { id };
   }
 
   const pubItem = async (env, id, v) => ({ id, k: await bkSig(env, id), status: v.status || 'new', branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, createdAt: v.at || 0, ...(v.web && webSig ? { webW: v.web, webK: await webSig(env, v.web) } : {}) });
@@ -369,9 +436,10 @@ export function makeBooking(deps) {
       if (b.status != null) { if (!STATUSES.includes(b.status)) throw new Error('상태가 올바르지 않습니다'); up.status = b.status; }
       if (b.memo != null) up.memo = clip(b.memo, 1000);
       if (b.conf) {
-        const c = b.conf;
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(c.d || '')) || !/^\d{2}:\d{2}$/.test(String(c.t || ''))) throw new Error('확정 날짜 · 시간을 넣어 주세요');
-        up.conf = { d: c.d, t: c.t, branch: BRANCHES[c.branch] && c.branch !== 'any' ? c.branch : (cur.branch !== 'any' ? cur.branch : 'flagship'), designer: clip(c.designer, 40), msg: clip(c.msg, 500), by: who };
+        up.conf = confOf(b.conf, cur, who);
+        // 시술: 손님이 고른 그대로면 손님 언어 글(svcL)을 쓰고, 직원이 바꿨으면 손님 언어로 번역
+        if (up.conf.svc && up.conf.svc === cur.service) delete up.conf.svc;
+        else if (up.conf.svc && (cur.lang || 'en') !== 'ko' && webTr) { const tl = await webTr(env, up.conf.svc, cur.lang || 'en').catch(() => ''); if (tl) up.conf.svcL = clip(tl, 300); }
       }
       const L = cur.lang || 'en', t = T[L] || T.en;
       if (b.mail === 'reply') {
@@ -385,7 +453,7 @@ export function makeBooking(deps) {
         rows.push([t.when, (cur.prefs || []).map((p) => esc(prefTxt(p, L))).join('<br>')]);
         if (cur.svcL || cur.service) rows.push([t.what, esc(cur.svcL || cur.service)]);
         if (cur.note) rows.push([t.note2 || 'Note', esc(cur.note)]);
-        const cu = await chatUrl(env, id, L);
+        const cu = await talkUrl(env, id, cur, L);
         const box = `<div style="margin:4px 0 18px;border-left:3px solid #111;background:#f5f5f5;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14.5px;white-space:pre-line">${esc(msg)}</div>`;
         const btn = cu ? `<p style="margin:18px 0 8px;font-size:14px">${esc(R2.line)}</p><a href="${esc(cu)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${esc(R2.btn)}</a>` : '';
         const html = mailHtml(L, R2.t, [t.hi(cur.name), R2.b], rows, btn, box + `<p style="font-size:12.5px;color:#888;margin:18px 0 0">${esc(t.yours)}</p>`);
@@ -396,19 +464,11 @@ export function makeBooking(deps) {
       } else if (b.mail === 'confirm') {
         const c = up.conf || cur.conf;
         if (!c) throw new Error('확정 날짜 · 시간을 먼저 정해 주세요');
-        if (cur.status === 'new') throw new Error('먼저 \'채널톡 상담 열기\'나 \'답변 메일\'로 상담을 시작해 주세요 — 확정 메일은 상담에서 정한 뒤에 보내요');
-        const map = await mapOf(env, c.branch);
-        const rows = [[t.when, esc(`${c.d} ${c.t}`)], [t.where, esc('DAY:MEAN ' + (BRANCHES[c.branch][L] || BRANCHES[c.branch].en))]];
-        if (c.designer) rows.push([t.who, esc(c.designer)]);
-        if (cur.svcL || cur.service) rows.push([t.what, esc(cur.svcL || cur.service)]);
-        if (map) rows.push([t.map, `<a href="${esc(map)}" style="color:#111;font-weight:700">Google Maps →</a>`]);
-        rows.push([t.note, esc(c.msg || CONF_MSG_T[L] || CONF_MSG_T.en)]);
-        const cu = await chatUrl(env, id, L);
-        await sendMail(env, cur.email, `DAY:MEAN — ${t.conf}`, mailHtml(L, t.conf, [t.hi(cur.name), t.confB], rows, policyBox(L) + chatBtn(L, cu)), `${t.hi(cur.name)}\n${t.confB}\n${c.d} ${c.t}${map ? '\n' + map : ''}\n\n${POLICY_T[L] || POLICY_T.en}${cu ? '\n\n' + cu : ''}`);
-        up.status = 'confirmed'; up.mailed = { k: 'confirm', at: Date.now(), by: who };
+        if (cur.status === 'new') throw new Error('먼저 \'상담방 열기\'로 상담을 시작해 주세요 — 확정서는 상담에서 정한 뒤에 보내요');
+        Object.assign(up, await confirmBooking(env, id, cur, c, who));
       } else if (b.mail === 'decline') {
         const msg = clip(b.msg, 500);
-        const cu = await chatUrl(env, id, L);
+        const cu = await talkUrl(env, id, cur, L);
         await sendMail(env, cur.email, `DAY:MEAN — ${t.dec}`, mailHtml(L, t.dec, [t.hi(cur.name), t.decB].concat(msg ? [msg] : []), [], chatBtn(L, cu)), `${t.hi(cur.name)}\n${t.decB}${msg ? '\n' + msg : ''}`);
         up.status = 'declined'; up.mailed = { k: 'decline', at: Date.now(), by: who };
       }
@@ -419,5 +479,5 @@ export function makeBooking(deps) {
     }
   }
 
-  return { site, route };
+  return { site, route, confirm: chatConfirm, get: (env, id) => (ID_RE.test(String(id || '')) ? dbGet(env, `${BASE}/${id}`) : Promise.resolve(null)) };
 }

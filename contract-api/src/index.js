@@ -747,7 +747,7 @@ function cleanSignup(p, phone) {
 }
 
 /* ═══ 라우팅 ═══ */
-const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, sendMail: resendMail, signedUrl: mediaUrl, gcsCopy: (env, s, d) => gcsCopy(env, gToken, s, d), relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
+const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, sendMail: resendMail, signedUrl: mediaUrl, gcsCopy: (env, s, d) => gcsCopy(env, gToken, s, d), relayCall: (env, p, b, w) => relayCall(env, p, b, w), bkGet: (env, id) => bookingRoute.get(env, id), bkChatConfirm: (env, o) => bookingRoute.confirm(env, o) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, dbCas, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
@@ -757,7 +757,7 @@ const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const metaAdsRoute = makeMetaAds({ dbGet });
 const heroVidRoute = makeHeroVid();
-const bookingRoute = makeBooking({ webOpen: (env, ctx, o) => chatRoute.web.open(env, ctx, o), webSig: (env, v) => chatRoute.web.sig(env, v), dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones, pwHash, pwVerify, sha256hex });
+const bookingRoute = makeBooking({ webOpen: (env, ctx, o) => chatRoute.web.open(env, ctx, o), webSig: (env, v) => chatRoute.web.sig(env, v), webCard: (env, v, card, who) => chatRoute.web.card(env, v, card, who), webTr: (env, t, to) => chatRoute.web.tr(env, t, to), dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones, pwHash, pwVerify, sha256hex });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 /* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
