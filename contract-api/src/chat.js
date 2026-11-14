@@ -220,7 +220,7 @@ export function makeChat(deps) {
       for (const [key, label, is, also] of ALL_ROOMS) {
         if (ar['all_' + key] === false) continue;
         const w = { t: 'all', n: label + ' 단체방', m: {}, mute: {} };   // 'OO 전체'→'OO 단체방'(11/14 사용자)
-        for (const [ph, u] of Object.entries(el)) if (is(u)) w.m[ph] = 1;
+        for (const [ph, u] of Object.entries(el)) if (is(u) && !isEtohU(u)) w.m[ph] = 1;   // 디자이너 · 인턴 · 관리자 · 스탭장 단체방은 DAY:MEAN 만 — ETOH 는 다른 사업장(11/14 사용자). ETOH 사람은 'ETOH 전 직원' 방
         if (!Object.keys(w.m).length) continue;
         if (also) for (const [ph, u] of Object.entries(el)) if (!w.m[ph] && also(u)) { w.m[ph] = 1; w.mute[ph] = 1; }
         for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
