@@ -123,6 +123,10 @@ export default {
     }
 
     // 전판 제품 맞춤 추천 (진단 답 + 제품목록 → Claude가 추천+이유)
+    // 홈페이지 손님 상담 번역 (11/14 사용자 '우리 앱으로 상담 · 양쪽 자동 번역') — dm-contract-api 가 서비스 바인딩으로 부른다
+    if (pathname === '/ai/translate' || pathname.endsWith('/ai/translate')) {
+      return cors(await withAi(body, await handleAITranslate(body, env)));
+    }
     // 채팅 '안 읽은 것 요약' — dm-contract-api 가 서비스 바인딩으로 부른다
     if (pathname === '/ai/chat-summary' || pathname.endsWith('/ai/chat-summary')) {
       return cors(await withAi(body, await handleAIChatSummary(body, env)));
@@ -766,6 +770,34 @@ async function handleAIChatSummary(body, env) {
     return json({ ok: true,
       lines: rows.filter((l) => l.startsWith('- ')).map((l) => l.slice(2)).slice(0, 6),
       asks: rows.filter((l) => l.startsWith('! ')).map((l) => l.slice(2)).slice(0, 3) });
+  } catch (e) {
+    return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
+  }
+}
+
+/* 손님 상담 번역 — text 를 to(ko · en · zh · ja)로. 헤어살롱 상담 말투 그대로, 설명 없이 번역만.
+   Haiku 5.5(가장 싼 모델, 짧은 문장 번역엔 충분). 같은 언어면 그대로 돌려준다(앱이 안 부르지만 혹시 몰라) */
+async function handleAITranslate(body, env) {
+  const LN = { ko: 'Korean', en: 'English', zh: 'Simplified Chinese', ja: 'Japanese' };
+  const to = LN[body.to] ? body.to : 'ko';
+  const text = String(body.text || '').slice(0, 3000);
+  if (!text.trim()) return json({ ok: true, text: '' });
+  const sys = 'You translate chat messages between a hair salon in Seoul (DAY:MEAN) and its customers. ' +
+    'Translate the user message into ' + LN[to] + '. Keep the tone natural and polite, keep names, numbers, dates, times, prices, emoji and line breaks. ' +
+    'Hair terms: use the usual salon words in the target language. If the message is already in ' + LN[to] + ', return it unchanged. ' +
+    'Output only the translation — no notes, no quotes.';
+  try {
+    const AIG = 'https://gateway.ai.cloudflare.com/v1/7a9ee76cb16dea27b9f46967c58e219d/dm-ai/anthropic/v1/messages';
+    const r = await fetch(AIG, {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-webchat-tr/1.0' },
+      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: text }] }),
+    });
+    if (!r.ok) return json({ ok: false, error: 'AI 호출 실패 (' + r.status + ')' }, 502);
+    const data = await r.json(); aiMeter(body, data);
+    let out = '';
+    if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') out += b.text; });
+    return json({ ok: true, text: out.trim() });
   } catch (e) {
     return json({ ok: false, error: 'AI 오류: ' + (e && e.message || e) }, 500);
   }

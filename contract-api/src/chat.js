@@ -113,6 +113,7 @@ async function unfurl(u) {
 
 export function makeChat(deps) {
   const { dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, signedUrl } = deps;
+  const sendMail = deps.sendMail || (async () => {});
 
   /* 번호 매기기 — 같은 방에 동시에 두 명이 보내도 번호가 겹치지 않게 조건부 쓰기(ETag)로 올린다 */
   /* 방 번호 읽기(ETag 포함) — 보내기에서는 계정 · 방 확인과 동시에 미리 읽어 DB 왕복 하나를 줄인다 */
@@ -485,6 +486,10 @@ export function makeChat(deps) {
     }
     })().catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(pushJob); else await pushJob;
+    if (room.t === 'web' && !root && (x || md)) {
+      const wj = webStaffAfter(env, rid, room, key, x, !!md).catch((e) => console.log('web after', e && e.message));
+      if (ctx && ctx.waitUntil) ctx.waitUntil(wj); else await wj;
+    }
     /* 링크 미리보기 — 글에 주소가 있으면 그 페이지의 제목 · 설명 · 대표 사진을 뒤에서 받아 메시지에 붙인다 */
     const link = !md && k === 't' && x ? (x.match(URL_RE) || [])[0] : null;
     if (link) {
@@ -757,6 +762,137 @@ export function makeChat(deps) {
     })().catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
     return { key };
+  }
+
+  /* ═══ 홈페이지 손님 상담 (11/14 사용자 '채널톡 대신 우리 앱으로 · 홈페이지 아이콘도 우리 것') ═══
+     손님(가입 없음)은 사이트가 받은 번호 v + 서명 k 로만 자기 방을 본다. 방은 일반 채팅방(종류 'web')이라 직원 앱 목록 · 알림 · 사진이 그대로 된다.
+     받는 사람: 경영팀(사용자 결정). 번역: 손님 말 → 한국어(xk), 직원 말 → 손님 언어(xt) — 릴레이 /ai/translate (Haiku 5.5).
+     손님 개인정보(이메일)는 방이 아니라 잠긴 /authSecrets/__web/{v} 에 { name, email, lang, b 예약번호, at, seen 마지막 접속, mail 마지막 알림 메일 }.
+     메시지: 손님 by 'g' · 예약 안내 by 'bot' (bn 'DAY:MEAN') · 직원은 평소처럼 폰 번호. */
+  const WEB_LANGS = ['en', 'zh', 'ja', 'ko'];
+  const WEB_PRIV = '/authSecrets/__web';
+  const webIdOk = (v) => /^w[a-z0-9]{12,24}$/.test(String(v || ''));
+  async function webSig(env, v) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.SESSION_SECRET || env.SITE_KEY || 'x')), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('wc:' + v));
+    return Array.from(new Uint8Array(sig).slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function webCheck(env, v, k) {
+    if (!webIdOk(v) || !/^[0-9a-f]{24}$/.test(String(k || ''))) return false;
+    const want = await webSig(env, v); let d = 0; for (let i = 0; i < 24; i++) d |= want.charCodeAt(i) ^ String(k).charCodeAt(i); return d === 0;
+  }
+  async function webTr(env, text, to) {
+    if (!text || !WEB_LANGS.includes(to)) return '';
+    const r = await deps.relayCall(env, '/ai/translate', { text, to }, { x: '홈페이지 상담 번역' }).catch(() => null);
+    return r && r.body && r.body.ok ? String(r.body.text || '').slice(0, 5000) : '';
+  }
+  async function webMembers(env) {
+    const { el } = await eligible(env, true);
+    const out = {}; for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) out[ph] = 1;
+    return out;
+  }
+  /* 새 상담방 — 예약(booking.js) 또는 아이콘 '대화 시작'. first: 처음 넣을 안내 { x 손님 언어, xk 한국어 } */
+  async function webOpen(env, ctx, o) {
+    const lang = WEB_LANGS.includes(o.lang) ? o.lang : 'en';
+    const name = clip(String(o.name || '').trim(), 40) || 'Guest';
+    const email = clip(String(o.email || '').trim().toLowerCase(), 120);
+    const v = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    const rid = 'web_' + v, at = nowMs();
+    const m = await webMembers(env);
+    if (!Object.keys(m).length) throw new Error('받을 사람이 없습니다');
+    const n = name + (o.b ? ' · 해외 예약' : ' · 홈페이지');
+    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, ...(o.b ? { wb: String(o.b) } : {}) };
+    const up = { [`chat/rooms/${rid}`]: room, [`${WEB_PRIV.slice(1)}/${v}`]: { name, email, lang, at, ...(o.b ? { b: String(o.b) } : {}) } };
+    for (const ph of Object.keys(m)) Object.assign(up, inboxSeed(rid, room, n, ph));
+    await dbPatch(env, '/', up);
+    if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', o.push !== false);
+    return { v, k: await webSig(env, v), rid };
+  }
+  /* 안내 메시지(by 'bot') — 손님에게는 x, 직원 앱에는 xk(한국어)가 보인다 */
+  async function webBot(env, ctx, rid, x, xk, push) {
+    const room = await getRoom(env, rid);
+    const seq = await nextSeq(env, rid), at = nowMs(), key = pad(seq), bn = 'DAY:MEAN';
+    const preview = clip((xk || x).split('\n')[0], 80);
+    const up = { [`chat/msgs/${rid}/${key}`]: { s: seq, by: 'bot', bn, at, k: 't', x: clip(x, 5000), ...(xk ? { xk: clip(xk, 5000) } : {}) }, [`chat/rooms/${rid}/last`]: { x: preview, by: 'bot', bn, at, k: 't' } };
+    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = bn; }
+    await dbPatch(env, '/', up);
+    await fixLatest(env, rid, room, seq).catch(() => {});
+    if (push) {
+      const job = pushToPhones(env, Object.keys(room.m || {}), { title: room.n, body: clip((xk || x).replace(/\n+/g, ' · '), 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {});
+      if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
+    }
+    return key;
+  }
+  /* 손님이 보낸 글 — 한국어로 번역해 같이 저장(직원 앱 목록 · 알림도 한국어) */
+  async function webGuestSend(env, ctx, v, text, md) {
+    const rid = 'web_' + v;
+    const [room, priv] = await Promise.all([getRoom(env, rid), dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)]);
+    if (!priv) throw new Error('gone');
+    const x = clip(String(text || ''), 3000).trim();
+    if (!x && !md) throw new Error('empty');
+    const lang = priv.lang || room.wl || 'en';
+    const xk = x && lang !== 'ko' ? await webTr(env, x, 'ko') : '';
+    const seq = await nextSeq(env, rid), at = nowMs(), key = pad(seq), bn = priv.name || 'Guest';
+    const msg = { s: seq, by: 'g', bn, at, k: md ? 'p' : 't', ...(x ? { x } : {}), ...(xk && xk !== x ? { xk } : {}), ...(md ? { md } : {}) };
+    const preview = clip(xk || x || '사진', 80);
+    const up = { [`chat/msgs/${rid}/${key}`]: msg, [`chat/rooms/${rid}/last`]: { x: preview, by: 'g', bn, at, k: msg.k }, [`${WEB_PRIV.slice(1)}/${v}/seen`]: at };
+    if (md) up[`chat/media/${rid}/${key}`] = { at, by: 'g', bn, md };
+    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = bn; }
+    await dbPatch(env, '/', up);
+    await fixLatest(env, rid, room, seq).catch(() => {});
+    const muted = room.mute || {};
+    const targets = Object.keys(room.m || {}).filter((p) => !muted[p]);
+    const job = targets.length ? pushToPhones(env, targets, { title: room.n, body: clip(preview, 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {}) : null;
+    if (job) { if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job; }
+    return { s: seq, at };
+  }
+  /* 손님 화면이 새 글을 가져간다 — after 다음 번호부터. 직원 글은 번역(xt)이 붙은 뒤에 내보낸다(15초 넘게 안 붙으면 원문) */
+  async function webPoll(env, v, after) {
+    const rid = 'web_' + v;
+    const [room, priv] = await Promise.all([dbGet(env, '/chat/rooms/' + rid).catch(() => null), dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)]);
+    if (!room || !priv) return { gone: true };
+    const lang = priv.lang || room.wl || 'en';
+    const a = Math.max(0, Number(after) || 0);
+    const raw = (await dbQuery(env, `/chat/msgs/${rid}`, `orderBy=%22$key%22&startAt=%22${pad(a + 1)}%22&limitToFirst=60`).catch(() => null)) || {};
+    const out = [];
+    for (const key of Object.keys(raw).sort()) {
+      const m = raw[key]; if (!m || m.k === 'sys' || m.del || m.hid) continue;
+      const guest = m.by === 'g';
+      let x = m.x || '';
+      if (!guest && m.by !== 'bot') {
+        if (lang !== 'ko' && x) { if (m.xt) x = m.xt; else if (nowMs() - (m.at || 0) < 15000) break; }
+      }
+      const media = Array.isArray(m.md) ? m.md.filter((d) => d && (d.u || d.t)).map((d) => ({ w: d.w || 0, h: d.h || 0 })) : [];
+      out.push({ s: m.s, me: guest, x, at: m.at, ...(media.length ? { photo: media.length } : {}) });
+    }
+    if (!priv.seen || nowMs() - priv.seen > 30000) await dbPut(env, `${WEB_PRIV}/${v}/seen`, nowMs()).catch(() => {});
+    return { lang, name: priv.name || '', items: out };
+  }
+  /* 직원이 손님방에 쓴 뒤 — 손님 언어로 번역(xt), 손님이 1분 넘게 안 보고 있으면 알림 메일(10분에 한 번) */
+  async function webStaffAfter(env, rid, room, key, x, hasMd) {
+    const v = rid.slice(4);
+    const priv = await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null);
+    if (!priv) return;
+    const lang = priv.lang || room.wl || 'en';
+    let shown = x || '';
+    if (x && lang !== 'ko') { const xt = await webTr(env, x, lang); if (xt) { shown = xt; await dbPut(env, `/chat/msgs/${rid}/${key}/xt`, xt).catch(() => {}); } }
+    const now = nowMs();
+    if (!priv.email || (priv.seen && now - priv.seen < 60000) || (priv.mail && now - priv.mail < 10 * 60000)) return;
+    await dbPut(env, `${WEB_PRIV}/${v}/mail`, now).catch(() => {});
+    const k = await webSig(env, v);
+    const base = String(env.SITE_URL || '').replace(/\/+$/, '');
+    const link = base ? `${base}${lang === 'ko' ? '' : '/' + lang}/?chat=1&w=${v}&k=${k}` : '';
+    const T = {
+      en: { sub: 'DAY:MEAN replied to your message', hi: `Hi ${priv.name || ''},`, b: 'You have a new message from DAY:MEAN:', btn: 'Reply in chat', foot: 'You can also reply directly to this email.' },
+      zh: { sub: 'DAY:MEAN 回复了您的消息', hi: `${priv.name || ''} 您好，`, b: '您收到了 DAY:MEAN 的新消息：', btn: '在线回复', foot: '您也可以直接回复此邮件。' },
+      ja: { sub: 'DAY:MEAN からメッセージが届きました', hi: `${priv.name || ''} 様`, b: 'DAY:MEAN から新しいメッセージが届きました：', btn: 'チャットで返信する', foot: 'このメールに直接ご返信いただくこともできます。' },
+      ko: { sub: 'DAY:MEAN 에서 답장이 왔어요', hi: `${priv.name || ''} 님, 안녕하세요.`, b: 'DAY:MEAN 에서 새 메시지가 왔어요:', btn: '채팅으로 답하기', foot: '이 메일에 바로 답장하셔도 돼요.' },
+    }[lang] || null;
+    if (!T) return;
+    const e = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const body = shown || (hasMd ? '📷' : '');
+    const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','PingFang SC','Hiragino Sans',sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.6"><div style="font-weight:800;font-size:18px;margin:8px 0 18px">DAY:MEAN</div><p style="margin:0 0 10px">${e(T.hi)}</p><p style="margin:0 0 10px">${e(T.b)}</p><div style="margin:4px 0 18px;border-left:3px solid #111;background:#f5f5f5;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14.5px;white-space:pre-line">${e(body)}</div>${link ? `<a href="${e(link)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${e(T.btn)}</a>` : ''}<p style="font-size:12.5px;color:#888;margin-top:22px">${e(T.foot)}</p></div>`;
+    await sendMail(env, priv.email, `DAY:MEAN — ${T.sub}`, html, `${T.hi}\n${T.b}\n\n${body}${link ? '\n\n' + link : ''}`);
   }
 
   async function sysMsg(env, rid, text) {
@@ -1229,5 +1365,6 @@ export function makeChat(deps) {
   route.runScheduled = runScheduled;
   route.eligible = eligible;
   route.botPost = botPost;
+  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk };
   return route;
 }

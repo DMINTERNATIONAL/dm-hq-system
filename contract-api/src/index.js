@@ -747,7 +747,7 @@ function cleanSignup(p, phone) {
 }
 
 /* ═══ 라우팅 ═══ */
-const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, signedUrl: mediaUrl, gcsCopy: (env, s, d) => gcsCopy(env, gToken, s, d), relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
+const chatRoute = makeChat({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, roomTag, sendMail: resendMail, signedUrl: mediaUrl, gcsCopy: (env, s, d) => gcsCopy(env, gToken, s, d), relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const boardRoute = makeBoard({ dbGet, dbPut, dbPatch, dbDelete, pushToPhones, accessToken, eligible: (env) => chatRoute.eligible(env) });
 const calRoute = makeCalendar({ dbGet, dbPut, dbDelete, dbCas, pushToPhones });
 const gcalRoute = makeGcal({ dbGet, dbPut, dbPatch, dbDelete, dbCas });
@@ -757,7 +757,7 @@ const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const metaAdsRoute = makeMetaAds({ dbGet });
 const heroVidRoute = makeHeroVid();
-const bookingRoute = makeBooking({ dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones, pwHash, pwVerify, sha256hex });
+const bookingRoute = makeBooking({ webOpen: (env, ctx, o) => chatRoute.web.open(env, ctx, o), webSig: (env, v) => chatRoute.web.sig(env, v), dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones, pwHash, pwVerify, sha256hex });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 /* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
@@ -1125,6 +1125,41 @@ export default {
       /* 채용 지원서 — 공식 사이트 서버만(X-Site-Key). 사진 올리기 · 임시 저장 · 제출 · 불러오기 (recruit.js)
          예전 한 번에 내기(/public/apply)는 사이트가 안 쓰므로 없앴다 — 사이트는 /public/apply/save 만 부른다 */
       /* 해외 손님 예약 요청 — 공식 사이트 서버만(X-Site-Key) (booking.js) */
+      /* 홈페이지 손님 상담(우리 앱) — 사이트 서버만(X-Site-Key). start 새 대화 · send 손님 글 · poll 새 글 가져가기 (chat.js route.web) */
+      if (/^\/public\/webchat\/(start|send|poll)$/.test(path) && request.method === 'POST') {
+        if (!env.SITE_KEY || !sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY)) return json({ ok: false, error: 'site' }, 403, origin);
+        const W = chatRoute.web, b = await request.json().catch(() => ({}));
+        const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
+        const lim = async (tag, max) => !cip || rlHit(env, tag + (await ipKey(cip)), max, 60 * 60 * 1000);
+        try {
+          if (path === '/public/webchat/start') {
+            if (b.hp) return json({ ok: true }, 200, origin);
+            if (!(await lim('wcs_', 6))) return json({ ok: false, error: 'rate' }, 429, origin);
+            const name = String(b.name || '').trim().slice(0, 40), email = String(b.email || '').trim().toLowerCase().slice(0, 120);
+            if (!name) return json({ ok: false, error: 'name' }, 400, origin);
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ ok: false, error: 'email' }, 400, origin);
+            if (b.consent !== true) return json({ ok: false, error: 'consent' }, 400, origin);
+            const lang = ['en', 'zh', 'ja', 'ko'].includes(b.lang) ? b.lang : 'en';
+            const HI = { en: `Hello ${name}! Thank you for contacting DAY:MEAN. Please leave your question here — our team will reply in this chat, and also by email if you are away.`, zh: `${name} 您好！感谢您联系 DAY:MEAN。请在这里留下您的问题，我们会在这里回复，如果您不在线，也会通过邮件通知您。`, ja: `${name} 様、DAY:MEAN へのお問い合わせありがとうございます。こちらにご質問をお書きください。担当者がこのチャットでご返信し、ご不在の場合はメールでもお知らせします。`, ko: `${name} 님, DAY:MEAN 에 문의해 주셔서 감사합니다! 여기에 궁금한 점을 남겨 주세요. 담당자가 이 채팅으로 답변드리고, 자리에 안 계시면 메일로도 알려 드려요.` };
+            const r = await W.open(env, ctx, { name, email, lang, first: { x: HI[lang], xk: `[홈페이지 문의 시작] ${name} · ${email} · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[lang]}` }, push: !String(b.x || '').trim() });
+            if (String(b.x || '').trim()) await W.guestSend(env, ctx, r.v, b.x);
+            return json({ ok: true, w: r.v, k: r.k }, 200, origin);
+          }
+          const v = String(b.w || '');
+          if (!(await W.check(env, v, b.k))) return json({ ok: false, error: 'link' }, 404, origin);
+          if (path === '/public/webchat/send') {
+            if (!(await rlHit(env, 'wcm_' + v, 60, 60 * 60 * 1000))) return json({ ok: false, error: 'rate' }, 429, origin);
+            const r = await W.guestSend(env, ctx, v, b.x);
+            return json({ ok: true, ...r }, 200, origin);
+          }
+          const r = await W.poll(env, v, b.after);
+          if (r.gone) return json({ ok: false, error: 'gone' }, 404, origin);
+          return json({ ok: true, ...r }, 200, origin);
+        } catch (e) {
+          const m = String(e && e.message || e);
+          return json({ ok: false, error: m === 'gone' || m === '없는 방입니다' ? 'gone' : m === 'empty' ? 'empty' : 'server' }, m === 'gone' || m === '없는 방입니다' ? 404 : 400, origin);
+        }
+      }
       if (path === '/public/booking' || /^\/public\/booking\/(peek|lookup|remind|mine)$/.test(path)) { const r = await bookingRoute.site(path, request, env, ctx); if (r) return json(r[1], r[0], origin); }
       if (path.startsWith('/public/apply/') && request.method === 'POST') {
         const r = await recruitRoute.site(path, request, env, ctx);

@@ -1952,6 +1952,7 @@ html.desk-solo #CM-RBACK{visibility:hidden}
 .cm-opt span,.cm-opt b{position:relative;z-index:1}
 .cm-opt.on{border-color:var(--cm-blue);color:var(--cm-blue);font-weight:700}
 .cm-fw{font-size:11.5px;opacity:.75;margin-bottom:3px}
+.cm-tr{font-size:11.5px;opacity:.6;margin-top:5px;padding-top:5px;border-top:1px solid currentColor;border-top-color:rgba(127,127,127,.25);white-space:pre-wrap}
 .cm-findbar{background:#fff;border-bottom:1px solid var(--cm-line);padding:8px 10px}
 .cm-findbar input{width:100%;border:1px solid var(--cm-line);border-radius:10px;padding:8px 11px;font-size:14px;font-family:inherit}
 .cm-hit{background:#fff;border:1px solid var(--cm-line);border-radius:12px;padding:9px 11px;font-size:13.5px;cursor:pointer;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
@@ -11781,7 +11782,9 @@ function cmBody(m,isMe){
   if(m.nt&&!m.del&&!m.hid)return '<div class="cm-b card">'+cmNoticeCard(m)+cmRpnHtml(m)+'</div>';
   if(m.k==='ack'&&!CM.thRoot)return '<div class="cm-b card">'+cmAckHtml(m,m._k||'')+cmRpnHtml(m)+'</div>';
   if(m.k==='poll'&&!CM.thRoot)return '<div class="cm-b card">'+cmPollHtml(m,m._k||'')+'</div>';
-  var x=cmEsc(m.x||'');
+  /* 홈페이지 손님 상담(11/14): 손님 · 안내 글은 한국어 번역(xk)을 크게, 원문은 작게 · 우리 글은 손님에게 간 번역(xt)을 작게 */
+  var trn='';if(m.xk){trn='<div class="cm-tr">원문 · '+cmEsc(m.x||'')+'</div>'}else if(m.xt&&CM.room&&CM.room.t==='web'){trn='<div class="cm-tr">손님에게 · '+cmEsc(m.xt)+'</div>'}
+  var x=cmEsc(m.xk||m.x||'');
   if(m.mn)x=x.replace(/@([^\s@<]+)/g,'<span class="mn">@$1</span>');
   if(m.tg)x=x.replace(/#([가-힣A-Za-z0-9]+)/g,function(a,t){return m.tg.indexOf(t)>=0?'<span class="mn">#'+t+'</span>':a});
   x=x.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">$1</a>');
@@ -11791,7 +11794,7 @@ function cmBody(m,isMe){
   th+=cmRpnHtml(m);
   var fw=m.fw?'<div class="cm-fw">전달됨 · '+cmEsc(m.fw)+'</div>':'';
   var lp='';if(m.lp&&m.lp.u&&/^https?:\/\//.test(m.lp.u)){var L=m.lp;lp='<a class="cm-lp" href="'+cmEsc(L.u)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">'+(L.i&&/^https:\/\//.test(L.i)?'<img src="'+cmEsc(L.i)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+'<span><b>'+cmEsc(L.t||'')+'</b>'+(L.d?'<em>'+cmEsc(L.d)+'</em>':'')+'<small>'+cmEsc(L.h||'')+'</small></span></a>'}
-  return '<div class="cm-b'+(md&&!x?' media':'')+'">'+fw+rp+md+x+(m.ed?' <span style="font-size:11px;opacity:.7">(수정됨)</span>':'')+lp+th+'</div>'}
+  return '<div class="cm-b'+(md&&!x?' media':'')+'">'+fw+rp+md+x+(m.ed?' <span style="font-size:11px;opacity:.7">(수정됨)</span>':'')+trn+lp+th+'</div>'}
 function cmRx(m,key,root){if(!m.rx)return '';var h='';['확인','좋아요','감사'].forEach(function(r){var who=m.rx[r];if(!who)return;var n=Object.keys(who).length;if(!n)return;h+='<span class="'+(who[ME.phone]?'mine':'')+'" onclick="cmReact(\''+key+'\',\''+r+'\','+(root?'\''+root+'\'':'null')+')">'+r+' '+n+'</span>'});return h?'<div class="cm-rx">'+h+'</div>':''}
 var CM_SEEN={};
 function cmMsgHtml(list,opts){
@@ -14268,7 +14271,7 @@ function bkPaint(){var root=$('BK-ROOT');if(!root)return;var E=cmEsc,it=BK.items
       +(x.replied?'<div class="bk-conf off">답변 메일 '+(x.replied.n||1)+'번 보냄 · 마지막 '+cmAgo(x.replied.at)+(x.replied.by?' ('+E(x.replied.by)+')':'')+'</div>':'')
       +'<div class="bk-chs">'+links.join('')+'<button class="bk-ch" onclick="bkCopyAll('+cmJsLit(x.id)+')">핸드SOS 용 복사</button></div>'
       +'<textarea class="bk-memo" placeholder="메모 (직원끼리만 보여요)" onchange="bkMemo('+cmJsLit(x.id)+',this.value)">'+E(x.memo||'')+'</textarea>'
-      +'<div class="bk-act">'+(x.cht&&(x.cht.c||x.cht.u)&&bkChUrl(x)?'<a class="gbtn pri sm" style="text-decoration:none;display:inline-flex;align-items:center" href="'+E(bkChUrl(x))+'" target="_blank" rel="noopener" data-own="1" onclick="bkChat('+cmJsLit(x.id)+',event)">채널톡 상담 열기</a>':'')+(x.status==='new'?'<button class="gbtn '+(x.cht&&(x.cht.c||x.cht.u)?'sec':'pri')+' sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 보내기</button>':(x.status!=='confirmed'?'<button class="gbtn sec sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 또 보내기</button>':'')+'<button class="gbtn pri sm" onclick="bkConfirm('+cmJsLit(x.id)+')">'+(x.status==='confirmed'?'확정 바꾸기':'상담에서 확정 + 메일')+'</button>')+(x.status!=='declined'?'<button class="gbtn sec sm" onclick="bkDecline('+cmJsLit(x.id)+')">거절 메일</button>':'')+'<button class="gbtn sec sm bk-del" onclick="bkDel('+cmJsLit(x.id)+')">지우기</button></div></div>'});
+      +'<div class="bk-act">'+(x.web&&/^w[a-z0-9]{12,24}$/.test(x.web)?'<button class="gbtn pri sm" onclick="bkWeb('+cmJsLit(x.id)+')">상담방 열기</button>':'')+(!x.web&&x.cht&&(x.cht.c||x.cht.u)&&bkChUrl(x)?'<a class="gbtn pri sm" style="text-decoration:none;display:inline-flex;align-items:center" href="'+E(bkChUrl(x))+'" target="_blank" rel="noopener" data-own="1" onclick="bkChat('+cmJsLit(x.id)+',event)">채널톡 상담 열기</a>':'')+(x.status==='new'?'<button class="gbtn '+(x.cht&&(x.cht.c||x.cht.u)?'sec':'pri')+' sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 보내기</button>':(x.status!=='confirmed'?'<button class="gbtn sec sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 또 보내기</button>':'')+'<button class="gbtn pri sm" onclick="bkConfirm('+cmJsLit(x.id)+')">'+(x.status==='confirmed'?'확정 바꾸기':'상담에서 확정 + 메일')+'</button>')+(x.status!=='declined'?'<button class="gbtn sec sm" onclick="bkDecline('+cmJsLit(x.id)+')">거절 메일</button>':'')+'<button class="gbtn sec sm bk-del" onclick="bkDel('+cmJsLit(x.id)+')">지우기</button></div></div>'});
   root.innerHTML=h+'<div class="ads-note" style="margin-top:12px">손님 메일은 손님이 고른 언어로 가요 · 기록은 마지막으로 바뀐 지 1년 지나면 지워져요</div></div>'}
 function bkFind(id){return (BK.items||[]).filter(function(x){return x.id===id})[0]}
 function bkPut(item){BK.items=(BK.items||[]).map(function(x){return x.id===item.id?item:x});bkPaint()}
@@ -14316,6 +14319,8 @@ function bkOpenDesk(url){var app='channel-talk-desktop://'+url.replace(/^https:\
   var left=false,onBlur=function(){left=true};window.addEventListener('blur',onBlur,{once:true});
   var f=document.createElement('iframe');f.style.display='none';f.src=app;document.body.appendChild(f);
   setTimeout(function(){window.removeEventListener('blur',onBlur);try{f.remove()}catch(_){}if(!left&&document.visibilityState==='visible')window.open(url,'_blank','noopener')},1500)}
+/* 우리 앱 상담방(11/14) — 예약이 들어올 때 경영팀 상담방이 열려 있다. 누르면 그 방으로, 새 요청이면 '상담 중'으로 */
+window.bkWeb=function(id){var x=bkFind(id);if(!x||!x.web)return;if(x.status==='new')bkSet(id,'contacted');cmGoHash('#comm/web_'+x.web)};
 window.bkChat=function(id,ev){var x=bkFind(id);if(!x||!x.cht)return;var ok=function(v){return /^[A-Za-z0-9_-]{1,64}$/.test(v||'')};var url=bkChUrl(x);if(!url)return;
   if(!bkIsPhone()){if(ev&&ev.preventDefault)ev.preventDefault();bkOpenDesk(url)}
   /* 11/14: 채널톡 캠페인 '해외 예약 요청 자동 상담창'이 요청 순간 손님 언어 예약 내용으로 상담방을 열어 둔다 → 손님 화면 '상담 목록' 맨 위 방에서 바로 답하면 됨 */

@@ -139,6 +139,24 @@ async function chSend(env, c, body) {
     return chCall(env, 'POST', path, body);
   }
 }
+/* 예약 요약 — 손님 언어(x)와 직원용 한국어(xk). 우리 앱 상담방 첫 안내(11/14)와 채널톡(유료 API) 첫 메시지가 같이 쓴다 */
+function bkSummary(id, r) {
+  const L = r.lang, t = T[L] || T.en, M = CHMSG_T[L] || CHMSG_T.en, br = BRANCHES[r.branch] || BRANCHES.any;
+  const lines = [M.hi(r.name), '', `[#${id}]`, `${t.where}: ${br[L] || br.en}`];
+  if (r.designer) lines.push(`${t.who}: ${r.designer}`);
+  lines.push(`${t.when}: ${r.prefs.map((p) => prefTxt(p, L)).join(' / ')}`, `${M.g}: ${(GENDER_T[L] || GENDER_T.en)[r.gender] || r.gender}`);
+  if (r.svcL || r.service) lines.push(`${t.what}: ${r.svcL || r.service}`);
+  lines.push(`${M.e}: ${r.email}`);
+  if (r.ch && r.ch.wechat) lines.push(`WeChat: ${r.ch.wechat}`);
+  if (r.ch && r.ch.ig) lines.push(`Instagram: @${String(r.ch.ig).replace(/^@/, '')}`);
+  const ko = [`[해외 예약 요청 #${id} · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[L] || L}]`, `지점: ${br.ko}`, `디자이너: ${r.designer || '미지정'}`, `희망: ${r.prefs.map((p) => prefTxt(p, 'ko')).join(' / ')}`, `성별: ${r.gender}`, `시술: ${r.service || '-'}`, `이메일: ${r.email}`];
+  if (r.phone) ko.push(`전화: ${r.phone}`);
+  if (r.ch && r.ch.wechat) ko.push(`WeChat: ${r.ch.wechat}`);
+  if (r.ch && r.ch.ig) ko.push(`Instagram: @${String(r.ch.ig).replace(/^@/, '')}`);
+  if (r.note) ko.push(`요청 사항: ${r.note.slice(0, 300)}`);
+  ko.push('확정은 \'해외 예약\'에서 (확정 메일이 나가요)');
+  return { x: lines.join('\n'), xk: ko.join('\n') };
+}
 /* 상담방 열기 — 성공하면 { u 손님 id, c 상담방 id, m memberId } */
 async function chOpen(env, id, r) {
   if (!env.CHANNEL_ACCESS_KEY || !env.CHANNEL_ACCESS_SECRET) return null;
@@ -169,7 +187,7 @@ async function chOpen(env, id, r) {
 }
 
 export function makeBooking(deps) {
-  const { dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
+  const { webOpen, webSig, dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
   const siteOk = (request, env) => !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
   const rate = async (request, env, tag, max) => {
     const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
@@ -223,7 +241,7 @@ export function makeBooking(deps) {
     return '';
   }
 
-  const pubItem = async (env, id, v) => ({ id, k: await bkSig(env, id), status: v.status || 'new', branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, createdAt: v.at || 0 });
+  const pubItem = async (env, id, v) => ({ id, k: await bkSig(env, id), status: v.status || 'new', branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, createdAt: v.at || 0, ...(v.web && webSig ? { webW: v.web, webK: await webSig(env, v.web) } : {}) });
   const byEmail = async (env, email) => Object.entries((await dbGet(env, BASE).catch(() => null)) || {})
     .filter(([id, v]) => v && ID_RE.test(id) && Date.now() - (v.up || v.at || 0) <= KEEP_MS && String(v.email || '').toLowerCase() === email)
     .sort((x, y) => (y[1].at || 0) - (x[1].at || 0)).slice(0, 20);
@@ -292,7 +310,7 @@ export function makeBooking(deps) {
       if (!ID_RE.test(id) || !/^[0-9a-f]{24}$/.test(k) || !sameStr(k, await bkSig(env, id))) return [404, { ok: false, error: 'link' }];
       const v = await dbGet(env, `${BASE}/${id}`).catch(() => null);
       if (!v || Date.now() - (v.up || v.at || 0) > KEEP_MS) return [404, { ok: false, error: 'gone' }];
-      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, chMember: (v.cht && v.cht.m) || '', chHash: await chHashOf(env, v.cht && v.cht.m), chChat: (v.cht && v.cht.c) || '' } }];
+      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, ...(v.web && webSig ? { webW: v.web, webK: await webSig(env, v.web) } : {}), chMember: (v.cht && v.cht.m) || '', chHash: await chHashOf(env, v.cht && v.cht.m), chChat: (v.cht && v.cht.c) || '' } }];
     }
     if (path !== '/public/booking' || request.method !== 'POST') return null;
     if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
@@ -315,12 +333,15 @@ export function makeBooking(deps) {
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
     let cht = null;
     try { cht = await chOpen(env, id, r); } catch (e) { console.log('booking channel', e && e.message); }
+    /* 우리 앱 상담방(11/14 사용자 '채널톡 대신 우리 앱으로') — 경영팀이 받는 홈페이지 상담방을 예약 요약과 함께 연다. 알림은 위 '[해외 예약] 새 요청'이 이미 간다 */
+    let web = null;
+    if (webOpen) { try { web = await webOpen(env, ctx, { name: r.name, email: r.email, lang: r.lang, b: id, first: bkSummary(id, r), push: false }); await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking web', e && e.message); } }
     /* 무료 방법(11/14 사용자 — Open API 는 유료라 '무료로'): 사이트가 손님 브라우저의 채널톡 고객 번호(boot 콜백 user.id)를 chUser 로 넘긴다.
        직원 앱 '채널톡 상담 열기' → 채널톡의 그 손님 화면 → '새 상담 열기'. API 키가 생기면 위 chOpen 이 상담방까지 연다 */
     const chUser = /^[A-Za-z0-9]{8,40}$/.test(String(b.chUser || '')) ? String(b.chUser) : '';
     if (!cht && chUser) cht = { u: chUser };
     if (cht) await dbPatch(env, `${BASE}/${id}`, { cht }).catch(() => {});
-    return [200, { ok: true, id, k: await bkSig(env, id), chMember: (cht && cht.m) || '', chHash: cht && cht.m ? await chHashOf(env, cht.m) : '', chChat: (cht && cht.c) || '' }];
+    return [200, { ok: true, id, k: await bkSig(env, id), ...(web ? { webW: web.v, webK: web.k } : {}), chMember: (cht && cht.m) || '', chHash: cht && cht.m ? await chHashOf(env, cht.m) : '', chChat: (cht && cht.c) || '' }];
   }
 
   async function route(path, request, env, me, json, origin) {
