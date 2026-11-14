@@ -68,7 +68,7 @@ const REMIND_T = {
 const START_T = { en: ['Please start your consultation with the button below — your booking is confirmed in the chat.', 'Start chat consultation'], zh: ['请点击下方按钮开始在线咨询，预约将在咨询中确认。', '开始在线咨询'], ja: ['下のボタンからチャット相談を始めてください。ご予約は相談の中で確定します。', 'チャット相談を始める'], ko: ['아래 버튼으로 채팅 상담을 시작해 주세요. 예약은 상담에서 확정돼요.', '채팅 상담 시작하기'] };
 const chatBtn = (L, url, start) => { if (!url) return ''; const c = (start ? START_T : CHAT_T)[L] || (start ? START_T : CHAT_T).en; return `<p style="margin:18px 0 8px;font-size:14px">${esc(c[0])}</p><a href="${esc(url)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${esc(c[1])}</a>`; };
 const SLOT_T = { en: { any: 'any time', morning: 'morning', afternoon: 'afternoon', evening: 'evening' }, zh: { any: '任何时间', morning: '上午', afternoon: '下午', evening: '晚上' }, ja: { any: '何時でも', morning: '午前', afternoon: '午後', evening: '夕方' }, ko: { any: '아무 때', morning: '오전', afternoon: '오후', evening: '저녁' } };
-const prefTxt = (p, L) => `${p.d} ${/^\d{2}:\d{2}/.test(p.t || '') ? String(p.t).split(',').join(' · ') : (SLOT_T[L] || SLOT_T.en)[p.t] || ''}`.trim();
+const prefTxt = (p, L) => `${p.d} ${/^\d{2}:\d{2}/.test(p.t || '') ? String(p.t).split(',').join(', ') : (SLOT_T[L] || SLOT_T.en)[p.t] || ''}`.trim();
 
 function mailHtml(L, title, lines, rows, after, pre) {
   const t = T[L] || T.en;
