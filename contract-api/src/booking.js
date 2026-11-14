@@ -27,10 +27,10 @@ const id36 = () => 'b' + Date.now().toString(36) + Math.random().toString(36).sl
 
 /* ── 손님 메일(손님 언어) ── */
 const T = {
-  en: { got: 'We received your booking request', hi: (n) => `Hi ${n},`, gotB: 'Thank you for choosing DAY:MEAN. We have received your request. Our team will reply soon and we will let you know by email. Your appointment is confirmed through a short chat consultation — once we agree on the time, we will send you a confirmation email.', yours: 'Your request', conf: 'Your appointment is confirmed', confB: 'As agreed in our chat, your appointment is confirmed. Here are the details:', dec: 'About your booking request', decB: 'Thank you for your request. Unfortunately we could not find an available time for the dates you chose. Please reply to this email or send another request with different dates — we would love to welcome you.', when: 'Date & time', where: 'Branch', who: 'Designer', what: 'Service', map: 'Directions', note: 'Message from us', foot: 'If you need to change or cancel, simply reply to this email.' },
-  zh: { got: '我们已收到您的预约申请', hi: (n) => `${n} 您好，`, gotB: '感谢您选择 DAY:MEAN。我们已收到您的预约申请。我们回复后会通过邮件通知您。预约将通过在线咨询确认——确定时间后，我们会再给您发送确认邮件。', yours: '您的申请', conf: '您的预约已确认', confB: '根据我们在线咨询的约定，您的预约已确认，详情如下：', dec: '关于您的预约申请', decB: '感谢您的申请。很抱歉，您选择的日期暂无空位。请直接回复此邮件或重新提交其他日期，我们非常期待为您服务。', when: '日期和时间', where: '门店', who: '设计师', what: '项目', map: '路线', note: '店铺留言', foot: '如需更改或取消，请直接回复此邮件。' },
-  ja: { got: 'ご予約リクエストを受け付けました', hi: (n) => `${n} 様`, gotB: 'DAY:MEAN をお選びいただきありがとうございます。リクエストを受け付けました。担当者よりご返信の際もメールでお知らせします。ご予約はチャットでのご相談で確定し、日時が決まりましたら確認メールをお送りします。', yours: 'ご依頼内容', conf: 'ご予約が確定しました', confB: 'チャットでのご相談のとおり、ご予約が確定しました。内容は以下のとおりです。', dec: 'ご予約リクエストについて', decB: 'リクエストありがとうございます。あいにくご希望の日時に空きがございませんでした。このメールにご返信いただくか、別の日程で再度リクエストをお送りください。', when: '日時', where: '店舗', who: 'デザイナー', what: 'メニュー', map: 'アクセス', note: '店舗からのメッセージ', foot: '変更・キャンセルの際は、このメールにご返信ください。' },
-  ko: { got: '예약 요청을 받았어요', hi: (n) => `${n} 님, 안녕하세요.`, gotB: 'DAY:MEAN 을 찾아 주셔서 감사합니다. 예약 요청을 받았어요. 담당자가 답변을 보내면 메일로도 알려 드려요. 예약은 채팅 상담에서 확정돼요 — 상담에서 시간이 정해지면 확정 메일을 보내 드릴게요.', yours: '요청 내용', conf: '예약이 확정되었어요', confB: '상담에서 정한 대로 예약이 확정되었어요. 예약 내용은 아래와 같아요.', dec: '예약 요청 관련 안내', decB: '요청해 주셔서 감사합니다. 아쉽게도 고르신 날짜에는 가능한 시간이 없었어요. 이 메일에 답장하시거나 다른 날짜로 다시 요청해 주세요.', when: '날짜 · 시간', where: '지점', who: '디자이너', what: '시술', map: '오시는 길', note: '매장 메시지', foot: '변경 · 취소는 이 메일에 답장해 주세요.' },
+  en: { got: 'We received your booking request', hi: (n) => `Hi ${n},`, gotB: 'Thank you for choosing DAY:MEAN. We have received your request. Our team will reply soon and we will let you know by email. Your appointment is confirmed through a short chat consultation — once we agree on the time, we will send you a confirmation email.', yours: 'Your request', conf: 'Your appointment is confirmed', confB: 'As agreed in our chat, your appointment is confirmed. Here are the details:', dec: 'About your booking request', decB: 'Thank you for your request. Unfortunately we could not find an available time for the dates you chose. Please reply to this email or send another request with different dates — we would love to welcome you.', when: 'Date & time', where: 'Branch', who: 'Designer', what: 'Service', map: 'Directions', note: 'Message from us', note2: 'Your note', foot: 'If you need to change or cancel, simply reply to this email.' },
+  zh: { got: '我们已收到您的预约申请', hi: (n) => `${n} 您好，`, gotB: '感谢您选择 DAY:MEAN。我们已收到您的预约申请。我们回复后会通过邮件通知您。预约将通过在线咨询确认——确定时间后，我们会再给您发送确认邮件。', yours: '您的申请', conf: '您的预约已确认', confB: '根据我们在线咨询的约定，您的预约已确认，详情如下：', dec: '关于您的预约申请', decB: '感谢您的申请。很抱歉，您选择的日期暂无空位。请直接回复此邮件或重新提交其他日期，我们非常期待为您服务。', when: '日期和时间', where: '门店', who: '设计师', what: '项目', map: '路线', note: '店铺留言', note2: '您的备注', foot: '如需更改或取消，请直接回复此邮件。' },
+  ja: { got: 'ご予約リクエストを受け付けました', hi: (n) => `${n} 様`, gotB: 'DAY:MEAN をお選びいただきありがとうございます。リクエストを受け付けました。担当者よりご返信の際もメールでお知らせします。ご予約はチャットでのご相談で確定し、日時が決まりましたら確認メールをお送りします。', yours: 'ご依頼内容', conf: 'ご予約が確定しました', confB: 'チャットでのご相談のとおり、ご予約が確定しました。内容は以下のとおりです。', dec: 'ご予約リクエストについて', decB: 'リクエストありがとうございます。あいにくご希望の日時に空きがございませんでした。このメールにご返信いただくか、別の日程で再度リクエストをお送りください。', when: '日時', where: '店舗', who: 'デザイナー', what: 'メニュー', map: 'アクセス', note: '店舗からのメッセージ', note2: 'ご要望', foot: '変更・キャンセルの際は、このメールにご返信ください。' },
+  ko: { got: '예약 요청을 받았어요', hi: (n) => `${n} 님, 안녕하세요.`, gotB: 'DAY:MEAN 을 찾아 주셔서 감사합니다. 예약 요청을 받았어요. 담당자가 답변을 보내면 메일로도 알려 드려요. 예약은 채팅 상담에서 확정돼요 — 상담에서 시간이 정해지면 확정 메일을 보내 드릴게요.', yours: '요청 내용', conf: '예약이 확정되었어요', confB: '상담에서 정한 대로 예약이 확정되었어요. 예약 내용은 아래와 같아요.', dec: '예약 요청 관련 안내', decB: '요청해 주셔서 감사합니다. 아쉽게도 고르신 날짜에는 가능한 시간이 없었어요. 이 메일에 답장하시거나 다른 날짜로 다시 요청해 주세요.', when: '날짜 · 시간', where: '지점', who: '디자이너', what: '시술', map: '오시는 길', note: '매장 메시지', note2: '요청 사항', foot: '변경 · 취소는 이 메일에 답장해 주세요.' },
 };
 /* 예약 정책 확정 문구(11/14 사용자 확정 · 사이트 번역표 lib/i18n/content.json 과 같은 글) — 확정 메일 아래에 붙인다 */
 const POLICY_T = {
@@ -41,12 +41,12 @@ const POLICY_T = {
 };
 const policyBox = (L) => `<div style="margin-top:20px;background:#f5f5f5;border-radius:10px;padding:14px 16px;font-size:13px;color:#333;white-space:pre-line">${esc(POLICY_T[L] || POLICY_T.en)}</div>`;
 const CHAT_T = { en: ['Questions? Continue the conversation with us in chat.', 'Chat with us'], zh: ['有任何问题？可以直接在线和我们继续沟通。', '在线咨询'], ja: ['ご不明な点はチャットでお気軽にご相談ください。', 'チャットで相談する'], ko: ['궁금한 점은 채팅으로 이어서 물어보세요.', '채팅으로 상담 이어가기'] };
-/* 2번째 메일 — 확정 전 '답변이 왔어요'(11/14 사용자: 접수 → 답변 → 확정, 총 3번). 직원이 앱에서 쓴 답변(손님 언어)을 그대로 담는다 */
+/* 1번째 메일 — 확정 전 '답변이 왔어요'(11/14 사용자: 접수 메일 없이 답변 → 확정, 총 2번). 직원이 앱에서 쓴 답변(손님 언어)을 그대로 담는다 */
 const REPLY_T = {
-  en: { t: 'We have replied to your booking request', b: 'Here is our reply:', line: 'Please reply in chat — your booking will be confirmed there.', btn: 'Reply in chat' },
-  zh: { t: '我们已回复您的预约申请', b: '以下是我们的回复：', line: '请在在线咨询中回复我们，预约将在咨询中确认。', btn: '在线回复' },
-  ja: { t: 'ご予約リクエストへのご返信', b: '店舗からのご返信です：', line: 'チャットでご返信ください。ご予約はチャットで確定します。', btn: 'チャットで返信する' },
-  ko: { t: '예약 요청에 답변이 왔어요', b: '매장 답변은 아래와 같아요.', line: '채팅으로 답해 주세요. 예약은 상담에서 확정돼요.', btn: '채팅으로 답하기' },
+  en: { t: 'We have replied to your booking request', b: 'Thank you for your booking request. Here is our reply:', line: 'Please reply in chat — your booking will be confirmed there.', btn: 'Reply in chat' },
+  zh: { t: '我们已回复您的预约申请', b: '感谢您的预约申请，以下是我们的回复：', line: '请在在线咨询中回复我们，预约将在咨询中确认。', btn: '在线回复' },
+  ja: { t: 'ご予約リクエストへのご返信', b: 'ご予約リクエストありがとうございます。店舗からのご返信です：', line: 'チャットでご返信ください。ご予約はチャットで確定します。', btn: 'チャットで返信する' },
+  ko: { t: '예약 요청에 답변이 왔어요', b: '예약 요청해 주셔서 감사합니다. 보내 주신 요청에 답변드려요.', line: '채팅으로 답해 주세요. 예약은 상담에서 확정돼요.', btn: '채팅으로 답하기' },
 };
 /* 확정 메일 '매장 메시지' — 11/14 사용자 '손님께 한마디는 기본적으로 통일'. 앱에서 따로 쓰지 않으면 이 문구가 나간다 */
 const CONF_MSG_T = {
@@ -152,12 +152,8 @@ export function makeBooking(deps) {
     let r; try { r = clean(b); } catch (e) { return [400, { ok: false, error: e.message }]; }
     const id = id36(), now = Date.now();
     await dbPut(env, `${BASE}/${id}`, { ...r, status: 'new', at: now, up: now });
-    const L = r.lang, t = T[L] || T.en;
-    const rows = [[t.where, esc(BRANCHES[r.branch][L] || BRANCHES[r.branch].en)], [t.when, r.prefs.map((p) => esc(prefTxt(p, L))).join('<br>')]];
-    if (r.designer) rows.push([t.who, esc(r.designer)]);
-    if (r.svcL || r.service) rows.push([t.what, esc(r.svcL || r.service)]);
     const jobs = [
-      chatUrl(env, id, L).then((cu) => sendMail(env, r.email, `DAY:MEAN — ${t.got}`, mailHtml(L, t.got, [t.hi(r.name), t.gotB], rows, chatBtn(L, cu, true)), `${t.hi(r.name)}\n${t.gotB}${cu ? '\n' + cu : ''}`)).catch((e) => console.log('booking mail', e && e.message)),
+      /* 접수 메일은 보내지 않는다(11/14 사용자 '예약 요청하면 한 번은 필요 없고, 우리가 답변할 때 요청 내용까지 한 번에') — 메일은 답변 · 확정 2번 */
       staffFor(env, r.branch).then((to) => to.length && pushToPhones(env, to, { title: '[해외 예약] 새 요청', body: `${r.name} · ${BRANCHES[r.branch].ko} · ${prefTxt(r.prefs[0], 'ko')}${r.prefs.length > 1 ? ` 외 ${r.prefs.length - 1}` : ''}`, url: './#booking', tag: 'book-' + id }, { urgency: 'high' })).catch((e) => console.log('booking push', e && e.message)),
     ];
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
@@ -199,9 +195,12 @@ export function makeBooking(deps) {
         if (!msg) throw new Error('손님께 보낼 답변을 적어 주세요');
         if (cur.status === 'declined' || cur.status === 'canceled') throw new Error('거절 · 취소된 요청이에요');
         const R2 = REPLY_T[L] || REPLY_T.en;
-        const rows = [[t.where, esc(BRANCHES[cur.branch] ? (BRANCHES[cur.branch][L] || BRANCHES[cur.branch].en) : '')], [t.when, (cur.prefs || []).map((p) => esc(prefTxt(p, L))).join('<br>')]];
+        // 요청 내용 — 손님이 보낸 것 전부(접수 메일이 없으므로 여기서 처음 보여 준다). 순서: 지점 · 디자이너 · 희망 날짜 · 시술
+        const rows = [[t.where, esc(BRANCHES[cur.branch] ? (BRANCHES[cur.branch][L] || BRANCHES[cur.branch].en) : '')]];
         if (cur.designer) rows.push([t.who, esc(cur.designer)]);
+        rows.push([t.when, (cur.prefs || []).map((p) => esc(prefTxt(p, L))).join('<br>')]);
         if (cur.svcL || cur.service) rows.push([t.what, esc(cur.svcL || cur.service)]);
+        if (cur.note) rows.push([t.note2 || 'Note', esc(cur.note)]);
         const cu = await chatUrl(env, id, L);
         const box = `<div style="margin:4px 0 18px;border-left:3px solid #111;background:#f5f5f5;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14.5px;white-space:pre-line">${esc(msg)}</div>`;
         const btn = cu ? `<p style="margin:18px 0 8px;font-size:14px">${esc(R2.line)}</p><a href="${esc(cu)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${esc(R2.btn)}</a>` : '';
