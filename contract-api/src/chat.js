@@ -788,7 +788,7 @@ export function makeChat(deps) {
   async function webSys(env, rid, room, text, ph) {
     const seq = await nextSeq(env, rid), at = nowMs();
     const up = { [`chat/msgs/${rid}/${pad(seq)}`]: { s: seq, by: 'system', bn: '', at, k: 'sys', x: text }, [`chat/rooms/${rid}/last`]: { x: text, by: 'system', bn: '', at, k: 'sys' } };
-    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = text; up[`${b}/bn`] = ''; if (p === ph) up[`${b}/r`] = seq; }
+    for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = text; up[`${b}/bn`] = ''; up[`${b}/r`] = seq; }   // 손님방은 함께 읽음 — 기록 줄은 누구에게도 안 읽음으로 안 남김
     await dbPatch(env, '/', up);
     await fixLatest(env, rid, room, seq).catch(() => {});
   }
@@ -953,6 +953,7 @@ export function makeChat(deps) {
   /* 직원이 손님방에 쓴 뒤 — 손님 언어로 번역(xt), 손님이 1분 넘게 안 보고 있으면 알림 메일(10분에 한 번) */
   async function webStaffAfter(env, rid, room, key, x, hasMd, ph, bn) {
     const v = rid.slice(4);
+    { const sq = Number(key) || 0; if (sq) { const ms = Object.keys(room.m || {}); const cur = await Promise.all(ms.map((p) => dbGet(env, `/chat/inbox/${p}/${rid}/r`).catch(() => 0))); const ru = {}; ms.forEach((p, i) => { if ((Number(cur[i]) || 0) < sq) ru[`chat/inbox/${p}/${rid}/r`] = sq; }); if (Object.keys(ru).length) await dbPatch(env, '/', ru).catch(() => {}); } }   // 누가 답하면 그 앞 글은 팀 전체 읽음
     const st = {}; if (room.ws !== 'ing') { st.ws = 'ing'; st.wsAt = nowMs(); } if (!room.wa && ph) { st.wa = ph; st.wan = bn || ''; }   // 직원이 답하면 '상담 중' · 담당자 없으면 답한 사람
     if (Object.keys(st).length) await dbPatch(env, '/', webStateUp(rid, room, st)).catch(() => {});
     const priv = await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null);
@@ -1057,7 +1058,7 @@ export function makeChat(deps) {
       const seq = await nextSeq(env, rid), at = nowMs(), key = pad(seq);
       const preview = '예약 폼을 보냈어요 · ' + bn;
       const up = { [`chat/msgs/${rid}/${key}`]: { s: seq, by: 'bot', bn: 'DAY:MEAN', at, k: 'form', x: '[예약 폼 안내] ' + FT.ko.text, cf: { g, ko: { ...FT.ko, url } }, fb: bn }, [`chat/rooms/${rid}/last`]: { x: preview, by: 'bot', bn: 'DAY:MEAN', at, k: 'form' }, [`chat/rooms/${rid}/wform`]: at };
-      for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = 'DAY:MEAN'; if (p === ph) { up[`${b}/r`] = seq; up[`chat/reads/${rid}/${p}`] = seq; } }
+      for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = 'DAY:MEAN'; up[`${b}/r`] = seq; if (p === ph) up[`chat/reads/${rid}/${p}`] = seq; }
       if ((room.ws || 'wait') === 'wait') Object.assign(up, webStateUp(rid, room, { ws: 'ing', wsAt: at, ...(room.wa ? {} : { wa: ph, wan: bn }) }));
       await dbPatch(env, '/', up);
       await fixLatest(env, rid, room, seq).catch(() => {});
