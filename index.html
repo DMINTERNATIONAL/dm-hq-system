@@ -14268,7 +14268,7 @@ function bkPaint(){var root=$('BK-ROOT');if(!root)return;var E=cmEsc,it=BK.items
       +(x.replied?'<div class="bk-conf off">답변 메일 '+(x.replied.n||1)+'번 보냄 · 마지막 '+cmAgo(x.replied.at)+(x.replied.by?' ('+E(x.replied.by)+')':'')+'</div>':'')
       +'<div class="bk-chs">'+links.join('')+'<button class="bk-ch" onclick="bkCopyAll('+cmJsLit(x.id)+')">핸드SOS 용 복사</button></div>'
       +'<textarea class="bk-memo" placeholder="메모 (직원끼리만 보여요)" onchange="bkMemo('+cmJsLit(x.id)+',this.value)">'+E(x.memo||'')+'</textarea>'
-      +'<div class="bk-act">'+(x.cht&&(x.cht.c||x.cht.u)?'<button class="gbtn pri sm" onclick="bkChat('+cmJsLit(x.id)+')">채널톡 상담 열기</button>':'')+(x.status==='new'?'<button class="gbtn '+(x.cht&&(x.cht.c||x.cht.u)?'sec':'pri')+' sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 보내기</button>':(x.status!=='confirmed'?'<button class="gbtn sec sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 또 보내기</button>':'')+'<button class="gbtn pri sm" onclick="bkConfirm('+cmJsLit(x.id)+')">'+(x.status==='confirmed'?'확정 바꾸기':'상담에서 확정 + 메일')+'</button>')+(x.status!=='declined'?'<button class="gbtn sec sm" onclick="bkDecline('+cmJsLit(x.id)+')">거절 메일</button>':'')+'<button class="gbtn sec sm bk-del" onclick="bkDel('+cmJsLit(x.id)+')">지우기</button></div></div>'});
+      +'<div class="bk-act">'+(x.cht&&(x.cht.c||x.cht.u)&&bkChUrl(x)?'<a class="gbtn pri sm" style="text-decoration:none;display:inline-flex;align-items:center" href="'+E(bkChUrl(x))+'" target="_blank" rel="noopener" onclick="bkChat('+cmJsLit(x.id)+')">채널톡 상담 열기</a>':'')+(x.status==='new'?'<button class="gbtn '+(x.cht&&(x.cht.c||x.cht.u)?'sec':'pri')+' sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 보내기</button>':(x.status!=='confirmed'?'<button class="gbtn sec sm" onclick="bkReply('+cmJsLit(x.id)+')">답변 메일 또 보내기</button>':'')+'<button class="gbtn pri sm" onclick="bkConfirm('+cmJsLit(x.id)+')">'+(x.status==='confirmed'?'확정 바꾸기':'상담에서 확정 + 메일')+'</button>')+(x.status!=='declined'?'<button class="gbtn sec sm" onclick="bkDecline('+cmJsLit(x.id)+')">거절 메일</button>':'')+'<button class="gbtn sec sm bk-del" onclick="bkDel('+cmJsLit(x.id)+')">지우기</button></div></div>'});
   root.innerHTML=h+'<div class="ads-note" style="margin-top:12px">손님 메일은 손님이 고른 언어로 가요 · 기록은 마지막으로 바뀐 지 1년 지나면 지워져요</div></div>'}
 function bkFind(id){return (BK.items||[]).filter(function(x){return x.id===id})[0]}
 function bkPut(item){BK.items=(BK.items||[]).map(function(x){return x.id===item.id?item:x});bkPaint()}
@@ -14305,10 +14305,13 @@ window.bkConfirm=function(id){var x=bkFind(id);if(!x)return;var c=x.conf||{},p=(
 /* 채널톡 상담방 — 요청이 들어올 때 서버가 이미 열어 둔 방(cht.c)으로 바로 간다. 새 요청이면 '상담 중'으로 같이 바꿈 */
 var BK_CH_DESK='https://channel.works/daymean';
 /* 무료: 손님 채널톡 화면(cht.u)으로 → 거기서 '새 상담 열기'. API 키가 있어 상담방까지 열려 있으면(cht.c) 그 방으로 바로 */
-window.bkChat=function(id){var x=bkFind(id);if(!x||!x.cht)return;var ok=function(v){return /^[A-Za-z0-9_-]{1,64}$/.test(v||'')};var url=ok(x.cht.c)?BK_CH_DESK+'/user-chats/'+encodeURIComponent(x.cht.c):(ok(x.cht.u)?BK_CH_DESK+'/users/'+encodeURIComponent(x.cht.u):'');if(!url)return;
+/* 11/14 사용자 '상담 열기 누르면 어플로 안 가고 홈페이지로' — window.open 은 앱으로 안 넘어가서, 카드 버튼을 진짜 링크로 바꿈.
+   channel.works 는 채널톡(데스크) 아이폰 · 안드로이드 앱이 '내 주소'로 등록해 둔 곳이라, 앱이 깔려 있으면 링크를 누를 때 앱으로 열린다 */
+function bkChUrl(x){var ok=function(v){return /^[A-Za-z0-9_-]{1,64}$/.test(v||'')};if(!x||!x.cht)return '';return ok(x.cht.c)?BK_CH_DESK+'/user-chats/'+encodeURIComponent(x.cht.c):(ok(x.cht.u)?BK_CH_DESK+'/users/'+encodeURIComponent(x.cht.u):'')}
+window.bkChat=function(id){var x=bkFind(id);if(!x||!x.cht)return;var ok=function(v){return /^[A-Za-z0-9_-]{1,64}$/.test(v||'')};var url=bkChUrl(x);if(!url)return;
   /* 11/14: 채널톡 캠페인 '해외 예약 요청 자동 상담창'이 요청 순간 손님 언어 예약 내용으로 상담방을 열어 둔다 → 손님 화면 '상담 목록' 맨 위 방에서 바로 답하면 됨 */
   if(!ok(x.cht.c))toast('손님 화면 \'상담 목록\' 맨 위 상담(예약 내용이 들어 있어요)을 눌러 답해 주세요');
-  window.open(url,'_blank','noopener');if(x.status==='new')bkSet(id,'contacted')};
+  if(x.status==='new')bkSet(id,'contacted')};   /* 열기는 링크(<a>)가 한다 */
 window.bkReply=function(id){var x=bkFind(id);if(!x)return;var S='width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 10px;font:inherit;font-size:14px;box-sizing:border-box;background:var(--card);color:var(--text)';
   var d=document.createElement('div');d.className='modal-bg';d.style.display='flex';d.style.zIndex='10000';d.onclick=function(e){if(e.target===d)d.remove()};
   d.innerHTML='<div class="modal-box" style="max-width:420px;width:92%;text-align:left"><div style="font-weight:800;font-size:16px;margin-bottom:4px">답변 메일 — '+cmEsc(x.name)+'</div><div style="font-size:12.5px;color:var(--text-3);margin-bottom:10px">손님에게 \'예약 요청에 답변이 왔어요\' 메일이 '+cmEsc(BK_LANG[x.lang]||'')+'로 가요 · 요청 내용과 \'채팅으로 답하기\' 버튼이 같이 들어가요. 확정은 상담에서 정한 뒤에 따로 보내요.<br>희망: '+(x.prefs||[]).map(function(p){return cmEsc(bkPref(p))}).join(' · ')+'</div>'
