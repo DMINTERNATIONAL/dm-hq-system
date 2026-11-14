@@ -11431,6 +11431,16 @@ function cmColor(k){var h=0;k=String(k||'');for(var i=0;i<k.length;i++)h=(h*31+k
 function cmAv(label,key,small){var t=String(label||'?').replace(/\s/g,'').slice(0,2);return '<div class="cm-av'+(small?' s':'')+'" style="background:'+cmColor(key||label)+'">'+cmEsc(t)+'</div>'}
 function cmSeg(p){return p.split('/').map(function(s){return s?encodeURIComponent(s):s}).join('/')}
 function cmP(path,v){return fbP(cmSeg(path)+'.json',v).catch(function(){})}
+/* 메시지 보내기 — 잠깐 끊김에 강하게(11/14 '가끔 보내지 못했어요가 뜬다').
+   인터넷이 잠깐 끊기거나(앱이 깨어나는 순간 · 지하 · 와이파이 바뀜) 서버 · DB 가 순간적으로 늦으면 1초 · 3초 뒤 두 번 더 보낸다.
+   다시 보내기 전에 '사실 이미 들어갔는지'(응답만 못 받은 경우) 방의 최근 글을 서버에서 한 번 읽어 확인 — 두 번 올라가지 않게 */
+function cmTransient(e){var m=String((e&&e.message)||e||'');return (e instanceof TypeError)||/Load failed|Failed to fetch|NetworkError|network|abort|네트워크|인터넷|서버 응답이 늦|서버가 잠시|DB 읽기 실패|번호 매기기 실패|동시에 보내는|처리하지 못했습니다|응답을 읽지 못했/i.test(m)}
+function cmFindMine(body,since){var path=body.root?'/chat/thr/'+body.rid+'/'+body.root:'/chat/msgs/'+body.rid;
+  return fbReq(cmSeg(path)+'.json?orderBy=%22%24key%22&limitToLast=10').then(function(r){return r&&r.ok?r.json():null}).then(function(d){var me=String(ME.phone),hit=null;
+    Object.keys(d||{}).sort().forEach(function(k){var m=d[k];if(m&&m.by===me&&(!since||k>since)&&(m.k||'t')===(body.k||'t')&&(m.x||'')===(body.x||'')&&((m.md||[]).length===(body.md||[]).length))hit=k});return hit}).catch(function(){return null})}
+function cmSendSure(body,since,n){n=n||0;return cmApi('send',body).catch(function(e){if(!cmTransient(e)||n>=2)throw e;
+  return new Promise(function(r){setTimeout(r,n?3000:1200)}).then(function(){return cmFindMine(body,since)}).then(function(k){if(k)return {ok:true,key:k};return cmSendSure(body,since,n+1)})})}
+function cmSendErr(e){var m=String((e&&e.message)||e||'');return cmTransient(e)?'인터넷 연결이 불안정해서 보내지 못했어요. 와이파이·데이터를 확인하고 다시 보내 주세요.\n\n('+m+')':'보내지 못했어요\n\n'+m}
 function cmApi(path,body){return ctFetch('/chat/'+path,{method:'POST',body:JSON.stringify(body||{})}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||'처리하지 못했습니다');return r})}
 function cmIsManager(){return !!ME&&(BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0||['경영팀','관리자'].indexOf(ME.systemGrade)>=0||(!ME.systemGrade&&ME.branch==='본사'&&['경영팀','관리자'].indexOf(ME.role)>=0))}
 function cmIsHq(){return !!ME&&(BRK_OWNER_PHONES.indexOf(String(ME.phone))>=0||ME.systemGrade==='경영팀'||ME.role==='경영팀'||ME.role==='본사경영팀')}
@@ -11855,7 +11865,7 @@ function cmSend(boxId,thread){var ta=$(boxId+'-TA');var x=(ta.value||'').trim();
   if(thread)cmRenderThread();else cmRenderMsgs();
   setTimeout(function(){if(CM_PENDING[tmp]){if(thread)cmRenderThread();else cmRenderMsgs()}},2100);
   /* 서버가 받았다고 답해도 실제 메시지가 실시간으로 들어올 때까지 보낸 말풍선을 그대로 둔다(사라졌다 다시 나타나던 것) */
-  cmApi('send',body).then(function(r){var have=r&&r.key&&(thread?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp]},8000);if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;if(CM.rid===body.rid){CM.reply=_rp;CM.mn=_mn;try{cmReplyBar(boxId)}catch(_e){}}alert('보내지 못했어요\n\n'+e.message)})}
+  cmSendSure(body,CM_PENDING[tmp]&&CM_PENDING[tmp].since).then(function(r){var have=r&&r.key&&(thread?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp]},8000);if(thread)cmRenderThread();else cmRenderMsgs()}).catch(function(e){delete CM_PENDING[tmp];if(thread)cmRenderThread();else cmRenderMsgs();ta.value=x;if(CM.rid===body.rid){CM.reply=_rp;CM.mn=_mn;try{cmReplyBar(boxId)}catch(_e){}}alert(cmSendErr(e)+'\n\n쓴 글은 입력칸에 그대로 있어요.')})}
 
 /* ── 길게 누르기 → 말풍선 옆 메뉴 ── */
 /* 대화 다시 그리기 — 예전엔 메시지가 하나 올 때마다 방 전체를 새로 그려(보낼 때 두 번) 사진이 다시 불러와지며 깜빡였다.
@@ -12297,7 +12307,7 @@ function cmSendFiles(kind,files,thread,quality){var rid=CM.rid;if(!rid)return;va
     return cmShrink(f,pq[1],pq[2]).then(function(s){if(!s)throw new Error(f.name+' 사진을 읽지 못했어요');return Promise.all([cmUpload(rid,s.blob,'p','photo.jpg'),cmThumb(rid,s)]).then(function(r2){var pk=r2[0];var it={u:pk,w:s.w,h:s.h,sz:s.blob.size};if(r2[1])it.t=r2[1];if(kind!=='o')return it;return cmUpload(rid,f,'o',f.name).then(function(ok){it.o=ok;it.sz=f.size;it.n=f.name;return it})})}).then(function(it){md[ix]=it;done++;prog(done/files.length)})});
   Promise.all(jobs).then(function(){var body={rid:rid,k:kind==='v'?'v':kind==='f'?'f':'p',md:md.filter(Boolean)};if(root0)body.root=root0;if(rp0)body.rp=rp0;
     /* 다 올리면 진짜 메시지 모양(사진)으로 바꿔 두고, 실시간으로 들어올 때까지 그 자리에 둔다(사라졌다 나타나던 것) */
-    if(CM_PENDING[tmp])CM_PENDING[tmp].m=Object.assign({},CM_PENDING[tmp].m,{x:'',k:body.k,md:body.md});paint();return cmApi('send',body)}).then(function(r){var have=r&&r.key&&(root0?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp];paint()},8000);paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert('보내지 못했어요\n\n'+e.message)})}
+    if(CM_PENDING[tmp])CM_PENDING[tmp].m=Object.assign({},CM_PENDING[tmp].m,{x:'',k:body.k,md:body.md});paint();return cmSendSure(body,CM_PENDING[tmp]&&CM_PENDING[tmp].since)}).then(function(r){var have=r&&r.key&&(root0?CM.thMsgs:CM.msgs)[r.key];if(r&&r.key&&!have&&CM_PENDING[tmp])CM_PENDING[tmp].key=r.key;else delete CM_PENDING[tmp];setTimeout(function(){delete CM_PENDING[tmp];paint()},8000);paint()}).catch(function(e){delete CM_PENDING[tmp];paint();alert(cmSendErr(e))})}
 var CM_PIC_DAYS=30;
 function cmPicExp(at){return !!at&&Date.now()-at>CM_PIC_DAYS*864e5}
 function cmExpToast(){toast('보관 기간('+CM_PIC_DAYS+'일)이 지난 사진이에요')}
