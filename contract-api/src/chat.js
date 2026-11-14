@@ -804,6 +804,8 @@ export function makeChat(deps) {
     const r = await deps.relayCall(env, '/ai/translate', { text, to }, { x: '홈페이지 상담 번역' }).catch(() => null);
     return r && r.body && r.body.ok ? String(r.body.text || '').slice(0, 5000) : '';
   }
+  const WK_KO = { book: '해외 예약', site: '홈페이지 문의' };
+  const webTitle = (room) => `${WK_KO[room.wk] || '홈페이지 상담'} · ${room.n}`;
   async function webMembers(env) {
     const { el } = await eligible(env, true);
     const out = {}; for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) out[ph] = 1;
@@ -818,10 +820,11 @@ export function makeChat(deps) {
     const rid = 'web_' + v, at = nowMs();
     const m = await webMembers(env);
     if (!Object.keys(m).length) throw new Error('받을 사람이 없습니다');
-    const n = name + (o.b ? ' · 해외 예약' : ' · 홈페이지');
-    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
+    const n = name;   // 출처(해외 예약 · 홈페이지 문의)와 언어는 이름 뒤가 아니라 태그로(11/14 사용자) — wk · wl
+    const wk = o.b ? 'book' : 'site';
+    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, wk, ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
     const up = { [`chat/rooms/${rid}`]: room, [`${WEB_PRIV.slice(1)}/${v}`]: { name, email, lang, at, ...(o.b ? { b: String(o.b) } : {}) } };
-    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); up[`chat/inbox/${ph}/${rid}/ws`] = 'wait'; }
+    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); Object.assign(up, { [`chat/inbox/${ph}/${rid}/ws`]: 'wait', [`chat/inbox/${ph}/${rid}/wk`]: wk, [`chat/inbox/${ph}/${rid}/wl`]: lang }); }
     await dbPatch(env, '/', up);
     if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', o.push !== false);
     return { v, k: await webSig(env, v), rid };
@@ -836,7 +839,7 @@ export function makeChat(deps) {
     await dbPatch(env, '/', up);
     await fixLatest(env, rid, room, seq).catch(() => {});
     if (push) {
-      const job = pushToPhones(env, Object.keys(room.m || {}), { title: room.n, body: clip((xk || x).replace(/\n+/g, ' · '), 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {});
+      const job = pushToPhones(env, Object.keys(room.m || {}), { title: webTitle(room), body: clip((xk || x).replace(/\n+/g, ' · '), 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {});
       if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
     }
     return key;
@@ -861,7 +864,7 @@ export function makeChat(deps) {
     await fixLatest(env, rid, room, seq).catch(() => {});
     const muted = room.mute || {};
     const targets = Object.keys(room.m || {}).filter((p) => !muted[p]);
-    const job = targets.length ? pushToPhones(env, targets, { title: room.n, body: clip(preview, 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {}) : null;
+    const job = targets.length ? pushToPhones(env, targets, { title: webTitle(room), body: clip(preview, 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {}) : null;
     if (job) { if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job; }
     return { s: seq, at };
   }
