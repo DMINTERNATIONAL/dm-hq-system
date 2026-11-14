@@ -67,7 +67,7 @@ export function makeBooking(deps) {
     const prefs = (Array.isArray(b.prefs) ? b.prefs : []).slice(0, 3).map((p) => ({ d: clip(p && p.d, 10), t: clip(p && p.t, 9) }))
       .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.d) && p.d >= today && (SLOTS.includes(p.t) || /^\d{2}:\d{2}$/.test(p.t)));
     if (!prefs.length) throw new Error('prefs');
-    return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(Array.isArray(b.services) ? b.services.map((x) => clip(x, 40)).filter(Boolean).slice(0, 20).join(', ') : b.service, 400), prefs, note: clip(b.note, 1000), len: clip(b.len, 20), gender: ['여성', '남성'].includes(b.gender) ? b.gender : '' };   // gender: 성별(11/14 사용자 '머리 길이 대신 성별') · len 은 예전 값 호환   // len: 머리 길이(가격표 기장 — 숏컷/남자 · 목선 · 쇄골선 · 가슴 윗선 …)   // service: 메뉴 여러 개(11/14 '우리 메뉴 다 보여주자') — services 배열 또는 service 글자
+    return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(Array.isArray(b.services) ? b.services.map((x) => clip(x, 40)).filter(Boolean).slice(0, 20).join(', ') : b.service, 400), prefs, note: clip(b.note, 1000), len: clip(b.len, 20), gender: ['여성', '남성'].includes(b.gender) ? b.gender : '', svcL: clip(b.servicesLabel, 400) };   // svcL: 손님 언어로 쓴 시술 이름(메일용) — service 는 직원용 한국어   // gender: 성별(11/14 사용자 '머리 길이 대신 성별') · len 은 예전 값 호환   // len: 머리 길이(가격표 기장 — 숏컷/남자 · 목선 · 쇄골선 · 가슴 윗선 …)   // service: 메뉴 여러 개(11/14 '우리 메뉴 다 보여주자') — services 배열 또는 service 글자
   }
 
   /* 알림 받을 사람: 경영팀 전원 + (지점을 골랐으면) 그 지점 관리자, 아무 곳이면 DAY:MEAN 관리자 전원 */
@@ -106,7 +106,7 @@ export function makeBooking(deps) {
     const L = r.lang, t = T[L] || T.en;
     const rows = [[t.where, esc(BRANCHES[r.branch][L] || BRANCHES[r.branch].en)], [t.when, r.prefs.map((p) => esc(prefTxt(p, L))).join('<br>')]];
     if (r.designer) rows.push([t.who, esc(r.designer)]);
-    if (r.service) rows.push([t.what, esc(r.service)]);
+    if (r.svcL || r.service) rows.push([t.what, esc(r.svcL || r.service)]);
     const jobs = [
       sendMail(env, r.email, `DAY:MEAN — ${t.got}`, mailHtml(L, t.got, [t.hi(r.name), t.gotB], rows), `${t.hi(r.name)}\n${t.gotB}`).catch((e) => console.log('booking mail', e && e.message)),
       staffFor(env, r.branch).then((to) => to.length && pushToPhones(env, to, { title: '[해외 예약] 새 요청', body: `${r.name} · ${BRANCHES[r.branch].ko} · ${prefTxt(r.prefs[0], 'ko')}${r.prefs.length > 1 ? ` 외 ${r.prefs.length - 1}` : ''}`, url: './#booking', tag: 'book-' + id }, { urgency: 'high' })).catch((e) => console.log('booking push', e && e.message)),
@@ -151,7 +151,7 @@ export function makeBooking(deps) {
         const map = await mapOf(env, c.branch);
         const rows = [[t.when, esc(`${c.d} ${c.t}`)], [t.where, esc('DAY:MEAN ' + (BRANCHES[c.branch][L] || BRANCHES[c.branch].en))]];
         if (c.designer) rows.push([t.who, esc(c.designer)]);
-        if (cur.service) rows.push([t.what, esc(cur.service)]);
+        if (cur.svcL || cur.service) rows.push([t.what, esc(cur.svcL || cur.service)]);
         if (map) rows.push([t.map, `<a href="${esc(map)}" style="color:#111">${esc(map)}</a>`]);
         if (c.msg) rows.push([t.note, esc(c.msg)]);
         await sendMail(env, cur.email, `DAY:MEAN — ${t.conf}`, mailHtml(L, t.conf, [t.hi(cur.name), t.confB], rows), `${t.hi(cur.name)}\n${t.confB}\n${c.d} ${c.t}`);
