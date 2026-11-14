@@ -892,7 +892,25 @@ export function makeChat(deps) {
     return { s: seq, at };
   }
   /* 손님 화면이 새 글을 가져간다 — after 다음 번호부터. 직원 글은 번역(xt)이 붙은 뒤에 내보낸다(15초 넘게 안 붙으면 원문) */
-  async function webPoll(env, v, after) {
+  /* 손님 사진 머리 바이트 — jpeg · png · webp 만, 가로 · 세로도 읽는다(앱 말풍선 크기) */
+  function imgInfo(b) {
+    if (!b || b.length < 30) return null;
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return { ext: 'png', type: 'image/png', w: (b[16] << 24 | b[17] << 16 | b[18] << 8 | b[19]) >>> 0, h: (b[20] << 24 | b[21] << 16 | b[22] << 8 | b[23]) >>> 0 };
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return { ext: 'webp', type: 'image/webp', w: 0, h: 0 };
+    if (b[0] === 0xff && b[1] === 0xd8) {
+      let i = 2, w = 0, h = 0;
+      while (i + 9 < b.length) {
+        if (b[i] !== 0xff) { i++; continue; }
+        const mk = b[i + 1], len = b[i + 2] << 8 | b[i + 3];
+        if (mk >= 0xc0 && mk <= 0xcf && mk !== 0xc4 && mk !== 0xc8 && mk !== 0xcc) { h = b[i + 5] << 8 | b[i + 6]; w = b[i + 7] << 8 | b[i + 8]; break; }
+        if (mk === 0xd9 || mk === 0xda) break;
+        i += 2 + len;
+      }
+      return { ext: 'jpg', type: 'image/jpeg', w, h };
+    }
+    return null;
+  }
+  async function webPoll(env, v, after, base) {
     const rid = 'web_' + v;
     const [room, priv] = await Promise.all([dbGet(env, '/chat/rooms/' + rid).catch(() => null), dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)]);
     if (!room || !priv) return { gone: true };
@@ -914,8 +932,9 @@ export function makeChat(deps) {
       if (!guest && m.by !== 'bot') {
         if (lang !== 'ko' && x) { if (m.xt) x = m.xt; else if (nowMs() - (m.at || 0) < 15000) break; }
       }
-      const media = Array.isArray(m.md) ? m.md.filter((d) => d && (d.u || d.t)).map((d) => ({ w: d.w || 0, h: d.h || 0 })) : [];
-      out.push({ s: m.s, me: guest, x, at: m.at, ...(media.length ? { photo: media.length } : {}) });
+      const media = Array.isArray(m.md) ? m.md.filter((d) => d && (d.u || d.t) && !d.v && !d.f).slice(0, 10) : [];
+      const imgs = base && deps.signedUrl ? (await Promise.all(media.map((d) => deps.signedUrl(env, base, String(d.u || d.t)).catch(() => '')))).filter(Boolean) : [];   // 사진 주소(2~3일) — 손님 화면 미리보기
+      out.push({ s: m.s, me: guest, x, at: m.at, ...(media.length ? { photo: media.length } : {}), ...(imgs.length ? { img: imgs[0], imgs } : {}) });
     }
     if (!priv.seen || nowMs() - priv.seen > 30000) await dbPut(env, `${WEB_PRIV}/${v}/seen`, nowMs()).catch(() => {});
     return { lang, name: priv.name || '', items: out };
@@ -1478,6 +1497,6 @@ export function makeChat(deps) {
   route.runScheduled = runScheduled;
   route.eligible = eligible;
   route.botPost = botPost;
-  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk, card: webCard, tr: webTr, attach: webAttach };
+  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk, card: webCard, tr: webTr, attach: webAttach, imgInfo };
   return route;
 }

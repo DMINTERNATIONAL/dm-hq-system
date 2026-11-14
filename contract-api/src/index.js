@@ -1126,6 +1126,34 @@ export default {
          예전 한 번에 내기(/public/apply)는 사이트가 안 쓰므로 없앴다 — 사이트는 /public/apply/save 만 부른다 */
       /* 해외 손님 예약 요청 — 공식 사이트 서버만(X-Site-Key) (booking.js) */
       /* 홈페이지 손님 상담(우리 앱) — 사이트 서버만(X-Site-Key). start 새 대화 · send 손님 글 · poll 새 글 가져가기 (chat.js route.web) */
+      /* 손님 사진(11/14 사용자 '고객들이 사진도 보낼 수 있게') — 사이트 서버가 multipart(w · k · file)로. 비공개 R2(채팅 사진과 같은 곳, p/{방 태그}/…).
+         jpeg · png · webp 만(파일 머리 바이트로 확인) · 장당 5MB · 방당 1시간 20장 */
+      if (path === '/public/webchat/photo' && request.method === 'POST') {
+        if (!env.SITE_KEY || !sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY)) return json({ ok: false, error: 'site' }, 403, origin);
+        const W = chatRoute.web;
+        try {
+          if (Number(request.headers.get('content-length') || 0) > 6 * 1024 * 1024) return json({ ok: false, error: 'big' }, 413, origin);
+          const fd = await request.formData();
+          const v = String(fd.get('w') || ''), k = String(fd.get('k') || '');
+          if (!(await W.check(env, v, k))) return json({ ok: false, error: 'link' }, 404, origin);
+          const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
+          if (!(await rlHit(env, 'wcp_' + v, 20, 60 * 60 * 1000))) return json({ ok: false, error: 'rate' }, 429, origin);
+          if (cip && !(await rlHit(env, 'wcpi_' + (await ipKey(cip)), 40, 60 * 60 * 1000))) return json({ ok: false, error: 'rate' }, 429, origin);
+          const f = fd.get('file');
+          if (!f || typeof f === 'string') return json({ ok: false, error: 'file' }, 400, origin);
+          if (f.size > 5 * 1024 * 1024) return json({ ok: false, error: 'big' }, 413, origin);
+          const buf = new Uint8Array(await f.arrayBuffer());
+          const img = W.imgInfo(buf);
+          if (!img) return json({ ok: false, error: 'type' }, 400, origin);
+          const key = `p/${await roomTag('web_' + v)}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${img.ext}`;
+          await env.CHAT_MEDIA.put(key, buf, { httpMetadata: { contentType: img.type } });
+          const r = await W.guestSend(env, ctx, v, '', [{ u: key, t: key, w: img.w, h: img.h, sz: buf.length }]);
+          return json({ ok: true, s: r.s }, 200, origin);
+        } catch (e) {
+          const m = String(e && e.message || e);
+          return json({ ok: false, error: m === 'gone' || m === '없는 방입니다' ? 'gone' : 'server' }, m === 'gone' || m === '없는 방입니다' ? 404 : 400, origin);
+        }
+      }
       if (/^\/public\/webchat\/(start|send|poll)$/.test(path) && request.method === 'POST') {
         if (!env.SITE_KEY || !sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY)) return json({ ok: false, error: 'site' }, 403, origin);
         const W = chatRoute.web, b = await request.json().catch(() => ({}));
@@ -1152,7 +1180,7 @@ export default {
             const r = await W.guestSend(env, ctx, v, b.x);
             return json({ ok: true, ...r }, 200, origin);
           }
-          const r = await W.poll(env, v, b.after);
+          const r = await W.poll(env, v, b.after, new URL(request.url).origin);
           if (r.gone) return json({ ok: false, error: 'gone' }, 404, origin);
           return json({ ok: true, ...r }, 200, origin);
         } catch (e) {
