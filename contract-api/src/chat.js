@@ -781,7 +781,7 @@ export function makeChat(deps) {
   function webStateUp(rid, room, p) {
     const up = {};
     for (const [k, v] of Object.entries(p)) up[`chat/rooms/${rid}/${k}`] = v;
-    for (const ph of Object.keys(room.m || {})) { const b = `chat/inbox/${ph}/${rid}`; if ('ws' in p) up[`${b}/ws`] = p.ws; if ('wan' in p) up[`${b}/wan`] = p.wan; }
+    for (const ph of Object.keys(room.m || {})) { const b = `chat/inbox/${ph}/${rid}`; if ('ws' in p) up[`${b}/ws`] = p.ws; if ('wan' in p) up[`${b}/wan`] = p.wan; if ('wa' in p) up[`${b}/wa`] = p.wa; if ('wf' in p) up[`${b}/wf`] = p.wf; }
     return up;
   }
   /* 상담 기록 줄(상태 · 담당 바뀜) — 손님에게는 안 보인다. 바꾼 사람은 읽은 것으로 */
@@ -888,7 +888,9 @@ export function makeChat(deps) {
     await dbPatch(env, '/', up);
     await fixLatest(env, rid, room, seq).catch(() => {});
     const muted = room.mute || {};
-    const targets = Object.keys(room.m || {}).filter((p) => !muted[p]);
+    /* 담당자 · 팔로워가 있으면 그 사람들에게만 알림(상담이 많아져도 다른 경영팀 폰이 안 울리게), 없으면 경영팀 전원 */
+    const owners = [room.wa, ...Object.keys(room.wf || {})].filter((p) => p && room.m && room.m[p]);
+    const targets = (owners.length ? [...new Set(owners)] : Object.keys(room.m || {})).filter((p) => !muted[p]);
     const job = targets.length ? pushToPhones(env, targets, { title: webTitle(room), body: clip(preview, 140), url: './#comm/' + rid, tag: 'chat-' + rid }, { urgency: 'high', topic: 'c' + rid.slice(0, 30), chat: true }).catch(() => {}) : null;
     if (job) { if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job; }
     return { s: seq, at };
@@ -986,7 +988,7 @@ export function makeChat(deps) {
     if (body.op === 'info') {
       const priv = (await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)) || {};
       const bk = room.wb && deps.bkGet ? await deps.bkGet(env, room.wb).catch(() => null) : null;
-      return { info: { name: priv.name || '', email: priv.email || '', lang: priv.lang || room.wl || 'en', at: priv.at || room.at || 0, seen: priv.seen || 0, ws: room.ws || 'wait', wa: room.wa || '', wan: room.wan || '', ad: room.wad || '', brand: room.wbr || 'DAY:MEAN' }, booking: bk ? { id: room.wb, ...bk } : null };
+      return { info: { name: priv.name || '', email: priv.email || '', lang: priv.lang || room.wl || 'en', at: priv.at || room.at || 0, seen: priv.seen || 0, ws: room.ws || 'wait', wa: room.wa || '', wan: room.wan || '', ad: room.wad || '', brand: room.wbr || 'DAY:MEAN', wf: room.wf || {} }, booking: bk ? { id: room.wb, ...bk } : null };
     }
     if (body.op === 'state') {
       const p = {};
@@ -1011,6 +1013,20 @@ export function makeChat(deps) {
       if ('wa' in p) t.push(p.wa ? `담당 ${p.wan}` : '담당자 없음');
       await webSys(env, rid, { ...room, ...p }, t.join(' · '), ph).catch(() => {});
       return { ws: p.ws || room.ws || 'wait', wan: 'wan' in p ? (p.wan || '') : (room.wan || '') };
+    }
+    /* 팔로워(11/14 사용자 '담당자 추가 — 고객은 모르고 우리만') — 담당자 말고 같이 챙기는 사람. 손님에게는 누가 답하든 DAY:MEAN */
+    if (body.op === 'follow') {
+      const to = String(body.ph || ph);
+      if (!member(room, to)) throw new Error('이 방 멤버만 팔로워가 될 수 있어요');
+      const wf = { ...(room.wf || {}) };
+      const tu = to === ph ? u : await dbGet(env, '/users/' + encodeURIComponent(to)).catch(() => null);
+      const tn = (tu && (tu.nick || tu.name)) || '';
+      const on = body.on !== false;
+      if (on) { if (wf[to]) return { wf }; wf[to] = tn; } else { if (!wf[to]) return { wf }; delete wf[to]; }
+      const v2 = Object.keys(wf).length ? wf : null;
+      await dbPatch(env, '/', webStateUp(rid, room, { wf: v2 }));
+      await webSys(env, rid, { ...room, wf: v2 }, on ? `팔로워 추가 · ${tn}${to !== ph ? ` (${bn} 님이)` : ''}` : `팔로워 빠짐 · ${tn}`, ph).catch(() => {});
+      return { wf: v2 || {} };
     }
     if (body.op === 'confirm') {
       if (!deps.bkChatConfirm) throw new Error('예약 기능이 연결되지 않았어요');
