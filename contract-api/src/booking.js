@@ -188,6 +188,7 @@ export function makeBooking(deps) {
     const branch = BRANCHES[b.branch] ? b.branch : 'any';
     const ch = {};
     for (const k of CH) { const v = clip(b.ch && b.ch[k], 60); if (v) ch[k] = v; }
+    if (!ch.wechat && !ch.ig) throw new Error('ch');   // 위챗 아이디 · 인스타그램 아이디 중 하나는 필수(11/14 사용자)
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
     const prefs = (Array.isArray(b.prefs) ? b.prefs : []).slice(0, 3).map((p) => ({ d: clip(p && p.d, 10), t: clip(p && p.t, 9) }))
       .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.d) && p.d >= today && (SLOTS.includes(p.t) || /^\d{2}:\d{2}$/.test(p.t)));
