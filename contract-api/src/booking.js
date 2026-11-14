@@ -103,10 +103,10 @@ async function chatUrl(env, id, L) {
 const CH_API = 'https://api.channel.io', CH_VER = '2026-06-01', CH_BOT = '데이민 예약';
 const GENDER_T = { en: { '여성': 'Female', '남성': 'Male' }, zh: { '여성': '女', '남성': '男' }, ja: { '여성': '女性', '남성': '男性' }, ko: { '여성': '여성', '남성': '남성' } };
 const CHMSG_T = {
-  en: { hi: (n) => `Hello ${n}, thank you for your booking request! Our team will reply here shortly. You will also receive our replies by email.`, g: 'Gender', e: 'Email' },
-  zh: { hi: (n) => `${n} 您好，感谢您的预约申请！我们的工作人员会尽快在这里回复您，回复也会同时发送到您的邮箱。`, g: '性别', e: '邮箱' },
-  ja: { hi: (n) => `${n} 様、ご予約リクエストありがとうございます！担当者よりこちらでご返信いたします。返信はメールでもお届けします。`, g: '性別', e: 'メール' },
-  ko: { hi: (n) => `${n} 님, 예약 요청 감사합니다! 담당자가 여기서 곧 답변드릴게요. 답변은 메일로도 받아 보실 수 있어요.`, g: '성별', e: '이메일' },
+  en: { hi: (n) => `Hello ${n}, thank you for your booking request! Our consultant is checking your requested booking. When we reply, you can see it here and in your email.`, g: 'Gender', e: 'Email' },
+  zh: { hi: (n) => `${n} 您好，感谢您的预约申请！我们的顾问正在确认您申请的预约。回复后，您可以在这里或通过邮件查看。`, g: '性别', e: '邮箱' },
+  ja: { hi: (n) => `${n} 様、ご予約リクエストありがとうございます！担当者がご希望のご予約を確認しております。返信はこちらのチャットとメールでご確認いただけます。`, g: '性別', e: 'メール' },
+  ko: { hi: (n) => `${n} 님, 예약 요청 감사합니다! 상담사가 요청하신 예약을 확인하고 있어요. 답변이 오면 이 채팅과 이메일로 확인하실 수 있어요.`, g: '성별', e: '이메일' },
 };
 async function chMemberOf(env, email) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.SESSION_SECRET || env.SITE_KEY || 'x')), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
