@@ -92,12 +92,79 @@ async function chatUrl(env, id, L) {
   return `${base}${L === 'ko' ? '' : '/' + L}/booking/chat?b=${id}&k=${await bkSig(env, id)}`;
 }
 
+/* ═══ 채널톡 상담방 자동 열기 (11/14 사용자 '예약 요청 들어오는 순간 상담방이 열리게') ═══
+   채널톡 Open API(https://api.channel.io, Channel-Version 2026-06-01, 헤더 x-access-key · x-access-secret = 시크릿 CHANNEL_ACCESS_KEY · CHANNEL_ACCESS_SECRET).
+   1) PUT /open/users/@{memberId} — 손님을 memberId 로 만들거나 고침(이름 · 이메일 · 전화 · booking* 프로필 · 태그 '웹사이트')
+      memberId = 'bk' + HMAC(이메일) — 같은 이메일이면 같은 손님, 남이 이메일만 알아서는 못 만든다. 사이트는 이 값으로 채널톡을 다시 띄워 같은 상담방을 본다.
+   2) POST /open/users/{userId}/user-chats — 상담방 열기
+   3) 손님에게 보이는 첫 메시지(손님 언어 · 지점 → 디자이너 → 희망 날짜 → 성별 → 시술 → 이메일) — 손님 알림은 끔(silentToUser, 접수 메일을 뺀 것과 같은 이유)
+   4) 직원만 보는 메모(private, 한국어 요약)
+   시크릿이 없거나 채널톡이 실패해도 예약 요청 저장 · 직원 폰 알림은 그대로 된다(답변 메일로 대신 연락). */
+const CH_API = 'https://api.channel.io', CH_VER = '2026-06-01', CH_BOT = '데이민 예약';
+const GENDER_T = { en: { '여성': 'Female', '남성': 'Male' }, zh: { '여성': '女', '남성': '男' }, ja: { '여성': '女性', '남성': '男性' }, ko: { '여성': '여성', '남성': '남성' } };
+const CHMSG_T = {
+  en: { hi: (n) => `Hello ${n}, thank you for your booking request! Our team will reply here shortly. You will also receive our replies by email.`, g: 'Gender', e: 'Email' },
+  zh: { hi: (n) => `${n} 您好，感谢您的预约申请！我们的工作人员会尽快在这里回复您，回复也会同时发送到您的邮箱。`, g: '性别', e: '邮箱' },
+  ja: { hi: (n) => `${n} 様、ご予約リクエストありがとうございます！担当者よりこちらでご返信いたします。返信はメールでもお届けします。`, g: '性別', e: 'メール' },
+  ko: { hi: (n) => `${n} 님, 예약 요청 감사합니다! 담당자가 여기서 곧 답변드릴게요. 답변은 메일로도 받아 보실 수 있어요.`, g: '성별', e: '이메일' },
+};
+async function chMemberOf(env, email) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.SESSION_SECRET || env.SITE_KEY || 'x')), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('chm:' + String(email).toLowerCase()));
+  return 'bk' + Array.from(new Uint8Array(sig).slice(0, 10), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function chCall(env, method, path, body) {
+  const r = await fetch(CH_API + path, { method, headers: { 'x-access-key': env.CHANNEL_ACCESS_KEY, 'x-access-secret': env.CHANNEL_ACCESS_SECRET, 'Channel-Version': CH_VER, 'Content-Type': 'application/json', accept: 'application/json' }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(8000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`channel ${method} ${path.split('/').slice(0, 4).join('/')} ${r.status} ${(j.errors && j.errors[0] && j.errors[0].type) || ''}`);
+  return j;
+}
+/* 봇으로 메시지 — 봇 '데이민 예약'이 없으면 한 번 만들고 다시 보낸다(봇 이름엔 ':' 못 씀) */
+async function chSend(env, c, body) {
+  const path = `/open/user-chats/${c}/messages?botName=${encodeURIComponent(CH_BOT)}`;
+  try { return await chCall(env, 'POST', path, body); } catch (e) {
+    const bots = await chCall(env, 'GET', '/open/bots').catch(() => ({}));
+    if ((bots.bots || []).some((b) => b && b.name === CH_BOT)) throw e;
+    await chCall(env, 'POST', '/open/bots', { name: CH_BOT, color: '#111111', description: '홈페이지 해외 예약 요청 (DM 본사 앱)' });
+    return chCall(env, 'POST', path, body);
+  }
+}
+/* 상담방 열기 — 성공하면 { u 손님 id, c 상담방 id, m memberId } */
+async function chOpen(env, id, r) {
+  if (!env.CHANNEL_ACCESS_KEY || !env.CHANNEL_ACCESS_SECRET) return null;
+  const L = r.lang, t = T[L] || T.en, M = CHMSG_T[L] || CHMSG_T.en, md = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
+  const m = await chMemberOf(env, r.email);
+  const profile = { name: r.name, email: r.email, bookingId: id, bookingBranch: r.branch, bookingDates: r.prefs.map((p) => `${md(p.d)} ${p.t}`).join(' · '), bookingServices: (r.service || '').slice(0, 200), bookingGender: r.gender, bookingDesigner: r.designer || '', bookingNote: (r.note || '').slice(0, 100), bookingLang: L };
+  if (/^\+\d{6,15}$/.test(String(r.phone || '').replace(/[\s-]/g, ''))) profile.mobileNumber = String(r.phone).replace(/[\s-]/g, '');
+  for (const k of Object.keys(profile)) if (!profile[k]) delete profile[k];
+  const up = await chCall(env, 'PUT', `/open/users/@${m}`, { profile, tags: ['웹사이트'] });
+  const u = up.user && up.user.id;
+  if (!u) throw new Error('channel user');
+  const uc = await chCall(env, 'POST', `/open/users/${u}/user-chats`);
+  const c = uc.userChat && uc.userChat.id;
+  if (!c) throw new Error('channel chat');
+  const br = BRANCHES[r.branch] || BRANCHES.any;
+  const lines = [M.hi(r.name), '', `${t.where}: ${br[L] || br.en}`];
+  if (r.designer) lines.push(`${t.who}: ${r.designer}`);
+  lines.push(`${t.when}: ${r.prefs.map((p) => prefTxt(p, L)).join(' / ')}`, `${M.g}: ${(GENDER_T[L] || GENDER_T.en)[r.gender] || r.gender}`);
+  if (r.svcL || r.service) lines.push(`${t.what}: ${r.svcL || r.service}`);
+  lines.push(`${M.e}: ${r.email}`);
+  await chSend(env, c, { plainText: lines.join('\n'), options: ['displayAsChannel', 'silentToUser'] });
+  const ko = [`[해외 예약 요청 · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[L] || L}]`, `지점: ${br.ko}`, r.designer ? `디자이너: ${r.designer}` : '디자이너: 미지정', `희망: ${r.prefs.map((p) => prefTxt(p, 'ko')).join(' / ')}`, `성별: ${r.gender}`, `시술: ${r.service || '-'}`, `이메일: ${r.email}`];
+  if (r.phone) ko.push(`전화: ${r.phone}`);
+  if (r.note) ko.push(`요청 사항: ${r.note.slice(0, 300)}`);
+  ko.push('확정은 DM 앱 > 해외 예약에서 (확정 메일이 나가요)');
+  await chSend(env, c, { plainText: ko.join('\n'), options: ['private'] }).catch((e) => console.log('channel note', e && e.message));
+  return { u, c, m };
+}
+
 export function makeBooking(deps) {
   const { dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
   const siteOk = (request, env) => !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
   const rate = async (request, env, tag, max) => {
     const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
-    return rlHit(env, tag + await ipKey(cip || ipOf(request)), cip ? max : max * 6, 60 * 60 * 1000);
+    if (!cip) return true;   // 사이트 서버(Vercel) IP 하나로 모든 손님이 같이 잠기지 않게 — 이 경로들은 X-Site-Key 가 있어야만 부를 수 있다
+    return rlHit(env, tag + await ipKey(cip), max, 60 * 60 * 1000);
   };
 
   function clean(b) {
@@ -211,8 +278,8 @@ export function makeBooking(deps) {
       const id = String(q.b || ''), k = String(q.k || '');
       if (!ID_RE.test(id) || !/^[0-9a-f]{24}$/.test(k) || !sameStr(k, await bkSig(env, id))) return [404, { ok: false, error: 'link' }];
       const v = await dbGet(env, `${BASE}/${id}`).catch(() => null);
-      if (!v) return [404, { ok: false, error: 'gone' }];
-      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null } }];
+      if (!v || Date.now() - (v.up || v.at || 0) > KEEP_MS) return [404, { ok: false, error: 'gone' }];
+      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, chMember: (v.cht && v.cht.m) || '', chChat: (v.cht && v.cht.c) || '' } }];
     }
     if (path !== '/public/booking' || request.method !== 'POST') return null;
     if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
@@ -233,7 +300,9 @@ export function makeBooking(deps) {
       staffFor(env, r.branch).then((to) => to.length && pushToPhones(env, to, { title: '[해외 예약] 새 요청', body: `${r.name} · ${BRANCHES[r.branch].ko} · ${prefTxt(r.prefs[0], 'ko')}${r.prefs.length > 1 ? ` 외 ${r.prefs.length - 1}` : ''}`, url: './#booking', tag: 'book-' + id }, { urgency: 'high' })).catch((e) => console.log('booking push', e && e.message)),
     ];
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
-    return [200, { ok: true, id, k: await bkSig(env, id) }];
+    let cht = null;
+    try { cht = await chOpen(env, id, r); if (cht) await dbPatch(env, `${BASE}/${id}`, { cht }); } catch (e) { console.log('booking channel', e && e.message); }
+    return [200, { ok: true, id, k: await bkSig(env, id), chMember: cht ? cht.m : '', chChat: cht ? cht.c : '' }];
   }
 
   async function route(path, request, env, me, json, origin) {
