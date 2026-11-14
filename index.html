@@ -11569,8 +11569,9 @@ function cmRenderList(){
   if(CM.inbox===null){v.innerHTML='<div class="cm-head"><span class="t">채팅</span></div><div class="sk"></div>';return}
   var ids=Object.keys(CM.inbox).filter(function(k){var r=CM.inbox[k];return r&&r.t&&!(r.hid!=null&&(r.s||0)<=r.hid)});
   var brs={};ids.forEach(function(k){var b=cmBranchOf(k,CM.inbox[k]);if(b)brs[b]=1});
-  var notice=CM.inbox.notice;var pin='';
-  if(notice&&(notice.s||0)>(notice.r||0)&&notice.x)pin='<div class="cm-pinbar" onclick="cmOpenRoom(\'notice\')"><b>공지</b><span>'+cmEsc(notice.x)+'</span><em>확인 필요</em></div>';
+  /* 전체 공지는 브랜드별(11/14 — DAY:MEAN 'notice', ETOH 'notice_ETOH' …). 안 읽은 공지방 하나를 맨 위 띠로 */
+  var nk=Object.keys(CM.inbox).filter(function(k){var x=CM.inbox[k];return x&&x.t==='notice'&&(x.s||0)>(x.r||0)&&x.x})[0];var notice=nk?CM.inbox[nk]:null;var pin='';
+  if(notice)pin='<div class="cm-pinbar" onclick="cmOpenRoom('+cmJsLit(nk)+')"><b>공지</b><span>'+cmEsc(notice.x)+'</span><em>확인 필요</em></div>';
   var q=(CM.q||'').trim().toLowerCase();
   var rows=ids.filter(function(k){var r=CM.inbox[k];var un=(r.s||0)>(r.r||0);
     if(CM.filter.br&&cmBranchOf(k,r)!==CM.filter.br)return false;
@@ -11579,7 +11580,7 @@ function cmRenderList(){
     /* 아카데미(레벨방)는 '전체' 목록에서 숨긴다 — 알림 끄고 들어간 디자이너 · 경영팀에게 방이 너무 많아서(11/13). 인턴(알림 켬) · @나 · 검색 중엔 보인다 */
     if(!CM.filter.k&&!q&&r.t==='lv'&&r.mute&&!((r.mn||0)>(r.r||0)))return false;if(CM.filter.k==='dm'&&r.t!=='dm'&&r.t!=='me')return false;
     if(q&&String(cmRoomName(k,r)).toLowerCase().indexOf(q)<0&&String(r.x||'').toLowerCase().indexOf(q)<0)return false;return true})
-    .sort(function(a,b){var A=CM.inbox[a],B=CM.inbox[b];if(a==='notice')return -1;if(b==='notice')return 1;if(!!A.pin!==!!B.pin)return A.pin?-1:1;if(A.pin&&B.pin)return B.pin-A.pin;return (B.at||0)-(A.at||0)});
+    .sort(function(a,b){var A=CM.inbox[a],B=CM.inbox[b];var An=A.t==='notice',Bn=B.t==='notice';if(An!==Bn)return An?-1:1;if(!!A.pin!==!!B.pin)return A.pin?-1:1;if(A.pin&&B.pin)return B.pin-A.pin;return (B.at||0)-(A.at||0)});
   /* 위쪽을 한 줄로: 검색(누르면 펼침) · 필터(지점 + 종류를 한 창에) · 새 대화 · 설정 — 목록이 화면 위에서 바로 시작하게 */
   var fl=[];if(CM.filter.br)fl.push(CM.filter.br);var KL={un:'안 읽음',at:'@나',notice:'공지',dm:'1:1',all:'단체방',br:'지점방',tm:'팀방',lv:'아카데미'};if(CM.filter.k)fl.push(KL[CM.filter.k]);
   var h='<div class="cm-tools"><button class="cm-tool'+(CM.qOpen||CM.q?' on':'')+'" onclick="CM.qOpen=!CM.qOpen;if(!CM.qOpen)CM.q=\'\';cmRenderList();if(CM.qOpen){var e=$(\'CM-Q\');if(e)e.focus()}">검색</button><button class="cm-tool'+(fl.length?' on':'')+'" onclick="cmFilterSheet()">필터'+(fl.length?' · '+cmEsc(fl.join(' · ')):'')+' ▾</button><span style="flex:1"></span>'+(cmDeskWin()&&!DM_SOLO?'<button class="cm-tb gray" onclick="cmDeskSize('+(DM_SMALL?'false':'true')+')">'+(DM_SMALL?'크게 보기':'작게 보기')+'</button><button class="cm-tb gray" onclick="cmDeskTop()"'+(CM._onTop?' style="color:var(--cm-blue)"':'')+'>위에 고정</button>':'')+'<button class="cm-tb gray" onclick="cmOpenSettings()">설정</button><button class="cm-tb" onclick="cmOpenNew(\'new\')">새 대화</button></div>';
@@ -11633,7 +11634,7 @@ function cmRowMenu(rid,ev){var r=CM.inbox&&CM.inbox[rid];if(!r)return;var un=(r.
   var b=function(act,label,red){return '<button onclick="this.closest(\'.cm-sheet-bg\').remove();cmRowAct(\''+cmEsc(rid)+'\',\''+act+'\')"'+(red?' style="color:#DC2626"':'')+'>'+label+'</button>'};
   var h='<div class="ttl">'+cmEsc(cmRoomName(rid,r))+'</div>';
   if(CM_DESK&&!DM_SOLO)h+=b('pop','새 창으로 열기');
-   if(rid!=='notice')h+=b('pin',r.pin?'상단 고정 해제':'상단 고정');
+   if(r.t!=='notice')h+=b('pin',r.pin?'상단 고정 해제':'상단 고정');
   var _lvLike=r.t==='lv'||rid==='all_interns';h+=_lvLike?b('mute',r.mute?'알림: 모든 글 받기로 바꾸기':'알림: 나 · 내 인턴 글만 받기로 바꾸기'):b('mute',r.mute?'알림 켜기':'알림 끄기');if(_lvLike)h+='<div class="who-row" style="color:#94A3B8;font-size:12.5px">지금: '+(r.mute?'나를 부르거나 내 담당 인턴 글일 때만 알림':'모든 글 알림')+'</div>';
   h+=b('name','채팅방 이름 설정 (나만 보기)');if(r.nm)h+=b('unname','원래 이름으로');
   if(un)h+=b('read','읽음 처리');

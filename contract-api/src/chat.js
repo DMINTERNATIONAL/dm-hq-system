@@ -186,7 +186,11 @@ export function makeChat(deps) {
     const { el } = await eligible(env, true);
     const want = { notice: { t: 'notice', n: '전체 공지', m: {} }, hq: { t: 'hq', n: '본사경영팀', m: {} }, ops: { t: 'ops', n: '업무 알림', m: {} } };
     for (const [ph, u] of Object.entries(el)) {
-      want.notice.m[ph] = 1;
+      /* 전체 공지는 브랜드별(11/14 사용자 'ETOH 와 DAY:MEAN 은 전혀 다른 사업장') — DAY:MEAN(과 브랜드 없는 사람)은 예전 'notice' 방 그대로,
+         다른 브랜드는 'notice_브랜드' 방. 경영팀(본사)은 모든 공지방에 */
+      const nb = u.brand && u.brand !== 'DAY:MEAN' && u.brand !== 'DM INTERNATIONAL' ? u.brand : '';
+      if (isHqUser(ph, u) || !nb) want.notice.m[ph] = 1;
+      if (nb) { const nr = 'notice_' + roomKey(nb); want[nr] = want[nr] || { t: 'notice', n: '전체 공지', m: {}, bt: nb }; want[nr].m[ph] = 1; }
       if (isHqUser(ph, u)) { want.hq.m[ph] = 1; want.ops.m[ph] = 1; }
       if (u.branch && u.branch !== '본사') {
         const rid = 'br_' + roomKey((u.brand || '') + '_' + u.branch);
@@ -204,6 +208,8 @@ export function makeChat(deps) {
         want[rid].m[ph] = 1;
       }
       for (const w of Object.values(want)) if (w.t === 'bd') for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) w.m[ph] = 1;
+      /* 지점이 하나뿐인 브랜드(ETOH = 합정점)는 브랜드방을 따로 두지 않는다 — 지점방과 사람이 똑같아 방만 두 개였다(11/14 사용자). 지점이 둘 이상이면 그대로 */
+      for (const [rid, w] of Object.entries(want)) if (w.t === 'bd' && Object.values(want).filter((x) => x.t === 'br' && x.bt === w.bt).length <= 1) delete want[rid];
     }
     if (ar.lv !== false) {
       for (const [ph, u] of Object.entries(el)) {
@@ -238,12 +244,12 @@ export function makeChat(deps) {
       /* 팀방엔 경영팀을 넣지 않는다(사용자 결정 11/13) — 담당 디자이너 + 담당 인턴만. 이미 들어가 있던 경영팀은 다음 맞추기에서 빠진다 */
     }
     /* 경영팀은 모든 지점방에 들어간다 (지점 상황을 같이 봐야 해서) */
-    for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br') want[rid].m[ph] = 1;
+    for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br' || want[rid].t === 'notice') want[rid].m[ph] = 1;   // 지점방 · 브랜드별 공지방 모두
     /* 브랜드 꼬리표(bt, 11/14 사용자 '고정 단톡방 앞에 브랜드') — 목록 이름 앞에 작게. 경영팀(본사)은 빼고 남은 사람들의 브랜드로 정한다:
        한 브랜드면 그 브랜드, 둘 이상이면 '공통'. 전체 공지는 '전 직원', 본사경영팀 · 업무 알림은 '본사' */
     for (const w of Object.values(want)) {
       if (w.bt != null) continue;
-      if (w.t === 'notice') { w.bt = '전 직원'; continue; }
+      if (w.t === 'notice') { w.bt = 'DAY:MEAN'; continue; }   // 'notice' 방 = DAY:MEAN 공지(다른 브랜드 공지방은 만들 때 bt 를 넣는다)
       if (w.t === 'hq' || w.t === 'ops') { w.bt = '본사'; continue; }
       const bs = new Set();
       for (const ph of Object.keys(w.m)) { const u = el[ph]; if (!u || isHqUser(ph, u) || !u.brand || u.brand === 'DM INTERNATIONAL') continue; bs.add(u.brand); }
