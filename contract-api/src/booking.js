@@ -68,7 +68,7 @@ const REMIND_T = {
 const START_T = { en: ['Please start your consultation with the button below — your booking is confirmed in the chat.', 'Start chat consultation'], zh: ['请点击下方按钮开始在线咨询，预约将在咨询中确认。', '开始在线咨询'], ja: ['下のボタンからチャット相談を始めてください。ご予約は相談の中で確定します。', 'チャット相談を始める'], ko: ['아래 버튼으로 채팅 상담을 시작해 주세요. 예약은 상담에서 확정돼요.', '채팅 상담 시작하기'] };
 const chatBtn = (L, url, start) => { if (!url) return ''; const c = (start ? START_T : CHAT_T)[L] || (start ? START_T : CHAT_T).en; return `<p style="margin:18px 0 8px;font-size:14px">${esc(c[0])}</p><a href="${esc(url)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${esc(c[1])}</a>`; };
 const SLOT_T = { en: { any: 'any time', morning: 'morning', afternoon: 'afternoon', evening: 'evening' }, zh: { any: '任何时间', morning: '上午', afternoon: '下午', evening: '晚上' }, ja: { any: '何時でも', morning: '午前', afternoon: '午後', evening: '夕方' }, ko: { any: '아무 때', morning: '오전', afternoon: '오후', evening: '저녁' } };
-const prefTxt = (p, L) => `${p.d} ${/^\d{2}:\d{2}$/.test(p.t) ? p.t : (SLOT_T[L] || SLOT_T.en)[p.t] || ''}`.trim();
+const prefTxt = (p, L) => `${p.d} ${/^\d{2}:\d{2}/.test(p.t || '') ? String(p.t).split(',').join(' · ') : (SLOT_T[L] || SLOT_T.en)[p.t] || ''}`.trim();
 
 function mailHtml(L, title, lines, rows, after, pre) {
   const t = T[L] || T.en;
@@ -190,8 +190,10 @@ export function makeBooking(deps) {
     for (const k of CH) { const v = clip(b.ch && b.ch[k], 60); if (v) ch[k] = v; }
     if (!ch.wechat && !ch.ig) throw new Error('ch');   // 위챗 아이디 · 인스타그램 아이디 중 하나는 필수(11/14 사용자)
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-    const prefs = (Array.isArray(b.prefs) ? b.prefs : []).slice(0, 3).map((p) => ({ d: clip(p && p.d, 10), t: clip(p && p.t, 9) }))
-      .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.d) && p.d >= today && (SLOTS.includes(p.t) || /^\d{2}:\d{2}$/.test(p.t)));
+    // 시간(11/14 사용자 '무관 또는 10:00~18:30 30분 단위 여러 개'): t = 'any' 또는 'HH:MM,HH:MM,…'(30분 단위 · 최대 18개). 예전 morning/afternoon/evening 도 받음
+    const slotOk = (t) => { const v = String(t || ''); if (SLOTS.includes(v)) return v; const xs = [...new Set(v.split(',').map((x) => x.trim()).filter(Boolean))].slice(0, 18); if (!xs.length || !xs.every((x) => /^(1[0-8]):(00|30)$/.test(x))) return ''; return xs.sort().join(','); };
+    const prefs = (Array.isArray(b.prefs) ? b.prefs : []).slice(0, 3).map((p) => ({ d: clip(p && p.d, 10), t: slotOk(p && p.t) }))
+      .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.d) && p.d >= today && p.t);
     if (!prefs.length) throw new Error('prefs');
     return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(Array.isArray(b.services) ? b.services.map((x) => clip(x, 40)).filter(Boolean).slice(0, 20).join(', ') : b.service, 400), prefs, note: clip(b.note, 1000), len: clip(b.len, 20), gender: ['여성', '남성'].includes(b.gender) ? b.gender : '', svcL: clip(b.servicesLabel, 400) };   // svcL: 손님 언어로 쓴 시술 이름(메일용) — service 는 직원용 한국어   // gender: 성별(11/14 사용자 '머리 길이 대신 성별') · len 은 예전 값 호환   // len: 머리 길이(가격표 기장 — 숏컷/남자 · 목선 · 쇄골선 · 가슴 윗선 …)   // service: 메뉴 여러 개(11/14 '우리 메뉴 다 보여주자') — services 배열 또는 service 글자
   }
