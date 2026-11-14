@@ -197,7 +197,7 @@ async function chOpen(env, id, r) {
 }
 
 export function makeBooking(deps) {
-  const { webOpen, webSig, webCard, webTr, dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
+  const { webOpen, webSig, webCard, webTr, webAttach, dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
   const siteOk = (request, env) => !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
   const rate = async (request, env, tag, max) => {
     const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
@@ -299,9 +299,11 @@ export function makeBooking(deps) {
     let id = o.room && ID_RE.test(String(o.room.wb || '')) ? String(o.room.wb) : '';
     let cur = id ? await dbGet(env, `${BASE}/${id}`).catch(() => null) : null;
     if (!cur) {
+      confOf(o.conf, { branch: 'any' }, o.who);   // 날짜 · 시간이 틀리면 예약을 만들기 전에 멈춤(다시 눌러도 예약이 쌓이지 않게)
       id = id36();
       cur = { name: clip(o.priv.name, 60), email: clip(o.priv.email, 120).toLowerCase(), lang: LANGS.includes(o.priv.lang) ? o.priv.lang : 'en', branch: BRANCHES[o.conf && o.conf.branch] ? o.conf.branch : 'any', prefs: [], service: clip(o.conf && o.conf.svc, 400), ...(o.conf && o.conf.svcL ? { svcL: clip(o.conf.svcL, 400) } : {}), status: 'contacted', src: 'chat', web: o.v, at: Date.now(), up: Date.now() };
       await dbPut(env, `${BASE}/${id}`, cur);
+      if (o.link) await o.link(id);   // 메일이 실패해 다시 눌러도 같은 예약으로
     } else if (!cur.web) { cur.web = o.v; await dbPatch(env, `${BASE}/${id}`, { web: o.v }); }
     const c = confOf(o.conf, cur, o.who);
     await confirmBooking(env, id, cur, c, o.who);
@@ -402,7 +404,9 @@ export function makeBooking(deps) {
     try { cht = await chOpen(env, id, r); } catch (e) { console.log('booking channel', e && e.message); }
     /* 우리 앱 상담방(11/14 사용자 '채널톡 대신 우리 앱으로') — 경영팀이 받는 홈페이지 상담방을 예약 요약과 함께 연다. 알림은 위 '[해외 예약] 새 요청'이 이미 간다 */
     let web = null;
-    if (webOpen) { try { web = await webOpen(env, ctx, { name: r.name, email: r.email, lang: r.lang, b: id, first: bkSummary(id, r), push: false }); await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking web', e && e.message); } }
+    // 이미 상담 중인 방이 있으면(사이트가 webW · webK 를 보냄) 그 방에 붙이고, 열쇠가 틀리거나 방이 없으면 새 방
+    if (webAttach && b.webW && b.webK) { try { web = await webAttach(env, ctx, { w: b.webW, k: b.webK, b: id, first: bkSummary(id, r) }); if (web) await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking attach', e && e.message); web = null; } }
+    if (!web && webOpen) { try { web = await webOpen(env, ctx, { name: r.name, email: r.email, lang: r.lang, b: id, first: bkSummary(id, r), push: false }); await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking web', e && e.message); } }
     /* 무료 방법(11/14 사용자 — Open API 는 유료라 '무료로'): 사이트가 손님 브라우저의 채널톡 고객 번호(boot 콜백 user.id)를 chUser 로 넘긴다.
        직원 앱 '채널톡 상담 열기' → 채널톡의 그 손님 화면 → '새 상담 열기'. API 키가 생기면 위 chOpen 이 상담방까지 연다 */
     const chUser = /^[A-Za-z0-9]{8,40}$/.test(String(b.chUser || '')) ? String(b.chUser) : '';
@@ -439,7 +443,7 @@ export function makeBooking(deps) {
         up.conf = confOf(b.conf, cur, who);
         // 시술: 손님이 고른 그대로면 손님 언어 글(svcL)을 쓰고, 직원이 바꿨으면 손님 언어로 번역
         if (up.conf.svc && up.conf.svc === cur.service) delete up.conf.svc;
-        else if (up.conf.svc && (cur.lang || 'en') !== 'ko' && webTr) { const tl = await webTr(env, up.conf.svc, cur.lang || 'en').catch(() => ''); if (tl) up.conf.svcL = clip(tl, 300); }
+        else if (up.conf.svc && (cur.lang || 'en') !== 'ko' && webTr) { const tl = await webTr(env, up.conf.svc, cur.lang || 'en').catch(() => ''); up.conf.svcL = clip(tl || up.conf.svc, 300); }
       }
       const L = cur.lang || 'en', t = T[L] || T.en;
       if (b.mail === 'reply') {

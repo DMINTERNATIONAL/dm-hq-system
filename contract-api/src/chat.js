@@ -415,6 +415,7 @@ export function makeChat(deps) {
     if (body.fw) msg.fw = clip(body.fw, 30);
     if (Array.isArray(body.tg)) { const tg = body.tg.filter((t) => TAGS.includes(t)); if (tg.length) msg.tg = tg; }
     if (room.t === 'web' && body.im) msg.im = 1;   // 홈페이지 상담방 '메모' — 직원끼리만, 손님에게 안 감
+    if (room.t === 'web' && body.root) throw new Error('홈페이지 상담방에서는 답장 묶기를 쓸 수 없어요 — 그냥 보내 주세요');   // 묶은 답장은 손님 화면에 안 감
 
     let rootMsg = null;
     if (root) {
@@ -805,7 +806,22 @@ export function makeChat(deps) {
     return r && r.body && r.body.ok ? String(r.body.text || '').slice(0, 5000) : '';
   }
   const WK_KO = { book: '해외 예약', site: '홈페이지 문의' };
-  const webTitle = (room) => `${WK_KO[room.wk] || '홈페이지 상담'} · ${room.n}`;
+  const WEB_BRANDS = ['DAY:MEAN', 'ETOH'];
+  const webTitle = (room) => `${room.wbr || 'DAY:MEAN'} ${WK_KO[room.wk] || '홈페이지 상담'} · ${room.n}`;
+  /* 이미 상담 중인 방에 예약 요청 붙이기(11/14 사이트 — 아이콘으로 시작한 상담에서 예약 요청서를 쓰면 새 방 대신 그 방으로). 열쇠(k)가 맞아야만 */
+  async function webAttach(env, ctx, o) {
+    const v = String(o.w || '');
+    if (!(await webCheck(env, v, o.k))) return null;
+    const rid = 'web_' + v;
+    const [room, priv] = await Promise.all([dbGet(env, '/chat/rooms/' + rid).catch(() => null), dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)]);
+    if (!room || !priv || room.t !== 'web') return null;
+    const up = { [`chat/rooms/${rid}/wb`]: String(o.b), [`${WEB_PRIV.slice(1)}/${v}/b`]: String(o.b) };
+    if (room.wk !== 'book') { Object.assign(up, { [`chat/rooms/${rid}/wk`]: 'book' }); for (const ph of Object.keys(room.m || {})) up[`chat/inbox/${ph}/${rid}/wk`] = 'book'; }
+    if (room.ws === 'hold' || room.ws === 'done') Object.assign(up, webStateUp(rid, room, { ws: 'wait', wsAt: nowMs() }));
+    await dbPatch(env, '/', up);
+    if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', false);
+    return { v, k: String(o.k), rid };
+  }
   async function webMembers(env) {
     const { el } = await eligible(env, true);
     const out = {}; for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) out[ph] = 1;
@@ -822,9 +838,10 @@ export function makeChat(deps) {
     if (!Object.keys(m).length) throw new Error('받을 사람이 없습니다');
     const n = name;   // 출처(해외 예약 · 홈페이지 문의)와 언어는 이름 뒤가 아니라 태그로(11/14 사용자) — wk · wl
     const wk = o.b ? 'book' : 'site';
-    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, wk, ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
+    const wbr = WEB_BRANDS.includes(o.brand) ? o.brand : 'DAY:MEAN';   // 브랜드(11/14 사용자 '데이민 · 에토 나눠서') — 나중에 ETOH 홈페이지도 같은 채팅
+    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, wk, wbr, ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
     const up = { [`chat/rooms/${rid}`]: room, [`${WEB_PRIV.slice(1)}/${v}`]: { name, email, lang, at, ...(o.b ? { b: String(o.b) } : {}) } };
-    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); Object.assign(up, { [`chat/inbox/${ph}/${rid}/ws`]: 'wait', [`chat/inbox/${ph}/${rid}/wk`]: wk, [`chat/inbox/${ph}/${rid}/wl`]: lang }); }
+    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); Object.assign(up, { [`chat/inbox/${ph}/${rid}/ws`]: 'wait', [`chat/inbox/${ph}/${rid}/wk`]: wk, [`chat/inbox/${ph}/${rid}/wl`]: lang, [`chat/inbox/${ph}/${rid}/wbr`]: wbr }); }
     await dbPatch(env, '/', up);
     if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', o.push !== false);
     return { v, k: await webSig(env, v), rid };
@@ -875,8 +892,14 @@ export function makeChat(deps) {
     if (!room || !priv) return { gone: true };
     const lang = priv.lang || room.wl || 'en';
     const a = Math.max(0, Number(after) || 0);
-    const raw = (await dbQuery(env, `/chat/msgs/${rid}`, `orderBy=%22$key%22&startAt=%22${pad(a + 1)}%22&limitToFirst=60`).catch(() => null)) || {};
     const out = [];
+    let from = a + 1, raw = {};
+    for (let pg = 0; pg < 5; pg++) {   // 메모 · 상태 기록만 60개 넘게 이어져도 손님 화면이 멈추지 않게 다음 묶음까지 본다
+      raw = (await dbQuery(env, `/chat/msgs/${rid}`, `orderBy=%22$key%22&startAt=%22${pad(from)}%22&limitToFirst=60`).catch(() => null)) || {};
+      const ks = Object.keys(raw).sort();
+      if (ks.length < 60 || ks.some((k) => { const m = raw[k]; return m && !(m.k === 'sys' || m.del || m.hid || m.im); })) break;
+      from = Number(ks[ks.length - 1]) + 1;
+    }
     for (const key of Object.keys(raw).sort()) {
       const m = raw[key]; if (!m || m.k === 'sys' || m.del || m.hid || m.im) continue;   // im = 직원끼리 메모(손님에게 안 보임)
       if (m.k === 'conf' && m.cf && m.cf.g) { out.push({ s: m.s, me: false, at: m.at, k: 'conf', x: '', conf: m.cf.g }); continue; }
@@ -955,9 +978,10 @@ export function makeChat(deps) {
       const lang = priv.lang || room.wl || 'en';
       const c = body.conf && typeof body.conf === 'object' ? { ...body.conf } : {};
       c.svc = clip(c.svc, 200); delete c.svcL;
-      if (c.svc && lang !== 'ko') c.svcL = clip(await webTr(env, c.svc, lang), 300);
-      const r = await deps.bkChatConfirm(env, { v, priv, room, conf: c, who: bn });
-      if (r.id && room.wb !== r.id) await dbPatch(env, '/', { [`chat/rooms/${rid}/wb`]: r.id, [`${WEB_PRIV.slice(1)}/${v}/b`]: r.id });
+      if (c.svc && lang !== 'ko') c.svcL = clip(await webTr(env, c.svc, lang), 300) || c.svc;   // 번역이 안 되면 한국어라도(예전 시술이 나가지 않게)
+      const link = (id) => dbPatch(env, '/', { [`chat/rooms/${rid}/wb`]: id, [`${WEB_PRIV.slice(1)}/${v}/b`]: id });
+      const r = await deps.bkChatConfirm(env, { v, priv, room, conf: c, who: bn, link });
+      if (r.id && room.wb !== r.id) await link(r.id);
       return { id: r.id };
     }
     throw new Error('없는 기능입니다');
@@ -1448,6 +1472,6 @@ export function makeChat(deps) {
   route.runScheduled = runScheduled;
   route.eligible = eligible;
   route.botPost = botPost;
-  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk, card: webCard, tr: webTr };
+  route.web = { open: webOpen, check: webCheck, sig: webSig, guestSend: webGuestSend, poll: webPoll, bot: webBot, idOk: webIdOk, card: webCard, tr: webTr, attach: webAttach };
   return route;
 }

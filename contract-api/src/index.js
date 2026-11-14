@@ -757,7 +757,7 @@ const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const metaAdsRoute = makeMetaAds({ dbGet });
 const heroVidRoute = makeHeroVid();
-const bookingRoute = makeBooking({ webOpen: (env, ctx, o) => chatRoute.web.open(env, ctx, o), webSig: (env, v) => chatRoute.web.sig(env, v), webCard: (env, v, card, who) => chatRoute.web.card(env, v, card, who), webTr: (env, t, to) => chatRoute.web.tr(env, t, to), dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones, pwHash, pwVerify, sha256hex });
+const bookingRoute = makeBooking({ webOpen: (env, ctx, o) => chatRoute.web.open(env, ctx, o), webSig: (env, v) => chatRoute.web.sig(env, v), webCard: (env, v, card, who) => chatRoute.web.card(env, v, card, who), webTr: (env, t, to) => chatRoute.web.tr(env, t, to), webAttach: (env, ctx, o) => chatRoute.web.attach(env, ctx, o), dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones, pwHash, pwVerify, sha256hex });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 /* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
@@ -1130,7 +1130,7 @@ export default {
         if (!env.SITE_KEY || !sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY)) return json({ ok: false, error: 'site' }, 403, origin);
         const W = chatRoute.web, b = await request.json().catch(() => ({}));
         const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
-        const lim = async (tag, max) => !cip || rlHit(env, tag + (await ipKey(cip)), max, 60 * 60 * 1000);
+        const lim = async (tag, max) => (cip ? rlHit(env, tag + (await ipKey(cip)), max, 60 * 60 * 1000) : rlHit(env, tag + 'noip', max * 50, 60 * 60 * 1000));   // IP 가 안 오면 전체 묶음으로라도 막는다
         try {
           if (path === '/public/webchat/start') {
             if (b.hp) return json({ ok: true }, 200, origin);
@@ -1141,7 +1141,7 @@ export default {
             if (b.consent !== true) return json({ ok: false, error: 'consent' }, 400, origin);
             const lang = ['en', 'zh', 'ja', 'ko'].includes(b.lang) ? b.lang : 'en';
             const HI = { en: `Hello ${name}! Thank you for contacting DAY:MEAN. Please leave your question here — our team will reply in this chat, and also by email if you are away.`, zh: `${name} 您好！感谢您联系 DAY:MEAN。请在这里留下您的问题，我们会在这里回复，如果您不在线，也会通过邮件通知您。`, ja: `${name} 様、DAY:MEAN へのお問い合わせありがとうございます。こちらにご質問をお書きください。担当者がこのチャットでご返信し、ご不在の場合はメールでもお知らせします。`, ko: `${name} 님, DAY:MEAN 에 문의해 주셔서 감사합니다! 여기에 궁금한 점을 남겨 주세요. 담당자가 이 채팅으로 답변드리고, 자리에 안 계시면 메일로도 알려 드려요.` };
-            const r = await W.open(env, ctx, { name, email, lang, first: { x: HI[lang], xk: `[홈페이지 문의 시작] ${name} · ${email} · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[lang]}` }, push: !String(b.x || '').trim() });
+            const r = await W.open(env, ctx, { name, email, lang, brand: b.brand === 'ETOH' ? 'ETOH' : 'DAY:MEAN', first: { x: HI[lang], xk: `[홈페이지 문의 시작] ${name} · ${email} · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[lang]}` }, push: !String(b.x || '').trim() });
             if (String(b.x || '').trim()) await W.guestSend(env, ctx, r.v, b.x);
             return json({ ok: true, w: r.v, k: r.k }, 200, origin);
           }
