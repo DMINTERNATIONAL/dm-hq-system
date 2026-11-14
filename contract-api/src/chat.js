@@ -1494,6 +1494,7 @@ export function makeChat(deps) {
     const room = await getRoom(env, rid);
     if (!member(room, String(me.ph))) throw new Error('이 방에 참여하고 있지 않습니다');
     if (room.t === 'dm' || room.t === 'me') throw new Error('1:1 대화는 요약하지 않습니다');
+    if (!OWNER_PHONES.includes(String(me.ph))) throw new Error('AI 요약은 대표님(민경 · 세운)만 쓸 수 있어요');   // 11/15 사용자 '민경, 세운만'
     const r = (await dbGet(env, `/chat/reads/${rid}/${me.ph}`).catch(() => null)) || 0;
     if ((room.seq || 0) <= r) return { lines: [], asks: [], count: 0 };
     const t = await accessToken(env);

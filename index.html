@@ -11650,7 +11650,7 @@ function cmRenderList(){
   /* 교육 자동방이 있으면 목록 위에 종류 칩 — 개인 대화와 섞이지 않게 바로 골라 본다 */
   var eduN={};ids.forEach(function(k){var r=CM.inbox[k];var _c=cmCat(r);if(CM_EDU_T[_c]){eduN[_c]=eduN[_c]||{n:0,u:0,g:0};eduN[_c].n++;eduN[_c][r.mute?'g':'u']+=Math.max(0,(r.s||0)-(r.r||0))}});
   if(Object.keys(eduN).length){var ck=CM_EDU_T[CM.filter.k]?CM.filter.k:'';h+='<div class="cm-chips cm-educhips"><button class="cm-chip'+(!ck?' on':'')+'" onclick="CM.filter.k=\'\';cmRenderList()">전체</button>'+['all','br','tm','lv'].filter(function(k){return eduN[k]}).map(function(k){var e=eduN[k];return '<button class="cm-chip'+(ck===k?' on':'')+'" onclick="CM.filter.k=\''+k+'\';cmRenderList()">'+CM_EDU_T[k]+' '+e.n+(e.u?'<em>'+(e.u>99?'99+':e.u)+'</em>':e.g?'<em class="g">'+(e.g>99?'99+':e.g)+'</em>':'')+'</button>'}).join('')+'</div>'}
-  var sumN=cmSumRooms().reduce(function(n,k){return n+(CM.inbox[k].s||0)-(CM.inbox[k].r||0)},0);if(sumN>=10&&!_web)h+='<button class="cm-sumbtn" onclick="cmOpenSummary()">안 읽은 것 '+sumN+'개 · AI 요약 보기</button>';
+  var sumN=cmSumRooms().reduce(function(n,k){return n+(CM.inbox[k].s||0)-(CM.inbox[k].r||0)},0);if(sumN>=10&&!_web&&ME&&['01042885562','01082470187'].indexOf(String(ME.phone))>=0)h+='<button class="cm-sumbtn" onclick="cmOpenSummary()">안 읽은 것 '+sumN+'개 · AI 요약 보기</button>';
   CM._brs=Object.keys(brs).sort();
   var unN=ids.filter(function(k){var r=CM.inbox[k];return (r.s||0)>(r.r||0)}).length,atN=ids.filter(function(k){var r=CM.inbox[k];return (r.mn||0)>(r.r||0)}).length;
   CM._unN=unN;CM._atN=atN;/* '…만 보는 중' 줄은 없앴다(11/14 사용자) — 필터 버튼에 이미 보인다 */

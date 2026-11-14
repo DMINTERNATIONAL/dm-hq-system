@@ -753,10 +753,10 @@ async function handleAIChatSummary(body, env) {
     const r = await fetch(AIG, {
       method: 'POST',
       headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-chat-summary/1.0' },
-      /* Sonnet 5.5 — Opus 5.5 의 절반 값(11/8 사용자 결정). 요약은 어렵지 않은 일이라 충분하다.
-         다른 모델로 넘어가는 fallback 은 끔 — 비싼 모델로 넘어가지 않게 (인스타 리포트와 같음) */
+      /* Haiku 5.5 — Sonnet 5.5 의 1/20 값(11/15 사용자 '더 저렴하게'). 안 읽은 글 몇 줄 요약이라 충분하다.
+         (11/8 Opus → Sonnet, 11/15 Sonnet → Haiku) 다른 모델로 넘어가는 fallback 은 끔 */
       body: JSON.stringify({
-        model: 'claude-sonnet-5-5', max_tokens: 1500,
+        model: 'claude-haiku-5-5', max_tokens: 1000,
         system: sys,
         messages: [{ role: 'user', content: '방 이름: ' + String(body.room || '').slice(0, 40) + '\n\n' + convo }],
       }),
