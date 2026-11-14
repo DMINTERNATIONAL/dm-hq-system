@@ -32,6 +32,7 @@ import { makeSns } from './sns.js';
 import { makeMembers, resendMail } from './members.js';
 import { makeRecruit } from './recruit.js';
 import { makePhotoMig } from './photomig.js';
+import { makeHeroVid, heroServe } from './herovid.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -754,6 +755,7 @@ const aiUsageRoute = makeAiUsage({ dbGet, dbPut, dbCas, dbPush, pushToPhones });
 const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const metaAdsRoute = makeMetaAds({ dbGet });
+const heroVidRoute = makeHeroVid();
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 /* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
@@ -1026,6 +1028,8 @@ export default {
 
       /* 매장 정보 — 손님에게 보여줄 것만 골라 준다.
          salonInfo 안에는 designerOrder(직원 전화번호 목록)가 섞여 있어 통째로 줄 수 없다. */
+      /* 공식 홈페이지 홈 영상 · 첫 장면 사진 — Range 로 끊어 보낸다(herovid.js). r2.dev 는 속도 제한이 걸려 영상이 안 나온다 */
+      if (path.startsWith('/public/hero/') && (request.method === 'GET' || request.method === 'HEAD')) return heroServe(request, env, decodeURIComponent(path.slice('/public/hero/'.length)));
       if (path === '/public/salon' && request.method === 'GET') {
         const sal = (await dbGet(env, '/salonInfo').catch(() => null)) || {};
         const out = {};
@@ -1368,6 +1372,9 @@ export default {
       /* 광고 성과 (metaads.js) — 경영팀만, 메타 숫자 읽기만 */
       const adsRes = await metaAdsRoute(path, request, env, ctx, me, json, origin);
       if (adsRes) return adsRes;
+      /* 홈 영상 올리기 (herovid.js) — 대표 · 관리자 */
+      const heroRes = await heroVidRoute(path, request, env, ctx, me, json, origin);
+      if (heroRes) return heroRes;
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
