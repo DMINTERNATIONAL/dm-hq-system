@@ -311,8 +311,13 @@ export function makeBooking(deps) {
     ];
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
     let cht = null;
-    try { cht = await chOpen(env, id, r); if (cht) await dbPatch(env, `${BASE}/${id}`, { cht }); } catch (e) { console.log('booking channel', e && e.message); }
-    return [200, { ok: true, id, k: await bkSig(env, id), chMember: cht ? cht.m : '', chHash: cht ? await chHashOf(env, cht.m) : '', chChat: cht ? cht.c : '' }];
+    try { cht = await chOpen(env, id, r); } catch (e) { console.log('booking channel', e && e.message); }
+    /* 무료 방법(11/14 사용자 — Open API 는 유료라 '무료로'): 사이트가 손님 브라우저의 채널톡 고객 번호(boot 콜백 user.id)를 chUser 로 넘긴다.
+       직원 앱 '채널톡 상담 열기' → 채널톡의 그 손님 화면 → '새 상담 열기'. API 키가 생기면 위 chOpen 이 상담방까지 연다 */
+    const chUser = /^[A-Za-z0-9]{8,40}$/.test(String(b.chUser || '')) ? String(b.chUser) : '';
+    if (!cht && chUser) cht = { u: chUser };
+    if (cht) await dbPatch(env, `${BASE}/${id}`, { cht }).catch(() => {});
+    return [200, { ok: true, id, k: await bkSig(env, id), chMember: (cht && cht.m) || '', chHash: cht && cht.m ? await chHashOf(env, cht.m) : '', chChat: (cht && cht.c) || '' }];
   }
 
   async function route(path, request, env, me, json, origin) {
@@ -367,7 +372,7 @@ export function makeBooking(deps) {
       } else if (b.mail === 'confirm') {
         const c = up.conf || cur.conf;
         if (!c) throw new Error('확정 날짜 · 시간을 먼저 정해 주세요');
-        if (cur.status === 'new') throw new Error('먼저 채팅 상담을 하고 \'상담 시작\'을 눌러 주세요 — 확정 메일은 상담에서 정한 뒤에 보내요');
+        if (cur.status === 'new') throw new Error('먼저 \'채널톡 상담 열기\'나 \'답변 메일\'로 상담을 시작해 주세요 — 확정 메일은 상담에서 정한 뒤에 보내요');
         const map = await mapOf(env, c.branch);
         const rows = [[t.when, esc(`${c.d} ${c.t}`)], [t.where, esc('DAY:MEAN ' + (BRANCHES[c.branch][L] || BRANCHES[c.branch].en))]];
         if (c.designer) rows.push([t.who, esc(c.designer)]);
