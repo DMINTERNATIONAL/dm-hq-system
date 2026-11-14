@@ -11650,7 +11650,7 @@ function cmRenderList(){
   /* 교육 자동방이 있으면 목록 위에 종류 칩 — 개인 대화와 섞이지 않게 바로 골라 본다 */
   var eduN={};ids.forEach(function(k){var r=CM.inbox[k];var _c=cmCat(r);if(CM_EDU_T[_c]){eduN[_c]=eduN[_c]||{n:0,u:0,g:0};eduN[_c].n++;eduN[_c][r.mute?'g':'u']+=Math.max(0,(r.s||0)-(r.r||0))}});
   if(Object.keys(eduN).length){var ck=CM_EDU_T[CM.filter.k]?CM.filter.k:'';h+='<div class="cm-chips cm-educhips"><button class="cm-chip'+(!ck?' on':'')+'" onclick="CM.filter.k=\'\';cmRenderList()">전체</button>'+['all','br','tm','lv'].filter(function(k){return eduN[k]}).map(function(k){var e=eduN[k];return '<button class="cm-chip'+(ck===k?' on':'')+'" onclick="CM.filter.k=\''+k+'\';cmRenderList()">'+CM_EDU_T[k]+' '+e.n+(e.u?'<em>'+(e.u>99?'99+':e.u)+'</em>':e.g?'<em class="g">'+(e.g>99?'99+':e.g)+'</em>':'')+'</button>'}).join('')+'</div>'}
-  var sumN=cmSumRooms().reduce(function(n,k){return n+(CM.inbox[k].s||0)-(CM.inbox[k].r||0)},0);if(sumN>=10)h+='<button class="cm-sumbtn" onclick="cmOpenSummary()">안 읽은 것 '+sumN+'개 · AI 요약 보기</button>';
+  var sumN=cmSumRooms().reduce(function(n,k){return n+(CM.inbox[k].s||0)-(CM.inbox[k].r||0)},0);if(sumN>=10&&!_web)h+='<button class="cm-sumbtn" onclick="cmOpenSummary()">안 읽은 것 '+sumN+'개 · AI 요약 보기</button>';
   CM._brs=Object.keys(brs).sort();
   var unN=ids.filter(function(k){var r=CM.inbox[k];return (r.s||0)>(r.r||0)}).length,atN=ids.filter(function(k){var r=CM.inbox[k];return (r.mn||0)>(r.r||0)}).length;
   CM._unN=unN;CM._atN=atN;/* '…만 보는 중' 줄은 없앴다(11/14 사용자) — 필터 버튼에 이미 보인다 */
@@ -11947,7 +11947,7 @@ var CM_READ_T=null;
    10/28 진단: 방을 열어 둔 채 다른 창을 쓰면 새 글이 바로 '읽음'이 돼 독 숫자가 1 → 0 으로 곧장 지워졌다(보낸 사람의 '1'도 사라짐).
    카톡 PC처럼 창을 앞으로 가져와야 읽은 것으로 친다 */
 function cmAway(){return document.visibilityState!=='visible'||(!document.hasFocus()&&((typeof CM_DESK!=='undefined'&&CM_DESK)||!('ontouchstart' in window)))}
-function cmMarkRead(){if(!CM.rid||cmAway()||!cmOn('p-comm-room'))return;clearTimeout(CM_READ_T);CM_READ_T=setTimeout(function(){if(cmAway())return;var mx=0;Object.keys(CM.msgs).forEach(function(k){var m=CM.msgs[k];if(m&&m.s>mx)mx=m.s});var ib=(CM.inbox||{})[CM.rid],mine=Math.min(CM.reads[ME.phone]||0,ib?(ib.r||0):Infinity),rid=CM.rid;if(mx>mine&&!(CM._rdSent&&CM._rdSent.rid===rid&&CM._rdSent.s>=mx&&Date.now()-CM._rdSent.at<5000)){CM._rdSent={rid:rid,s:mx,at:Date.now()};CM.reads[ME.phone]=Math.max(CM.reads[ME.phone]||0,mx);if(ib)ib.r=Math.max(ib.r||0,mx);cmBadges();cmP('/chat/reads/'+rid+'/'+ME.phone,mx);cmP('/chat/inbox/'+ME.phone+'/'+rid+'/r',mx)}if(mx)cmActSeen(CM.rid,String(mx).padStart(9,'0'))},400)}
+function cmMarkRead(){if(!CM.rid||cmAway()||!cmOn('p-comm-room'))return;clearTimeout(CM_READ_T);CM_READ_T=setTimeout(function(){if(cmAway())return;var mx=0;Object.keys(CM.msgs).forEach(function(k){var m=CM.msgs[k];if(m&&m.s>mx)mx=m.s});var ib=(CM.inbox||{})[CM.rid],mine=Math.min(CM.reads[ME.phone]||0,ib?(ib.r||0):Infinity),rid=CM.rid;if(mx>mine&&!(CM._rdSent&&CM._rdSent.rid===rid&&CM._rdSent.s>=mx&&Date.now()-CM._rdSent.at<5000)){CM._rdSent={rid:rid,s:mx,at:Date.now()};CM.reads[ME.phone]=Math.max(CM.reads[ME.phone]||0,mx);if(ib)ib.r=Math.max(ib.r||0,mx);cmBadges();cmP('/chat/reads/'+rid+'/'+ME.phone,mx);cmP('/chat/inbox/'+ME.phone+'/'+rid+'/r',mx);if(CM.room&&CM.room.t==='web')cmApi('web',{rid:rid,op:'read',s:mx}).catch(function(){})}if(mx)cmActSeen(CM.rid,String(mx).padStart(9,'0'))},400)}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')cmMarkRead()});
 window.addEventListener('focus',function(){cmMarkRead()});
 

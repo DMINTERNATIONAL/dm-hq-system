@@ -986,6 +986,18 @@ export function makeChat(deps) {
     const [u, room] = await Promise.all([meUser(env, me), getRoom(env, rid)]);
     if (!member(room, ph)) throw new Error('이 방에 참여하고 있지 않습니다');
     const v = rid.slice(4), bn = (u && (u.nick || u.name)) || '경영팀';
+    /* 함께 읽음(11/15 사용자 '고객 상담은 누구든 보면 다른 사람들도 안 읽은 숫자 안 뜨게') — 한 사람이 읽으면 그 번호까지 멤버 전원 inbox 를 읽음으로 */
+    if (body.op === 'read') {
+      const upto = Math.min(Number(body.s) || 0, room.seq || 0);
+      if (upto <= 0) return { r: 0 };
+      const up = {};
+      const ms = Object.keys(room.m || {});
+      const cur = await Promise.all(ms.map((p) => dbGet(env, `/chat/inbox/${p}/${rid}/r`).catch(() => 0)));   // 더 읽은 사람 번호를 내리지 않게
+      ms.forEach((p, i) => { if ((Number(cur[i]) || 0) < upto) up[`chat/inbox/${p}/${rid}/r`] = upto; });
+      up[`chat/reads/${rid}/${ph}`] = upto;
+      await dbPatch(env, '/', up);
+      return { r: upto };
+    }
     if (body.op === 'info') {
       const priv = (await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)) || {};
       const bk = room.wb && deps.bkGet ? await deps.bkGet(env, room.wb).catch(() => null) : null;
