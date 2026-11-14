@@ -113,6 +113,16 @@ async function chMemberOf(env, email) {
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('chm:' + String(email).toLowerCase()));
   return 'bk' + Array.from(new Uint8Array(sig).slice(0, 10), (b) => b.toString(16).padStart(2, '0')).join('');
 }
+/* 채널톡 멤버 인증(memberHash) — HMAC-SHA256(memberId, 시크릿 키를 hex 로 푼 바이트) 를 hex 로. 시크릿 CHANNEL_MEMBER_SECRET 이 없으면 '' (멤버 인증이 꺼져 있으면 채널톡이 무시) */
+async function chHashOf(env, memberId) {
+  const sec = String(env.CHANNEL_MEMBER_SECRET || '').trim();
+  if (!memberId || !/^([0-9a-fA-F]{2})+$/.test(sec)) return '';
+  const raw = new Uint8Array(sec.match(/../g).map((h) => parseInt(h, 16)));
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(memberId));
+  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+export { chHashOf };
 async function chCall(env, method, path, body) {
   const r = await fetch(CH_API + path, { method, headers: { 'x-access-key': env.CHANNEL_ACCESS_KEY, 'x-access-secret': env.CHANNEL_ACCESS_SECRET, 'Channel-Version': CH_VER, 'Content-Type': 'application/json', accept: 'application/json' }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(8000) });
   const j = await r.json().catch(() => ({}));
@@ -279,7 +289,7 @@ export function makeBooking(deps) {
       if (!ID_RE.test(id) || !/^[0-9a-f]{24}$/.test(k) || !sameStr(k, await bkSig(env, id))) return [404, { ok: false, error: 'link' }];
       const v = await dbGet(env, `${BASE}/${id}`).catch(() => null);
       if (!v || Date.now() - (v.up || v.at || 0) > KEEP_MS) return [404, { ok: false, error: 'gone' }];
-      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, chMember: (v.cht && v.cht.m) || '', chChat: (v.cht && v.cht.c) || '' } }];
+      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, chMember: (v.cht && v.cht.m) || '', chHash: await chHashOf(env, v.cht && v.cht.m), chChat: (v.cht && v.cht.c) || '' } }];
     }
     if (path !== '/public/booking' || request.method !== 'POST') return null;
     if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
@@ -302,7 +312,7 @@ export function makeBooking(deps) {
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
     let cht = null;
     try { cht = await chOpen(env, id, r); if (cht) await dbPatch(env, `${BASE}/${id}`, { cht }); } catch (e) { console.log('booking channel', e && e.message); }
-    return [200, { ok: true, id, k: await bkSig(env, id), chMember: cht ? cht.m : '', chChat: cht ? cht.c : '' }];
+    return [200, { ok: true, id, k: await bkSig(env, id), chMember: cht ? cht.m : '', chHash: cht ? await chHashOf(env, cht.m) : '', chChat: cht ? cht.c : '' }];
   }
 
   async function route(path, request, env, me, json, origin) {
