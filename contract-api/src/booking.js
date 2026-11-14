@@ -32,6 +32,16 @@ const T = {
   ja: { got: 'ご予約リクエストを受け付けました', hi: (n) => `${n} 様`, gotB: 'DAY:MEAN をお選びいただきありがとうございます。リクエストを受け付けました。24時間以内にご予約確定のご連絡をいたします。', yours: 'ご依頼内容', conf: 'ご予約が確定しました', confB: 'ご来店を心よりお待ちしております。ご予約内容は以下のとおりです。', dec: 'ご予約リクエストについて', decB: 'リクエストありがとうございます。あいにくご希望の日時に空きがございませんでした。このメールにご返信いただくか、別の日程で再度リクエストをお送りください。', when: '日時', where: '店舗', who: 'デザイナー', what: 'メニュー', map: 'アクセス', note: '店舗からのメッセージ', foot: '変更・キャンセルの際は、このメールにご返信ください。' },
   ko: { got: '예약 요청을 받았어요', hi: (n) => `${n} 님, 안녕하세요.`, gotB: 'DAY:MEAN 을 찾아 주셔서 감사합니다. 예약 요청을 받았고, 24시간 안에 확정 연락을 드릴게요.', yours: '요청 내용', conf: '예약이 확정되었어요', confB: '방문을 기다릴게요. 예약 내용은 아래와 같아요.', dec: '예약 요청 관련 안내', decB: '요청해 주셔서 감사합니다. 아쉽게도 고르신 날짜에는 가능한 시간이 없었어요. 이 메일에 답장하시거나 다른 날짜로 다시 요청해 주세요.', when: '날짜 · 시간', where: '지점', who: '디자이너', what: '시술', map: '오시는 길', note: '매장 메시지', foot: '변경 · 취소는 이 메일에 답장해 주세요.' },
 };
+/* 예약 정책 확정 문구(11/14 사용자 확정 · 사이트 번역표 lib/i18n/content.json 과 같은 글) — 확정 메일 아래에 붙인다 */
+const POLICY_T = {
+  ko: '[예약 관련 안내]\n\n1. 데이민은 100% 예약제로 운영됩니다.\n2. 방문이 어려우시면 최소 하루 전에 예약을 취소해 주세요.\n3. 10분 이상 늦으시면 당일 시술이 어려울 수 있습니다.\n4. 당일 취소 또는 노쇼가 3회 이상 누적되면, 다른 고객님의 원활한 예약을 위해 이후 예약이 제한됩니다. 너른 양해 부탁드립니다.',
+  en: '[Booking information]\n\n1. DAY:MEAN operates by appointment only.\n2. If you are unable to visit, please cancel at least one day in advance.\n3. If you arrive more than 10 minutes late, we may not be able to provide your service that day.\n4. After three same-day cancellations or no-shows, future bookings will be restricted so that we can serve other guests smoothly. We appreciate your understanding.',
+  ja: '[ご予約について]\n\n1. DAY:MEANは完全予約制です。\n2. ご来店が難しい場合は、少なくとも前日までにご予約のキャンセルをお願いいたします。\n3. 10分以上遅れてのご来店の場合、当日の施術が難しくなることがございます。\n4. 当日キャンセルまたは無断キャンセルが3回以上重なった場合、他のお客様のスムーズなご予約のため、以降のご予約をお受けできなくなります。何卒ご了承ください。',
+  zh: '[预约须知]\n\n1. DAY:MEAN 实行全预约制。\n2. 如无法到店，请至少提前一天取消预约。\n3. 迟到10分钟以上，当天可能无法为您提供服务。\n4. 当天取消或爽约累计3次以上，为保障其他顾客的顺利预约，此后将无法再为您预约，敬请谅解。',
+};
+const policyBox = (L) => `<div style="margin-top:20px;background:#f5f5f5;border-radius:10px;padding:14px 16px;font-size:13px;color:#333;white-space:pre-line">${esc(POLICY_T[L] || POLICY_T.en)}</div>`;
+const CHAT_T = { en: ['Questions? Continue the conversation with us in chat.', 'Chat with us'], zh: ['有任何问题？可以直接在线和我们继续沟通。', '在线咨询'], ja: ['ご不明な点はチャットでお気軽にご相談ください。', 'チャットで相談する'], ko: ['궁금한 점은 채팅으로 이어서 물어보세요.', '채팅으로 상담 이어가기'] };
+const chatBtn = (L, url) => { if (!url) return ''; const c = CHAT_T[L] || CHAT_T.en; return `<p style="margin:18px 0 8px;font-size:14px">${esc(c[0])}</p><a href="${esc(url)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${esc(c[1])}</a>`; };
 const SLOT_T = { en: { any: 'any time', morning: 'morning', afternoon: 'afternoon', evening: 'evening' }, zh: { any: '任何时间', morning: '上午', afternoon: '下午', evening: '晚上' }, ja: { any: '何時でも', morning: '午前', afternoon: '午後', evening: '夕方' }, ko: { any: '아무 때', morning: '오전', afternoon: '오후', evening: '저녁' } };
 const prefTxt = (p, L) => `${p.d} ${/^\d{2}:\d{2}$/.test(p.t) ? p.t : (SLOT_T[L] || SLOT_T.en)[p.t] || ''}`.trim();
 
@@ -42,6 +52,19 @@ function mailHtml(L, title, lines, rows, after) {
 <h2 style="font-size:19px;margin:0 0 12px">${esc(title)}</h2>${lines.map((l) => `<p style="margin:0 0 10px">${esc(l)}</p>`).join('')}
 ${rows.length ? `<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:14px">${rows.map(([k, v]) => `<tr><td style="padding:8px 0;border-top:1px solid #eee;color:#666;width:34%;vertical-align:top">${esc(k)}</td><td style="padding:8px 0;border-top:1px solid #eee">${v}</td></tr>`).join('')}</table>` : ''}
 ${after || ''}<p style="font-size:12.5px;color:#888;margin-top:22px">${esc(t.foot)}</p></div>`;
+}
+
+/* 메일의 '채팅으로 상담 이어가기' 링크(11/14 사용자 '이메일에 상담 이어가는 링크') — {SITE_URL}/{lang}/booking/chat?b=id&k=서명.
+   서명이 있어야 사이트가 /public/booking/peek 로 그 요청의 이름 · 메일 · 요약을 받아 채널톡을 손님 정보로 열 수 있다(번호만 알아선 못 봄) */
+async function bkSig(env, id) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.SESSION_SECRET || env.SITE_KEY || 'x')), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('book:' + id));
+  return Array.from(new Uint8Array(sig).slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function chatUrl(env, id, L) {
+  const base = String(env.SITE_URL || '').replace(/\/+$/, '');
+  if (!base) return '';
+  return `${base}${L === 'ko' ? '' : '/' + L}/booking/chat?b=${id}&k=${await bkSig(env, id)}`;
 }
 
 export function makeBooking(deps) {
@@ -90,11 +113,22 @@ export function makeBooking(deps) {
     const brs = (await dbGet(env, '/salonInfo/store/branches').catch(() => null)) || [];
     const key = { flagship: /플래그십|flagship/i, moment: /모먼트|moment/i }[branch];
     if (!key) return '';
-    for (const b of Object.values(brs)) if (b && key.test(String(b.name || '')) && /^https:\/\//.test(String(b.mapUrl || ''))) return String(b.mapUrl);
+    // 11/14 사용자 '네이버 지도 말고 구글 링크' — 외국 손님은 네이버 지도 앱이 없다. 사이트 지점 화면과 같은 'DAY:MEAN + 주소' 구글 검색
+    for (const b of Object.values(brs)) if (b && key.test(String(b.name || '')) && b.address) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('DAY:MEAN ' + String(b.address));
     return '';
   }
 
   async function site(path, request, env, ctx) {
+    if (path === '/public/booking/peek' && request.method === 'POST') {
+      if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
+      if (!(await rate(request, env, 'bkp_', 30))) return [429, { ok: false, error: 'rate' }];
+      const q = await request.json().catch(() => ({}));
+      const id = String(q.b || ''), k = String(q.k || '');
+      if (!ID_RE.test(id) || !/^[0-9a-f]{24}$/.test(k) || !sameStr(k, await bkSig(env, id))) return [404, { ok: false, error: 'link' }];
+      const v = await dbGet(env, `${BASE}/${id}`).catch(() => null);
+      if (!v) return [404, { ok: false, error: 'gone' }];
+      return [200, { ok: true, booking: { id, name: v.name, email: v.email, phone: v.phone || '', lang: v.lang, branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', status: v.status, conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null } }];
+    }
     if (path !== '/public/booking' || request.method !== 'POST') return null;
     if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
     if (!(await rate(request, env, 'bk_', 5))) return [429, { ok: false, error: 'rate' }];
@@ -108,7 +142,7 @@ export function makeBooking(deps) {
     if (r.designer) rows.push([t.who, esc(r.designer)]);
     if (r.svcL || r.service) rows.push([t.what, esc(r.svcL || r.service)]);
     const jobs = [
-      sendMail(env, r.email, `DAY:MEAN — ${t.got}`, mailHtml(L, t.got, [t.hi(r.name), t.gotB], rows), `${t.hi(r.name)}\n${t.gotB}`).catch((e) => console.log('booking mail', e && e.message)),
+      chatUrl(env, id, L).then((cu) => sendMail(env, r.email, `DAY:MEAN — ${t.got}`, mailHtml(L, t.got, [t.hi(r.name), t.gotB], rows, chatBtn(L, cu)), `${t.hi(r.name)}\n${t.gotB}${cu ? '\n' + cu : ''}`)).catch((e) => console.log('booking mail', e && e.message)),
       staffFor(env, r.branch).then((to) => to.length && pushToPhones(env, to, { title: '[해외 예약] 새 요청', body: `${r.name} · ${BRANCHES[r.branch].ko} · ${prefTxt(r.prefs[0], 'ko')}${r.prefs.length > 1 ? ` 외 ${r.prefs.length - 1}` : ''}`, url: './#booking', tag: 'book-' + id }, { urgency: 'high' })).catch((e) => console.log('booking push', e && e.message)),
     ];
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
@@ -152,13 +186,15 @@ export function makeBooking(deps) {
         const rows = [[t.when, esc(`${c.d} ${c.t}`)], [t.where, esc('DAY:MEAN ' + (BRANCHES[c.branch][L] || BRANCHES[c.branch].en))]];
         if (c.designer) rows.push([t.who, esc(c.designer)]);
         if (cur.svcL || cur.service) rows.push([t.what, esc(cur.svcL || cur.service)]);
-        if (map) rows.push([t.map, `<a href="${esc(map)}" style="color:#111">${esc(map)}</a>`]);
+        if (map) rows.push([t.map, `<a href="${esc(map)}" style="color:#111;font-weight:700">Google Maps →</a>`]);
         if (c.msg) rows.push([t.note, esc(c.msg)]);
-        await sendMail(env, cur.email, `DAY:MEAN — ${t.conf}`, mailHtml(L, t.conf, [t.hi(cur.name), t.confB], rows), `${t.hi(cur.name)}\n${t.confB}\n${c.d} ${c.t}`);
+        const cu = await chatUrl(env, id, L);
+        await sendMail(env, cur.email, `DAY:MEAN — ${t.conf}`, mailHtml(L, t.conf, [t.hi(cur.name), t.confB], rows, policyBox(L) + chatBtn(L, cu)), `${t.hi(cur.name)}\n${t.confB}\n${c.d} ${c.t}${map ? '\n' + map : ''}\n\n${POLICY_T[L] || POLICY_T.en}${cu ? '\n\n' + cu : ''}`);
         up.status = 'confirmed'; up.mailed = { k: 'confirm', at: Date.now(), by: who };
       } else if (b.mail === 'decline') {
         const msg = clip(b.msg, 500);
-        await sendMail(env, cur.email, `DAY:MEAN — ${t.dec}`, mailHtml(L, t.dec, [t.hi(cur.name), t.decB].concat(msg ? [msg] : []), []), `${t.hi(cur.name)}\n${t.decB}${msg ? '\n' + msg : ''}`);
+        const cu = await chatUrl(env, id, L);
+        await sendMail(env, cur.email, `DAY:MEAN — ${t.dec}`, mailHtml(L, t.dec, [t.hi(cur.name), t.decB].concat(msg ? [msg] : []), [], chatBtn(L, cu)), `${t.hi(cur.name)}\n${t.decB}${msg ? '\n' + msg : ''}`);
         up.status = 'declined'; up.mailed = { k: 'decline', at: Date.now(), by: who };
       }
       await dbPatch(env, `${BASE}/${id}`, up);

@@ -1125,7 +1125,7 @@ export default {
       /* 채용 지원서 — 공식 사이트 서버만(X-Site-Key). 사진 올리기 · 임시 저장 · 제출 · 불러오기 (recruit.js)
          예전 한 번에 내기(/public/apply)는 사이트가 안 쓰므로 없앴다 — 사이트는 /public/apply/save 만 부른다 */
       /* 해외 손님 예약 요청 — 공식 사이트 서버만(X-Site-Key) (booking.js) */
-      if (path === '/public/booking') { const r = await bookingRoute.site(path, request, env, ctx); if (r) return json(r[1], r[0], origin); }
+      if (path === '/public/booking' || path === '/public/booking/peek') { const r = await bookingRoute.site(path, request, env, ctx); if (r) return json(r[1], r[0], origin); }
       if (path.startsWith('/public/apply/') && request.method === 'POST') {
         const r = await recruitRoute.site(path, request, env, ctx);
         if (r) return json(r[1], r[0], origin);
