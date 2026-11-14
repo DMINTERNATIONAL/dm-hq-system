@@ -910,7 +910,7 @@ export function makeChat(deps) {
     }
     return null;
   }
-  async function webPoll(env, v, after, base) {
+  async function webPoll(env, v, after, base, open) {
     const rid = 'web_' + v;
     const [room, priv] = await Promise.all([dbGet(env, '/chat/rooms/' + rid).catch(() => null), dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)]);
     if (!room || !priv) return { gone: true };
@@ -924,20 +924,26 @@ export function makeChat(deps) {
       if (ks.length < 60 || ks.some((k) => { const m = raw[k]; return m && !(m.k === 'sys' || m.del || m.hid || m.im); })) break;
       from = Number(ks[ks.length - 1]) + 1;
     }
+    let upto = a;   // 손님 화면에 넘긴(또는 손님에게 안 보이는) 마지막 번호 — '읽음' 계산용
     for (const key of Object.keys(raw).sort()) {
-      const m = raw[key]; if (!m || m.k === 'sys' || m.del || m.hid || m.im) continue;   // im = 직원끼리 메모(손님에게 안 보임)
+      const m = raw[key]; if (m && m.s) upto = Math.max(upto, m.s); if (!m || m.k === 'sys' || m.del || m.hid || m.im) continue;   // im = 직원끼리 메모(손님에게 안 보임)
       if (m.k === 'conf' && m.cf && m.cf.g) { out.push({ s: m.s, me: false, at: m.at, k: 'conf', x: '', conf: m.cf.g }); continue; }
       const guest = m.by === 'g';
       let x = m.x || '';
       if (!guest && m.by !== 'bot') {
-        if (lang !== 'ko' && x) { if (m.xt) x = m.xt; else if (nowMs() - (m.at || 0) < 15000) break; }
+        if (lang !== 'ko' && x) { if (m.xt) x = m.xt; else if (nowMs() - (m.at || 0) < 15000) { upto = Math.min(upto, m.s - 1); break; } }
       }
       const media = Array.isArray(m.md) ? m.md.filter((d) => d && (d.u || d.t) && !d.v && !d.f).slice(0, 10) : [];
       const imgs = base && deps.signedUrl ? (await Promise.all(media.map((d) => deps.signedUrl(env, base, String(d.u || d.t)).catch(() => '')))).filter(Boolean) : [];   // 사진 주소(2~3일) — 손님 화면 미리보기
       out.push({ s: m.s, me: guest, x, at: m.at, ...(media.length ? { photo: media.length } : {}), ...(imgs.length ? { img: imgs[0], imgs } : {}) });
     }
     if (!priv.seen || nowMs() - priv.seen > 30000) await dbPut(env, `${WEB_PRIV}/${v}/seen`, nowMs()).catch(() => {});
-    return { lang, name: priv.name || '', items: out };
+    /* 읽음(11/14 사용자 '둘 다 만들어'): 채팅창이 열려 있을 때(open) 받아 간 번호까지 = 손님 읽음(room.wrd → 앱 말풍선 '읽음').
+       rd = 경영팀 중 누구라도 읽은 번호(손님 화면 '읽음') */
+    if (open && upto > (room.wrd || 0)) await dbPut(env, `/chat/rooms/${rid}/wrd`, upto).catch(() => {});
+    const reads = (await dbGet(env, `/chat/reads/${rid}`).catch(() => null)) || {};
+    let rd = 0; for (const [p, n] of Object.entries(reads)) if (room.m && room.m[p]) rd = Math.max(rd, Number(n) || 0);
+    return { lang, name: priv.name || '', items: out, rd };
   }
   /* 직원이 손님방에 쓴 뒤 — 손님 언어로 번역(xt), 손님이 1분 넘게 안 보고 있으면 알림 메일(10분에 한 번) */
   async function webStaffAfter(env, rid, room, key, x, hasMd, ph, bn) {

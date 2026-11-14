@@ -1180,7 +1180,7 @@ export default {
             const r = await W.guestSend(env, ctx, v, b.x);
             return json({ ok: true, ...r }, 200, origin);
           }
-          const r = await W.poll(env, v, b.after, new URL(request.url).origin);
+          const r = await W.poll(env, v, b.after, new URL(request.url).origin, b.open === true);
           if (r.gone) return json({ ok: false, error: 'gone' }, 404, origin);
           return json({ ok: true, ...r }, 200, origin);
         } catch (e) {
