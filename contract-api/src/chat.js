@@ -825,7 +825,7 @@ export function makeChat(deps) {
     if (!room.wad && AD_RE.test(String(o.ad || ''))) { up[`chat/rooms/${rid}/wad`] = String(o.ad); for (const ph of Object.keys(room.m || {})) up[`chat/inbox/${ph}/${rid}/wad`] = String(o.ad); }
     if (room.ws === 'hold' || room.ws === 'done') Object.assign(up, webStateUp(rid, room, { ws: 'wait', wsAt: nowMs() }));
     await dbPatch(env, '/', up);
-    if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', false);
+    if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, '[예약 요청서 도착]\n' + (o.first.xk || o.first.x), false);
     return { v, k: String(o.k), rid, ad: room.wad || '' };
   }
   async function webMembers(env) {
@@ -932,6 +932,7 @@ export function makeChat(deps) {
     for (const key of Object.keys(raw).sort()) {
       const m = raw[key]; if (m && m.s) upto = Math.max(upto, m.s); if (!m || m.k === 'sys' || m.del || m.hid || m.im) continue;   // im = 직원끼리 메모(손님에게 안 보임)
       if (m.k === 'conf' && m.cf && m.cf.g) { out.push({ s: m.s, me: false, at: m.at, k: 'conf', x: '', conf: m.cf.g }); continue; }
+      if (m.k === 'form' && m.cf && m.cf.g) { out.push({ s: m.s, me: false, at: m.at, k: 'form', x: m.cf.g.text || '', form: m.cf.g }); continue; }
       const guest = m.by === 'g';
       let x = m.x || '';
       if (!guest && m.by !== 'bot') {
@@ -1028,7 +1029,30 @@ export function makeChat(deps) {
       await webSys(env, rid, { ...room, wf: v2 }, on ? `팔로워 추가 · ${tn}${to !== ph ? ` (${bn} 님이)` : ''}` : `팔로워 빠짐 · ${tn}`, ph).catch(() => {});
       return { wf: v2 || {} };
     }
+    /* 예약 폼 안내(11/14 사용자 '예약 폼 안내가 있고 그게 오면 그걸 토대로 확정서') — 손님 언어 카드 + 예약 요청서 버튼. 손님이 작성하면 이 방에 붙는다(webAttach) */
+    if (body.op === 'form') {
+      const priv = (await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)) || {};
+      const lang = priv.lang || room.wl || 'en';
+      const base = String(env.SITE_URL || '').replace(/\/+$/, '');
+      const url = base ? `${base}${lang === 'ko' ? '' : '/' + lang}/booking` : '';
+      const FT = {
+        en: { title: 'Booking request form', text: 'To book your visit, please fill in the booking request form below. Once we receive it, we will send your booking confirmation here and by email.', btn: 'Fill in the booking form' },
+        zh: { title: '预约申请表', text: '请点击下方按钮填写预约申请表。收到后，我们会在这里并通过邮件发送预约确认单。', btn: '填写预约申请表' },
+        ja: { title: 'ご予約リクエストフォーム', text: 'ご予約には下のボタンからリクエストフォームをご記入ください。受け取り次第、こちらとメールで予約確認書をお送りします。', btn: '予約フォームを記入する' },
+        ko: { title: '예약 요청서', text: '예약을 위해 아래 버튼을 눌러 예약 요청서를 작성해 주세요. 받으면 여기와 메일로 예약 확정서를 보내 드릴게요.', btn: '예약 요청서 작성하기' },
+      };
+      const g = { ...(FT[lang] || FT.en), url };
+      const seq = await nextSeq(env, rid), at = nowMs(), key = pad(seq);
+      const preview = '예약 폼을 보냈어요 · ' + bn;
+      const up = { [`chat/msgs/${rid}/${key}`]: { s: seq, by: 'bot', bn: 'DAY:MEAN', at, k: 'form', x: '[예약 폼 안내] ' + FT.ko.text, cf: { g, ko: { ...FT.ko, url } }, fb: bn }, [`chat/rooms/${rid}/last`]: { x: preview, by: 'bot', bn: 'DAY:MEAN', at, k: 'form' }, [`chat/rooms/${rid}/wform`]: at };
+      for (const p of Object.keys(room.m || {})) { const b = `chat/inbox/${p}/${rid}`; up[`${b}/s`] = seq; up[`${b}/at`] = at; up[`${b}/x`] = preview; up[`${b}/bn`] = 'DAY:MEAN'; if (p === ph) { up[`${b}/r`] = seq; up[`chat/reads/${rid}/${p}`] = seq; } }
+      if ((room.ws || 'wait') === 'wait') Object.assign(up, webStateUp(rid, room, { ws: 'ing', wsAt: at, ...(room.wa ? {} : { wa: ph, wan: bn }) }));
+      await dbPatch(env, '/', up);
+      await fixLatest(env, rid, room, seq).catch(() => {});
+      return { s: seq };
+    }
     if (body.op === 'confirm') {
+      if (!room.wb) throw new Error('아직 손님이 예약 요청서를 보내지 않았어요 — 먼저 \'예약 폼 보내기\'로 안내해 주세요');
       if (!deps.bkChatConfirm) throw new Error('예약 기능이 연결되지 않았어요');
       const priv = await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null);
       if (!priv || !priv.email) throw new Error('손님 메일이 없어 확정서를 보낼 수 없어요');

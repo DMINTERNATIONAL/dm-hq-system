@@ -267,7 +267,7 @@ export function makeBooking(deps) {
     const r = [[l.no, '#' + bkNo(id)], [l.name, cur.name || ''], [t.when, whenTxt(c, L)], [t.where, 'DAY:MEAN ' + ((BRANCHES[c.branch] || BRANCHES.flagship)[L] || BRANCHES[c.branch].en)]];
     if (bi.address) r.push([l.addr, bi.address]);
     if (bi.phone) r.push([l.tel, bi.phone]);
-    if (c.designer) r.push([t.who, c.designer]);
+    if (c.designer) r.push([t.who, (L === 'ko' && c.designerKo) || c.designer]);   // 직원 앱(한국어)엔 한국 이름
     const svc = L === 'ko' ? (c.svc || cur.service || '') : (c.svcL || cur.svcL || c.svc || cur.service || '');
     if (svc) r.push([t.what, svc]);
     return r;
@@ -275,7 +275,7 @@ export function makeBooking(deps) {
   function confOf(cIn, cur, who) {
     const c = cIn || {};
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(c.d || '')) || !/^\d{2}:\d{2}$/.test(String(c.t || ''))) throw new Error('확정 날짜 · 시간을 넣어 주세요');
-    return { d: c.d, t: c.t, branch: BRANCHES[c.branch] && c.branch !== 'any' ? c.branch : (cur.branch && cur.branch !== 'any' ? cur.branch : 'flagship'), designer: clip(c.designer, 40), msg: clip(c.msg, 500), ...(c.svc ? { svc: clip(c.svc, 200) } : {}), ...(c.svcL ? { svcL: clip(c.svcL, 300) } : {}), by: who };
+    return { d: c.d, t: c.t, branch: BRANCHES[c.branch] && c.branch !== 'any' ? c.branch : (cur.branch && cur.branch !== 'any' ? cur.branch : 'flagship'), designer: clip(c.designer, 40), ...(c.designerKo ? { designerKo: clip(c.designerKo, 40) } : {}), msg: clip(c.msg, 500), ...(c.svc ? { svc: clip(c.svc, 200) } : {}), ...(c.svcL ? { svcL: clip(c.svcL, 300) } : {}), by: who };
   }
   /* 확정 — 손님 언어 확정서 메일 + (상담방이 있으면) 채팅에 확정서 카드. 예약 페이지 · 상담방 둘 다 여기로 */
   /* 광고 → 예약 요청 · 확정 숫자(chat.js adFunnel 과 같은 곳) */
