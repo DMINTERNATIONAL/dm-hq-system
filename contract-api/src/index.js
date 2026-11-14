@@ -33,6 +33,7 @@ import { makeMembers, resendMail } from './members.js';
 import { makeRecruit } from './recruit.js';
 import { makePhotoMig } from './photomig.js';
 import { makeHeroVid, heroServe } from './herovid.js';
+import { makeBooking } from './booking.js';
 
 const LOCKED = ['contracts', 'statements', 'counters', 'auditLogs', 'authSecrets', 'pushSubs'];
 const ALLOWED_ORIGINS = [
@@ -756,6 +757,7 @@ const opCostRoute = makeOpCost({ dbGet, dbPut, dbPatch, pushToPhones, gToken });
 const snsRoute = makeSns({ dbGet, dbPut, relayCall: (env, p, b, w) => relayCall(env, p, b, w) });
 const metaAdsRoute = makeMetaAds({ dbGet });
 const heroVidRoute = makeHeroVid();
+const bookingRoute = makeBooking({ dbGet, dbPatch, dbPut, rlHit, ipKey, ipOf, sameStr, canManageStaff, sendMail: resendMail, pushToPhones });
 const seoRoute = makeSeo({ dbGet, relayCall: (env, p, b, w) => relayCall(env, p, b, w), pushToPhones, sns: snsRoute });
 const memberRoute = makeMembers({ dbGet, dbPut, dbPatch, dbDelete, dbCas, pwHash, pwVerify, sameStr });
 /* 채용 지원서 사진은 비공개 구글 서울 저장소(채팅 사진과 같은 버킷, recruit/ 아래) — 볼 때만 서명 주소 */
@@ -1122,6 +1124,8 @@ export default {
 
       /* 채용 지원서 — 공식 사이트 서버만(X-Site-Key). 사진 올리기 · 임시 저장 · 제출 · 불러오기 (recruit.js)
          예전 한 번에 내기(/public/apply)는 사이트가 안 쓰므로 없앴다 — 사이트는 /public/apply/save 만 부른다 */
+      /* 해외 손님 예약 요청 — 공식 사이트 서버만(X-Site-Key) (booking.js) */
+      if (path === '/public/booking') { const r = await bookingRoute.site(path, request, env, ctx); if (r) return json(r[1], r[0], origin); }
       if (path.startsWith('/public/apply/') && request.method === 'POST') {
         const r = await recruitRoute.site(path, request, env, ctx);
         if (r) return json(r[1], r[0], origin);
@@ -1375,6 +1379,8 @@ export default {
       /* 홈 영상 올리기 (herovid.js) — 대표 · 관리자 */
       const heroRes = await heroVidRoute(path, request, env, ctx, me, json, origin);
       if (heroRes) return heroRes;
+      /* 해외 예약 요청 화면 (booking.js) — 경영팀 · 관리자 */
+      { const br = await bookingRoute.route(path, request, env, me, json, origin); if (br) return br; }
 
       /* ── 폰·PC 알림(웹 푸시) ──
          폰이 알림을 허락하면 구독 정보를 받아 /pushSubs/{전화번호}/{id} 에 둔다. 한 사람이 폰·PC 여러 대를 쓸 수 있다.
