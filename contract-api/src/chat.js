@@ -1506,7 +1506,7 @@ export function makeChat(deps) {
     if (!list.length) return { lines: [], asks: [], count: 0 };
     const d = (await deps.relayCall(env, '/ai/chat-summary', { room: room.n || '', me: nameOf(u), messages: list }, { ph: me.ph, nm: nameOf(u), x: (room.n || '단체방') + ' · ' + list.length + '개' })).body;
     if (!d || !d.ok) throw new Error((d && d.error) || '요약하지 못했습니다');
-    return { lines: d.lines || [], asks: d.asks || [], count: list.length };
+    return { head: d.head || '', lines: d.lines || [], asks: d.asks || [], count: list.length };
   }
 
   /* 라우터 — 처리했으면 Response 를, 아니면 null 을 돌려준다 */

@@ -742,11 +742,12 @@ async function handleAIChatSummary(body, env) {
   const convo = msgs.map((m) => `${String(m.bn || '').slice(0, 20)}${m.me ? ' (나를 부름)' : ''}: ${String(m.x || '').replace(/\s+/g, ' ').slice(0, 400)}`).join('\n');
   const sys =
     '너는 헤어살롱 회사 직원 단체 채팅방의 안 읽은 메시지를 요약하는 도우미야. 읽는 사람은 "' + me + '"이고, 며칠 만에 들어와서 핵심만 빨리 알고 싶어 해.\n\n' +
-    '규칙:\n' +
-    '- 결정된 것, 해야 할 일, 날짜·수량·품목 같은 구체적인 내용을 우선한다. 잡담과 인사는 뺀다.\n' +
-    '- 한 줄에 하나씩, 최대 6줄. 각 줄은 "- " 로 시작하고 누가 말했는지 괄호로 붙인다. 예: "- 내일 발주에 3SI 4개, 6MNV 2개 추가 (건아)"\n' +
-    '- ' + me + '에게 확인이나 답을 요청한 것이 있으면 따로 "! " 로 시작하는 줄로 쓴다(최대 3줄). 없으면 쓰지 않는다.\n' +
-    '- 줄마다 가장 중요한 부분(날짜 · 시간 · 수량 · 품목 · 해야 할 일 · 결정)만 **이렇게** 별표 두 개로 감싼다. 한 줄에 1~2곳, 짧게. 예: "- **내일 오전** 발주에 **3SI 4개** 추가 (건아)"\n' +
+    '출력 형식(11/15 사용자 \'무슨 내용인지 핵심이 첫 줄부터 보여야\'):\n' +
+    '1) 첫 줄: "# " 로 시작하는 한 줄 요지 — 이 방에서 무슨 일이 있었는지 주제 위주로 한 문장. 예: "# 11/14 지점별 수건 사용량 집계와 ETOH 카드뉴스 컨펌 요청"\n' +
+    '2) 그다음 주제별로 한 줄씩(최대 5줄), "- **주제**: 핵심 내용 (말한 사람)" 형식. 같은 주제의 메시지는 한 줄로 묶는다. 주제 이름은 짧고 구체적으로(예: 수건 사용량, 카드뉴스, 쿠폰 안내, 비품 발주).\n' +
+    '   예: "- **수건 사용량(11/14)**: 플래그십 50명 250개 · 모먼트 42명 150개 · 총 400개, 잔여 약 100개 (건아)"\n' +
+    '   별표 두 개는 주제 이름에만 쓴다. 숫자 · 날짜는 그대로 살리고, 잡담 · 인사는 뺀다.\n' +
+    '3) ' + me + '에게 확인 · 답 · 결정을 요청한 것이 있으면 "! " 로 시작하는 줄로 따로(최대 3줄), 무엇을 해야 하는지 분명하게. 없으면 쓰지 않는다.\n' +
     '- 메시지에 없는 내용을 지어내지 않는다. 다른 설명이나 머리말 없이 줄만 출력한다.';
   try {
     // api.anthropic.com 직접 호출은 엣지에서 403 → Cloudflare AI Gateway(dm-ai) 경유 (handleAIPolish 와 같음)
@@ -769,6 +770,7 @@ async function handleAIChatSummary(body, env) {
     if (data && Array.isArray(data.content)) data.content.forEach((b) => { if (b && b.type === 'text') text += b.text; });
     const rows = text.split('\n').map((l) => l.trim());
     return json({ ok: true,
+      head: (rows.find((l) => l.startsWith('# ')) || '').slice(2).trim(),
       lines: rows.filter((l) => l.startsWith('- ')).map((l) => l.slice(2)).slice(0, 6),
       asks: rows.filter((l) => l.startsWith('! ')).map((l) => l.slice(2)).slice(0, 3) });
   } catch (e) {
