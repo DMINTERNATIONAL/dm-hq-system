@@ -757,10 +757,10 @@ async function handleAIChatSummary(body, env) {
     const r = await fetch(AIG, {
       method: 'POST',
       headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'accept': 'application/json', 'user-agent': 'dm-hq-chat-summary/1.0' },
-      /* Haiku 5.5 — Sonnet 5.5 의 1/20 값(11/15 사용자 '더 저렴하게'). 안 읽은 글 몇 줄 요약이라 충분하다.
-         (11/8 Opus → Sonnet, 11/15 Sonnet → Haiku) 다른 모델로 넘어가는 fallback 은 끔 */
+      /* Sonnet 5.5 — 11/15 사용자 '소넷으로 하자'(Haiku 로 내렸다가 주제 · 형광 판단이 중요해서 되돌림).
+         (11/8 Opus → Sonnet, 11/15 Sonnet → Haiku → Sonnet) 다른 모델로 넘어가는 fallback 은 끔 */
       body: JSON.stringify({
-        model: 'claude-haiku-5-5', max_tokens: 1000,
+        model: 'claude-sonnet-5-5', max_tokens: 1200,
         system: sys,
         messages: [{ role: 'user', content: '방 이름: ' + String(body.room || '').slice(0, 40) + '\n\n' + convo }],
       }),
