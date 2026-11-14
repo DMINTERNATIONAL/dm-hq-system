@@ -776,6 +776,8 @@ export function makeChat(deps) {
   /* 상담 상태(11/14 사용자 '채널톡처럼 대기 · 상담중 · 완료 · 보류') — 방(room.ws)과 멤버 inbox(ws · wan)에 같이 둔다(목록이 바로 보이게) */
   const WS = ['wait', 'ing', 'hold', 'done'];
   const WS_KO = { wait: '대기', ing: '상담 중', hold: '보류', done: '완료' };
+  /* 직원이 누를 수 있는 단계(11/14 사용자) — 대기 → 상담 시작 · 상담 중 → 완료/보류 · 보류 → 상담 시작/완료 · 완료 → 다시 상담. 대기로 되돌리기는 없음(손님이 다시 쓰면 자동 대기) */
+  const WS_NEXT = { wait: ['ing'], ing: ['done', 'hold'], hold: ['ing', 'done'], done: ['ing'] };
   function webStateUp(rid, room, p) {
     const up = {};
     for (const [k, v] of Object.entries(p)) up[`chat/rooms/${rid}/${k}`] = v;
@@ -988,7 +990,15 @@ export function makeChat(deps) {
     }
     if (body.op === 'state') {
       const p = {};
-      if (body.ws != null) { if (!WS.includes(body.ws)) throw new Error('상태가 올바르지 않습니다'); if (body.ws !== room.ws) { p.ws = body.ws; p.wsAt = nowMs(); p.wsBy = bn; } }
+      if (body.ws != null) {
+        if (!WS.includes(body.ws)) throw new Error('상태가 올바르지 않습니다');
+        const cur = room.ws || 'wait';
+        if (body.ws !== cur) {
+          if (!(WS_NEXT[cur] || []).includes(body.ws)) throw new Error(`'${WS_KO[cur]}'에서 '${WS_KO[body.ws]}'(으)로는 바꿀 수 없어요`);
+          p.ws = body.ws; p.wsAt = nowMs(); p.wsBy = bn;
+          if (body.ws === 'ing' && !room.wa && body.wa == null) { p.wa = ph; p.wan = bn; }   // 상담 시작 = 담당자 없으면 누른 사람
+        }
+      }
       if (body.wa != null) {
         const to = String(body.wa);
         if (to && !member(room, to)) throw new Error('이 방 멤버만 담당할 수 있어요');
