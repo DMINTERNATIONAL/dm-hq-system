@@ -51,19 +51,26 @@ export function makeMetaAds(deps) {
     const act_ = 'act_' + A.id;
     const F = 'spend,impressions,reach,frequency,inline_link_clicks,actions';
     const last14 = { since: ymd(now - 13 * 86400e3), until: ymd(now) };
-    const [camps, cIns, aIns, days, ads, clicks] = await Promise.all([
+    const [camps, cIns, aIns, days, ads, clicks, funnel] = await Promise.all([
       g(env, act_ + '/campaigns', { fields: 'id,name,status,effective_status,objective,daily_budget,lifetime_budget,stop_time', limit: 100 }),
       g(env, act_ + '/insights', { level: 'campaign', time_range: tr, fields: 'campaign_id,' + F, limit: 200 }),
       g(env, act_ + '/insights', { level: 'ad', time_range: tr, fields: 'ad_id,' + F, limit: 500 }),
       g(env, act_ + '/insights', { time_range: last14, time_increment: 1, fields: 'spend,inline_link_clicks,actions', limit: 30 }),
       g(env, act_ + '/ads', { fields: 'id,name,status,effective_status,campaign_id,adset{name,daily_budget,effective_status},creative{object_story_spec}', limit: 300 }),
       dbGet(env, '/adClicks').catch(() => null),
+      dbGet(env, '/adFunnel').catch(() => null),
     ]);
     /* 예약 페이지 버튼 누름 — 기간 안 날짜만, c 별 · 지점별 */
     const btn = {};
     for (const [d, byC] of Object.entries(clicks || {})) {
       if (d < tr.since || d > tr.until) continue;
       for (const [c, byB] of Object.entries(byC || {})) { const o = (btn[c] = btn[c] || { flagship: 0, moment: 0, kakao: 0 }); for (const b of Object.keys(o)) o[b] += num(byB && byB[b]); }
+    }
+    /* 홈페이지 상담 · 예약 요청 · 확정(/adFunnel, 11/14 광고 태그) — c 별 */
+    const web = {};
+    for (const [d, byC] of Object.entries(funnel || {})) {
+      if (d < tr.since || d > tr.until) continue;
+      for (const [c, o] of Object.entries(byC || {})) { const w = (web[c] = web[c] || { chat: 0, book: 0, conf: 0 }); for (const k of ['chat', 'book', 'conf']) w[k] += num(o && o[k]); }
     }
     const row = (r) => ({ spend: num(r && r.spend), imp: num(r && r.impressions), reach: num(r && r.reach), freq: num(r && r.frequency), clicks: num(r && r.inline_link_clicks),
       lpv: act(r, 'landing_page_view', 'omni_landing_page_view'), lead: act(r, 'lead', 'offsite_conversion.fb_pixel_lead'), msg: act(r, 'onsite_conversion.messaging_conversation_started_7d') });
@@ -76,7 +83,7 @@ export function makeMetaAds(deps) {
       if (!m && !live) continue;
       const c = cOf(ad); const b = (c && btn[c]) || null;
       (adsBy[ad.campaign_id] = adsBy[ad.campaign_id] || []).push({ id: ad.id, name: ad.name, set: (ad.adset && ad.adset.name) || '', eff: ad.effective_status, c,
-        ...(m || row(null)), btn: b ? b.flagship + b.moment : 0, btnB: b, kakao: b ? b.kakao : 0 });
+        ...(m || row(null)), btn: b ? b.flagship + b.moment : 0, btnB: b, kakao: b ? b.kakao : 0, web: (c && web[c]) || null });
     }
     const out = [];
     for (const c of camps.data || []) {
@@ -94,6 +101,7 @@ export function makeMetaAds(deps) {
     const tot = out.reduce((t, c) => { for (const k of ['spend', 'imp', 'reach', 'clicks', 'lpv', 'lead', 'btn', 'kakao']) t[k] += c[k]; return t; }, { spend: 0, imp: 0, reach: 0, clicks: 0, lpv: 0, lead: 0, btn: 0, kakao: 0 });
     tot.flagship = 0; tot.moment = 0; for (const c of out) for (const a of c.ads) if (a.btnB) { tot.flagship += a.btnB.flagship; tot.moment += a.btnB.moment; }   // tot.kakao 는 위 합계에 있음
     tot.dailyBudget = out.filter((c) => c.on).reduce((n, c) => n + c.budget, 0);
+    tot.web = { chat: 0, book: 0, conf: 0 }; for (const c of out) for (const a of c.ads) if (a.web) for (const k of ['chat', 'book', 'conf']) tot.web[k] += a.web[k];
     /* 알아 둘 것 — 화면 맨 위 노란 카드 */
     const alerts = [];
     for (const c of out) {

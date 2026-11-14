@@ -1141,7 +1141,7 @@ export default {
             if (b.consent !== true) return json({ ok: false, error: 'consent' }, 400, origin);
             const lang = ['en', 'zh', 'ja', 'ko'].includes(b.lang) ? b.lang : 'en';
             const HI = { en: `Hello ${name}! Thank you for contacting DAY:MEAN. Please leave your question here — our team will reply in this chat, and also by email if you are away.`, zh: `${name} 您好！感谢您联系 DAY:MEAN。请在这里留下您的问题，我们会在这里回复，如果您不在线，也会通过邮件通知您。`, ja: `${name} 様、DAY:MEAN へのお問い合わせありがとうございます。こちらにご質問をお書きください。担当者がこのチャットでご返信し、ご不在の場合はメールでもお知らせします。`, ko: `${name} 님, DAY:MEAN 에 문의해 주셔서 감사합니다! 여기에 궁금한 점을 남겨 주세요. 담당자가 이 채팅으로 답변드리고, 자리에 안 계시면 메일로도 알려 드려요.` };
-            const r = await W.open(env, ctx, { name, email, lang, brand: b.brand === 'ETOH' ? 'ETOH' : 'DAY:MEAN', first: { x: HI[lang], xk: `[홈페이지 문의 시작] ${name} · ${email} · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[lang]}` }, push: !String(b.x || '').trim() });
+            const r = await W.open(env, ctx, { name, email, lang, brand: b.brand === 'ETOH' ? 'ETOH' : 'DAY:MEAN', ad: /^[A-Za-z0-9_-]{1,40}$/.test(String(b.ad || '')) ? String(b.ad) : '', first: { x: HI[lang], xk: `[홈페이지 문의 시작] ${name} · ${email} · ${({ en: '영어', zh: '중국어', ja: '일본어', ko: '한국어' })[lang]}` }, push: !String(b.x || '').trim() });
             if (String(b.x || '').trim()) await W.guestSend(env, ctx, r.v, b.x);
             return json({ ok: true, w: r.v, k: r.k }, 200, origin);
           }

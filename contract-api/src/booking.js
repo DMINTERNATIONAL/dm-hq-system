@@ -68,6 +68,8 @@ const LBL = {
 const WD = { en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], zh: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'], ja: ['日', '月', '火', '水', '木', '金', '土'], ko: ['일', '월', '화', '수', '목', '금', '토'] };
 const whenTxt = (c, L) => { const d = new Date(c.d + 'T00:00:00Z'); const w = isNaN(d) ? '' : (WD[L] || WD.en)[d.getUTCDay()]; return `${c.d}${w ? ` (${w})` : ''} ${c.t}`; };
 const bkNo = (id) => String(id).slice(-6).toUpperCase();
+const AD_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const adOf = (x) => (AD_RE.test(String(x || '')) ? String(x) : '');
 const MID_RE = /^[ekg]_[A-Za-z0-9_-]{1,80}$/;
 const REMIND_T = {
   en: { t: 'Your DAY:MEAN booking requests', b: 'Here are the booking requests made with this email. Tap a button to continue the chat consultation.', st: { new: 'Waiting for our reply', contacted: 'In consultation', confirmed: 'Confirmed', declined: 'Closed', canceled: 'Canceled' }, btn: 'Open chat' },
@@ -223,7 +225,7 @@ export function makeBooking(deps) {
     const prefs = (Array.isArray(b.prefs) ? b.prefs : []).slice(0, 3).map((p) => ({ d: clip(p && p.d, 10), t: slotOk(p && p.t) }))
       .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.d) && p.d >= today && p.t);
     if (!prefs.length) throw new Error('prefs');
-    return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(Array.isArray(b.services) ? b.services.map((x) => clip(x, 40)).filter(Boolean).slice(0, 20).join(', ') : b.service, 400), prefs, note: clip(b.note, 1000), len: clip(b.len, 20), gender: ['여성', '남성'].includes(b.gender) ? b.gender : '', svcL: clip(b.servicesLabel, 400) };   // svcL: 손님 언어로 쓴 시술 이름(메일용) — service 는 직원용 한국어   // gender: 성별(11/14 사용자 '머리 길이 대신 성별') · len 은 예전 값 호환   // len: 머리 길이(가격표 기장 — 숏컷/남자 · 목선 · 쇄골선 · 가슴 윗선 …)   // service: 메뉴 여러 개(11/14 '우리 메뉴 다 보여주자') — services 배열 또는 service 글자
+    return { name, email, phone: clip(b.phone, 30), ch, lang, branch, designer: clip(b.designer, 40), service: clip(Array.isArray(b.services) ? b.services.map((x) => clip(x, 40)).filter(Boolean).slice(0, 20).join(', ') : b.service, 400), prefs, note: clip(b.note, 1000), len: clip(b.len, 20), gender: ['여성', '남성'].includes(b.gender) ? b.gender : '', svcL: clip(b.servicesLabel, 400), ...(adOf(b.ad) ? { ad: adOf(b.ad) } : {}) };   // svcL: 손님 언어로 쓴 시술 이름(메일용) — service 는 직원용 한국어   // gender: 성별(11/14 사용자 '머리 길이 대신 성별') · len 은 예전 값 호환   // len: 머리 길이(가격표 기장 — 숏컷/남자 · 목선 · 쇄골선 · 가슴 윗선 …)   // service: 메뉴 여러 개(11/14 '우리 메뉴 다 보여주자') — services 배열 또는 service 글자
   }
 
   /* 알림 받을 사람: 경영팀 전원 + (지점을 골랐으면) 그 지점 관리자, 아무 곳이면 DAY:MEAN 관리자 전원 */
@@ -276,7 +278,10 @@ export function makeBooking(deps) {
     return { d: c.d, t: c.t, branch: BRANCHES[c.branch] && c.branch !== 'any' ? c.branch : (cur.branch && cur.branch !== 'any' ? cur.branch : 'flagship'), designer: clip(c.designer, 40), msg: clip(c.msg, 500), ...(c.svc ? { svc: clip(c.svc, 200) } : {}), ...(c.svcL ? { svcL: clip(c.svcL, 300) } : {}), by: who };
   }
   /* 확정 — 손님 언어 확정서 메일 + (상담방이 있으면) 채팅에 확정서 카드. 예약 페이지 · 상담방 둘 다 여기로 */
+  /* 광고 → 예약 요청 · 확정 숫자(chat.js adFunnel 과 같은 곳) */
+  const adFunnel = (env, ad, k) => (adOf(ad) ? dbPatch(env, `/adFunnel/${new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)}/${ad}`, { [k]: { '.sv': { increment: 1 } } }).catch(() => {}) : Promise.resolve());
   async function confirmBooking(env, id, cur, c, who) {
+    const was = cur.status;   // 확정 전 상태(같은 예약을 다시 확정하면 광고 확정 숫자는 안 올림)
     const L = cur.lang || 'en', t = T[L] || T.en, l = LBL[L] || LBL.en;
     const bi = await branchInfo(env, c.branch);
     const msg = c.msg || CONF_MSG_T[L] || CONF_MSG_T.en;
@@ -288,6 +293,7 @@ export function makeBooking(deps) {
     await sendMail(env, cur.email, `DAY:MEAN — ${t.conf} #${bkNo(id)}`, mailHtml(L, t.conf, [t.hi(cur.name), t.confB], rows, policyBox(L) + chatBtn(L, cu)), `${t.hi(cur.name)}\n${t.confB}\n\n${plain}${bi.map ? '\n' + bi.map : ''}\n\n${msg}\n\n${POLICY_T[L] || POLICY_T.en}${cu ? '\n\n' + cu : ''}`);
     const up = { up: Date.now(), conf: c, status: 'confirmed', mailed: { k: 'confirm', at: Date.now(), by: who } };
     await dbPatch(env, `${BASE}/${id}`, up);
+    if (cur.ad && was !== 'confirmed') await adFunnel(env, cur.ad, 'conf');   // 같은 예약을 다시 확정해도 한 번만
     if (cur.web && webCard) {
       const card = { no: bkNo(id), g: { title: l.card, rows: confRows(id, cur, c, L, bi), map: bi.map || '', msg, policy: POLICY_T[L] || POLICY_T.en, mail: cur.email }, ko: { title: LBL.ko.card, rows: confRows(id, cur, c, 'ko', bi), map: bi.map || '', msg: c.msg || CONF_MSG_T.ko, mail: cur.email } };
       await webCard(env, cur.web, card, who).catch((e) => console.log('web card', e && e.message));
@@ -301,7 +307,7 @@ export function makeBooking(deps) {
     if (!cur) {
       confOf(o.conf, { branch: 'any' }, o.who);   // 날짜 · 시간이 틀리면 예약을 만들기 전에 멈춤(다시 눌러도 예약이 쌓이지 않게)
       id = id36();
-      cur = { name: clip(o.priv.name, 60), email: clip(o.priv.email, 120).toLowerCase(), lang: LANGS.includes(o.priv.lang) ? o.priv.lang : 'en', branch: BRANCHES[o.conf && o.conf.branch] ? o.conf.branch : 'any', prefs: [], service: clip(o.conf && o.conf.svc, 400), ...(o.conf && o.conf.svcL ? { svcL: clip(o.conf.svcL, 400) } : {}), status: 'contacted', src: 'chat', web: o.v, at: Date.now(), up: Date.now() };
+      cur = { name: clip(o.priv.name, 60), email: clip(o.priv.email, 120).toLowerCase(), lang: LANGS.includes(o.priv.lang) ? o.priv.lang : 'en', branch: BRANCHES[o.conf && o.conf.branch] ? o.conf.branch : 'any', prefs: [], service: clip(o.conf && o.conf.svc, 400), ...(o.conf && o.conf.svcL ? { svcL: clip(o.conf.svcL, 400) } : {}), status: 'contacted', src: 'chat', web: o.v, ...(adOf(o.room && o.room.wad) ? { ad: o.room.wad } : {}), at: Date.now(), up: Date.now() };
       await dbPut(env, `${BASE}/${id}`, cur);
       if (o.link) await o.link(id);   // 메일이 실패해 다시 눌러도 같은 예약으로
     } else if (!cur.web) { cur.web = o.v; await dbPatch(env, `${BASE}/${id}`, { web: o.v }); }
@@ -405,13 +411,14 @@ export function makeBooking(deps) {
     /* 우리 앱 상담방(11/14 사용자 '채널톡 대신 우리 앱으로') — 경영팀이 받는 홈페이지 상담방을 예약 요약과 함께 연다. 알림은 위 '[해외 예약] 새 요청'이 이미 간다 */
     let web = null;
     // 이미 상담 중인 방이 있으면(사이트가 webW · webK 를 보냄) 그 방에 붙이고, 열쇠가 틀리거나 방이 없으면 새 방
-    if (webAttach && b.webW && b.webK) { try { web = await webAttach(env, ctx, { w: b.webW, k: b.webK, b: id, first: bkSummary(id, r) }); if (web) await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking attach', e && e.message); web = null; } }
-    if (!web && webOpen) { try { web = await webOpen(env, ctx, { name: r.name, email: r.email, lang: r.lang, b: id, first: bkSummary(id, r), push: false }); await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking web', e && e.message); } }
+    if (webAttach && b.webW && b.webK) { try { web = await webAttach(env, ctx, { w: b.webW, k: b.webK, b: id, ad: r.ad, first: bkSummary(id, r) }); if (web) await dbPatch(env, `${BASE}/${id}`, { web: web.v, ...(!r.ad && web.ad ? { ad: web.ad } : {}) }).catch(() => {}); if (web && !r.ad && web.ad) r.ad = web.ad; } catch (e) { console.log('booking attach', e && e.message); web = null; } }
+    if (!web && webOpen) { try { web = await webOpen(env, ctx, { name: r.name, email: r.email, lang: r.lang, b: id, ad: r.ad, first: bkSummary(id, r), push: false }); await dbPatch(env, `${BASE}/${id}`, { web: web.v }).catch(() => {}); } catch (e) { console.log('booking web', e && e.message); } }
     /* 무료 방법(11/14 사용자 — Open API 는 유료라 '무료로'): 사이트가 손님 브라우저의 채널톡 고객 번호(boot 콜백 user.id)를 chUser 로 넘긴다.
        직원 앱 '채널톡 상담 열기' → 채널톡의 그 손님 화면 → '새 상담 열기'. API 키가 생기면 위 chOpen 이 상담방까지 연다 */
     const chUser = /^[A-Za-z0-9]{8,40}$/.test(String(b.chUser || '')) ? String(b.chUser) : '';
     if (!cht && chUser) cht = { u: chUser };
     if (cht) await dbPatch(env, `${BASE}/${id}`, { cht }).catch(() => {});
+    if (r.ad) await adFunnel(env, r.ad, 'book');
     return [200, { ok: true, id, k: await bkSig(env, id), ...(web ? { webW: web.v, webK: web.k } : {}), chMember: (cht && cht.m) || '', chHash: cht && cht.m ? await chHashOf(env, cht.m) : '', chChat: (cht && cht.c) || '' }];
   }
 

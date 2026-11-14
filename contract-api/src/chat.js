@@ -805,6 +805,9 @@ export function makeChat(deps) {
     const r = await deps.relayCall(env, '/ai/translate', { text, to }, { x: '홈페이지 상담 번역' }).catch(() => null);
     return r && r.body && r.body.ok ? String(r.body.text || '').slice(0, 5000) : '';
   }
+  /* 광고 → 상담 · 예약 · 확정 숫자(11/14 사용자 '광고 태그') — /adFunnel/{날짜}/{광고코드}/{chat|book|conf}, 개인정보 없음. 광고 성과 화면이 광고 링크 c= 와 이어 붙인다 */
+  const AD_RE = /^[A-Za-z0-9_-]{1,40}$/;
+  const adFunnel = (env, ad, k) => (AD_RE.test(String(ad || '')) ? dbPatch(env, `/adFunnel/${new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)}/${ad}`, { [k]: { '.sv': { increment: 1 } } }).catch(() => {}) : Promise.resolve());
   const WK_KO = { book: '해외 예약', site: '홈페이지 문의' };
   const WEB_BRANDS = ['DAY:MEAN', 'ETOH'];
   const webTitle = (room) => `${room.wbr || 'DAY:MEAN'} ${WK_KO[room.wk] || '홈페이지 상담'} · ${room.n}`;
@@ -817,10 +820,11 @@ export function makeChat(deps) {
     if (!room || !priv || room.t !== 'web') return null;
     const up = { [`chat/rooms/${rid}/wb`]: String(o.b), [`${WEB_PRIV.slice(1)}/${v}/b`]: String(o.b) };
     if (room.wk !== 'book') { Object.assign(up, { [`chat/rooms/${rid}/wk`]: 'book' }); for (const ph of Object.keys(room.m || {})) up[`chat/inbox/${ph}/${rid}/wk`] = 'book'; }
+    if (!room.wad && AD_RE.test(String(o.ad || ''))) { up[`chat/rooms/${rid}/wad`] = String(o.ad); for (const ph of Object.keys(room.m || {})) up[`chat/inbox/${ph}/${rid}/wad`] = String(o.ad); }
     if (room.ws === 'hold' || room.ws === 'done') Object.assign(up, webStateUp(rid, room, { ws: 'wait', wsAt: nowMs() }));
     await dbPatch(env, '/', up);
     if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', false);
-    return { v, k: String(o.k), rid };
+    return { v, k: String(o.k), rid, ad: room.wad || '' };
   }
   async function webMembers(env) {
     const { el } = await eligible(env, true);
@@ -839,10 +843,12 @@ export function makeChat(deps) {
     const n = name;   // 출처(해외 예약 · 홈페이지 문의)와 언어는 이름 뒤가 아니라 태그로(11/14 사용자) — wk · wl
     const wk = o.b ? 'book' : 'site';
     const wbr = WEB_BRANDS.includes(o.brand) ? o.brand : 'DAY:MEAN';   // 브랜드(11/14 사용자 '데이민 · 에토 나눠서') — 나중에 ETOH 홈페이지도 같은 채팅
-    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, wk, wbr, ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
+    const wad = AD_RE.test(String(o.ad || '')) ? String(o.ad) : '';   // 어느 광고로 들어온 손님인지(광고 링크 c=)
+    const room = { t: 'web', n, by: 'web', at, m, seq: 0, bt: '홈페이지', wl: lang, wk, wbr, ...(wad ? { wad } : {}), ws: 'wait', wsAt: at, ...(o.b ? { wb: String(o.b) } : {}) };
     const up = { [`chat/rooms/${rid}`]: room, [`${WEB_PRIV.slice(1)}/${v}`]: { name, email, lang, at, ...(o.b ? { b: String(o.b) } : {}) } };
-    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); Object.assign(up, { [`chat/inbox/${ph}/${rid}/ws`]: 'wait', [`chat/inbox/${ph}/${rid}/wk`]: wk, [`chat/inbox/${ph}/${rid}/wl`]: lang, [`chat/inbox/${ph}/${rid}/wbr`]: wbr }); }
+    for (const ph of Object.keys(m)) { Object.assign(up, inboxSeed(rid, room, n, ph)); Object.assign(up, { [`chat/inbox/${ph}/${rid}/ws`]: 'wait', [`chat/inbox/${ph}/${rid}/wk`]: wk, [`chat/inbox/${ph}/${rid}/wl`]: lang, [`chat/inbox/${ph}/${rid}/wbr`]: wbr, ...(wad ? { [`chat/inbox/${ph}/${rid}/wad`]: wad } : {}) }); }
     await dbPatch(env, '/', up);
+    if (wad && !o.b) await adFunnel(env, wad, 'chat');   // 예약 요청으로 생긴 방은 booking.js 가 'book' 으로 센다
     if (o.first && o.first.x) await webBot(env, ctx, rid, o.first.x, o.first.xk || '', o.push !== false);
     return { v, k: await webSig(env, v), rid };
   }
@@ -953,7 +959,7 @@ export function makeChat(deps) {
     if (body.op === 'info') {
       const priv = (await dbGet(env, `${WEB_PRIV}/${v}`).catch(() => null)) || {};
       const bk = room.wb && deps.bkGet ? await deps.bkGet(env, room.wb).catch(() => null) : null;
-      return { info: { name: priv.name || '', email: priv.email || '', lang: priv.lang || room.wl || 'en', at: priv.at || room.at || 0, seen: priv.seen || 0, ws: room.ws || 'wait', wa: room.wa || '', wan: room.wan || '' }, booking: bk ? { id: room.wb, ...bk } : null };
+      return { info: { name: priv.name || '', email: priv.email || '', lang: priv.lang || room.wl || 'en', at: priv.at || room.at || 0, seen: priv.seen || 0, ws: room.ws || 'wait', wa: room.wa || '', wan: room.wan || '', ad: room.wad || '', brand: room.wbr || 'DAY:MEAN' }, booking: bk ? { id: room.wb, ...bk } : null };
     }
     if (body.op === 'state') {
       const p = {};
