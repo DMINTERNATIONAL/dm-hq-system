@@ -58,6 +58,7 @@ export function makeBooking(deps) {
     if (!name) throw new Error('name');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('email');
     if (b.consent !== true) throw new Error('consent');
+    if (!['여성', '남성'].includes(b.gender)) throw new Error('gender');   // 성별 필수(11/14 사용자)
     const lang = LANGS.includes(b.lang) ? b.lang : 'en';
     const branch = BRANCHES[b.branch] ? b.branch : 'any';
     const ch = {};
