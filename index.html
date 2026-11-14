@@ -7360,10 +7360,10 @@ function arPaint(){var el=$('AUTO-ROOMS');if(!el)return;var d=AR_ST.d;
   var h='<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="font-size:14px;font-weight:800;flex:1">💬 자동 단톡방</div>'+(AR_ST.busy?'<span style="font-size:12px;color:#64748B">맞추는 중…</span>':'')+'</div><div style="font-size:12.5px;color:#475569;line-height:1.6;margin-bottom:6px">직원 정보(등급 · 레벨 · 담당 원장)를 보고 방을 만들고 5분마다 인원을 맞춰요. 끄면 그 방은 인원이 비워지고(쓴 글은 남음), 다시 켜면 그때 들어온 사람은 이전 대화가 안 보여요.</div>';
   if(AR_ST.err)h+='<div style="font-size:12.5px;color:#DC2626;margin:6px 0">'+AR_ST.err+'</div>';
   if(!d&&!AR_ST.err)h+='<div class="sk" style="height:120px"></div>';
-  if(d){h+=row('bd','브랜드방','DAY:MEAN 전체 · ETOH 전체 — 그 브랜드 직원 전원 + 경영팀 (지점방은 원래대로 따로 있어요)')+row('lv','아카데미 (레벨방)','레벨마다 1개 · 그 레벨 인턴 + 디자이너 전원 + 경영팀 · 디자이너 · 경영팀은 알림 끔으로 들어감(@나 · 내 담당 인턴 글은 알림)')+row('tm','팀방','담당 디자이너 + 그 디자이너 담당 인턴');
-    var L=d.labels||{};Object.keys(L).forEach(function(k){var nm=L[k];var desc=nm.replace(/ (전체|단체방)$/,'')+' 전원 + 경영팀'+(/인턴/.test(nm)?' · 관리자 · 디자이너도(알림 끔)':/스탭장/.test(nm)?' · 관리자도(알림 끔)':'');h+=row(k,nm,desc)});
+  if(d){h+=row('bd','브랜드방','DAY:MEAN 전체 · ETOH 전체 — 그 브랜드 직원 전원 + 경영팀 (지점방은 원래대로 따로 있어요)')+row('lv','아카데미 (레벨방)','레벨마다 1개 · 그 레벨 인턴 + 디자이너 전원 + 경영팀 · 디자이너 · 경영팀은 알림 끔으로 들어감(@나 · 내 담당 인턴 글은 알림)')+row('tm','팀방','담당 디자이너 + 그 디자이너 담당 인턴')+row('bi','지점 인턴방','인턴이 있는 지점마다 1개 · 그 지점 인턴 + 그 지점 관리자 + 경영팀');
+    var L=d.labels||{};Object.keys(L).forEach(function(k){var nm=L[k];var desc=nm.replace(/ (전체|단체방)$/,'')+' 전원 + 경영팀'+(/인턴/.test(nm)?' · 관리자도(알림 끔)':/스탭장/.test(nm)?' · 관리자도(알림 끔)':'');h+=row(k,nm,desc)});
     if(!d.open)h+='<div style="margin-top:10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#9A3412;line-height:1.55">지금은 채팅 시험 중이라 시험 대상 '+d.trial+'명에게만 방이 만들어져요. 전 직원에게 열면 모두에게 생겨요.</div>';
-    var rs=d.rooms||[];var TL={all:'단체방',bd:'브랜드방',lv:'아카데미',tm:'팀방'};
+    var rs=d.rooms||[];var TL={all:'단체방',bd:'브랜드방',lv:'아카데미',tm:'팀방',bi:'지점 인턴방'};
     h+='<div style="margin-top:12px;font-size:12px;font-weight:700;color:#64748B">지금 있는 방 '+rs.filter(function(r){return r.m}).length+'개</div>';
     h+=rs.filter(function(r){return r.m}).length?'<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">'+rs.filter(function(r){return r.m}).map(function(r){return '<div style="display:flex;gap:8px;font-size:13px;padding:6px 10px;background:#F8FAFC;border-radius:8px"><span style="color:#4F46E5;font-size:11px;font-weight:700;min-width:38px">'+TL[r.t]+'</span><span style="flex:1">'+navEsc(r.n)+'</span><span style="color:#64748B">'+r.m+'명</span></div>'}).join('')+'</div>':'<div style="font-size:12.5px;color:#94A3B8;margin-top:6px">아직 만들어진 방이 없어요</div>'}
   h+='</div>';el.innerHTML=h}
@@ -11546,9 +11546,9 @@ function cmRenderSoon(){$('CM-VIEW').innerHTML='<div class="cm-head"><span class
 function cmRoomName(rid,r){var ib=CM.inbox&&CM.inbox[rid];if(ib&&ib.nm)return ib.nm;if(r&&r.n)return r.n;if(rid.indexOf('me_')===0)return '나와의 채팅';return rid}
 /* 교육 자동방(11/13 사용자 결정, 서버 syncAuto 가 만든다) — lv 레벨방(그 레벨 인턴 + 디자이너 전원 + 경영팀) · tm 팀방(원장 + 담당 인턴 + 경영팀).
    inbox j = 들어올 때 방 번호 — 그 이전 대화는 안 그린다(cmJ). 디자이너 · 경영팀은 레벨방에 알림 끔으로 들어감(내 인턴 글 · @나는 알림) */
-var CM_EDU_T={all:'단체방',br:'지점방',tm:'팀방',lv:'아카데미'};   // '전체방'→'단체방'(11/14 사용자, 칩 '전체'와 헷갈려서)   // 레벨방은 '아카데미'로 부른다(11/13 사용자)
+var CM_EDU_T={all:'단체방',br:'지점방',tm:'팀방',lv:'아카데미',bi:'지점 인턴'};   // '전체방'→'단체방'(11/14 사용자, 칩 '전체'와 헷갈려서)   // 레벨방은 '아카데미'로 부른다(11/13 사용자)
 /* 목록 종류: 본사경영팀 방(hq)도 '전체방'으로 묶는다(11/13) */
-function cmCat(r){return r&&r.t==='hq'?'all':r&&r.t==='bd'?'br':r&&r.t}   // 브랜드방(bd)은 '지점방'으로 묶는다(11/13)
+function cmCat(r){return r&&r.t==='hq'?'all':r&&(r.t==='bd'||r.t==='bi')?'br':r&&r.t}   // 지점 인턴방(bi)도 '지점방' 칩에(11/14)   // 브랜드방(bd)은 '지점방'으로 묶는다(11/13)
 /* 고정 단톡방 브랜드 꼬리표(11/14 사용자 '앞에 브랜드 이름, 아니면 태그라도') — 서버 syncAuto 가 방마다 bt 를 정해 준다
    (DAY:MEAN · ETOH · 공통(두 브랜드) · 본사 · 전 직원). 이름이 그 브랜드로 시작하면 이름에선 뺀다: 'DAY:MEAN 플래그십점' → [DAY:MEAN] 플래그십점 */
 function cmBtag(r){var b=r&&r.bt;if(!b)return '';var c=b==='DAY:MEAN'?'dm':/^ETOH/.test(b)?'et':b==='본사'?'hq':'cm';return '<span class="cm-btag '+c+'">'+cmEsc(b)+'</span>'}
@@ -11746,7 +11746,7 @@ function cmRoomCleanup(){try{var ae=document.activeElement;if(ae&&/^(INPUT|TEXTA
   fix();setTimeout(fix,320);setTimeout(fix,700)}
 function cmRoomHead(){var r=CM.room;if(!r)return;var t=$('CM-RT');var cnt=Object.keys(r.m||{}).length;var _ib=CM.inbox&&CM.inbox[CM.rid];var nm=_ib&&_ib.nm?_ib.nm:r.t==='dm'?(_ib&&_ib.n)||'1:1':cmRoomName(CM.rid,r);
   if(t)t.innerHTML=cmEsc(nm)+(r.t!=='dm'&&r.t!=='me'?'<small>'+cnt+'</small>':'');
-  var nb=$('CM-NOTICE');if(nb)nb.innerHTML=(r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'')+(CM_EDU_T[r.t]?'<div class="cm-autoinfo">'+(r.t==='all'?String(r.n||'').replace(/\s*(전체|단체방)$/,'')+' 전원과 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='tm'?'담당 인턴이 바뀌면 인원이 자동으로 바뀌는 방이에요':'레벨이 오르면 다음 레벨 방으로 옮겨 가요 · 들어오기 전 대화는 안 보여요')+'</div>':'');
+  var nb=$('CM-NOTICE');if(nb)nb.innerHTML=(r.pin?'<div class="cm-notice" onclick="cmJump(\''+cmEsc(r.pin.key)+'\')"><b>공지</b><span>'+cmEsc(r.pin.x)+'</span></div>':'')+(CM_EDU_T[r.t]?'<div class="cm-autoinfo">'+(r.t==='all'?String(r.n||'').replace(/\s*(전체|단체방)$/,'')+' 전원과 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='bi'?'이 지점 인턴 · 관리자 · 경영팀이 자동으로 들어가는 방이에요 · 들어오기 전 대화는 안 보여요':r.t==='tm'?'담당 인턴이 바뀌면 인원이 자동으로 바뀌는 방이에요':'레벨이 오르면 다음 레벨 방으로 옮겨 가요 · 들어오기 전 대화는 안 보여요')+'</div>':'');
   var canWrite=!(r.t==='notice'&&!cmIsManager());var c=$('CM-COMP');if(c&&c.getAttribute('data-ro')!==String(!canWrite)){c.setAttribute('data-ro',String(!canWrite));if(canWrite)cmComposer('CM-COMP',false);else c.innerHTML='<div class="cm-ro">경영팀 · 관리자만 쓸 수 있는 방입니다</div>'}}
 function cmUnread(m){var r=CM.room;if(!r||!r.m||!m.s)return 0;var n=0;Object.keys(r.m).forEach(function(p){if(p!==m.by&&(CM.reads[p]||0)<m.s)n++});return n}
 function cmRpnHtml(m){var n=!CM.thRoot&&!CM.rpRoot&&CM.rpN&&m&&m._k&&CM.rpN[m._k];return n?'<div class="cm-rpn">답장 '+n+'개 모아 보기 ›</div>':''}

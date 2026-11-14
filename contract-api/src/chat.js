@@ -50,8 +50,9 @@ const isEtohU = (u) => /^ETOH/i.test(String((u && u.brand) || ''));
 const obsMD = (u) => !isEtohU(u) && (hasGrade('관리자')(u) || isDesignerU(u));
 /* 스탭장 전체방은 경영팀 · 스탭장 · 관리자만(11/13 사용자 '경영팀이랑 스탭장이랑 관리자만 있으면 돼') — 디자이너는 빠진다 */
 const obsMgr = (u) => !isEtohU(u) && hasGrade('관리자')(u);
-const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMD], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMgr]];
-const EDU_T = { lv: 1, tm: 1, all: 1, bd: 1 };   // bd: 브랜드방(DAY:MEAN 전체 · ETOH 전체, 11/13) — 그 브랜드 직원 전원 + 경영팀, 알림 켬   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
+const ALL_ROOMS = [['designers', '디자이너', isDesignerU, null], ['interns', '인턴', isInternU, obsMgr], ['managers', '관리자', hasGrade('관리자'), null], ['staffleads', '스탭장', hasGrade('스탭장'), obsMgr]];
+const EDU_T = { lv: 1, tm: 1, all: 1, bd: 1, bi: 1 };   // bi: 지점 인턴방(11/14) — 그 지점 인턴 + 그 지점 관리자 + 경영팀
+   // bd: 브랜드방(DAY:MEAN 전체 · ETOH 전체, 11/13) — 그 브랜드 직원 전원 + 경영팀, 알림 켬   // all: 디자이너 전체 · 인턴 전체 (11/13 추가 요청) — 각 해당자 전원 + 경영팀, 알림은 켠 채로
 
 const TAGS = ['발주', '근무', '재고', '교육', '고객', '공지'];
 const ackId = (rid, key) => 'a_' + String(rid).replace(/[^A-Za-z0-9_-]/g, '') .slice(0, 40) + '_' + key;
@@ -241,10 +242,20 @@ export function makeChat(deps) {
         want[rid] = want[rid] || { t: 'tm', n: nameOf(mu) + (mu.position ? ' ' + mu.position + '님' : '') + ' 팀', m: { [mp]: 1 }, mute: {} };
         want[rid].m[ph] = 1;
       }
-      /* 팀방엔 경영팀을 넣지 않는다(사용자 결정 11/13) — 담당 디자이너 + 담당 인턴만. 이미 들어가 있던 경영팀은 다음 맞추기에서 빠진다 */
     }
+    /* 지점 인턴방(11/14 사용자 '지점별 인턴방도 — 경영팀 + 관리자 + 지점 인턴') — 인턴이 있는 지점마다. 관리자는 그 지점 관리자(알림 켬) */
+    if (ar.bi !== false) {
+      for (const [ph, u] of Object.entries(el)) {
+        if (!isInternU(u) || isEtohU(u) || !u.branch || u.branch === '본사') continue;
+        const rid = 'bi_' + roomKey((u.brand || '') + '_' + u.branch);
+        want[rid] = want[rid] || { t: 'bi', n: u.branch + ' 인턴', m: {}, mute: {}, bt: u.brand || '', _br: u.branch, _bd: u.brand || '' };
+        want[rid].m[ph] = 1;
+      }
+      for (const w of Object.values(want)) if (w.t === 'bi') for (const [ph, u] of Object.entries(el)) if (!w.m[ph] && obsMgr(u) && u.branch === w._br && (u.brand || '') === w._bd) w.m[ph] = 1;
+    }
+    /* 팀방엔 경영팀을 넣지 않는다(사용자 결정 11/13) — 담당 디자이너 + 담당 인턴만. 이미 들어가 있던 경영팀은 다음 맞추기에서 빠진다 */
     /* 경영팀은 모든 지점방에 들어간다 (지점 상황을 같이 봐야 해서) */
-    for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br' || want[rid].t === 'notice') want[rid].m[ph] = 1;   // 지점방 · 브랜드별 공지방 모두
+    for (const [ph, u] of Object.entries(el)) if (isHqUser(ph, u)) for (const rid of Object.keys(want)) if (want[rid].t === 'br' || want[rid].t === 'notice' || want[rid].t === 'bi') want[rid].m[ph] = 1;   // 지점방 · 브랜드별 공지방 모두
     /* 브랜드 꼬리표(bt, 11/14 사용자 '고정 단톡방 앞에 브랜드') — 목록 이름 앞에 작게. 경영팀(본사)은 빼고 남은 사람들의 브랜드로 정한다:
        한 브랜드면 그 브랜드, 둘 이상이면 '공통'. 전체 공지는 '전 직원', 본사경영팀 · 업무 알림은 '본사' */
     for (const w of Object.values(want)) {
@@ -295,7 +306,7 @@ export function makeChat(deps) {
   }
 
   /* 경영팀 설정 › 자동 단톡방 (11/13) — 종류별 켜기 · 끄기 + 지금 있는 자동방 목록. /config/comm/autoRooms 는 서버만 쓴다 */
-  const AUTO_KEYS = ['bd', 'lv', 'tm', ...ALL_ROOMS.map((r) => 'all_' + r[0])];
+  const AUTO_KEYS = ['bd', 'lv', 'tm', 'bi', ...ALL_ROOMS.map((r) => 'all_' + r[0])];
   async function autoConfig(env, me, body) {
     const u = await meUser(env, me);
     if (!isHqUser(String(me.ph), u)) throw new Error('경영팀만 바꿀 수 있어요');
