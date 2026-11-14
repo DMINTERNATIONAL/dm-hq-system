@@ -55,6 +55,16 @@ const CONF_MSG_T = {
   ja: 'ご来店を心よりお待ちしております！遅れる場合やご予定が変わった場合は、事前にチャットでお知らせください。',
   ko: '방문을 기다릴게요! 늦으시거나 일정이 바뀌면 채팅으로 미리 알려 주세요.',
 };
+/* 손님이 자기 예약 찾기(11/14 사용자 '비회원도 홈페이지에서 바로 — 예약 비밀번호 6자리 이상 + 메일로 찾기도'
+   회원은 로그인만으로 마이 페이지). 비밀번호는 예약마다 PBKDF2(직원 · 회원과 같은 pwHash)로 따로 잠긴 곳에 둔다 — 목록 · 앱으로 안 나감 */
+const PW_BASE = '/authSecrets/__bookpw';
+const MID_RE = /^[ekg]_[A-Za-z0-9_-]{1,80}$/;
+const REMIND_T = {
+  en: { t: 'Your DAY:MEAN booking requests', b: 'Here are the booking requests made with this email. Tap a button to continue the chat consultation.', st: { new: 'Waiting for our reply', contacted: 'In consultation', confirmed: 'Confirmed', declined: 'Closed', canceled: 'Canceled' }, btn: 'Open chat' },
+  zh: { t: '您在 DAY:MEAN 的预约申请', b: '以下是使用此邮箱提交的预约申请。点击按钮即可继续在线咨询。', st: { new: '等待回复', contacted: '咨询中', confirmed: '已确认', declined: '已结束', canceled: '已取消' }, btn: '打开在线咨询' },
+  ja: { t: 'DAY:MEAN のご予約リクエスト', b: 'このメールアドレスで送信されたご予約リクエストです。ボタンからチャット相談を続けられます。', st: { new: '返信待ち', contacted: 'ご相談中', confirmed: '確定', declined: '終了', canceled: 'キャンセル' }, btn: 'チャットを開く' },
+  ko: { t: 'DAY:MEAN 예약 요청 내역', b: '이 메일로 보내신 예약 요청이에요. 버튼을 누르면 채팅 상담을 이어갈 수 있어요.', st: { new: '답변 기다리는 중', contacted: '상담 중', confirmed: '확정', declined: '종료', canceled: '취소' }, btn: '채팅 열기' },
+};
 const START_T = { en: ['Please start your consultation with the button below — your booking is confirmed in the chat.', 'Start chat consultation'], zh: ['请点击下方按钮开始在线咨询，预约将在咨询中确认。', '开始在线咨询'], ja: ['下のボタンからチャット相談を始めてください。ご予約は相談の中で確定します。', 'チャット相談を始める'], ko: ['아래 버튼으로 채팅 상담을 시작해 주세요. 예약은 상담에서 확정돼요.', '채팅 상담 시작하기'] };
 const chatBtn = (L, url, start) => { if (!url) return ''; const c = (start ? START_T : CHAT_T)[L] || (start ? START_T : CHAT_T).en; return `<p style="margin:18px 0 8px;font-size:14px">${esc(c[0])}</p><a href="${esc(url)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px">${esc(c[1])}</a>`; };
 const SLOT_T = { en: { any: 'any time', morning: 'morning', afternoon: 'afternoon', evening: 'evening' }, zh: { any: '任何时间', morning: '上午', afternoon: '下午', evening: '晚上' }, ja: { any: '何時でも', morning: '午前', afternoon: '午後', evening: '夕方' }, ko: { any: '아무 때', morning: '오전', afternoon: '오후', evening: '저녁' } };
@@ -83,7 +93,7 @@ async function chatUrl(env, id, L) {
 }
 
 export function makeBooking(deps) {
-  const { dbGet, dbPatch, dbPut, rlHit, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones } = deps;
+  const { dbGet, dbPatch, dbPut, rlHit, rlBlocked, ipKey, ipOf, sameStr, canManageStaff, sendMail, pushToPhones, pwHash, pwVerify, sha256hex } = deps;
   const siteOk = (request, env) => !!(env.SITE_KEY && sameStr(request.headers.get('X-Site-Key') || '', env.SITE_KEY));
   const rate = async (request, env, tag, max) => {
     const cip = String(request.headers.get('X-Client-IP') || '').slice(0, 64);
@@ -133,7 +143,67 @@ export function makeBooking(deps) {
     return '';
   }
 
+  const pubItem = async (env, id, v) => ({ id, k: await bkSig(env, id), status: v.status || 'new', branch: v.branch, designer: v.designer || '', prefs: v.prefs || [], gender: v.gender || '', services: v.svcL || v.service || '', conf: v.conf ? { d: v.conf.d, t: v.conf.t, branch: v.conf.branch, designer: v.conf.designer || '' } : null, createdAt: v.at || 0 });
+  const byEmail = async (env, email) => Object.entries((await dbGet(env, BASE).catch(() => null)) || {})
+    .filter(([id, v]) => v && ID_RE.test(id) && Date.now() - (v.up || v.at || 0) <= KEEP_MS && String(v.email || '').toLowerCase() === email)
+    .sort((x, y) => (y[1].at || 0) - (x[1].at || 0)).slice(0, 20);
+  const emailOf = (x) => { const e = String(x || '').trim().toLowerCase().slice(0, 120); return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) ? e : ''; };
+
   async function site(path, request, env, ctx) {
+    /* 비회원 내 예약 찾기 — 이메일 + 예약 비밀번호. 틀린 이메일 · 틀린 비번 같은 응답(404 nomatch). 같은 이메일 5번 틀리면 1시간 · IP 시간당 20번 */
+    if (path === '/public/booking/lookup' && request.method === 'POST') {
+      if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
+      if (!(await rate(request, env, 'bkl_', 20))) return [429, { ok: false, error: 'rate' }];
+      const q = await request.json().catch(() => ({}));
+      const email = emailOf(q.email), pw = typeof q.pw === 'string' ? q.pw.slice(0, 64) : '';
+      if (!email || pw.length < 6) return [404, { ok: false, error: 'nomatch' }];
+      const fk = 'bkf_' + (await sha256hex('bkmail:' + email)).slice(0, 24);
+      if (await rlBlocked(env, fk, 5, 60 * 60 * 1000)) return [429, { ok: false, error: 'locked' }];
+      const list = await byEmail(env, email);
+      const out = [];
+      for (const [id, v] of list.slice(0, 10)) { const h = await dbGet(env, `${PW_BASE}/${id}`).catch(() => null); if (h && (await pwVerify(h, pw))) out.push(await pubItem(env, id, v)); }
+      if (!list.length) await pwVerify({ hash: 'x', salt: 'AAAAAAAAAAAAAAAAAAAAAA==' }, pw).catch(() => false);   // 예약이 없어도 걸리는 시간을 비슷하게
+      if (!out.length) { await rlHit(env, fk, 5, 60 * 60 * 1000); return [404, { ok: false, error: 'nomatch' }]; }
+      return [200, { ok: true, bookings: out }];
+    }
+    /* 비밀번호를 잊은 손님 — 그 이메일로 예약 목록 + 각 채팅 링크 메일. 있든 없든 늘 같은 200. 같은 이메일 1시간 3번 · IP 시간당 10번 */
+    if (path === '/public/booking/remind' && request.method === 'POST') {
+      if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
+      if (!(await rate(request, env, 'bkm_', 10))) return [429, { ok: false, error: 'rate' }];
+      const q = await request.json().catch(() => ({}));
+      const email = emailOf(q.email);
+      if (!email) return [200, { ok: true }];
+      if (!(await rlHit(env, 'bkme_' + (await sha256hex('bkmail:' + email)).slice(0, 24), 3, 60 * 60 * 1000))) return [200, { ok: true }];
+      const job = (async () => {
+        const list = await byEmail(env, email);
+        if (!list.length) return;
+        const L = LANGS.includes(q.lang) ? q.lang : (list[0][1].lang || 'en'), t = T[L] || T.en, M = REMIND_T[L] || REMIND_T.en;
+        const blocks = [], text = [];
+        for (const [id, v] of list) {
+          const cu = await chatUrl(env, id, L);
+          const st = M.st[v.status] || M.st.new;
+          const when = v.conf ? `${v.conf.d} ${v.conf.t}` : (v.prefs || []).map((p) => prefTxt(p, L)).join(' · ');
+          const br = BRANCHES[(v.conf && v.conf.branch) || v.branch] || BRANCHES.any;
+          blocks.push(`<div style="border:1px solid #eee;border-radius:10px;padding:12px 14px;margin:0 0 10px"><div style="font-size:12px;color:#666">${esc(st)}</div><div style="font-weight:700;margin:2px 0">${esc('DAY:MEAN ' + (br[L] || br.en))} · ${esc(when)}</div>${v.svcL || v.service ? `<div style="font-size:13px;color:#444">${esc(v.svcL || v.service)}</div>` : ''}${cu ? `<a href="${esc(cu)}" style="display:inline-block;margin-top:8px;background:#111;color:#fff;text-decoration:none;font-weight:700;border-radius:8px;padding:8px 14px;font-size:13px">${esc(M.btn)}</a>` : ''}</div>`);
+          text.push(`- ${st} · ${when}${cu ? '\n  ' + cu : ''}`);
+        }
+        await sendMail(env, email, `DAY:MEAN — ${M.t}`, mailHtml(L, M.t, [M.b], [], blocks.join('')), `${M.b}\n\n${text.join('\n')}`);
+      })().catch((e) => console.log('booking remind', e && e.message));
+      if (ctx && ctx.waitUntil) ctx.waitUntil(job); else await job;
+      return [200, { ok: true }];
+    }
+    /* 회원 마이 페이지 — 사이트 서버가 로그인 세션에서 꺼낸 회원번호(mid)로만 부른다 */
+    if (path === '/public/booking/mine' && request.method === 'POST') {
+      if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
+      if (!(await rate(request, env, 'bkn_', 60))) return [429, { ok: false, error: 'rate' }];
+      const q = await request.json().catch(() => ({}));
+      const mid = String(q.mid || '');
+      if (!MID_RE.test(mid)) return [400, { ok: false, error: 'mid' }];
+      const all = (await dbGet(env, BASE).catch(() => null)) || {};
+      const list = Object.entries(all).filter(([id, v]) => v && ID_RE.test(id) && v.mid === mid && Date.now() - (v.up || v.at || 0) <= KEEP_MS).sort((x, y) => (y[1].at || 0) - (x[1].at || 0)).slice(0, 30);
+      const out = []; for (const [id, v] of list) out.push(await pubItem(env, id, v));
+      return [200, { ok: true, bookings: out }];
+    }
     if (path === '/public/booking/peek' && request.method === 'POST') {
       if (!siteOk(request, env)) return [403, { ok: false, error: 'site' }];
       if (!(await rate(request, env, 'bkp_', 30))) return [429, { ok: false, error: 'rate' }];
@@ -150,14 +220,20 @@ export function makeBooking(deps) {
     const b = await request.json().catch(() => ({}));
     if (b.hp) return [200, { ok: true }];   // 숨은 칸을 채운 로봇 — 저장하지 않고 '됐다'고만
     let r; try { r = clean(b); } catch (e) { return [400, { ok: false, error: e.message }]; }
+    // 예약 비밀번호(6~64자) — 회원(mid, 사이트 서버가 로그인 세션에서 붙임)이면 선택, 아니면 필수
+    const mid = MID_RE.test(String(b.mid || '')) ? String(b.mid) : '';
+    const pw = typeof b.pw === 'string' ? b.pw : '';
+    if (pw && (pw.length < 6 || pw.length > 64)) return [400, { ok: false, error: 'pw' }];
+    if (!pw && !mid) return [400, { ok: false, error: 'pw' }];
     const id = id36(), now = Date.now();
-    await dbPut(env, `${BASE}/${id}`, { ...r, status: 'new', at: now, up: now });
+    if (pw) await dbPut(env, `${PW_BASE}/${id}`, await pwHash(pw));
+    await dbPut(env, `${BASE}/${id}`, { ...r, ...(mid ? { mid } : {}), status: 'new', at: now, up: now });
     const jobs = [
       /* 접수 메일은 보내지 않는다(11/14 사용자 '예약 요청하면 한 번은 필요 없고, 우리가 답변할 때 요청 내용까지 한 번에') — 메일은 답변 · 확정 2번 */
       staffFor(env, r.branch).then((to) => to.length && pushToPhones(env, to, { title: '[해외 예약] 새 요청', body: `${r.name} · ${BRANCHES[r.branch].ko} · ${prefTxt(r.prefs[0], 'ko')}${r.prefs.length > 1 ? ` 외 ${r.prefs.length - 1}` : ''}`, url: './#booking', tag: 'book-' + id }, { urgency: 'high' })).catch((e) => console.log('booking push', e && e.message)),
     ];
     if (ctx && ctx.waitUntil) ctx.waitUntil(Promise.all(jobs)); else await Promise.all(jobs);
-    return [200, { ok: true, id }];
+    return [200, { ok: true, id, k: await bkSig(env, id) }];
   }
 
   async function route(path, request, env, me, json, origin) {
@@ -169,7 +245,7 @@ export function makeBooking(deps) {
       if (path === '/booking/list') {
         const all = (await dbGet(env, BASE).catch(() => null)) || {};
         const old = Object.entries(all).filter(([, v]) => v && Date.now() - (v.up || v.at || 0) > KEEP_MS).map(([k]) => k);
-        if (old.length) await dbPatch(env, '/', Object.fromEntries(old.map((k) => [`${BASE.slice(1)}/${k}`, null])));
+        if (old.length) await dbPatch(env, '/', Object.fromEntries(old.flatMap((k) => [[`${BASE.slice(1)}/${k}`, null], [`${PW_BASE.slice(1)}/${k}`, null]])));
         const items = Object.entries(all).filter(([k, v]) => v && !old.includes(k)).map(([id, v]) => ({ id, ...v })).sort((x, y) => (y.at || 0) - (x.at || 0));
         return json({ ok: true, items }, 200, origin);
       }
@@ -177,7 +253,7 @@ export function makeBooking(deps) {
       if (!ID_RE.test(id)) throw new Error('요청 정보가 올바르지 않습니다');
       const cur = await dbGet(env, `${BASE}/${id}`);
       if (!cur) throw new Error('없는 요청이에요');
-      if (path === '/booking/delete') { await dbPut(env, `${BASE}/${id}`, null); return json({ ok: true }, 200, origin); }
+      if (path === '/booking/delete') { await dbPut(env, `${BASE}/${id}`, null); await dbPut(env, `${PW_BASE}/${id}`, null).catch(() => {}); return json({ ok: true }, 200, origin); }
       if (path !== '/booking/update') return json({ ok: false, error: '없는 기능입니다' }, 404, origin);
       const u = await dbGet(env, '/users/' + encodeURIComponent(String(me.ph))).catch(() => null);
       const who = (u && (u.nick || u.name)) || '경영팀';
