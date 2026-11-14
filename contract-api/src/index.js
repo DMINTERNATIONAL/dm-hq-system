@@ -1032,6 +1032,8 @@ export default {
         for (const k of ['store','priceTable','setMenus','retailCats','membership','heroes','lookbook']) {
           if (sal[k] !== undefined) out[k] = sal[k];
         }
+        /* 룩북 묶음(11/14) — 본사 '룩북(브랜드 촬영)'에서 화보별로 묶은 순서 · 제목. id · t 만 글자로 */
+        if (Array.isArray(sal.lookbookCols)) out.lookbookCols = sal.lookbookCols.filter((c) => c && c.id).slice(0, 100).map((c) => ({ id: String(c.id).slice(0, 40), t: String(c.t || '').slice(0, 60) }));
         /* 점판 판매가(price)는 빼고 내보낸다 (11/12) — 매장 판매가가 정가보다 최대 36% 낮아, 공개 창구에 실리면
            공식 사이트 HTML · 검색엔진에 그대로 남아 살롱 전용 브랜드 가격 정책과 부딪힌다. 정가(regular)는 둔다.
            판매가는 매장 QR 손님에게만 /public/retail-prices?d= 로 준다. */
